@@ -11,6 +11,7 @@
   const eq = (a, b, msg) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error((msg ? msg + ': ' : '') + 'expected ' + y + ', got ' + x); };
   // rope([x,y], [x,y], ...) from tail to head
   const rope = (...cells) => cells.map(([x, y]) => ({ x, y }));
+  const sum = a => a.reduce((x, y) => x + y, 0);
 
   // An independent way to get block costs: actually play the level. Each round, every rope
   // with a clear path leaves at once; a rope's cost is the round it leaves in.
@@ -82,6 +83,7 @@
     }
     eq(last, 0);
   });
+
   // ---------- bends ----------
   test('bends are counted per rope: straight 0, an L 1, a Z or U 2', () => {
     eq(L.bendsOf(rope([0, 0], [1, 0])), 0);
@@ -109,7 +111,6 @@
     eq(L.difficulty(straight, 5, 3), 3);
     eq(L.difficulty(bendy, 5, 3), 5);
   });
-
   test('analysing a board is linear in its size: 4x the ropes on a 16x larger board costs about 16x, where re-scanning every round would cost 64x', () => {
     // long chains are the worst case for a naive solver that re-scans every rope each round
     const time = n => { const r = chain(n), S = 2 * n + 2; let best = 1e9; for (let i = 0; i < 5; i++) { const t = performance.now(); L.analyse(r, S, S); best = Math.min(best, performance.now() - t); } return best; };
@@ -119,18 +120,20 @@
     ok(big < Math.max(small, 0.05) * 40, '200 ropes took ' + small.toFixed(2) + ' ms, 800 ropes took ' + big.toFixed(2) + ' ms');
   });
 
-  // ---------- single level generation ----------
-  const sampleBuilds = [];
+  // ---------- building one level (backwards, then turning ropes) ----------
+  // 300 boards across every setting, slot and rope style, with and without bigger boards.
+  const boards = [];
   {
     const rng = L.mulberry32(12345);
-    for (let i = 0; i < 300; i++) {
-      const W = 4 + Math.floor(rng() * 13), st = L.STYLES[i % 3]; // every width up to 16 and every rope style
-      const cfg = { W, H: L.heightFor(W), maxLen: st.lenLo + Math.floor(rng() * 4), fill: 0.5 + rng() * 0.47, straight: st.straight, minLen: st.minLen };
-      sampleBuilds.push(Object.assign(L.build(L.mulberry32(Math.floor(rng() * 4294967296)), cfg), { cfg }));
+    for (let i = 0; boards.length < 300 && i < 3000; i++) {
+      const mode = L.PLAYER_MODES[i % 4], r = L.MODES[mode].range, lo = r[0] + Math.floor(rng() * (r[1] - r[0] - 3)), hi = lo + 3.4;
+      const cfg = L.plan(rng, mode, lo, hi, i % 5 === 0, i), b = L.construct(L.mulberry32(cfg.seed), cfg);
+      if (b) boards.push(Object.assign(b, { cfg }));
     }
   }
-  test('300 random levels: ropes are well formed and never overlap', () => {
-    for (const b of sampleBuilds) {
+  test('300 built boards were produced', () => { eq(boards.length, 300); });
+  test('300 built boards: ropes are well formed and never overlap', () => {
+    for (const b of boards) {
       const seen = new Set();
       for (const p of b.ropes) {
         ok(p.length >= b.cfg.minLen, 'rope shorter than the minimum');
@@ -143,35 +146,49 @@
       }
     }
   });
-  test('300 random levels: every one is solvable', () => {
-    for (const b of sampleBuilds) ok(L.blockCosts(b.ropes, b.W, b.H) !== null && costsByPlaying(b.ropes, b.W, b.H) !== null);
+  test('300 built boards: every one is solvable, with nothing needing to be untangled', () => {
+    for (const b of boards) ok(L.blockCosts(b.ropes, b.W, b.H) !== null && costsByPlaying(b.ropes, b.W, b.H) !== null);
   });
-  test('300 random levels: block cost matches actually playing the level', () => {
-    for (const b of sampleBuilds) { const c = costsByPlaying(b.ropes, b.W, b.H); eq(L.blockCosts(b.ropes, b.W, b.H), c); eq(b.costs, c); }
+  test('300 built boards: the block costs the builder tracked as it went match actually playing the level', () => {
+    for (const b of boards) { const c = costsByPlaying(b.ropes, b.W, b.H); eq(L.blockCosts(b.ropes, b.W, b.H), c); eq(b.costs, c); }
   });
-  test('300 random levels: difficulty is block cost plus bends over every rope, never rises as free ropes leave, and ends at 0', () => {
-    let zero = 0;
-    for (const b of sampleBuilds) {
+  test('300 built boards: the score never goes over the top of the slot it was built for', () => {
+    let inSlot = 0;
+    for (const b of boards) {
+      const s = L.difficulty(b.ropes, b.W, b.H), top = Math.ceil(b.cfg.hi) - 1;
+      ok(s <= top, 'built for a slot topping out at ' + top + ' but scored ' + s);
+      if (s >= Math.ceil(b.cfg.lo)) inSlot++;
+    }
+    window.__aim = { landedInSlot: inSlot + '/300' };
+    ok(inSlot >= 60, 'only ' + inSlot + ' of 300 boards landed in the slot they were built for'); // the rest fall short, and can still fill an easier slot
+  });
+  test('300 built boards: trimmed to their ropes, and never wider than tall', () => {
+    for (const b of boards) {
+      const xs = b.ropes.flat().map(c => c.x), ys = b.ropes.flat().map(c => c.y);
+      eq([Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)], [0, b.W - 1, 0, b.H - 1], 'an empty outer row or column was left on');
+      ok(b.H >= b.W, 'a ' + b.W + 'x' + b.H + ' board is wider than tall');
+      ok(b.W <= b.cfg.H && b.H <= b.cfg.H, 'a board grew beyond the one it was built on');
+    }
+  });
+  test('300 built boards: difficulty is block cost plus bends over every rope, never rises as free ropes leave, and ends at 0', () => {
+    for (const b of boards) {
       const costs = costsByPlaying(b.ropes, b.W, b.H);
       let want = 0; b.ropes.forEach((p, i) => { want += costs[i] + bends(p); });
       eq(L.difficulty(b.ropes, b.W, b.H), want);
       eq(L.nothingBlocked(b.ropes, b.W, b.H), costs.every(c => c === 0));
-      eq(want === 0, costs.every(c => c === 0) && b.ropes.every(p => bends(p) === 0));
-      // play it out: the score never rises as free ropes leave, and ends at 0
       let ropes = b.ropes, last = want;
       for (let guard = 0; ropes.length && guard < 500; guard++) {
         const c = L.blockCosts(ropes, b.W, b.H); ropes = ropes.filter((_, i) => i !== c.indexOf(0));
         const now = ropes.length ? L.difficulty(ropes, b.W, b.H) : 0;
         ok(now <= last, 'removing a free rope raised the score from ' + last + ' to ' + now); last = now;
       }
-      eq(last, 0); if (!want) zero++;
+      eq(last, 0);
     }
-    window.__zeroBoards = zero;
   });
-  test('the same seed and settings always build the same level', () => {
-    const cfg = { W: 7, H: 9, maxLen: 5, fill: 0.8, straight: 0.5, minLen: 2 };
-    eq(L.build(L.mulberry32(99), cfg), L.build(L.mulberry32(99), cfg));
-    ok(JSON.stringify(L.build(L.mulberry32(99), cfg)) !== JSON.stringify(L.build(L.mulberry32(100), cfg)), 'different seeds gave the same level');
+  test('the same plan and seed always build the same level', () => {
+    const b = boards[7], again = L.construct(L.mulberry32(b.cfg.seed), b.cfg);
+    eq([again.W, again.H, again.ropes, again.costs], [b.W, b.H, b.ropes, b.costs]);
+    ok(JSON.stringify(L.construct(L.mulberry32(b.cfg.seed + 1), b.cfg) || {}) !== JSON.stringify({ W: b.W, H: b.H, ropes: b.ropes, costs: b.costs }), 'a different seed gave the same level');
   });
 
   // ---------- level sets: every setting fills its difficulty range ----------
@@ -205,7 +222,7 @@
     const d = getSet('ALPHA', 'X', 10).levels.map(l => l.difficulty);
     ok(d[0] <= 110 && d[9] >= 190, 'a 10-level Extreme set should start within 100-110 and end within 190-200, got ' + d[0] + ' and ' + d[9]);
   });
-  test('each level rebuilds from its descriptor with the stated difficulty and rope count', () => {
+  test('each level rebuilds from its descriptor with the stated size, difficulty and rope count', () => {
     for (const k in sets) for (const lv of sets[k].levels) {
       const b = L.levelFrom(lv);
       eq([b.W, b.H, b.ropes.length, L.difficulty(b.ropes, b.W, b.H)], [lv.W, lv.H, lv.ropes, lv.difficulty], k);
@@ -217,71 +234,44 @@
     ok(JSON.stringify(getSet('ALPHA', 'X', 20, true).levels) !== JSON.stringify(getSet('ALPHA', 'X', 20, false).levels), 'bigger boards should give a different set');
   });
   test('the work is bounded: never more than 60 builds per level asked for', () => {
-    let worst = '';
-    for (const k in sets) { ok(sets[k].builds <= sets[k].count * 60, k + ' took ' + sets[k].builds + ' builds'); if (!worst || sets[k].ms > sets[worst].ms) worst = k; }
-    window.__sets = { count: Object.keys(sets).length, totalMs: Math.round(setMs), slowest: worst + ' ' + Math.round(sets[worst].ms) + ' ms, ' + sets[worst].builds + ' builds' };
+    let worst = '', builds = 0;
+    for (const k in sets) { ok(sets[k].builds <= sets[k].count * 60, k + ' took ' + sets[k].builds + ' builds'); builds += sets[k].builds; if (!worst || sets[k].ms > sets[worst].ms) worst = k; }
+    window.__sets = { count: Object.keys(sets).length, totalMs: Math.round(setMs), totalBuilds: builds, slowest: worst + ' ' + Math.round(sets[worst].ms) + ' ms, ' + sets[worst].builds + ' builds' };
     ok(sets[worst].ms < 3000, 'slowest set: ' + window.__sets.slowest);
   });
-  test('harder settings mean harder levels and bigger boards', () => {
-    const mean = (s, f) => s.levels.reduce((a, l) => a + f(l), 0) / s.levels.length;
+  test('harder settings mean harder levels with more ropes', () => {
+    const mean = (s, f) => sum(s.levels.map(f)) / s.levels.length;
     for (const seed of SEEDS) for (const count of L.COUNTS) {
-      const d = L.PLAYER_MODES.map(m => mean(getSet(seed, m, count), l => l.difficulty)), a = L.PLAYER_MODES.map(m => mean(getSet(seed, m, count), l => l.W * l.H));
+      const d = L.PLAYER_MODES.map(m => mean(getSet(seed, m, count), l => l.difficulty)), r = L.PLAYER_MODES.map(m => mean(getSet(seed, m, count), l => l.ropes));
       ok(d[0] < d[1] && d[1] < d[2] && d[2] < d[3], seed + ' ' + count + ' difficulty: ' + d.map(Math.round));
-      ok(a[0] < a[1] && a[1] < a[2] && a[2] < a[3], seed + ' ' + count + ' board cells: ' + a.map(Math.round));
+      ok(r[0] < r[1] && r[1] < r[2] && r[2] < r[3], seed + ' ' + count + ' ropes per level: ' + r.map(x => x.toFixed(1)));
     }
   });
 
   // ---------- depth: minimum average block cost per rope ----------
-  const avgCostOf = lv => { const b = L.levelFrom(lv), c = L.blockCosts(b.ropes, b.W, b.H); return c.reduce((x, y) => x + y, 0) / c.length; };
-  test('the minimum average block cost per rope is Easy none, Normal 2, Hard 3, Extreme 4', () => {
-    eq(L.PLAYER_MODES.map(m => L.MODES[m].minAvgCost(L.MODES[m].range[0])), [0, 2, 3, 4]);
-    eq([5, 19, 20, 59, 60, 99, 100, 200].map(d => L.MODES.C.minAvgCost(d)), [0, 0, 2, 2, 3, 3, 4, 4]); // the built-in set steps up with difficulty
+  const avgCostOf = lv => { const b = L.levelFrom(lv), c = L.blockCosts(b.ropes, b.W, b.H); return sum(c) / c.length; };
+  test('the depth floor rises with difficulty: 1.5 from 10, 2.5 from 20, 3 from 40, 4 from 60, 5 from 100, 5.5 from 150', () => {
+    eq([0, 9, 10, 19, 20, 39, 40, 59, 60, 99, 100, 149, 150, 200].map(L.floorFor), [0, 0, 1.5, 1.5, 2.5, 2.5, 3, 3, 4, 4, 5, 5, 5.5, 5.5]);
+    for (const m in L.MODES) eq(L.MODES[m].minAvgCost(120), 5, m); // one rule for every setting
   });
-  test('every level meets its setting\'s minimum average block cost per rope', () => {
+  test('every level meets the minimum average block cost per rope for its difficulty', () => {
     const seen = { E: [], N: [], H: [], X: [] };
     for (const k in sets) for (const lv of sets[k].levels) {
-      const avg = avgCostOf(lv), need = L.MODES[sets[k].mode].minAvgCost(lv.difficulty);
+      const avg = avgCostOf(lv), need = L.floorFor(lv.difficulty);
       ok(Math.abs(avg - lv.avgCost) < 1e-9, k + ': stored average ' + lv.avgCost + ' but rebuilt level has ' + avg);
-      ok(avg >= need, k + ' has a level averaging ' + avg.toFixed(2) + ' per rope, below the minimum of ' + need);
+      ok(avg >= need, k + ' has a level of difficulty ' + lv.difficulty + ' averaging ' + avg.toFixed(2) + ' per rope, below the minimum of ' + need);
       seen[sets[k].mode].push(avg);
     }
-    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const mean = a => sum(a) / a.length;
     window.__depth = { avgCost: L.PLAYER_MODES.map(m => +mean(seen[m]).toFixed(2)), lowest: L.PLAYER_MODES.map(m => +Math.min(...seen[m]).toFixed(2)) };
     ok(mean(seen.E) < mean(seen.N) && mean(seen.N) < mean(seen.H) && mean(seen.H) < mean(seen.X), 'average cost per rope by setting: ' + window.__depth.avgCost);
   });
-  test('deepening turns a rope around when that makes it wait on another, and leaves the board solvable', () => {
-    const A = rope([1, 0], [0, 0]);  // heads left off the board: free. Turned round it would run into B.
-    const B = rope([3, 0], [3, 1]);  // heads down off the board: free
-    eq(L.blockCosts([A, B], 5, 3), [0, 0]);
-    const ropes = [A, B];
-    eq(L.deepen(ropes, 5, 3, L.mulberry32(1), 0.5), [1, 0]);
-    eq(ropes[0], rope([0, 0], [1, 0]));  // A now points right, at B
-    eq(ropes[1], B);                     // B was left alone: turning it gains nothing
-    eq(L.blockCosts(ropes, 5, 3), [1, 0]);
-  });
-  test('deepening never lowers the total, never breaks solvability, and stops once the target average is met', () => {
-    let raised = 0;
-    sampleBuilds.forEach((b, i) => {
-      const ropes = b.ropes.map(p => p.slice()), before = b.costs.reduce((x, y) => x + y, 0), want = 1.5 + (i % 4);
-      const costs = L.deepen(ropes, b.W, b.H, L.mulberry32(i), want), after = costs.reduce((x, y) => x + y, 0);
-      eq(costsByPlaying(ropes, b.W, b.H), costs, 'board ' + i);            // still solvable, and the costs it reports are right
-      ok(after >= before, 'board ' + i + ' went from ' + before + ' to ' + after);
-      eq(ropes.map(p => p.length), b.ropes.map(p => p.length));            // ropes are only turned round, never moved or reshaped
-      if (before >= want * ropes.length) eq(after, before, 'board ' + i + ' was already deep enough and should be untouched');
-      if (after > before) raised++;
-    });
-    ok(raised > 100, 'only ' + raised + ' of 300 boards were deepened');
-  });
-  test('the built-in levels take on each setting\'s minimum as they reach its range', () => {
-    const c = L.generateSet(L.CAMPAIGN);
-    for (const lv of c.levels) { const avg = avgCostOf(lv); ok(avg >= L.MODES.C.minAvgCost(lv.difficulty), 'a built-in level of difficulty ' + lv.difficulty + ' averages only ' + avg.toFixed(2)); }
-  });
 
   // ---------- board sizes ----------
-  test('ordinary sets stay within 12x16; bigger-boards sets may go up to 16x22', () => {
+  test('ordinary sets stay within 12x16; bigger-boards sets may go up to 16x22; none is wider than tall', () => {
     let biggest = 0;
     for (const k in sets) for (const lv of sets[k].levels) {
-      eq(lv.H, L.heightFor(lv.W));
+      ok(lv.H >= lv.W, k + ' has a ' + lv.W + 'x' + lv.H + ' board');
       if (sets[k].big) { ok(lv.W <= 16 && lv.H <= 22, k + ' has a ' + lv.W + 'x' + lv.H + ' board'); biggest = Math.max(biggest, lv.W); }
       else ok(lv.W <= 12 && lv.H <= 16, k + ' has a ' + lv.W + 'x' + lv.H + ' board');
     }
@@ -289,25 +279,25 @@
   });
 
   // ---------- rope styles ----------
-  test('rope style is random per board: every style turns up, and twisty boards have longer ropes with more bends', () => {
-    const stat = { short: [0, 0, 0, 0], medium: [0, 0, 0, 0], twisty: [0, 0, 0, 0] }; // boards, ropes, cells, bends
+  test('rope style is random per level: every style turns up, and twisty levels have longer ropes with more bends', () => {
+    const stat = { short: [0, 0, 0, 0], medium: [0, 0, 0, 0], twisty: [0, 0, 0, 0] }; // levels, ropes, cells, bends
     for (const k in sets) for (const lv of sets[k].levels) {
       const st = stat[lv.style]; st[0]++;
-      if (lv.W < L.TWISTY_W) { ok(lv.style !== 'twisty', k + ' has a twisty ' + lv.W + ' wide board'); continue; }
+      ok(lv.style !== 'twisty' || lv.boardW >= L.TWISTY_W, k + ' built a twisty level on a ' + lv.boardW + ' wide board');
       for (const p of L.levelFrom(lv).ropes) { st[1]++; st[2] += p.length; st[3] += bends(p); }
     }
     const len = s => stat[s][2] / stat[s][1], bnd = s => stat[s][3] / stat[s][1];
-    window.__styles = { boards: [stat.short[0], stat.medium[0], stat.twisty[0]], avgLength: ['short', 'medium', 'twisty'].map(s => +len(s).toFixed(1)), avgBends: ['short', 'medium', 'twisty'].map(s => +bnd(s).toFixed(1)) };
-    ok(stat.short[0] > 20 && stat.medium[0] > 20 && stat.twisty[0] > 20, 'boards per style: ' + window.__styles.boards);
+    window.__styles = { levels: [stat.short[0], stat.medium[0], stat.twisty[0]], avgLength: ['short', 'medium', 'twisty'].map(s => +len(s).toFixed(1)), avgBends: ['short', 'medium', 'twisty'].map(s => +bnd(s).toFixed(1)) };
+    ok(stat.short[0] > 20 && stat.medium[0] > 20 && stat.twisty[0] > 20, 'levels per style: ' + window.__styles.levels);
     ok(len('twisty') > len('medium') && len('medium') > len('short'), 'average rope lengths ' + window.__styles.avgLength);
     ok(bnd('twisty') > bnd('short') * 2, 'average bends ' + window.__styles.avgBends);
   });
-  test('Easy and Normal sets mix styles within a single set', () => {
-    for (const seed of SEEDS) for (const mode of 'EN') { const kinds = new Set(getSet(seed, mode, 30).levels.map(l => l.style)); ok(kinds.size >= 2, mode + '30-' + seed + ' is all ' + [...kinds]); }
+  test('sets mix styles within a single set', () => {
+    for (const seed of SEEDS) for (const mode of L.PLAYER_MODES) { const kinds = new Set(getSet(seed, mode, 30).levels.map(l => l.style)); ok(kinds.size >= 2, mode + '30-' + seed + ' is all ' + [...kinds]); }
   });
 
   // ---------- board quality ----------
-  test('no level is a big board of ropes that mostly do not block each other', () => {
+  test('no level is a half-empty board, or a big board of ropes that mostly do not block each other', () => {
     for (const k in sets) for (const lv of sets[k].levels) {
       const b = L.levelFrom(lv), q = L.quality(b.ropes, b.W, b.H);
       ok(b.ropes.length >= L.MIN_ROPES, k + ': too few ropes');
@@ -357,14 +347,17 @@
     ok(lv[9].difficulty <= 20, 'level 10 has difficulty ' + lv[9].difficulty);       // a sixth of the way through, a tenth of the way up
     ok(lv[29].difficulty <= 80, 'level 30 has difficulty ' + lv[29].difficulty);      // halfway through, well under halfway up
     ok(lv[59].difficulty >= 195, 'level 60 has difficulty ' + lv[59].difficulty);
-    for (const l of lv) ok(l.W <= 12, 'a built-in level uses a ' + l.W + ' wide board');
+    for (const l of lv) ok(l.W <= 12 && l.H <= 16, 'a built-in level uses a ' + l.W + 'x' + l.H + ' board');
+  });
+  test('the built-in levels meet the depth floor for their difficulty', () => {
+    for (const lv of campaign.levels) { const avg = avgCostOf(lv); ok(avg >= L.floorFor(lv.difficulty), 'a built-in level of difficulty ' + lv.difficulty + ' averages only ' + avg.toFixed(2)); }
   });
   test('generating the built-in set takes under 3 seconds', () => { ok(campaignMs < 3000, Math.round(campaignMs) + ' ms'); });
 
   // ---------- report ----------
   const failed = results.filter(r => !r.ok);
   window.__tests = { total: results.length, passed: results.length - failed.length, failed: failed.map(r => r.name + ' — ' + r.error), campaignMs: Math.round(campaignMs),
-    campaign: campaign && campaign.levels.map(l => [l.W + 'x' + l.H, l.ropes, l.difficulty, l.style]) };
+    campaign: campaign && campaign.levels.map(l => [l.W + 'x' + l.H, l.ropes, l.difficulty, l.style, +l.avgCost.toFixed(1)]) };
   document.title = (failed.length ? 'FAIL ' : 'PASS ') + window.__tests.passed + '/' + results.length;
   const out = document.getElementById('out');
   out.innerHTML = '<h1 class="' + (failed.length ? 'bad' : 'good') + '">' + document.title + '</h1>' +

@@ -120,131 +120,286 @@ const MFLevels = (() => {
   }
 
   // ---------- building one level ----------
-  // cfg: { W, H, maxLen, fill, straight, minLen, across }. Fills the board with random ropes, then untangles any
-  // deadlock so the result is always solvable.
-  function build(rng, cfg) {
-    const { W, H } = cfg, occ = new Int16Array(W * H).fill(-1), ns = [];
-    const straight = cfg.straight == null ? 0.5 : cfg.straight; // chance a growing rope carries straight on rather than turning
-    const minLen = Math.max(2, cfg.minLen | 0);                  // ropes that get boxed in shorter than this are discarded
-    const across = cfg.across || 0;                              // chance a rope points the long way across the board
-    const reach = path => { const h = path[path.length - 1], d = headDir(path); return d[0] > 0 ? W - 1 - h.x : d[0] < 0 ? h.x : d[1] > 0 ? H - 1 - h.y : h.y; }; // cells between its head and the edge
-    const cells = [...Array(W * H).keys()];
-    for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-    let filled = 0;
-    for (const c of cells) {
-      if (filled >= cfg.fill * W * H) break;
-      if (occ[c] !== -1) continue;
-      const want = 2 + Math.floor(rng() * (cfg.maxLen - 1)), id = ns.length, path = [{ x: c % W, y: c / W | 0 }];
-      occ[c] = id;
+  // Levels are built backwards. Ropes are added one at a time, in the reverse of the order they
+  // will be pulled out, under a single rule:
+  //
+  //     a new rope's own way out must be clear of every rope already on the board.
+  //
+  // A new rope therefore never waits on an older one, so every "waits for" link runs from an
+  // older rope to a newer one and a loop is impossible: the board is solvable by construction,
+  // with nothing to untangle afterwards. A new rope may, however, be laid across the way out of
+  // older ropes, and that is how depth is made on purpose: lay it across the path of a rope at
+  // the bottom of a long chain and every rope up that chain gets one deeper.
+  //
+  // Stage one lays ropes. Each rope's effect on the score is known before it is placed, so the
+  // builder steers: it paces the score to arrive in the slot [lo, hi) about when the board is as
+  // full as planned, keeps the average block cost per rope up near `wantAvg`, never adds more
+  // than the slot allows, and never adds a rope the depth floor could not afford.
+  //
+  // Stage two runs only if the board filled up short of its slot: it turns ropes around, keeping
+  // a turn when the board stays solvable and the total block cost rises without overshooting.
+  //
+  // Finally the empty outer rows and columns are trimmed off.
+  //
+  // cfg: { W, H, lenLo, lenHi, straight, minLen, lo, hi, wantAvg, floor, cover, bends }
+  // Returns { W, H, ropes, costs }, with a score no higher than the slot's top but possibly
+  // below its bottom (the caller decides what to do with it), or null if the board is no good.
+  //
+  // Cost, with R ropes. Stage one looks at up to 6 placements per rope; trying one walks a rope
+  // (its length), a few ways out (a board side each) and the ropes whose cost it would raise
+  // (at most R): O(R * (R + max(W, H))). Stage two makes at most 4R tries, each one topological
+  // sort over lists worked out once: O(R * (R + links)). Both are a few thousand simple steps.
+  const TRIES_PER_STEP = 6, MAX_STUCK = 4;
+  function construct(rng, cfg) {
+    const W = cfg.W, H = cfg.H, N = W * H;
+    const occ = new Int16Array(N).fill(-1);
+    const lanes = new Array(N);  // lanes[cell]: the ropes whose way out passes through this cell
+    // waiters[i]: ropes waiting on rope i. up[i]: length of the longest chain above it. laneFree[i]: empty cells left on its way out.
+    const paths = [], laneCells = [], laneFree = [], waiters = [], up = [];
+    let cost = [], costSum = 0, bendSum = 0, covered = 0;
+    const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
+    const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
+    const xy = c => ({ x: c % W, y: c / W | 0 });
+
+    // A random walk through empty cells starting at `start`, optionally with its first step
+    // forced in direction `first`. `straight` is the chance each step carries straight on.
+    const grow = (start, first, straight) => {
+      const want = cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1)), cells = [start];
       let last = -1;
-      while (path.length < want) {
-        const h = path[path.length - 1], opts = [];
+      occ[start] = -2;
+      while (cells.length < want) {
+        const c = cells[cells.length - 1], x = c % W, y = c / W | 0, opts = [];
         for (let d = 0; d < 4; d++) {
-          const nx = h.x + DIRS[d][0], ny = h.y + DIRS[d][1];
+          const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
           if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) opts.push(d);
         }
-        if (!opts.length) break;
-        const d = last >= 0 && opts.includes(last) && rng() < straight ? last : opts[Math.floor(rng() * opts.length)];
+        if (!opts.length || (cells.length === 1 && first >= 0 && !opts.includes(first))) break;
+        const d = cells.length === 1 && first >= 0 ? first : last >= 0 && opts.includes(last) && rng() < straight ? last : opts[Math.floor(rng() * opts.length)];
         last = d;
-        const np = { x: h.x + DIRS[d][0], y: h.y + DIRS[d][1] };
-        path.push(np); occ[np.y * W + np.x] = id;
+        const nc = (y + DIRS[d][1]) * W + x + DIRS[d][0];
+        cells.push(nc); occ[nc] = -2;
       }
-      const drop = () => { for (const p of path) occ[p.y * W + p.x] = -1; };
-      if (path.length < minLen) { drop(); continue; }
-      const rev = path.slice().reverse(), okA = !selfBlocked(path), okB = !selfBlocked(rev);
-      if (!okA && !okB) { drop(); continue; }
-      // Which way should it point? With chance `across` it takes the end with the longer way out
-      // of the board, which puts more ropes in its path and makes for deeper chains. Otherwise
-      // (and on a tie) it is a coin flip.
-      let useRev = okB;
-      if (okA && okB) { const coin = rng() < 0.5, a = reach(path), b = reach(rev); useRev = rng() < across && a !== b ? b > a : coin; }
-      ns.push({ path: useRev ? rev : path, flipped: false, dead: false });
-      filled += path.length;
-    }
-    // Untangle deadlocks. Each pass analyses the board and, if there is a knot, turns around
-    // about a third of the knot's ropes that have not been turned yet (turning costs nothing,
-    // so several go at once). Only when none are left to turn is a rope dropped, one per pass,
-    // so the board keeps as many ropes as it can. Each rope is turned at most once and dropped
-    // at most once: at most 2R passes of a linear analyse(), O(R * (W*H + R * max(W, H))) worst case.
-    let live = ns, a;
-    for (;;) {
-      a = analyse(live.map(n => n.path), W, H);
-      if (!a.stuck.length) break;
-      const fresh = a.knot.filter(i => !live[i].flipped);
-      let turned = 0;
-      for (let k = Math.ceil(fresh.length / 3); k > 0; k--) {
-        const n = live[fresh.splice(Math.floor(rng() * fresh.length), 1)[0]], rev = n.path.slice().reverse();
-        n.flipped = true; // tried, whether or not it could turn
-        if (!selfBlocked(rev)) { n.path = rev; turned++; }
+      for (const c of cells) occ[c] = -1;
+      return cells;
+    };
+    // The cells from (x, y) to the edge in direction d, not counting (x, y) itself; null if a rope is standing in them.
+    const wayOut = (x, y, d) => {
+      const out = [];
+      for (x += d[0], y += d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) {
+        if (occ[y * W + x] !== -1) return null;
+        out.push(y * W + x);
       }
-      if (!turned) { const n = live[a.knot[Math.floor(rng() * a.knot.length)]]; live = live.filter(m => m !== n); }
-    }
-    const ropes = live.map(n => n.path);
-    return { W, H, ropes, costs: cfg.deepen > 0 ? deepen(ropes, W, H, rng, cfg.deepen) : a.cost };
-  }
-  // Make a solvable board deeper. Turn ropes around one at a time, in random order, keeping a
-  // turn only if the board is still solvable and its total block cost went up. Stops as soon as
-  // the average block cost per rope reaches `wantAvg`, or when a whole sweep changes nothing
-  // (three sweeps at most). This is what turns a crowd of ropes pointing straight out into
-  // ropes that wait on each other. Each trial is one linear analyse(), so a board costs at most
-  // 3R of them: the same order of work as untangling it. Returns the final block costs.
-  function deepen(ropes, W, H, rng, wantAvg) {
-    const n = ropes.length, goal = wantAvg * n;
-    let cost = analyse(ropes, W, H).cost, sum = total(cost);
-    for (let sweep = 0; sweep < 3 && sum < goal; sweep++) {
-      const order = ropes.map((_, i) => i);
-      for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-      let improved = false;
-      for (const i of order) {
-        if (sum >= goal) break;
-        const keep = ropes[i], rev = keep.slice().reverse();
-        if (selfBlocked(rev)) continue;
-        ropes[i] = rev;
-        const a = analyse(ropes, W, H), s = a.stuck.length ? -1 : total(a.cost);
-        if (s > sum) { sum = s; cost = a.cost; improved = true; } else ropes[i] = keep;
+      return out;
+    };
+    // Pick an existing rope to lay the next one across. 'deep' favours ropes at the bottom of
+    // long chains, 'leaf' is any rope nothing is blocking yet, 'inner' is any rope already blocked.
+    const pickParent = kind => {
+      let sum = 0;
+      const w = paths.map((_, i) => { // only ropes that still have room on their way out for another to be laid across it
+        const v = !laneFree[i] ? 0 : kind === 'inner' ? (cost[i] > 0 ? 1 : 0) : cost[i] > 0 ? 0 : kind === 'deep' ? (up[i] + 1) * (up[i] + 1) : 1;
+        sum += v; return v;
+      });
+      if (!sum) return -1;
+      let r = rng() * sum;
+      for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; }
+      return w.length - 1;
+    };
+    // Shape a rope that includes `start`. Usually head-first: point the head from `start` along a
+    // clear way out (longer ways favoured, since they leave room to extend the chain) and lay the
+    // body out behind it. Otherwise walk a body through `start` and use whichever end can get out.
+    const shape = (start, straight) => {
+      const s = xy(start);
+      if (rng() < 0.75) {
+        const opts = []; let sum = 0;
+        for (let d = 0; d < 4; d++) {
+          const bx = s.x - DIRS[d][0], by = s.y - DIRS[d][1]; // the body's first cell sits behind the head
+          if (bx < 0 || by < 0 || bx >= W || by >= H || occ[by * W + bx] !== -1) continue;
+          const out = wayOut(s.x, s.y, DIRS[d]);
+          if (out) { opts.push({ d, out, w: out.length + 1 }); sum += out.length + 1; }
+        }
+        if (opts.length) {
+          let r = rng() * sum, o = opts[opts.length - 1];
+          for (const cand of opts) { r -= cand.w; if (r < 0) { o = cand; break; } }
+          const cells = grow(start, (o.d + 2) % 4, straight), path = cells.map(xy).reverse();
+          if (cells.length >= cfg.minLen && !selfBlocked(path)) return { cells, path, out: o.out };
+        }
       }
-      if (!improved) break;
+      const cells = grow(start, -1, straight);
+      if (cells.length < cfg.minLen) return null;
+      const a = cells.map(xy), b = a.slice().reverse(), ok = [];
+      for (const p of [a, b]) if (!selfBlocked(p)) { const h = p[p.length - 1], out = wayOut(h.x, h.y, headDir(p)); if (out) ok.push({ cells, path: p, out }); }
+      if (!ok.length) return null;
+      return ok.length === 2 && (ok[1].out.length > ok[0].out.length || (ok[1].out.length === ok[0].out.length && rng() < 0.5)) ? ok[1] : ok[0];
+    };
+    // One possible next rope, with what it would do to the score. Null if it does not fit.
+    // 'plain' is a straight rope anywhere: the only kind that can add nothing to the score.
+    const candidate = kind => {
+      let start = -1;
+      const parent = kind === 'any' || kind === 'plain' ? -1 : pickParent(kind);
+      if (parent >= 0) { const free = laneCells[parent].filter(c => occ[c] === -1); if (free.length) start = free[Math.floor(rng() * free.length)]; }
+      for (let t = 0; start < 0 && t < 6; t++) { const c = Math.floor(rng() * N); if (occ[c] === -1) start = c; }
+      if (start < 0) return null;
+      const c = shape(start, kind === 'plain' ? 1 : cfg.straight);
+      if (!c) return null;
+      // Every rope whose way out this one lies across now waits on it; pass the rise up their chains.
+      const above = new Set();
+      for (const cell of c.cells) if (lanes[cell]) for (const id of lanes[cell]) above.add(id);
+      const next = cost.slice(), queue = [];
+      let gain = 0;
+      for (const i of above) if (next[i] < 1) { gain += 1 - next[i]; next[i] = 1; queue.push(i); }
+      for (let q = 0; q < queue.length; q++) {
+        const i = queue[q];
+        for (const j of waiters[i]) if (next[j] < next[i] + 1) { gain += next[i] + 1 - next[j]; next[j] = next[i] + 1; queue.push(j); }
+      }
+      return { path: c.path, out: c.out, cells: c.cells, above, next, gain, bends: bendsOf(c.path) };
+    };
+    const commit = c => {
+      const id = paths.length;
+      paths.push(c.path);
+      for (const cell of c.cells) { occ[cell] = id; if (lanes[cell]) for (const i of lanes[cell]) laneFree[i]--; }
+      covered += c.cells.length;
+      cost = c.next; cost.push(0); costSum += c.gain; bendSum += c.bends;
+      waiters.push([...c.above]);
+      let u = 0; for (const i of c.above) if (up[i] + 1 > u) u = up[i] + 1;
+      up.push(u);
+      laneCells.push(c.out); laneFree.push(c.out.length);
+      for (const cell of c.out) (lanes[cell] || (lanes[cell] = [])).push(id);
+    };
+
+    let stuck = 0;
+    for (let guard = 0; guard < 2 * N; guard++) {
+      const n = paths.length, score = costSum + bendSum;
+      if (score >= sMin && n >= MIN_ROPES && covered >= MIN_COVERAGE * N) break;
+      const budget = sMax - score; // the most this step may add
+      // How much block cost should the next rope add? Two pulls, and the larger wins:
+      //   pace  - spread what is still missing over the ropes there is still room for, so the
+      //           score arrives in its slot about when the board is as full as planned;
+      //   depth - keep the average block cost per rope up at `wantAvg`.
+      const room = Math.max(1, (coverGoal - covered) / meanLen);
+      const pace = ((sMin + sMax) / 2 - score) / room - cfg.bends, depth = cfg.wantAvg * (n + 1) - costSum;
+      const desire = Math.max(0, Math.min(budget, Math.round(Math.max(pace, depth))));
+      // What to try this step. Deep placements when the level needs depth, shallower ones as it
+      // nears its slot (where a deep one would overshoot), and plain straight ropes when the score
+      // must not move at all.
+      const need = sMin - score;
+      const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
+      let best = null, bestMiss = Infinity;
+      for (let k = 0; k < TRIES_PER_STEP; k++) {
+        const c = candidate(kinds[k % kinds.length]);
+        if (!c || c.gain + c.bends > budget) continue;
+        // Never add a rope the depth floor cannot afford: with one more rope and its bends, the slot's
+        // top score must still be able to cover the minimum average block cost for every rope.
+        if (cfg.floor * (n + 1) + bendSum + c.bends > sMax) continue;
+        // Closest to the cost wanted, with a little noise so equal choices vary. While the level still
+        // needs to get deeper, favour ropes with a long way out: they leave room to extend the chain.
+        // A rope that drops the score into its slot once the board is full enough beats any other.
+        const lands = need > 0 && c.gain + c.bends >= need && covered + c.cells.length >= MIN_COVERAGE * N;
+        const miss = Math.abs(c.gain - desire) + rng() * 0.6 - (desire >= 2 ? Math.min(c.out.length, 4) * 0.2 : 0) - (lands ? 100 : 0);
+        if (miss < bestMiss) { best = c; bestMiss = miss; }
+      }
+      if (!best) { if (++stuck > MAX_STUCK) break; continue; }
+      stuck = 0; commit(best);
     }
-    return cost;
+    // Second stage, if the board filled up before the score reached its slot: turn ropes around.
+    // Take them in random order and keep a turn only if the board is still solvable and the total
+    // block cost rose without overshooting the slot. Turning a rope never changes its bends, so
+    // only block cost moves.
+    //
+    // Turning a rope does not change which cells are occupied, so what every rope would wait on,
+    // facing either way, can be worked out once up front. Each try is then just a topological sort
+    // over those lists: O(R + links), with no walking of the board. At most four sweeps of R tries.
+    if (costSum + bendSum < sMin) {
+      const n = paths.length;
+      const waitsOn = path => { // the ropes standing in this path's way out; null if its own body is
+        const h = path[path.length - 1], d = headDir(path), ids = [], me = occ[h.y * W + h.x];
+        for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) {
+          const o = occ[y * W + x];
+          if (o === me) return null;
+          if (o !== -1 && !ids.includes(o)) ids.push(o);
+        }
+        return ids;
+      };
+      const now = paths.map(waitsOn), turned = paths.map(p => waitsOn(p.slice().reverse())), flipped = new Uint8Array(n);
+      const waiting = new Int16Array(n), by = paths.map(() => []), queue = new Int16Array(n);
+      let trial = new Array(n);
+      const evaluate = () => { // total block cost with the current lists, or -1 if they loop
+        for (let i = 0; i < n; i++) { by[i].length = 0; trial[i] = 0; }
+        for (let i = 0; i < n; i++) { waiting[i] = now[i].length; for (const b of now[i]) by[b].push(i); }
+        let head = 0, tail = 0, sum = 0;
+        for (let i = 0; i < n; i++) if (!waiting[i]) queue[tail++] = i;
+        while (head < tail) {
+          const b = queue[head++]; sum += trial[b];
+          for (const i of by[b]) { if (trial[b] + 1 > trial[i]) trial[i] = trial[b] + 1; if (--waiting[i] === 0) queue[tail++] = i; }
+        }
+        return tail === n ? sum : -1;
+      };
+      for (let sweep = 0; sweep < 4 && costSum + bendSum < sMin; sweep++) {
+        const order = paths.map((_, i) => i);
+        for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+        let improved = false;
+        for (const i of order) {
+          if (costSum + bendSum >= sMin) break;
+          if (!turned[i]) continue;
+          const keep = now[i]; now[i] = turned[i]; turned[i] = keep;
+          const s = evaluate();
+          if (s > costSum && s + bendSum <= sMax) { costSum = s; const t = cost; cost = trial; trial = t.length === n ? t : new Array(n); flipped[i] ^= 1; improved = true; }
+          else { turned[i] = now[i]; now[i] = keep; }
+        }
+        if (!improved) break;
+      }
+      for (let i = 0; i < n; i++) if (flipped[i]) paths[i] = paths[i].slice().reverse();
+    }
+    const n = paths.length;
+    if (n < MIN_ROPES) return null;
+    // Trim away empty outer rows and columns. Nothing depends on them (a way out that crossed
+    // empty cells still crosses the same ropes), and it stops a level sitting in a half-empty board.
+    let x0 = W, y0 = H, x1 = 0, y1 = 0;
+    for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
+    let w = x1 - x0 + 1, h = y1 - y0 + 1;
+    const tall = h >= w; // keep boards portrait: if trimming left it wider than tall, turn it on its side
+    const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
+    if (!tall) { const t = w; w = h; h = t; }
+    if (!goodEnough(ropes, w, h, cost)) return null;
+    return { W: w, H: h, ropes, costs: cost };
   }
 
   // ---------- level sets ----------
-  // Every difficulty setting is a difficulty range, and a set fills its range evenly.
+  // Every difficulty setting is a difficulty range plus a depth floor, and a set fills its range evenly.
   // (Difficulty = the sum of the ropes' scores, as above: block cost plus bends for every rope.)
+  //
+  // minAvgCost: the least a level's average block cost per rope may be. Without it the cheapest
+  // way to a high score is a crowd of short ropes that barely block each other; with it, harder
+  // settings have to be built from deeper chains.
+  // The floor rises with difficulty: the more tangled a level is meant to be, the deeper its
+  // chains must run. (A level of tangle 15 has too few ropes to average 4 deep; one of 150 does not.)
+  // Each entry is [from this difficulty, minimum average block cost per rope].
+  const FLOORS = [[150, 5.5], [100, 5], [60, 4], [40, 3], [20, 2.5], [10, 1.5]];
+  const floorFor = d => { for (const f of FLOORS) if (d >= f[0]) return f[1]; return 0; };
   const MODES = {
-    // minAvgCost: the least a level's average block cost per rope may be. Without it the cheapest
-    // way to a high score is a crowd of short ropes that barely block each other; with it, harder
-    // settings have to be built from deeper chains.
-    E: { name: 'Easy', range: [2, 40], minAvgCost: () => 0 },
-    N: { name: 'Normal', range: [20, 80], minAvgCost: () => MIN_AVG.N },
-    H: { name: 'Hard', range: [60, 130], minAvgCost: () => MIN_AVG.H },
-    X: { name: 'Extreme', range: [100, 200], minAvgCost: () => MIN_AVG.X },
-    // The built-in levels cover the whole span, starting gently, and take on each setting's minimum as they reach its range.
-    C: { name: 'Built-in', range: [1, 200], ease: true, minAvgCost: d => (d >= 100 ? MIN_AVG.X : d >= 60 ? MIN_AVG.H : d >= 20 ? MIN_AVG.N : 0) },
+    E: { name: 'Easy', range: [2, 40], minAvgCost: floorFor },
+    N: { name: 'Normal', range: [20, 80], minAvgCost: floorFor },
+    H: { name: 'Hard', range: [60, 130], minAvgCost: floorFor },
+    X: { name: 'Extreme', range: [100, 200], minAvgCost: floorFor },
+    C: { name: 'Built-in', range: [1, 200], ease: true, minAvgCost: floorFor }, // the built-in levels: the whole span, starting gently
   };
-  const MIN_AVG = { N: 2, H: 3, X: 4 };
   const PLAYER_MODES = ['E', 'N', 'H', 'X'];
   const COUNTS = [10, 20, 30];
 
-  // Rope styles. Every board draws one at random, so within any set some levels are made of
+  // Rope styles. Every level draws one at random, so within any set some levels are made of
   // short straight ropes and others of long twisty ones. `straight` is the chance a growing
-  // rope carries straight on instead of turning. Longer ropes mean fewer ropes on a board and
-  // so a lower score for its size; `scale` is a first estimate of that, corrected while generating.
+  // rope carries straight on instead of turning; `bends` is roughly how many corners a rope of
+  // that style ends up with, used only to plan the board size.
   const STYLES = [
-    { name: 'short', share: 0.45, minLen: 2, straight: 0.5, lenLo: 3, lenHi: () => 5, scale: 1.1 },
-    { name: 'medium', share: 0.3, minLen: 2, straight: 0.35, lenLo: 5, lenHi: () => 8, scale: 0.9 },
-    { name: 'twisty', share: 0.25, minLen: 3, straight: 0.2, lenLo: 6, lenHi: W => Math.max(8, W), scale: 0.8 },
+    { name: 'short', share: 0.4, minLen: 2, straight: 0.5, lenLo: 3, lenHi: () => 5, bends: 0.7 },
+    { name: 'medium', share: 0.33, minLen: 2, straight: 0.35, lenLo: 4, lenHi: () => 8, bends: 1.3 },
+    { name: 'twisty', share: 0.27, minLen: 3, straight: 0.2, lenLo: 6, lenHi: W => Math.max(8, W), bends: 2.4 },
   ];
   const TWISTY_W = 7; // long twisty ropes need a board at least this wide
 
-  // Board sizes. `big` sets may use the larger ones, which makes the hard end of a range much
-  // easier to reach (and lets twisty boards get there too) at the cost of small cells on a phone.
+  // Board sizes. `big` sets use longer ropes and may use the larger boards.
   const WIDTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12];
   const BIG_WIDTHS = WIDTHS.concat([13, 14, 15, 16]);
   const heightFor = W => Math.min(22, Math.round(W * 1.35)); // 4x5 ... 12x16 ... 16x22
-  // Typical difficulty of a board of each width with short ropes: about 0.012 * cells^1.9,
-  // measured. Only used to aim, so it just has to be roughly right.
-  const GUESS = { 4: 3.5, 5: 10, 6: 19, 7: 32, 8: 59, 9: 88, 10: 143, 11: 196, 12: 260, 13: 380, 14: 485, 15: 610, 16: 827 };
 
   // A board has to earn its size. Reject boards that are mostly empty, and boards beyond the
   // smallest sizes where most ropes can simply leave without waiting for anything.
@@ -271,65 +426,68 @@ const MFLevels = (() => {
     return edges;
   }
 
+  // Decide what kind of level to build for one slot: rope style, how deep, and a board sized
+  // to hold about the right number of ropes. `attempt` nudges the board size on retries.
+  const SIZE_NUDGE = [0, -1, 1, -2, 2, 0, -1, 1];
+  function plan(rng, mode, lo, hi, big, attempt) {
+    const M = MODES[mode], target = (lo + hi) / 2, floor = M.minAvgCost(Math.ceil(hi) - 1);
+    const u = rng();
+    let s = u < STYLES[0].share ? 0 : u < STYLES[0].share + STYLES[1].share ? 1 : 2;
+    // Aim a little past the floor. The very smallest targets cannot be deep: there has to be room for a few ropes.
+    const wantAvg = Math.max(floor, Math.min(floor > 0 ? floor + 0.3 + rng() * 1.5 : 0.6 + rng() * 1.6, (target - 1) / 4));
+    const stretch = big ? 1.5 : 1, widths = big ? BIG_WIDTHS : WIDTHS, cover = 0.58 + rng() * 0.17; // how full the board should end up
+    let W = 0, st, lenLo, lenHi;
+    for (let pass = 0; pass < 2; pass++) { // twice, because a twisty style needs a wide enough board
+      st = STYLES[s];
+      lenLo = Math.round(st.lenLo * stretch); lenHi = Math.round(st.lenHi(W || 9) * stretch);
+      const ropes = Math.max(4, target / (wantAvg + st.bends)), area = ropes * (lenLo + lenHi) / 2 * 0.85 / cover;
+      let i = widths.findIndex(w => w * heightFor(w) >= area); if (i < 0) i = widths.length - 1;
+      W = widths[Math.max(0, Math.min(widths.length - 1, i + SIZE_NUDGE[attempt % SIZE_NUDGE.length]))];
+      if (s === 2 && W < TWISTY_W) s = 1; else break;
+    }
+    return { W, H: heightFor(W), lenLo, lenHi: Math.max(lenLo, lenHi), straight: st.straight, minLen: Math.max(st.minLen, W >= 8 ? 3 : 2), // no two-cell stubs on the larger boards
+      lo, hi, wantAvg, floor, cover, bends: st.bends, style: st.name, seed: Math.floor(rng() * 4294967296) >>> 0 };
+  }
+
   // The algorithm, for a seed, a difficulty setting and a number of levels:
   //   1. Cut the setting's difficulty range into one slot per level. One level per slot means
   //      the set is spread evenly over the range and no two levels can share a difficulty.
-  //   2. Aim at the empty slots in turn. Pick a rope style at random, then the board width most
-  //      likely to land near that slot's difficulty with that style, and build a level.
-  //   3. If the level's difficulty falls in a slot that is still empty it takes that slot
-  //      (whichever slot it is, not only the one aimed at). Otherwise it is discarded.
-  //   4. Stop as soon as every slot is filled. Slots run from easiest to hardest, so the set
-  //      comes out already sorted.
-  // Aiming is what keeps this cheap: unaimed, the slots at the hard end of a range would take
-  // hundreds of wasted builds to hit by chance. The work is bounded: at most count*60 builds,
-  // and it gives up if 600 builds in a row fill nothing (the set then has fewer levels).
+  //   2. Aim at the empty slots in turn: plan a level for that slot (rope style, depth, board
+  //      size) and build it to land there (see construct).
+  //   3. The level takes whichever empty slot its score falls in, provided it meets that
+  //      difficulty's depth floor. Usually that is the slot aimed at; a build that comes up short
+  //      can still fill an easier one. Otherwise it is discarded.
+  //   4. Stop when every slot is filled. Slots run from easiest to hardest, so the set comes out
+  //      already sorted.
+  // The work is bounded: at most count*60 builds, and it gives up if 600 builds in a row fill
+  // nothing (the set then has fewer levels than asked for).
   // opts: { seed: string, mode: 'E'|'N'|'H'|'X', count: number, big: boolean }
   function generateSet(opts) {
     const mode = MODES[opts.mode] ? opts.mode : 'N', M = MODES[mode], seed = cleanSeed(opts.seed), big = !!opts.big;
     const count = Math.max(1, opts.count | 0), n = Math.min(count, M.range[1] - M.range[0] + 1);
-    const rng = mulberry32(hashString('monkey-fist/6|' + mode + (big ? 'B|' : '|') + seed));
+    const rng = mulberry32(hashString('monkey-fist/8|' + mode + (big ? 'B|' : '|') + seed));
     const edges = slotEdges(mode, n), slots = new Array(n).fill(null);
     const slotOf = score => { let j = 0; while (j < n - 1 && score >= edges[j + 1]) j++; return j; };
-    const widths = big ? BIG_WIDTHS : WIDTHS, top = widths[widths.length - 1];
-    // Running totals per style of the difficulties actually seen against the guesses made.
-    const seen = STYLES.map(() => 0), guessed = STYLES.map(() => 0);
-    const scaleOf = s => Math.max(0.05, guessed[s] ? seen[s] / guessed[s] : STYLES[s].scale);
     const maxBuilds = count * 60, maxStall = 600;
     let filled = 0, builds = 0, stall = 0, next = 0;
     while (filled < n && builds < maxBuilds && stall < maxStall) {
       builds++; stall++;
       while (slots[next % n]) next++;
-      const aim = next++ % n, target = (edges[aim] + edges[aim + 1]) / 2;
-      const u = rng();
-      let s = u < STYLES[0].share ? 0 : u < STYLES[0].share + STYLES[1].share ? 1 : 2;
-      while (s > 0 && GUESS[top] * scaleOf(s) < target * 0.8) s--; // this style can't get that high even on the largest board
-      const scale = scaleOf(s);
-      let pick = 0, best = Infinity;
-      widths.forEach((W, i) => { const r = GUESS[W] * scale / target, miss = r > 1 ? r : 1 / r; if (miss < best) { best = miss; pick = i; } });
-      const W = widths[Math.max(0, Math.min(widths.length - 1, pick + Math.floor(rng() * 3) - 1))]; // one size either side, for variety
-      if (s === 2 && W < TWISTY_W) s = 1;
-      const st = STYLES[s], lenHi = st.lenHi(W);
-      const cfg = { W, H: heightFor(W), maxLen: st.lenLo + Math.floor(rng() * (lenHi - st.lenLo + 1)), fill: target < 6 ? 0.5 + rng() * 0.25 : 0.7 + rng() * 0.27, straight: st.straight,
-        minLen: Math.max(st.minLen, W >= 8 ? 3 : 2), // no two-cell stubs on the larger boards
-        across: 0.6 + rng() * 0.35,                  // most ropes point the long way across
-        deepen: 0 };
-      const need = M.minAvgCost(target);
-      if (need > 0) cfg.deepen = need + 0.2 + rng() * 0.8; // deepen the board to a little past this setting's minimum average cost
-      const lvSeed = Math.floor(rng() * 4294967296) >>> 0, L = build(mulberry32(lvSeed), cfg);
-      const score = total(ropeScores(L.ropes, L.costs)); // block costs come straight from the build's final analysis
-      seen[s] += score; guessed[s] += GUESS[W];
-      if (score < M.range[0] || score > M.range[1] || !goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
-      const avgCost = total(L.costs) / L.ropes.length;
-      if (avgCost < M.minAvgCost(score)) continue;
-      const slot = slotOf(score);
+      const aim = next++ % n, cfg = plan(rng, mode, edges[aim], edges[aim + 1], big, builds), L = construct(mulberry32(cfg.seed), cfg);
+      if (!L) continue;
+      const costSum = total(L.costs), score = costSum + total(L.ropes.map(bendsOf)), avgCost = costSum / L.ropes.length;
+      if (score < M.range[0] || score > M.range[1] || avgCost < M.minAvgCost(score)) continue;
+      const slot = slotOf(score); // a build that falls short of the slot it aimed at can still fill an easier one
       if (slots[slot]) continue;
-      slots[slot] = { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, across: cfg.across, deepen: cfg.deepen, seed: lvSeed, difficulty: score, ropes: L.ropes.length, avgCost, style: st.name };
+      // W and H are the finished board; boardW and boardH are the one it was built on, which rebuilding needs.
+      slots[slot] = Object.assign(cfg, { boardW: cfg.W, boardH: cfg.H, W: L.W, H: L.H, difficulty: score, ropes: L.ropes.length, avgCost });
       filled++; stall = 0;
     }
-    return { seed, mode, count, big, levels: slots.filter(Boolean), builds, code: encodeCode({ seed, mode, count, big }) };
+    const levels = slots.filter(Boolean);
+    return { seed, mode, count, big, levels, builds, code: encodeCode({ seed, mode, count, big }) };
   }
   // Rebuild a level's ropes from its descriptor.
-  function levelFrom(d) { return build(mulberry32(d.seed), d); }
+  function levelFrom(d) { return construct(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH })); }
 
   // ---------- share codes: mode + count (+ B for bigger boards) + seed, e.g. "N20-K7F3Q" or "X30B-K7F3Q" ----------
   const SEED_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
@@ -351,8 +509,8 @@ const MFLevels = (() => {
   // The built-in levels are simply one fixed set, kept to boards that fit a phone.
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, bendsOf, ropeScores, nothingBlocked, difficulty, build, deepen, generateSet, levelFrom, slotEdges,
-    randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, MIN_AVG,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, bendsOf, ropeScores, nothingBlocked, difficulty,
+    construct, plan, generateSet, levelFrom, slotEdges, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, MIN_ROPES, MIN_COVERAGE, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = MFLevels;

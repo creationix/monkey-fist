@@ -131,7 +131,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 m (all levels unlocked)</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 n (all levels unlocked)</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -189,7 +189,7 @@ const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened wi
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
-const GEN = 6; // bump whenever the level generator changes: every set's levels change with it
+const GEN = 7; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
   save.sets = { campaign: { stars: {}, max: far } }; save.recent = []; save.gen = GEN;
@@ -656,8 +656,8 @@ function buildCustom() {
   for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
   const range = MFLevels.MODES[c.mode].range;
   $('tBig').classList.toggle('on', !!c.big);
-  const depth = MFLevels.MODES[c.mode].minAvgCost(range[0]);
-  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + (depth ? ' · ropes blocked ' + depth + '+ deep on average' : ' · any depth');
+  const d0 = MFLevels.floorFor(range[0]), d1 = MFLevels.floorFor(range[1]), depth = d0 === d1 ? d1 + '+' : (d0 || 'any') + ' to ' + d1 + '+';
+  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + ' · ropes blocked ' + depth + ' deep on average';
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('codeOut').textContent = customCode();
   const box = $('recent'); box.innerHTML = '';

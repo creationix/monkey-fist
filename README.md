@@ -23,33 +23,61 @@ All level logic is in [`levels.js`](levels.js), which has no dependency on the p
 
 A rope's *score* is its block cost plus one for each bend in it, whether or not it is blocked: a rope that winds around is harder to follow and to plan around than a straight one. A level's difficulty is the sum of its ropes' scores, and the live tangle score is the same sum over the ropes still on the board, so it falls to 0 as the board empties.
 
-**Each setting is a difficulty range and a depth floor.** A set fills its range evenly, and every level's *average block cost per rope* must be at least the setting's minimum. The floor is what stops a hard level being a crowd of short ropes that barely block each other: to score high with the floor in place, a level has to be built from ropes that wait on each other in long chains.
+**Each setting is a difficulty range**, and a set fills its range evenly:
 
-| Setting | Difficulty | Minimum average block cost per rope |
-| --- | --- | --- |
-| Easy | 2 to 40 | none |
-| Normal | 20 to 80 | 2 |
-| Hard | 60 to 130 | 3 |
-| Extreme | 100 to 200 | 4 |
-| Built-in levels | 1 to 200, bunched toward the easy end | steps up through 2, 3 and 4 at difficulty 20, 60 and 100 |
+| Setting | Difficulty |
+| --- | --- |
+| Easy | 2 to 40 |
+| Normal | 20 to 80 |
+| Hard | 60 to 130 |
+| Extreme | 100 to 200 |
+| Built-in levels | 1 to 200, bunched toward the easy end |
+
+**The depth floor.** Every level's *average block cost per rope* must reach a minimum that rises with its difficulty. Without it, the cheapest way to a high score is a crowd of short ropes that barely block each other; with it, a hard level has to be built from ropes that wait on each other in long chains.
+
+| Difficulty | Minimum average block cost per rope |
+| --- | --- |
+| under 10 | none |
+| 10 to 19 | 1.5 |
+| 20 to 39 | 2.5 |
+| 40 to 59 | 3 |
+| 60 to 99 | 4 |
+| 100 to 149 | 5 |
+| 150 and up | 5.5 |
+
+**Building one level.** Levels are built backwards: ropes are added one at a time, in the reverse of the order they will be pulled out, under a single rule.
+
+> A new rope's own way out must be clear of every rope already on the board.
+
+So a new rope never waits on an older one, every "waits for" link runs from an older rope to a newer one, and a loop is impossible: the board is solvable by construction, with nothing to untangle afterwards. A new rope may, however, be laid across the way out of older ropes, and that is how depth is made on purpose. Lay it across the path of a rope at the bottom of a long chain and every rope up that chain gets one deeper.
+
+1. **Lay ropes.** Each rope's effect on the score is known before it is placed, so the builder steers. It paces the score to arrive in the level's slot about when the board is as full as planned, keeps the average block cost per rope up near its target, never adds more than the slot allows, and never adds a rope the depth floor could not afford.
+2. **Turn ropes**, only if the board filled up short of its slot. Ropes are turned around one at a time, and a turn is kept when the board stays solvable and the total block cost rises without overshooting the slot.
+3. **Trim** the empty outer rows and columns, and turn the board on its side if that left it wider than tall.
 
 **Generating a set** from a seed, a setting and a number of levels:
 
 1. Cut the range into one slot per level. One level per slot means the set is spread evenly over the range and no two levels can share a difficulty.
-2. Aim at the empty slots in turn. Pick a rope style at random (short and straight, medium, or long and twisty), then the board width most likely to land near that slot's difficulty with that style, and build a level with random rope lengths and crowding. Most ropes are pointed the long way across the board, so they have other ropes in their path, and boards 8 or more wide have no two-cell ropes.
-3. If the setting has a depth floor, deepen the board: turn ropes around one at a time, keeping a turn only if the board is still solvable and its total block cost went up, until the average passes the floor.
-4. A level whose difficulty falls in a slot that is still empty, and which meets the depth floor, takes that slot; otherwise it is discarded. Boards that don't earn their size are discarded too: less than half covered in rope, or 6 or more wide with fewer than half the ropes blocked by something.
-5. Stop when every slot is filled. Slots run from easiest to hardest, so the set comes out sorted.
+2. Aim at the empty slots in turn. For each, pick a rope style at random (short and straight, medium, or long and twisty), choose a depth a little past the floor and a board sized for about the right number of ropes, and build a level to land in that slot.
+3. The level takes whichever empty slot its score falls in, provided it meets the depth floor for that score and earns its size (at least half covered in rope; on boards 6 or more wide, at least half the ropes blocked). About a third land in the slot aimed at; one that comes up short can still fill an easier slot.
+4. Stop when every slot is filled. Slots run from easiest to hardest, so the set comes out sorted.
 
-Aiming uses a table of typical difficulty per board width, corrected as it goes by what the boards of each rope style actually score. Board size follows from difficulty: Easy sets are small boards, and Extreme sets are mostly 9x12 to 11x15 with around 27 ropes in chains about 12 deep.
+Board size follows from difficulty: Easy sets are small boards, and Extreme sets are mostly 9x12 to 12x16 with around 20 ropes in chains about 13 deep.
 
-**Bigger boards** (a Custom option, `B` in the share code) allows boards up to 16x22, at the cost of small cells on a phone. The built-in levels never use it.
+**Bigger boards** (a Custom option, `B` in the share code) uses longer ropes on boards up to 16x22, at the cost of small cells on a phone. The built-in levels never use it.
 
-**Cost.** Checking a board is one topological sort of the "waits for" graph, which gives every rope's block cost and finds any deadlock in a single pass: `O(W*H + R * max(W, H))` for `R` ropes on a `W x H` board. Building a level untangles deadlocks by turning knotted ropes around (several per pass) and dropping one only when none are left to turn, at most `2R` passes. Deepening a board tries each rope at most three times, one linear check per try. Generating a set stops when every slot is filled, after 60 builds per level asked for, or after 600 builds in a row that fill nothing. On a laptop the built-in set takes about 0.1 s and the slowest custom request (30 Extreme levels) about 0.3 s.
+**Cost.** For `R` ropes on a `W x H` board:
+
+- Checking a board is one topological sort of the "waits for" graph, which gives every rope's block cost and finds any deadlock in a single pass: `O(W*H + R * max(W, H))`. The game uses this for the live tangle score.
+- Laying ropes looks at up to 6 placements per rope. Trying one walks the rope, a few ways out, and the ropes whose cost it would raise: `O(R * (R + max(W, H)))` for the level.
+- Turning ropes makes at most `4R` tries. Turning a rope does not change which cells are occupied, so what each rope would wait on, facing either way, is worked out once; each try is then a topological sort over those lists with no walking of the board.
+- Generating a set stops when every slot is filled, after 60 builds per level asked for, or after 600 builds in a row that fill nothing.
+
+On a laptop the built-in set and the slowest custom request (30 Extreme levels) each take about 0.1 s.
 
 ## Tests
 
-Open [`tests/index.html`](tests/index.html) in a browser (served from the project folder), or visit https://creationix.github.io/monkey-fist/tests/. The page title and heading show `PASS n/n` or `FAIL`. The tests cover block-cost scoring on hand-built boards, a cross-check of the scores against actually playing 300 random levels, solvability, that every setting fills its range evenly with unique difficulties, rope-style variety, board-size limits, share codes, and the board-quality rules.
+Open [`tests/index.html`](tests/index.html) in a browser (served from the project folder), or visit https://creationix.github.io/monkey-fist/tests/. The page title and heading show `PASS n/n` or `FAIL`. The tests cover block-cost and bend scoring on hand-built boards, 300 built boards cross-checked against actually playing them (solvable, costs correct, never over their slot), that every setting fills its range evenly with unique difficulties, the depth floor, rope-style variety, board-size limits, share codes, and the board-quality rules.
 
 ## Install
 
