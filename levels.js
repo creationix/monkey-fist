@@ -142,50 +142,63 @@ const MFLevels = (() => {
       ns.push({ path: useRev ? rev : path, flipped: false, dead: false });
       filled += path.length;
     }
-    // Untangle deadlocks: pick a rope from the knot and turn it around, or drop it if it has
-    // already been turned. Each rope is turned at most once and dropped at most once, so this
-    // loop runs at most 2R times, each pass a linear analyse(): O(R * (W*H + R * max(W, H))) worst case.
+    // Untangle deadlocks. Each pass analyses the board and, if there is a knot, turns around
+    // about a third of the knot's ropes that have not been turned yet (turning costs nothing,
+    // so several go at once). Only when none are left to turn is a rope dropped, one per pass,
+    // so the board keeps as many ropes as it can. Each rope is turned at most once and dropped
+    // at most once: at most 2R passes of a linear analyse(), O(R * (W*H + R * max(W, H))) worst case.
     let live = ns, a;
     for (;;) {
       a = analyse(live.map(n => n.path), W, H);
       if (!a.stuck.length) break;
-      const n = live[a.knot[Math.floor(rng() * a.knot.length)]];
-      const rev = n.path.slice().reverse();
-      if (!n.flipped && !selfBlocked(rev)) { n.path = rev; n.flipped = true; }
-      else live = live.filter(m => m !== n);
+      const fresh = a.knot.filter(i => !live[i].flipped);
+      let turned = 0;
+      for (let k = Math.ceil(fresh.length / 3); k > 0; k--) {
+        const n = live[fresh.splice(Math.floor(rng() * fresh.length), 1)[0]], rev = n.path.slice().reverse();
+        n.flipped = true; // tried, whether or not it could turn
+        if (!selfBlocked(rev)) { n.path = rev; turned++; }
+      }
+      if (!turned) { const n = live[a.knot[Math.floor(rng() * a.knot.length)]]; live = live.filter(m => m !== n); }
     }
     return { W, H, ropes: live.map(n => n.path), costs: a.cost };
   }
 
   // ---------- level sets ----------
-  // How each difficulty setting draws from the candidate pool, as shares of the
-  // easiest third, the middle third and the hardest third.
+  // Every difficulty setting is a difficulty range, and a set fills its range evenly.
+  // (Difficulty = the sum of block costs, as above.)
   const MODES = {
-    E: { name: 'Easy', weights: [0.7, 0.2, 0.1] },
-    N: { name: 'Normal', weights: [1 / 3, 1 / 3, 1 / 3] },
-    H: { name: 'Hard', weights: [0.1, 0.2, 0.7] },
-    // Extreme works differently: it aims straight at a difficulty range and fills it evenly,
-    // so no level scores below 100. See generateRange().
+    E: { name: 'Easy', range: [0, 40] },
+    N: { name: 'Normal', range: [20, 80] },
+    H: { name: 'Hard', range: [60, 130] },
     X: { name: 'Extreme', range: [100, 200] },
+    C: { name: 'Built-in', range: [0, 200], ease: true }, // the built-in levels: the whole span, starting gently
   };
+  const PLAYER_MODES = ['E', 'N', 'H', 'X'];
   const COUNTS = [10, 20, 30];
-  const MIN_ROPES = 3;
 
-  // A candidate's board size, rope length and crowding are all random. Bigger, fuller
-  // boards score higher, so the difficulty setting ends up deciding the size.
-  // With `twisty` on, every board is 7 wide or more and its ropes run up to about twice the
-  // board width, turn far more often, and are never shorter than 4. Long ropes mean fewer ropes,
-  // so twisty sets score lower overall and offer a narrower spread of difficulties.
-  const TWISTY_W = 7;
-  function randomCfg(rng, twisty) {
-    const W = twisty ? TWISTY_W + Math.floor(Math.min(rng(), rng()) * (11 - TWISTY_W)) // 7..10, leaning small
-      : 4 + Math.floor(Math.min(rng(), rng()) * 7);                                // 4..10, leaning small
-    const H = Math.min(14, Math.round(W * 1.35));
-    if (twisty) return { W, H, maxLen: 8 + Math.floor(rng() * (W * 2 - 7)), fill: 0.6 + rng() * 0.36, straight: 0.2, minLen: 4 };
-    return { W, H, maxLen: 3 + Math.floor(rng() * Math.min(7, W)), fill: 0.6 + rng() * 0.36, straight: 0.5, minLen: 2 };
-  }
+  // Rope styles. Every board draws one at random, so within any set some levels are made of
+  // short straight ropes and others of long twisty ones. `straight` is the chance a growing
+  // rope carries straight on instead of turning. Longer ropes mean fewer ropes on a board and
+  // so a lower score for its size; `scale` is a first estimate of that, corrected while generating.
+  const STYLES = [
+    { name: 'short', share: 0.45, minLen: 2, straight: 0.5, lenLo: 3, lenHi: () => 5, scale: 1.1 },
+    { name: 'medium', share: 0.3, minLen: 2, straight: 0.35, lenLo: 5, lenHi: () => 8, scale: 0.8 },
+    { name: 'twisty', share: 0.25, minLen: 3, straight: 0.2, lenLo: 6, lenHi: W => Math.max(8, W), scale: 0.5 },
+  ];
+  const TWISTY_W = 7; // long twisty ropes need a board at least this wide
+
+  // Board sizes. `big` sets may use the larger ones, which makes the hard end of a range much
+  // easier to reach (and lets twisty boards get there too) at the cost of small cells on a phone.
+  const WIDTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const BIG_WIDTHS = WIDTHS.concat([13, 14, 15, 16]);
+  const heightFor = W => Math.min(22, Math.round(W * 1.35)); // 4x5 ... 12x16 ... 16x22
+  // Typical difficulty of a board of each width with short ropes: about 0.012 * cells^1.9,
+  // measured. Only used to aim, so it just has to be roughly right.
+  const GUESS = { 4: 3.5, 5: 10, 6: 19, 7: 32, 8: 59, 9: 88, 10: 143, 11: 196, 12: 260, 13: 380, 14: 485, 15: 610, 16: 827 };
+
   // A board has to earn its size. Reject boards that are mostly empty, and boards beyond the
   // smallest sizes where most ropes can simply leave without waiting for anything.
+  const MIN_ROPES = 3;
   const MIN_COVERAGE = 0.5;       // share of cells that must hold rope
   const MIN_BLOCKED_SHARE = 0.5;  // share of ropes that must be blocked, on boards 6 wide and up
   const SMALL_W = 5;              // boards this narrow may be simple (they are the gentle start)
@@ -199,117 +212,69 @@ const MFLevels = (() => {
     const q = quality(ropes, W, H, knownCosts);
     return q.coverage >= MIN_COVERAGE && (W <= SMALL_W || q.blockedShare >= MIN_BLOCKED_SHARE);
   }
-  // Split `n` picks across the three thirds by weight (largest-remainder rounding), then move
-  // any picks a third cannot supply to the thirds this mode favours most.
-  function quotas(n, weights, avail) {
-    const exact = weights.map(w => n * w), q = exact.map(Math.floor);
-    const order = [0, 1, 2].sort((a, b) => (exact[b] - q[b]) - (exact[a] - q[a]) || weights[b] - weights[a] || a - b);
-    for (let i = 0, left = n - q[0] - q[1] - q[2]; left > 0; i++, left--) q[order[i % 3]]++;
-    const pref = [0, 1, 2].sort((a, b) => weights[b] - weights[a] || a - b);
-    let spare = 0;
-    for (let i = 0; i < 3; i++) if (q[i] > avail[i]) { spare += q[i] - avail[i]; q[i] = avail[i]; }
-    for (const i of pref) { const take = Math.min(spare, avail[i] - q[i]); q[i] += take; spare -= take; }
-    return q;
+
+  // The slots a mode's range is cut into for `n` levels: slot j covers [edges[j], edges[j+1]).
+  // Equal slices, except that the built-in set bunches its slots toward the easy end.
+  function slotEdges(mode, n) {
+    const M = MODES[mode], lo = M.range[0], width = M.range[1] - lo + 1, edges = [];
+    for (let j = 0; j <= n; j++) { const t = j / n; edges.push(lo + width * (M.ease ? (t + t * t) / 2 : t)); }
+    return edges;
   }
-  // The algorithm:
-  //   1. From the seed, generate candidate levels until there are 3x as many as needed,
-  //      keeping only one level per difficulty score so every level's difficulty is unique.
-  //   2. Sort the candidates by difficulty and cut them into thirds.
-  //   3. Easy takes mostly from the easiest third, Normal evenly from all three,
-  //      Hard mostly from the hardest third.
-  //   4. Return the picks in order from simplest to hardest.
-  // opts: { seed: string, mode: 'E'|'N'|'H', count: number, twisty: boolean }
+
+  // The algorithm, for a seed, a difficulty setting and a number of levels:
+  //   1. Cut the setting's difficulty range into one slot per level. One level per slot means
+  //      the set is spread evenly over the range and no two levels can share a difficulty.
+  //   2. Aim at the empty slots in turn. Pick a rope style at random, then the board width most
+  //      likely to land near that slot's difficulty with that style, and build a level.
+  //   3. If the level's difficulty falls in a slot that is still empty it takes that slot
+  //      (whichever slot it is, not only the one aimed at). Otherwise it is discarded.
+  //   4. Stop as soon as every slot is filled. Slots run from easiest to hardest, so the set
+  //      comes out already sorted.
+  // Aiming is what keeps this cheap: unaimed, the slots at the hard end of a range would take
+  // hundreds of wasted builds to hit by chance. The work is bounded: at most count*60 builds,
+  // and it gives up if 600 builds in a row fill nothing (the set then has fewer levels).
+  // opts: { seed: string, mode: 'E'|'N'|'H'|'X', count: number, big: boolean }
   function generateSet(opts) {
-    const mode = MODES[opts.mode] ? opts.mode : 'N', count = Math.max(1, opts.count | 0), seed = cleanSeed(opts.seed), twisty = !!opts.twisty;
-    if (MODES[mode].range) return generateRange(seed, mode, count);
-    const rng = mulberry32(hashString('monkey-fist/1|' + (twisty ? 'T|' : '') + seed));
-    // Stop at 3x the levels needed. Difficulty scores only span a limited range, so a large
-    // request can run out of unused scores; give up once new ones stop turning up rather than
-    // grinding on. Both limits keep the work bounded: at most count*60 builds, each a few
-    // thousand simple steps.
-    const want = count * 3, maxBuilds = count * 60, maxStall = 600, byScore = new Map();
-    let stall = 0;
-    let builds = 0;
-    while (byScore.size < want && builds < maxBuilds && stall < maxStall) {
-      builds++; stall++;
-      const cfg = randomCfg(rng, twisty), lvSeed = Math.floor(rng() * 4294967296) >>> 0;
-      const L = build(mulberry32(lvSeed), cfg);
-      if (!goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
-      const score = L.costs.reduce((x, y) => x + y, 0); // costs come straight from the build's final analysis
-      if (!byScore.has(score)) stall = 0;
-      if (!byScore.has(score)) byScore.set(score, { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, seed: lvSeed, difficulty: score, ropes: L.ropes.length });
-    }
-    const pool = [...byScore.values()].sort((a, b) => a.difficulty - b.difficulty);
-    const P = pool.length, n = Math.min(count, P), cuts = [0, Math.floor(P / 3), Math.floor(2 * P / 3), P];
-    const avail = [0, 1, 2].map(i => cuts[i + 1] - cuts[i]);
-    const q = quotas(n, MODES[mode].weights, avail);
-    const levels = [];
-    for (let t = 0; t < 3; t++) {
-      for (let j = 0; j < q[t]; j++) { // spread the picks evenly across the third
-        const lv = pool[cuts[t] + Math.floor((j + 0.5) * avail[t] / q[t])];
-        levels.push(Object.assign({ third: t }, lv));
-      }
-    }
-    levels.sort((a, b) => a.difficulty - b.difficulty);
-    return { seed, mode, count, twisty, levels, pool: P, poolScores: pool.map(l => l.difficulty), builds, code: encodeCode({ seed, mode, count, twisty }) };
-  }
-  // ---------- range-targeted sets ----------
-  // For a mode with a difficulty range, the range itself is the goal:
-  //   1. Cut the range into one equal slot per level wanted. One level per slot means the set
-  //      fills the range evenly and no two levels can share a difficulty.
-  //   2. Aim at the empty slots in turn. For the slot's difficulty, pick the board width most
-  //      likely to land near it, then build a level with random rope length and crowding.
-  //   3. If the level's difficulty falls in a slot that is still empty, it takes that slot
-  //      (whichever slot that is, not only the one aimed at). Otherwise it is discarded.
-  //   4. Stop as soon as every slot is filled.
-  // Aiming is what keeps this cheap: without it, the rare slots at the top of the range would
-  // take hundreds of wasted builds to hit by chance. Work is bounded the same way as elsewhere:
-  // at most count*60 builds, and it gives up if 600 builds in a row fill nothing.
-  //
-  // GUESS is the typical difficulty of an ordinary board of each width (about 0.012 * cells^1.9,
-  // measured). It only has to be roughly right: a running ratio of the difficulties actually
-  // seen to the guesses made corrects it for the rope style in use.
-  const GUESS = { 4: 3.5, 5: 10, 6: 19, 7: 32, 8: 59, 9: 88, 10: 143, 11: 196, 12: 260 };
-  const RANGE_WIDTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12];
-  const heightFor = W => Math.min(16, Math.round(W * 1.35)); // up to 12x16
-  //
-  // Range-targeted sets always use ordinary ropes. Long twisty ropes mean far fewer ropes per
-  // board, and on boards up to 12x16 they cannot reach the top of the 100-200 range reliably.
-  function generateRange(seed, mode, count) {
-    const lo = MODES[mode].range[0], hi = MODES[mode].range[1], twisty = false;
-    const rng = mulberry32(hashString('monkey-fist/2|' + mode + '|' + seed));
-    const n = Math.min(count, hi - lo + 1), span = (hi - lo + 1) / n, slots = new Array(n).fill(null);
-    const widths = RANGE_WIDTHS;
+    const mode = MODES[opts.mode] ? opts.mode : 'N', M = MODES[mode], seed = cleanSeed(opts.seed), big = !!opts.big;
+    const count = Math.max(1, opts.count | 0), n = Math.min(count, M.range[1] - M.range[0] + 1);
+    const rng = mulberry32(hashString('monkey-fist/3|' + mode + (big ? 'B|' : '|') + seed));
+    const edges = slotEdges(mode, n), slots = new Array(n).fill(null);
+    const slotOf = score => { let j = 0; while (j < n - 1 && score >= edges[j + 1]) j++; return j; };
+    const widths = big ? BIG_WIDTHS : WIDTHS, top = widths[widths.length - 1];
+    // Running totals per style of the difficulties actually seen against the guesses made.
+    const seen = STYLES.map(() => 0), guessed = STYLES.map(() => 0);
+    const scaleOf = s => Math.max(0.05, guessed[s] ? seen[s] / guessed[s] : STYLES[s].scale);
     const maxBuilds = count * 60, maxStall = 600;
-    let filled = 0, builds = 0, stall = 0, next = 0, seenSum = 0, guessSum = 0;
+    let filled = 0, builds = 0, stall = 0, next = 0;
     while (filled < n && builds < maxBuilds && stall < maxStall) {
       builds++; stall++;
       while (slots[next % n]) next++;
-      const target = lo + (next++ % n + 0.5) * span;
-      const scale = guessSum ? seenSum / guessSum : 1;
+      const aim = next++ % n, target = (edges[aim] + edges[aim + 1]) / 2;
+      const u = rng();
+      let s = u < STYLES[0].share ? 0 : u < STYLES[0].share + STYLES[1].share ? 1 : 2;
+      while (s > 0 && GUESS[top] * scaleOf(s) < target * 0.8) s--; // this style can't get that high even on the largest board
+      const scale = scaleOf(s);
       let pick = 0, best = Infinity;
       widths.forEach((W, i) => { const r = GUESS[W] * scale / target, miss = r > 1 ? r : 1 / r; if (miss < best) { best = miss; pick = i; } });
       const W = widths[Math.max(0, Math.min(widths.length - 1, pick + Math.floor(rng() * 3) - 1))]; // one size either side, for variety
-      const cfg = { W, H: heightFor(W), maxLen: 3 + Math.floor(rng() * 5), fill: 0.7 + rng() * 0.27, straight: 0.5, minLen: 2 };
+      if (s === 2 && W < TWISTY_W) s = 1;
+      const st = STYLES[s], lenHi = st.lenHi(W);
+      const cfg = { W, H: heightFor(W), maxLen: st.lenLo + Math.floor(rng() * (lenHi - st.lenLo + 1)), fill: 0.7 + rng() * 0.27, straight: st.straight, minLen: st.minLen };
       const lvSeed = Math.floor(rng() * 4294967296) >>> 0, L = build(mulberry32(lvSeed), cfg);
-      if (!goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
-      const score = L.costs.reduce((x, y) => x + y, 0);
-      seenSum += score; guessSum += GUESS[W];
-      if (score < lo || score > hi) continue;
-      const slot = Math.min(n - 1, Math.floor((score - lo) / span));
+      const score = L.costs.reduce((x, y) => x + y, 0); // costs come straight from the build's final analysis
+      seen[s] += score; guessed[s] += GUESS[W];
+      if (score < M.range[0] || score > M.range[1] || !goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
+      const slot = slotOf(score);
       if (slots[slot]) continue;
-      slots[slot] = { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, seed: lvSeed, difficulty: score, ropes: L.ropes.length };
+      slots[slot] = { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, seed: lvSeed, difficulty: score, ropes: L.ropes.length, style: st.name };
       filled++; stall = 0;
     }
-    const levels = slots.filter(Boolean), P = levels.length; // already in order: slots run from easiest to hardest
-    levels.forEach((lv, i) => { lv.third = i < Math.floor(P / 3) ? 0 : i < Math.floor(2 * P / 3) ? 1 : 2; });
-    return { seed, mode, count, twisty, levels, pool: P, poolScores: levels.map(l => l.difficulty), builds, code: encodeCode({ seed, mode, count, twisty }) };
+    return { seed, mode, count, big, levels: slots.filter(Boolean), builds, code: encodeCode({ seed, mode, count, big }) };
   }
-
   // Rebuild a level's ropes from its descriptor.
   function levelFrom(d) { return build(mulberry32(d.seed), d); }
 
-  // ---------- share codes: mode + count (+ T for twisty) + seed, e.g. "N20-K7F3Q" or "H30T-K7F3Q" ----------
+  // ---------- share codes: mode + count (+ B for bigger boards) + seed, e.g. "N20-K7F3Q" or "X30B-K7F3Q" ----------
   const SEED_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
   function randomSeed(rand) {
     let s = '';
@@ -317,20 +282,20 @@ const MFLevels = (() => {
     return s;
   }
   const cleanSeed = s => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-  function encodeCode(o) { return o.mode + o.count + (o.twisty && !(MODES[o.mode] || {}).range ? 'T' : '') + '-' + cleanSeed(o.seed); }
+  function encodeCode(o) { return o.mode + o.count + (o.big ? 'B' : '') + '-' + cleanSeed(o.seed); }
   function parseCode(text) {
-    const m = /^\s*([ENHX])\s*(\d{1,2})\s*(T?)\s*-\s*([A-Z0-9]{1,10})\s*$/i.exec(String(text));
+    const m = /^\s*([ENHX])\s*(\d{1,2})\s*(B?)\s*-\s*([A-Z0-9]{1,10})\s*$/i.exec(String(text));
     if (!m) return null;
     const count = +m[2];
     if (!COUNTS.includes(count)) return null;
-    const mode = m[1].toUpperCase();
-    return { mode, count, twisty: !!m[3] && !MODES[mode].range, seed: m[4].toUpperCase() }; // range modes have no twisty variant
+    return { mode: m[1].toUpperCase(), count, big: !!m[3], seed: m[4].toUpperCase() };
   }
 
-  // The built-in levels are simply one fixed set.
-  const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'N', count: 60, twisty: false };
+  // The built-in levels are simply one fixed set, kept to boards that fit a phone.
+  const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, difficulty, build, generateSet, levelFrom,
-    randomSeed, cleanSeed, encodeCode, parseCode, quotas, quality, goodEnough, MODES, COUNTS, CAMPAIGN, MIN_ROPES, MIN_COVERAGE, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, difficulty, build, generateSet, levelFrom, slotEdges,
+    randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor,
+    MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, MIN_ROPES, MIN_COVERAGE, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = MFLevels;
