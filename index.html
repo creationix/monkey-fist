@@ -131,7 +131,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 n (all levels unlocked)</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 o (all levels unlocked)</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -156,7 +156,7 @@
   <h2>Custom levels</h2>
   <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button><button data-v="X">Extreme</button></div>
   <div class="seg" id="segCount"><button data-v="10">10 levels</button><button data-v="20">20 levels</button><button data-v="30">30 levels</button></div>
-  <div class="row"><span>Bigger boards<small>Up to 16×22, best on a tablet</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
+  <div class="row"><span>Bigger boards<small>Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
   <div class="row seedRow"><span>Seed</span><input id="seedIn" type="text" maxlength="14" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
     <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button></div>
   <p class="sub">Share code <button class="code" id="codeOut" title="Copy"></button><br><small id="rangeNote"></small></p>
@@ -189,7 +189,7 @@ const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened wi
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
-const GEN = 7; // bump whenever the level generator changes: every set's levels change with it
+const GEN = 8; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
   save.sets = { campaign: { stars: {}, max: far } }; save.recent = []; save.gen = GEN;
@@ -654,7 +654,7 @@ function buildCustom() {
   const c = save.custom;
   for (const b of $('segMode').children) b.classList.toggle('on', b.dataset.v === c.mode);
   for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
-  const range = MFLevels.MODES[c.mode].range;
+  const range = MFLevels.rangeFor(c.mode, c.big);
   $('tBig').classList.toggle('on', !!c.big);
   const d0 = MFLevels.floorFor(range[0]), d1 = MFLevels.floorFor(range[1]), depth = d0 === d1 ? d1 + '+' : (d0 || 'any') + ' to ' + d1 + '+';
   $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + ' · ropes blocked ' + depth + ' deep on average';

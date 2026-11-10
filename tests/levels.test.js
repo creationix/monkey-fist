@@ -120,14 +120,14 @@
     ok(big < Math.max(small, 0.05) * 40, '200 ropes took ' + small.toFixed(2) + ' ms, 800 ropes took ' + big.toFixed(2) + ' ms');
   });
 
-  // ---------- building one level (backwards, then turning ropes) ----------
+  // ---------- building one level (rope by rope without ever closing a loop, then turning ropes) ----------
   // 300 boards across every setting, slot and rope style, with and without bigger boards.
   const boards = [];
   {
     const rng = L.mulberry32(12345);
     for (let i = 0; boards.length < 300 && i < 3000; i++) {
       const mode = L.PLAYER_MODES[i % 4], r = L.MODES[mode].range, lo = r[0] + Math.floor(rng() * (r[1] - r[0] - 3)), hi = lo + 3.4;
-      const cfg = L.plan(rng, mode, lo, hi, i % 5 === 0, i), b = L.construct(L.mulberry32(cfg.seed), cfg);
+      const cfg = L.plan(rng, lo, hi, i % 5 === 0, i), b = L.construct(L.mulberry32(cfg.seed), cfg);
       if (b) boards.push(Object.assign(b, { cfg }));
     }
   }
@@ -202,25 +202,26 @@
   for (const seed of SEEDS) for (const mode of L.PLAYER_MODES) for (const count of L.COUNTS) getSet(seed, mode, count, false);
   for (const seed of SEEDS.slice(0, 3)) for (const mode of L.PLAYER_MODES) getSet(seed, mode, 20, true); // "bigger boards" sets go through every check too
 
-  test('the difficulty ranges are Easy 2-40, Normal 20-80, Hard 60-130, Extreme 100-200', () => {
-    eq(L.PLAYER_MODES.map(m => L.MODES[m].range), [[2, 40], [20, 80], [60, 130], [100, 200]]);
+  test('the difficulty ranges are Easy 2-40, Normal 20-80, Hard 60-150, Extreme 150-500, and bigger boards double the top', () => {
+    eq(L.PLAYER_MODES.map(m => L.rangeFor(m, false)), [[2, 40], [20, 80], [60, 150], [150, 500]]);
+    eq(L.PLAYER_MODES.map(m => L.rangeFor(m, true)), [[2, 80], [20, 160], [60, 300], [150, 1000]]);
   });
   test('a set has the number of levels asked for', () => {
     for (const k in sets) eq(sets[k].levels.length, sets[k].count, k);
   });
-  test('every level is inside its setting\'s difficulty range (Extreme never below 100)', () => {
-    for (const k in sets) { const r = L.MODES[sets[k].mode].range; for (const lv of sets[k].levels) ok(lv.difficulty >= r[0] && lv.difficulty <= r[1], k + ' has a level of difficulty ' + lv.difficulty); }
+  test('every level is inside its setting\'s difficulty range (Extreme never below 150)', () => {
+    for (const k in sets) { const r = L.rangeFor(sets[k].mode, sets[k].big); for (const lv of sets[k].levels) ok(lv.difficulty >= r[0] && lv.difficulty <= r[1], k + ' has a level of difficulty ' + lv.difficulty); }
   });
   test('every level in a set has a unique difficulty, and they run simplest to hardest', () => {
     for (const k in sets) { const d = sets[k].levels.map(l => l.difficulty); for (let i = 1; i < d.length; i++) ok(d[i] > d[i - 1], k + ' at ' + i + ': ' + d[i - 1] + ' then ' + d[i]); }
   });
   test('a set fills its range evenly: one level in each equal slice', () => {
     for (const k in sets) {
-      const s = sets[k], e = L.slotEdges(s.mode, s.count);
+      const s = sets[k], e = L.slotEdges(s.mode, s.count, s.big);
       s.levels.forEach((lv, j) => ok(lv.difficulty >= e[j] && lv.difficulty < e[j + 1], k + ' level ' + (j + 1) + ' has difficulty ' + lv.difficulty + ', outside its slice ' + e[j].toFixed(1) + '-' + e[j + 1].toFixed(1)));
     }
     const d = getSet('ALPHA', 'X', 10).levels.map(l => l.difficulty);
-    ok(d[0] <= 110 && d[9] >= 190, 'a 10-level Extreme set should start within 100-110 and end within 190-200, got ' + d[0] + ' and ' + d[9]);
+    ok(d[0] <= 185 && d[9] >= 465, 'a 10-level Extreme set should start within 150-185 and end within 465-500, got ' + d[0] + ' and ' + d[9]);
   });
   test('each level rebuilds from its descriptor with the stated size, difficulty and rope count', () => {
     for (const k in sets) for (const lv of sets[k].levels) {
@@ -250,9 +251,8 @@
 
   // ---------- depth: minimum average block cost per rope ----------
   const avgCostOf = lv => { const b = L.levelFrom(lv), c = L.blockCosts(b.ropes, b.W, b.H); return sum(c) / c.length; };
-  test('the depth floor rises with difficulty: 1.5 from 10, 2.5 from 20, 3 from 40, 4 from 60, 5 from 100, 5.5 from 150', () => {
-    eq([0, 9, 10, 19, 20, 39, 40, 59, 60, 99, 100, 149, 150, 200].map(L.floorFor), [0, 0, 1.5, 1.5, 2.5, 2.5, 3, 3, 4, 4, 5, 5, 5.5, 5.5]);
-    for (const m in L.MODES) eq(L.MODES[m].minAvgCost(120), 5, m); // one rule for every setting
+  test('the depth floor rises with difficulty, from 1.5 at tangle 10 up to 8 at tangle 400', () => {
+    eq([0, 9, 10, 19, 20, 39, 40, 59, 60, 99, 100, 149, 150, 249, 250, 399, 400, 1000].map(L.floorFor), [0, 0, 1.5, 1.5, 2, 2, 2.5, 2.5, 3, 3, 4, 4, 5, 5, 6.5, 6.5, 8, 8]);
   });
   test('every level meets the minimum average block cost per rope for its difficulty', () => {
     const seen = { E: [], N: [], H: [], X: [] };
@@ -265,6 +265,34 @@
     const mean = a => sum(a) / a.length;
     window.__depth = { avgCost: L.PLAYER_MODES.map(m => +mean(seen[m]).toFixed(2)), lowest: L.PLAYER_MODES.map(m => +Math.min(...seen[m]).toFixed(2)) };
     ok(mean(seen.E) < mean(seen.N) && mean(seen.N) < mean(seen.H) && mean(seen.H) < mean(seen.X), 'average cost per rope by setting: ' + window.__depth.avgCost);
+  });
+
+  // ---------- packed boards ----------
+  test('boards are packed: at least 78% rope past the smallest sizes, and typically about 85-90%', () => {
+    const cov = { E: [], N: [], H: [], X: [] };
+    for (const k in sets) for (const lv of sets[k].levels) { const b = L.levelFrom(lv); cov[sets[k].mode].push(L.quality(b.ropes, b.W, b.H).coverage); }
+    const median = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+    window.__coverage = L.PLAYER_MODES.map(m => Math.round(median(cov[m]) * 100));
+    for (const m of 'NHX') ok(median(cov[m]) >= 0.82, m + ' median coverage is ' + Math.round(median(cov[m]) * 100) + '%');
+  });
+  test('the hardest Extreme level is a big, full, deep board', () => {
+    const tops = [];
+    for (const seed of SEEDS) {
+      const lv = getSet(seed, 'X', 30).levels[29], b = L.levelFrom(lv), c = L.blockCosts(b.ropes, b.W, b.H), q = L.quality(b.ropes, b.W, b.H);
+      const deepest = Math.max(...c), free = c.filter(x => x === 0).length;
+      tops.push(lv.W + 'x' + lv.H + ' ' + lv.ropes + ' ropes ' + Math.round(q.coverage * 100) + '% tangle ' + lv.difficulty + ' deepest ' + deepest + ' free ' + free);
+      ok(lv.difficulty >= 480, seed + ': tangle ' + lv.difficulty);
+      ok(lv.W >= 11 && lv.ropes >= 35, seed + ': ' + lv.W + 'x' + lv.H + ' with ' + lv.ropes + ' ropes');
+      ok(deepest >= 15, seed + ': deepest chain only ' + deepest);
+      ok(free <= lv.ropes * 0.25, seed + ': ' + free + ' of ' + lv.ropes + ' ropes are free at the start');
+    }
+    window.__hardest = tops;
+  });
+  test('a rope may sit in a pocket and wait on older ropes, but a loop is never closed', () => {
+    // On packed boards most ropes are blocked from the start, yet every board must still play out.
+    let waitingAtOnce = 0, ropes = 0;
+    for (const b of boards) { const c = costsByPlaying(b.ropes, b.W, b.H); ok(c !== null, 'a built board cannot be solved'); ropes += c.length; waitingAtOnce += c.filter(x => x > 0).length; }
+    ok(waitingAtOnce > ropes * 0.6, 'only ' + Math.round(waitingAtOnce / ropes * 100) + '% of ropes are blocked at the start');
   });
 
   // ---------- board sizes ----------
@@ -297,11 +325,11 @@
   });
 
   // ---------- board quality ----------
-  test('no level is a half-empty board, or a big board of ropes that mostly do not block each other', () => {
+  test('no level is a board with much empty space, or a big board of ropes that mostly do not block each other', () => {
     for (const k in sets) for (const lv of sets[k].levels) {
       const b = L.levelFrom(lv), q = L.quality(b.ropes, b.W, b.H);
       ok(b.ropes.length >= L.MIN_ROPES, k + ': too few ropes');
-      ok(q.coverage >= L.MIN_COVERAGE, k + ': a ' + b.W + 'x' + b.H + ' board is only ' + Math.round(q.coverage * 100) + '% rope');
+      ok(q.coverage >= (b.W > L.SMALL_W ? L.MIN_COVERAGE : L.MIN_COVERAGE_SMALL), k + ': a ' + b.W + 'x' + b.H + ' board is only ' + Math.round(q.coverage * 100) + '% rope');
       if (b.W > L.SMALL_W) ok(q.blockedShare >= L.MIN_BLOCKED_SHARE, k + ': only ' + Math.round(q.blockedShare * 100) + '% of ropes on a ' + b.W + 'x' + b.H + ' board are blocked');
     }
   });
@@ -333,7 +361,7 @@
 
   // ---------- the built-in levels ----------
   let campaign, campaignMs;
-  test('the built-in set has 60 levels covering difficulty 1-200, simplest first, all different', () => {
+  test('the built-in set has 60 levels covering difficulty 1-300, simplest first, all different', () => {
     const t0 = performance.now(); campaign = L.generateSet(L.CAMPAIGN); campaignMs = performance.now() - t0;
     eq(campaign.levels.length, 60);
     const d = campaign.levels.map(l => l.difficulty), e = L.slotEdges('C', 60);
@@ -344,9 +372,9 @@
   test('the built-in set starts gently on a small board, climbs slowly at first, and ends hard', () => {
     const lv = campaign.levels;
     ok(lv[0].W <= L.SMALL_W && lv[0].difficulty <= 3, 'level 1 is ' + lv[0].W + 'x' + lv[0].H + ' with difficulty ' + lv[0].difficulty);
-    ok(lv[9].difficulty <= 20, 'level 10 has difficulty ' + lv[9].difficulty);       // a sixth of the way through, a tenth of the way up
-    ok(lv[29].difficulty <= 80, 'level 30 has difficulty ' + lv[29].difficulty);      // halfway through, well under halfway up
-    ok(lv[59].difficulty >= 195, 'level 60 has difficulty ' + lv[59].difficulty);
+    ok(lv[9].difficulty <= 31, 'level 10 has difficulty ' + lv[9].difficulty);       // a sixth of the way through, a tenth of the way up
+    ok(lv[29].difficulty <= 114, 'level 30 has difficulty ' + lv[29].difficulty);     // halfway through, well under halfway up
+    ok(lv[59].difficulty >= 290, 'level 60 has difficulty ' + lv[59].difficulty);
     for (const l of lv) ok(l.W <= 12 && l.H <= 16, 'a built-in level uses a ' + l.W + 'x' + l.H + ' board');
   });
   test('the built-in levels meet the depth floor for their difficulty', () => {
