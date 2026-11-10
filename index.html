@@ -131,7 +131,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 k</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 l (all levels unlocked)</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -183,6 +183,7 @@ const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#9775fa', '#f783ac', '#f1e3b5'];
 const MAX_HEARTS = 3;
+const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened without clearing the one before. Set to false to restore normal unlocking.
 
 // ---------- persistence ----------
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
@@ -636,7 +637,7 @@ function buildLevels() {
     (n < SET.asked ? ' · only ' + n + ' levels of different difficulty were possible' : '');
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
-    const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
+    const b = document.createElement('button'), st = P.stars[i] || 0, open = UNLOCK_ALL || i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
     const badge = save.kid ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
