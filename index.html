@@ -154,7 +154,7 @@ function initAudio() {
     const comp = AC.createDynamicsCompressor();
     comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.2;
     out = AC.createGain(); out.gain.value = 1; out.connect(comp); comp.connect(AC.destination);
-    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(out);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 0.6; sfxBus.connect(out);
     musicBus = AC.createGain(); musicBus.gain.value = save.music ? 0.55 : 0; musicBus.connect(out);
     setInterval(musicTick, 80);
   }
@@ -190,12 +190,24 @@ function pluck(f, vol, when, dur, dest) {
 }
 const on = () => save.sound && AC;
 const sfx = {
-  click() { if (on()) { tone(520, 0.07, 'triangle', 0.3, 0, 780); noise(0.03, 0.2, 2500, 4000); } },
-  // rope being pulled: a rising zip over a whoosh
-  slide() { if (on()) { noise(0.34, 0.9, 400, 3600); tone(220, 0.26, 'sawtooth', 0.14, 0, 880); tone(330, 0.24, 'sine', 0.3, 0, 990); } },
-  // rope clears the board: a bright pluck that climbs with your streak
-  pop(streak) { if (on()) { const f = 523.25 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24][Math.min(streak - 1, 10)] / 12); pluck(f, 0.5, 0, 0.35); pluck(f * 1.5, 0.3, 0.07, 0.4); noise(0.06, 0.25, 5000, 8000); } },
-  bump() { if (on()) { tone(160, 0.3, 'sine', 0.9, 0, 45); noise(0.18, 0.8, 400, 90); tone(196, 0.22, 'sawtooth', 0.25, 0.02, 92); tone(185, 0.22, 'square', 0.12, 0.02, 87); } },
+  click() { if (on()) tone(520, 0.06, 'sine', 0.22, 0, 700); },
+  // rope being pulled: a soft airy whoosh
+  slide() { if (on()) { noise(0.3, 0.3, 500, 2400); tone(260, 0.2, 'sine', 0.1, 0, 520); } },
+  // rope clears the board: a soft pluck that plays along with the music. The note comes from
+  // whichever chord is sounding, and a streak wanders up and down that chord instead of
+  // climbing to one top note and sticking there.
+  pop(streak) {
+    if (!on()) return;
+    const bar = save.music ? Math.max(0, stepNo - 1) >> 3 : Math.floor(AC.currentTime / (STEP * 8));
+    const ch = CHORDS[bar % 4];
+    const s = (streak - 1) % 10, idx = s < 6 ? s : 10 - s;
+    const lift = Math.floor((streak - 1) / 10) % 2 ? 0.5 : 1; // every other run of ten drops an octave for contrast
+    const f = ch.mel[idx] * lift;
+    pluck(f, 0.3 + Math.random() * 0.06, 0, 0.45);
+    if (streak % 3 === 0) pluck(ch.mel[(idx + 2) % 6] * lift, 0.16, 0.09, 0.4); // a little answering note
+    if (streak % 10 === 0) [0, 2, 4, 5].forEach((k, i) => pluck(ch.mel[k] * 2, 0.14, 0.05 + i * 0.06, 0.5)); // sparkle on every tenth
+  },
+  bump() { if (on()) { tone(140, 0.28, 'sine', 0.6, 0, 55); noise(0.16, 0.35, 300, 90); tone(110, 0.2, 'triangle', 0.2, 0.01, 70); } },
   hint() { if (on()) { pluck(880, 0.35, 0, 0.25); pluck(1318.5, 0.35, 0.09, 0.4); } },
   win() { if (on()) [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568].forEach((f, i) => { pluck(f, 0.45, i * 0.1, 0.6); tone(f / 2, 0.4, 'triangle', 0.2, i * 0.1); }); },
   lose() { if (on()) [392, 349.23, 311.13, 261.63].forEach((f, i) => { tone(f, 0.45, 'triangle', 0.4, i * 0.22); tone(f / 2, 0.45, 'sine', 0.3, i * 0.22); }); },
