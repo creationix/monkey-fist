@@ -100,10 +100,23 @@ const MFLevels = (() => {
     }
     return { cost, stuck, knot: stuck.filter(i => isStuck[i]) };
   }
-  // A level's difficulty is the sum of its ropes' block costs.
+  // How many corners a rope turns.
+  function bendsOf(path) {
+    let n = 0;
+    for (let i = 2; i < path.length; i++) if (path[i].x - path[i - 1].x !== path[i - 1].x - path[i - 2].x || path[i].y - path[i - 1].y !== path[i - 1].y - path[i - 2].y) n++;
+    return n;
+  }
+  // A rope's score. A rope that can leave right now scores 0, however it is shaped: it takes
+  // no working out. A blocked rope scores its block cost plus one for each bend, because a
+  // rope that winds around is harder to follow and to plan around than a straight one.
+  // Scoring free ropes at 0 keeps one useful property: the total is 0 exactly when nothing
+  // on the board is blocked.
+  function ropeScores(paths, costs) { return paths.map((p, i) => (costs[i] > 0 ? costs[i] + bendsOf(p) : 0)); }
+  const total = a => a.reduce((x, y) => x + y, 0);
+  // A level's difficulty (its "tangle") is the sum of its ropes' scores.
   function difficulty(paths, W, H) {
     const costs = blockCosts(paths, W, H);
-    return costs ? costs.reduce((a, b) => a + b, 0) : Infinity;
+    return costs ? total(ropeScores(paths, costs)) : Infinity;
   }
 
   // ---------- building one level ----------
@@ -165,7 +178,7 @@ const MFLevels = (() => {
 
   // ---------- level sets ----------
   // Every difficulty setting is a difficulty range, and a set fills its range evenly.
-  // (Difficulty = the sum of block costs, as above.)
+  // (Difficulty = the sum of the ropes' scores, as above: block cost plus bends for each blocked rope.)
   const MODES = {
     E: { name: 'Easy', range: [0, 40] },
     N: { name: 'Normal', range: [20, 80] },
@@ -182,8 +195,8 @@ const MFLevels = (() => {
   // so a lower score for its size; `scale` is a first estimate of that, corrected while generating.
   const STYLES = [
     { name: 'short', share: 0.45, minLen: 2, straight: 0.5, lenLo: 3, lenHi: () => 5, scale: 1.1 },
-    { name: 'medium', share: 0.3, minLen: 2, straight: 0.35, lenLo: 5, lenHi: () => 8, scale: 0.8 },
-    { name: 'twisty', share: 0.25, minLen: 3, straight: 0.2, lenLo: 6, lenHi: W => Math.max(8, W), scale: 0.5 },
+    { name: 'medium', share: 0.3, minLen: 2, straight: 0.35, lenLo: 5, lenHi: () => 8, scale: 0.9 },
+    { name: 'twisty', share: 0.25, minLen: 3, straight: 0.2, lenLo: 6, lenHi: W => Math.max(8, W), scale: 0.8 },
   ];
   const TWISTY_W = 7; // long twisty ropes need a board at least this wide
 
@@ -237,7 +250,7 @@ const MFLevels = (() => {
   function generateSet(opts) {
     const mode = MODES[opts.mode] ? opts.mode : 'N', M = MODES[mode], seed = cleanSeed(opts.seed), big = !!opts.big;
     const count = Math.max(1, opts.count | 0), n = Math.min(count, M.range[1] - M.range[0] + 1);
-    const rng = mulberry32(hashString('monkey-fist/3|' + mode + (big ? 'B|' : '|') + seed));
+    const rng = mulberry32(hashString('monkey-fist/4|' + mode + (big ? 'B|' : '|') + seed));
     const edges = slotEdges(mode, n), slots = new Array(n).fill(null);
     const slotOf = score => { let j = 0; while (j < n - 1 && score >= edges[j + 1]) j++; return j; };
     const widths = big ? BIG_WIDTHS : WIDTHS, top = widths[widths.length - 1];
@@ -261,7 +274,7 @@ const MFLevels = (() => {
       const st = STYLES[s], lenHi = st.lenHi(W);
       const cfg = { W, H: heightFor(W), maxLen: st.lenLo + Math.floor(rng() * (lenHi - st.lenLo + 1)), fill: 0.7 + rng() * 0.27, straight: st.straight, minLen: st.minLen };
       const lvSeed = Math.floor(rng() * 4294967296) >>> 0, L = build(mulberry32(lvSeed), cfg);
-      const score = L.costs.reduce((x, y) => x + y, 0); // costs come straight from the build's final analysis
+      const score = total(ropeScores(L.ropes, L.costs)); // block costs come straight from the build's final analysis
       seen[s] += score; guessed[s] += GUESS[W];
       if (score < M.range[0] || score > M.range[1] || !goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
       const slot = slotOf(score);
@@ -294,7 +307,7 @@ const MFLevels = (() => {
   // The built-in levels are simply one fixed set, kept to boards that fit a phone.
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, difficulty, build, generateSet, levelFrom, slotEdges,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, bendsOf, ropeScores, difficulty, build, generateSet, levelFrom, slotEdges,
     randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, MIN_ROPES, MIN_COVERAGE, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();

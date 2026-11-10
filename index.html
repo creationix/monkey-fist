@@ -129,7 +129,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 h</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 i</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -185,7 +185,7 @@ const MAX_HEARTS = 3;
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
-const GEN = 3; // bump whenever the level generator changes: every set's levels change with it
+const GEN = 4; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
   save.sets = { campaign: { stars: {}, max: far } }; save.recent = []; save.gen = GEN;

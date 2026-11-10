@@ -82,6 +82,32 @@
     }
     eq(last, 0);
   });
+  // ---------- bends ----------
+  test('bends are counted per rope: straight 0, an L 1, a Z or U 2', () => {
+    eq(L.bendsOf(rope([0, 0], [1, 0])), 0);
+    eq(L.bendsOf(rope([0, 0], [1, 0], [2, 0], [3, 0])), 0);
+    eq(L.bendsOf(rope([0, 0], [1, 0], [1, 1])), 1);
+    eq(L.bendsOf(rope([0, 0], [1, 0], [1, 1], [2, 1])), 2); // Z
+    eq(L.bendsOf(rope([0, 0], [0, 1], [1, 1], [1, 0])), 2); // U
+    eq(L.bendsOf(rope([0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2])), 4); // staircase
+  });
+  test('a blocked rope scores its block cost plus its bends; a free rope scores 0 however bendy', () => {
+    const A = rope([0, 2], [0, 1], [1, 1], [1, 0], [2, 0]); // 3 bends, heads right along the top row, into B
+    const B = rope([4, 0], [4, 1], [3, 1], [3, 2]);         // 2 bends, heads down off the board: free
+    eq(L.blockCosts([A, B], 5, 3), [1, 0]);
+    eq(L.ropeScores([A, B], [1, 0]), [4, 0]);   // A: cost 1 + 3 bends. B: free, so 0 despite 2 bends
+    eq(L.difficulty([A, B], 5, 3), 4);
+    eq(L.difficulty([B], 5, 3), 0);             // once A is gone nothing is blocked
+  });
+  test('bends add to a chain: the same three-rope chain scores more when the waiting ropes wind around', () => {
+    const C = rope([4, 2], [3, 2]);                         // heads left, clear
+    const straight = [rope([0, 0], [1, 0]), rope([3, 0], [3, 1]), C];           // costs 2, 1, 0 and no bends
+    const bendy = [rope([0, 1], [0, 0], [1, 0]), rope([4, 0], [3, 0], [3, 1]), C]; // same heads, one bend each
+    eq(L.blockCosts(bendy, 5, 3), [2, 1, 0]);
+    eq(L.difficulty(straight, 5, 3), 3);
+    eq(L.difficulty(bendy, 5, 3), 5);
+  });
+
   test('analysing a board is linear in its size: 4x the ropes on a 16x larger board costs about 16x, where re-scanning every round would cost 64x', () => {
     // long chains are the worst case for a naive solver that re-scans every rope each round
     const time = n => { const r = chain(n), S = 2 * n + 2; let best = 1e9; for (let i = 0; i < 5; i++) { const t = performance.now(); L.analyse(r, S, S); best = Math.min(best, performance.now() - t); } return best; };
@@ -120,6 +146,24 @@
   });
   test('300 random levels: block cost matches actually playing the level', () => {
     for (const b of sampleBuilds) { const c = costsByPlaying(b.ropes, b.W, b.H); eq(L.blockCosts(b.ropes, b.W, b.H), c); eq(b.costs, c); }
+  });
+  test('300 random levels: difficulty is block cost plus bends over the blocked ropes, and is 0 exactly when nothing is blocked', () => {
+    let zero = 0;
+    for (const b of sampleBuilds) {
+      const costs = costsByPlaying(b.ropes, b.W, b.H);
+      let want = 0; b.ropes.forEach((p, i) => { if (costs[i] > 0) want += costs[i] + bends(p); });
+      eq(L.difficulty(b.ropes, b.W, b.H), want);
+      eq(want === 0, costs.every(c => c === 0));
+      // play it out: the score never rises as free ropes leave, and ends at 0
+      let ropes = b.ropes, last = want;
+      for (let guard = 0; ropes.length && guard < 500; guard++) {
+        const c = L.blockCosts(ropes, b.W, b.H); ropes = ropes.filter((_, i) => i !== c.indexOf(0));
+        const now = ropes.length ? L.difficulty(ropes, b.W, b.H) : 0;
+        ok(now <= last, 'removing a free rope raised the score from ' + last + ' to ' + now); last = now;
+      }
+      eq(last, 0); if (!want) zero++;
+    }
+    window.__zeroBoards = zero;
   });
   test('the same seed and settings always build the same level', () => {
     const cfg = { W: 7, H: 9, maxLen: 5, fill: 0.8, straight: 0.5, minLen: 2 };

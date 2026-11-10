@@ -19,7 +19,9 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 
 All level logic is in [`levels.js`](levels.js), which has no dependency on the page.
 
-**Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7. A level's difficulty is the sum of its ropes' block costs, and the live tangle score is the same sum over the ropes still on the board.
+**Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
+
+A rope's *score* is 0 if it is free, however it is shaped, and otherwise its block cost plus one for each bend in it: a rope that winds around is harder to follow and to plan around than a straight one. A level's difficulty is the sum of its ropes' scores, and the live tangle score is the same sum over the ropes still on the board. Because free ropes score 0, the total is 0 exactly when nothing is blocked.
 
 **Each setting is a difficulty range**, and a set fills its range evenly:
 
