@@ -231,6 +231,52 @@
     }
   });
 
+  // ---------- depth: minimum average block cost per rope ----------
+  const avgCostOf = lv => { const b = L.levelFrom(lv), c = L.blockCosts(b.ropes, b.W, b.H); return c.reduce((x, y) => x + y, 0) / c.length; };
+  test('the minimum average block cost per rope is Easy none, Normal 2, Hard 3, Extreme 4', () => {
+    eq(L.PLAYER_MODES.map(m => L.MODES[m].minAvgCost(L.MODES[m].range[0])), [0, 2, 3, 4]);
+    eq([5, 19, 20, 59, 60, 99, 100, 200].map(d => L.MODES.C.minAvgCost(d)), [0, 0, 2, 2, 3, 3, 4, 4]); // the built-in set steps up with difficulty
+  });
+  test('every level meets its setting\'s minimum average block cost per rope', () => {
+    const seen = { E: [], N: [], H: [], X: [] };
+    for (const k in sets) for (const lv of sets[k].levels) {
+      const avg = avgCostOf(lv), need = L.MODES[sets[k].mode].minAvgCost(lv.difficulty);
+      ok(Math.abs(avg - lv.avgCost) < 1e-9, k + ': stored average ' + lv.avgCost + ' but rebuilt level has ' + avg);
+      ok(avg >= need, k + ' has a level averaging ' + avg.toFixed(2) + ' per rope, below the minimum of ' + need);
+      seen[sets[k].mode].push(avg);
+    }
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    window.__depth = { avgCost: L.PLAYER_MODES.map(m => +mean(seen[m]).toFixed(2)), lowest: L.PLAYER_MODES.map(m => +Math.min(...seen[m]).toFixed(2)) };
+    ok(mean(seen.E) < mean(seen.N) && mean(seen.N) < mean(seen.H) && mean(seen.H) < mean(seen.X), 'average cost per rope by setting: ' + window.__depth.avgCost);
+  });
+  test('deepening turns a rope around when that makes it wait on another, and leaves the board solvable', () => {
+    const A = rope([1, 0], [0, 0]);  // heads left off the board: free. Turned round it would run into B.
+    const B = rope([3, 0], [3, 1]);  // heads down off the board: free
+    eq(L.blockCosts([A, B], 5, 3), [0, 0]);
+    const ropes = [A, B];
+    eq(L.deepen(ropes, 5, 3, L.mulberry32(1), 0.5), [1, 0]);
+    eq(ropes[0], rope([0, 0], [1, 0]));  // A now points right, at B
+    eq(ropes[1], B);                     // B was left alone: turning it gains nothing
+    eq(L.blockCosts(ropes, 5, 3), [1, 0]);
+  });
+  test('deepening never lowers the total, never breaks solvability, and stops once the target average is met', () => {
+    let raised = 0;
+    sampleBuilds.forEach((b, i) => {
+      const ropes = b.ropes.map(p => p.slice()), before = b.costs.reduce((x, y) => x + y, 0), want = 1.5 + (i % 4);
+      const costs = L.deepen(ropes, b.W, b.H, L.mulberry32(i), want), after = costs.reduce((x, y) => x + y, 0);
+      eq(costsByPlaying(ropes, b.W, b.H), costs, 'board ' + i);            // still solvable, and the costs it reports are right
+      ok(after >= before, 'board ' + i + ' went from ' + before + ' to ' + after);
+      eq(ropes.map(p => p.length), b.ropes.map(p => p.length));            // ropes are only turned round, never moved or reshaped
+      if (before >= want * ropes.length) eq(after, before, 'board ' + i + ' was already deep enough and should be untouched');
+      if (after > before) raised++;
+    });
+    ok(raised > 100, 'only ' + raised + ' of 300 boards were deepened');
+  });
+  test('the built-in levels take on each setting\'s minimum as they reach its range', () => {
+    const c = L.generateSet(L.CAMPAIGN);
+    for (const lv of c.levels) { const avg = avgCostOf(lv); ok(avg >= L.MODES.C.minAvgCost(lv.difficulty), 'a built-in level of difficulty ' + lv.difficulty + ' averages only ' + avg.toFixed(2)); }
+  });
+
   // ---------- board sizes ----------
   test('ordinary sets stay within 12x16; bigger-boards sets may go up to 16x22', () => {
     let biggest = 0;

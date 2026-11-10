@@ -120,12 +120,14 @@ const MFLevels = (() => {
   }
 
   // ---------- building one level ----------
-  // cfg: { W, H, maxLen, fill, straight }. Fills the board with random ropes, then untangles any
+  // cfg: { W, H, maxLen, fill, straight, minLen, across }. Fills the board with random ropes, then untangles any
   // deadlock so the result is always solvable.
   function build(rng, cfg) {
     const { W, H } = cfg, occ = new Int16Array(W * H).fill(-1), ns = [];
     const straight = cfg.straight == null ? 0.5 : cfg.straight; // chance a growing rope carries straight on rather than turning
     const minLen = Math.max(2, cfg.minLen | 0);                  // ropes that get boxed in shorter than this are discarded
+    const across = cfg.across || 0;                              // chance a rope points the long way across the board
+    const reach = path => { const h = path[path.length - 1], d = headDir(path); return d[0] > 0 ? W - 1 - h.x : d[0] < 0 ? h.x : d[1] > 0 ? H - 1 - h.y : h.y; }; // cells between its head and the edge
     const cells = [...Array(W * H).keys()];
     for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
     let filled = 0;
@@ -151,7 +153,11 @@ const MFLevels = (() => {
       if (path.length < minLen) { drop(); continue; }
       const rev = path.slice().reverse(), okA = !selfBlocked(path), okB = !selfBlocked(rev);
       if (!okA && !okB) { drop(); continue; }
-      const useRev = okA && okB ? rng() < 0.5 : okB;
+      // Which way should it point? With chance `across` it takes the end with the longer way out
+      // of the board, which puts more ropes in its path and makes for deeper chains. Otherwise
+      // (and on a tie) it is a coin flip.
+      let useRev = okB;
+      if (okA && okB) { const coin = rng() < 0.5, a = reach(path), b = reach(rev); useRev = rng() < across && a !== b ? b > a : coin; }
       ns.push({ path: useRev ? rev : path, flipped: false, dead: false });
       filled += path.length;
     }
@@ -173,19 +179,50 @@ const MFLevels = (() => {
       }
       if (!turned) { const n = live[a.knot[Math.floor(rng() * a.knot.length)]]; live = live.filter(m => m !== n); }
     }
-    return { W, H, ropes: live.map(n => n.path), costs: a.cost };
+    const ropes = live.map(n => n.path);
+    return { W, H, ropes, costs: cfg.deepen > 0 ? deepen(ropes, W, H, rng, cfg.deepen) : a.cost };
+  }
+  // Make a solvable board deeper. Turn ropes around one at a time, in random order, keeping a
+  // turn only if the board is still solvable and its total block cost went up. Stops as soon as
+  // the average block cost per rope reaches `wantAvg`, or when a whole sweep changes nothing
+  // (three sweeps at most). This is what turns a crowd of ropes pointing straight out into
+  // ropes that wait on each other. Each trial is one linear analyse(), so a board costs at most
+  // 3R of them: the same order of work as untangling it. Returns the final block costs.
+  function deepen(ropes, W, H, rng, wantAvg) {
+    const n = ropes.length, goal = wantAvg * n;
+    let cost = analyse(ropes, W, H).cost, sum = total(cost);
+    for (let sweep = 0; sweep < 3 && sum < goal; sweep++) {
+      const order = ropes.map((_, i) => i);
+      for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      let improved = false;
+      for (const i of order) {
+        if (sum >= goal) break;
+        const keep = ropes[i], rev = keep.slice().reverse();
+        if (selfBlocked(rev)) continue;
+        ropes[i] = rev;
+        const a = analyse(ropes, W, H), s = a.stuck.length ? -1 : total(a.cost);
+        if (s > sum) { sum = s; cost = a.cost; improved = true; } else ropes[i] = keep;
+      }
+      if (!improved) break;
+    }
+    return cost;
   }
 
   // ---------- level sets ----------
   // Every difficulty setting is a difficulty range, and a set fills its range evenly.
   // (Difficulty = the sum of the ropes' scores, as above: block cost plus bends for every rope.)
   const MODES = {
-    E: { name: 'Easy', range: [2, 40] },
-    N: { name: 'Normal', range: [20, 80] },
-    H: { name: 'Hard', range: [60, 130] },
-    X: { name: 'Extreme', range: [100, 200] },
-    C: { name: 'Built-in', range: [1, 200], ease: true }, // the built-in levels: the whole span, starting gently
+    // minAvgCost: the least a level's average block cost per rope may be. Without it the cheapest
+    // way to a high score is a crowd of short ropes that barely block each other; with it, harder
+    // settings have to be built from deeper chains.
+    E: { name: 'Easy', range: [2, 40], minAvgCost: () => 0 },
+    N: { name: 'Normal', range: [20, 80], minAvgCost: () => MIN_AVG.N },
+    H: { name: 'Hard', range: [60, 130], minAvgCost: () => MIN_AVG.H },
+    X: { name: 'Extreme', range: [100, 200], minAvgCost: () => MIN_AVG.X },
+    // The built-in levels cover the whole span, starting gently, and take on each setting's minimum as they reach its range.
+    C: { name: 'Built-in', range: [1, 200], ease: true, minAvgCost: d => (d >= 100 ? MIN_AVG.X : d >= 60 ? MIN_AVG.H : d >= 20 ? MIN_AVG.N : 0) },
   };
+  const MIN_AVG = { N: 2, H: 3, X: 4 };
   const PLAYER_MODES = ['E', 'N', 'H', 'X'];
   const COUNTS = [10, 20, 30];
 
@@ -250,7 +287,7 @@ const MFLevels = (() => {
   function generateSet(opts) {
     const mode = MODES[opts.mode] ? opts.mode : 'N', M = MODES[mode], seed = cleanSeed(opts.seed), big = !!opts.big;
     const count = Math.max(1, opts.count | 0), n = Math.min(count, M.range[1] - M.range[0] + 1);
-    const rng = mulberry32(hashString('monkey-fist/5|' + mode + (big ? 'B|' : '|') + seed));
+    const rng = mulberry32(hashString('monkey-fist/6|' + mode + (big ? 'B|' : '|') + seed));
     const edges = slotEdges(mode, n), slots = new Array(n).fill(null);
     const slotOf = score => { let j = 0; while (j < n - 1 && score >= edges[j + 1]) j++; return j; };
     const widths = big ? BIG_WIDTHS : WIDTHS, top = widths[widths.length - 1];
@@ -272,14 +309,21 @@ const MFLevels = (() => {
       const W = widths[Math.max(0, Math.min(widths.length - 1, pick + Math.floor(rng() * 3) - 1))]; // one size either side, for variety
       if (s === 2 && W < TWISTY_W) s = 1;
       const st = STYLES[s], lenHi = st.lenHi(W);
-      const cfg = { W, H: heightFor(W), maxLen: st.lenLo + Math.floor(rng() * (lenHi - st.lenLo + 1)), fill: target < 6 ? 0.5 + rng() * 0.25 : 0.7 + rng() * 0.27, straight: st.straight, minLen: st.minLen }; // the very easiest slots need sparse boards
+      const cfg = { W, H: heightFor(W), maxLen: st.lenLo + Math.floor(rng() * (lenHi - st.lenLo + 1)), fill: target < 6 ? 0.5 + rng() * 0.25 : 0.7 + rng() * 0.27, straight: st.straight,
+        minLen: Math.max(st.minLen, W >= 8 ? 3 : 2), // no two-cell stubs on the larger boards
+        across: 0.6 + rng() * 0.35,                  // most ropes point the long way across
+        deepen: 0 };
+      const need = M.minAvgCost(target);
+      if (need > 0) cfg.deepen = need + 0.2 + rng() * 0.8; // deepen the board to a little past this setting's minimum average cost
       const lvSeed = Math.floor(rng() * 4294967296) >>> 0, L = build(mulberry32(lvSeed), cfg);
       const score = total(ropeScores(L.ropes, L.costs)); // block costs come straight from the build's final analysis
       seen[s] += score; guessed[s] += GUESS[W];
       if (score < M.range[0] || score > M.range[1] || !goodEnough(L.ropes, L.W, L.H, L.costs)) continue;
+      const avgCost = total(L.costs) / L.ropes.length;
+      if (avgCost < M.minAvgCost(score)) continue;
       const slot = slotOf(score);
       if (slots[slot]) continue;
-      slots[slot] = { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, seed: lvSeed, difficulty: score, ropes: L.ropes.length, style: st.name };
+      slots[slot] = { W: cfg.W, H: cfg.H, maxLen: cfg.maxLen, fill: cfg.fill, straight: cfg.straight, minLen: cfg.minLen, across: cfg.across, deepen: cfg.deepen, seed: lvSeed, difficulty: score, ropes: L.ropes.length, avgCost, style: st.name };
       filled++; stall = 0;
     }
     return { seed, mode, count, big, levels: slots.filter(Boolean), builds, code: encodeCode({ seed, mode, count, big }) };
@@ -307,8 +351,8 @@ const MFLevels = (() => {
   // The built-in levels are simply one fixed set, kept to boards that fit a phone.
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, bendsOf, ropeScores, nothingBlocked, difficulty, build, generateSet, levelFrom, slotEdges,
-    randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, blockersOf, analyse, blockCosts, bendsOf, ropeScores, nothingBlocked, difficulty, build, deepen, generateSet, levelFrom, slotEdges,
+    randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, MIN_AVG,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, MIN_ROPES, MIN_COVERAGE, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = MFLevels;

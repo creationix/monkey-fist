@@ -131,7 +131,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 l (all levels unlocked)</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 m (all levels unlocked)</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -189,7 +189,7 @@ const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened wi
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
-const GEN = 5; // bump whenever the level generator changes: every set's levels change with it
+const GEN = 6; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
   save.sets = { campaign: { stars: {}, max: far } }; save.recent = []; save.gen = GEN;
@@ -633,7 +633,7 @@ function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
   $('lvTitle').textContent = SET.custom ? 'Custom levels' : 'Levels';
   $('setNote').textContent = !SET.custom ? '' :
-    'Code ' + SET.code + ' · difficulty ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty +
+    'Code ' + SET.code + ' · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty +
     (n < SET.asked ? ' · only ' + n + ' levels of different difficulty were possible' : '');
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
@@ -656,7 +656,8 @@ function buildCustom() {
   for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
   const range = MFLevels.MODES[c.mode].range;
   $('tBig').classList.toggle('on', !!c.big);
-  $('rangeNote').textContent = 'Difficulty ' + range[0] + ' to ' + range[1] + ' · same code, same levels on any device';
+  const depth = MFLevels.MODES[c.mode].minAvgCost(range[0]);
+  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + (depth ? ' · ropes blocked ' + depth + '+ deep on average' : ' · any depth');
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('codeOut').textContent = customCode();
   const box = $('recent'); box.innerHTML = '';
