@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v3';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v4';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

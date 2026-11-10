@@ -93,6 +93,20 @@
   .toggle.on::after { left: 29px; }
   #stars { font-size: 46px; letter-spacing: 6px; color: #2c5567; }
   #stars .on { color: var(--accent); text-shadow: 0 0 16px rgba(255,154,46,.7); }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .seg button { border: 0; border-radius: 12px; padding: 13px 0; background: var(--panel2); color: var(--text); font-weight: 800; font-size: 15px; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #2a1c00; }
+  .seedRow { gap: 10px; padding: 8px 8px 8px 16px; }
+  #seedIn { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 10px; padding: 0 12px; background: #0c2531; color: var(--text); text-align: center;
+    font: 800 18px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
+  #seedIn:focus { outline: 2px solid var(--accent); }
+  .code { border: 0; border-radius: 8px; padding: 3px 10px; background: var(--panel2); color: var(--accent); font: 800 16px/1.4 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .06em; cursor: pointer; }
+  #recent { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  #recent:empty { display: none; }
+  #recentLbl { margin: 0; font-size: 13px; }
+  .chip { border: 0; border-radius: 999px; padding: 8px 12px; background: var(--panel2); color: var(--text); font: 700 13px/1 ui-monospace, Menlo, Consolas, monospace; cursor: pointer; }
+  #setNote:empty { display: none; }
+  #scrCustom { touch-action: pan-y; }
   #ver { position: absolute; left: 0; right: 0; bottom: calc(6px + var(--sab)); text-align: center; font-size: 11px; color: var(--muted); opacity: .6; pointer-events: none; }
   .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
 </style>
@@ -111,12 +125,12 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 e</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 f</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
   <button class="big" id="playBtn">Play</button>
-  <button class="big alt" id="levelsBtn">Levels</button>
+  <div class="row2"><button class="big alt" id="levelsBtn">Levels</button><button class="big alt" id="customBtn">Custom</button></div>
   <div class="row2">
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
@@ -125,10 +139,25 @@
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
-  <h2>Levels</h2>
+  <h2 id="lvTitle">Levels</h2>
+  <p class="sub" id="setNote"></p>
   <div id="lvGrid"></div>
   <button class="big alt" id="backBtn">Back</button>
   <button class="link" id="resetBtn">Hold to reset progress</button>
+</div></div>
+
+<div class="screen" id="scrCustom"><div class="card">
+  <h2>Custom levels</h2>
+  <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button></div>
+  <div class="seg" id="segCount"><button data-v="10">10 levels</button><button data-v="20">20 levels</button><button data-v="30">30 levels</button></div>
+  <div class="row"><span>Long twisty ropes<small>On the bigger boards</small></span> <button class="toggle" id="tTwisty" aria-label="Long twisty ropes"></button></div>
+  <div class="row seedRow"><span>Seed</span><input id="seedIn" type="text" maxlength="14" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
+    <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button></div>
+  <p class="sub">Share code <button class="code" id="codeOut" title="Copy"></button><br><small>Same code, same levels, on any device.</small></p>
+  <button class="big" id="genBtn">Play these levels</button>
+  <div id="recentLbl" class="sub">Recent</div>
+  <div id="recent"></div>
+  <button class="big alt" id="customBack">Back</button>
 </div></div>
 
 <div class="screen dim" id="scrResult"><div class="card">
@@ -140,17 +169,23 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
+<script src="levels.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
-const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#9775fa', '#f783ac', '#f1e3b5'];
 const MAX_HEARTS = 3;
 
 // ---------- persistence ----------
-let save = { stars: {}, max: 1, sound: true, music: true, kid: false };
+let save = { sound: true, music: true, kid: false, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
+// Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
+if (!save.sets) save.sets = { campaign: { stars: {}, max: Math.max(1, Math.min(save.max | 0, MFLevels.CAMPAIGN.count)) } }; // the built-in levels were regenerated and re-sorted: keep how far the player got, but old stars no longer apply
+delete save.stars; delete save.max;
+if (!Array.isArray(save.recent)) save.recent = [];
+if (!save.custom || !MFLevels.MODES[save.custom.mode] || !MFLevels.COUNTS.includes(save.custom.count)) save.custom = { mode: 'N', count: 20, twisty: false, seed: MFLevels.randomSeed() };
+save.custom.seed = MFLevels.cleanSeed(save.custom.seed) || MFLevels.randomSeed();
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- audio (synthesised) ----------
@@ -285,98 +320,9 @@ document.addEventListener('visibilitychange', () => { if (AC) { if (document.hid
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx.click(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-// ---------- level generation ----------
-// Every level is built from its number alone, so level N is the same puzzle every time,
-// and each one is checked to be solvable before it is used.
-function mulberry32(a) {
-  return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-}
-function levelCfg(n) {
-  const W = Math.min(4 + Math.floor(n / 2), 10);
-  return { W, H: Math.min(Math.round(W * 1.35), 14), maxLen: Math.min(3 + Math.floor(n / 2), 9), fill: Math.min(0.55 + 0.035 * n, 0.96), tries: Math.min(1 + Math.floor(n / 2), 10) };
-}
-const headDir = path => { const h = path[path.length - 1], p = path[path.length - 2]; return [h.x - p.x, h.y - p.y]; };
-// Walk forward from the head: is the way to the edge clear?
-function ray(path, occ, W, H) {
-  const h = path[path.length - 1], d = headDir(path);
-  let x = h.x + d[0], y = h.y + d[1], dist = 0;
-  while (x >= 0 && y >= 0 && x < W && y < H) {
-    const o = occ[y * W + x];
-    if (o !== -1) return { clear: false, dist, blocker: o };
-    x += d[0]; y += d[1]; dist++;
-  }
-  return { clear: true, dist, blocker: -1 };
-}
-function selfBlocked(path) {
-  const h = path[path.length - 1], d = headDir(path);
-  return path.some(p => (d[0] ? p.y === h.y && (p.x - h.x) * d[0] > 0 : p.x === h.x && (p.y - h.y) * d[1] > 0));
-}
-function solveRounds(ns, occ0, W, H) {
-  const occ = occ0.slice(), alive = new Set();
-  ns.forEach((n, i) => { if (!n.dead) alive.add(i); });
-  let rounds = 0;
-  while (alive.size) {
-    const free = [...alive].filter(i => ray(ns[i].path, occ, W, H).clear);
-    if (!free.length) return { rounds, stuck: [...alive] };
-    for (const i of free) { for (const p of ns[i].path) occ[p.y * W + p.x] = -1; alive.delete(i); }
-    rounds++;
-  }
-  return { rounds, stuck: [] };
-}
-function build(rng, cfg) {
-  const { W, H } = cfg, occ = new Int16Array(W * H).fill(-1), ns = [];
-  const cells = [...Array(W * H).keys()];
-  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-  let filled = 0;
-  for (const c of cells) {
-    if (filled >= cfg.fill * W * H) break;
-    if (occ[c] !== -1) continue;
-    const want = 2 + Math.floor(rng() * (cfg.maxLen - 1)), id = ns.length, path = [{ x: c % W, y: c / W | 0 }];
-    occ[c] = id;
-    let last = -1;
-    while (path.length < want) {
-      const h = path[path.length - 1], opts = [];
-      for (let d = 0; d < 4; d++) {
-        const nx = h.x + DIRS[d][0], ny = h.y + DIRS[d][1];
-        if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) opts.push(d);
-      }
-      if (!opts.length) break;
-      const d = last >= 0 && opts.includes(last) && rng() < 0.5 ? last : opts[Math.floor(rng() * opts.length)];
-      last = d;
-      const np = { x: h.x + DIRS[d][0], y: h.y + DIRS[d][1] };
-      path.push(np); occ[np.y * W + np.x] = id;
-    }
-    const drop = () => { for (const p of path) occ[p.y * W + p.x] = -1; };
-    if (path.length < 2) { drop(); continue; }
-    const rev = path.slice().reverse(), okA = !selfBlocked(path), okB = !selfBlocked(rev);
-    if (!okA && !okB) { drop(); continue; }
-    const useRev = okA && okB ? rng() < 0.5 : okB;
-    ns.push({ path: useRev ? rev : path, flipped: false, dead: false });
-    filled += path.length;
-  }
-  // Untangle deadlocks: turn a stuck rope around, or drop it if that doesn't help.
-  let res;
-  for (;;) {
-    res = solveRounds(ns, occ, W, H);
-    if (!res.stuck.length) break;
-    const n = ns[res.stuck[Math.floor(rng() * res.stuck.length)]];
-    const rev = n.path.slice().reverse();
-    if (!n.flipped && !selfBlocked(rev)) { n.path = rev; n.flipped = true; }
-    else { n.dead = true; for (const p of n.path) occ[p.y * W + p.x] = -1; }
-  }
-  const noodles = ns.filter(n => !n.dead).map(n => n.path);
-  return { W, H, noodles, rounds: res.rounds };
-}
-function genLevel(n) {
-  const cfg = levelCfg(n);
-  let best = null;
-  for (let k = 0; k < cfg.tries; k++) {
-    const L = build(mulberry32(n * 7919 + k * 104729), cfg);
-    L.score = L.rounds * 10 + L.noodles.length;
-    if (!best || L.score > best.score) best = L;
-  }
-  return best;
-}
+// ---------- levels ----------
+// Level generation and difficulty scoring live in levels.js, which is unit tested in tests/.
+const { mulberry32, headDir, ray } = MFLevels;
 
 // ---------- game state ----------
 const cv = $('board'), ctx = cv.getContext('2d');
@@ -384,20 +330,21 @@ let dpr = 1, cw = 300, ch = 300;
 const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodles: [], left: 0, hearts: MAX_HEARTS, streak: 0,
   parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
 
+const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.'];
 function startLevel(n) {
-  const L = genLevel(n), rng = mulberry32(n * 31 + 7);
+  const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
-  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.noodles.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0 });
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0 });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
-  G.noodles = L.noodles.map((path, id) => {
+  G.noodles = L.ropes.map((path, id) => {
     for (const p of path) G.occ[p.y * L.W + p.x] = id;
     let c; do { c = Math.floor(rng() * PALETTE.length); } while (c === lastColor);
     lastColor = c;
     return { id, path, d: headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
   });
-  $('lvName').textContent = 'Level ' + n;
-  $('tip').textContent = n === 1 ? 'Tap a rope to pull it out, arrow end first.' : n === 2 ? "A rope can't leave if another one is in its way." : n === 3 ? 'Stuck? The lightbulb shows one that can go.' : '';
+  $('lvName').textContent = 'Level ' + n + (SET.custom ? '/' + SET.levels.length : '');
+  $('tip').textContent = (!SET.custom && TIPS[n - 1]) || 'Difficulty ' + d.difficulty;
   show(null); resize(); hud();
 }
 function hud() {
@@ -440,8 +387,9 @@ function finish(win) {
   G.ended = true;
   const stars = win ? G.hearts : 0, gen = G.gen;
   if (win) {
-    save.stars[G.level] = Math.max(save.stars[G.level] || 0, stars);
-    save.max = Math.max(save.max, G.level + 1); persist();
+    const P = progress();
+    P.stars[G.level] = Math.max(P.stars[G.level] || 0, stars);
+    P.max = Math.min(SET.levels.length, Math.max(P.max, G.level + 1)); persist();
     for (let i = 0; i < 14; i++) burst(Math.random() * cw, Math.random() * ch * 0.7, PALETTE[i % PALETTE.length], 22, 320);
   }
   setTimeout(() => {
@@ -449,8 +397,9 @@ function finish(win) {
     win ? sfx.win() : sfx.lose();
     $('resTitle').textContent = win ? 'Untangled!' : 'Tangled up!';
     [...$('stars').children].forEach((el, i) => el.classList.toggle('on', i < stars));
-    $('resText').textContent = win ? (stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.') : 'Too many bumps. Give it another go.';
-    $('nextBtn').style.display = win ? '' : 'none';
+    const lastOne = G.level >= SET.levels.length;
+    $('resText').textContent = !win ? 'Too many bumps. Give it another go.' : lastOne ? 'That was the last level of this set!' : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
+    $('nextBtn').style.display = win && !lastOne ? '' : 'none';
     $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
     show('result');
   }, win ? 700 : 450);
@@ -613,29 +562,105 @@ function noodleAt(e) {
 }
 cv.addEventListener('pointerdown', e => { const n = noodleAt(e); if (n) tap(n); });
 
+// ---------- level sets ----------
+// The built-in levels and every custom set come from the same generator (levels.js):
+// the built-in ones are just a fixed seed. A set is generated when first opened
+// (well under a second) and kept for the rest of the session.
+const setCache = {};
+function getSet(id) {
+  if (!setCache[id]) {
+    const opts = id === 'campaign' ? MFLevels.CAMPAIGN : MFLevels.parseCode(id);
+    if (!opts) return null;
+    const s = MFLevels.generateSet(opts);
+    setCache[id] = { id, custom: id !== 'campaign', code: s.code, levels: s.levels, asked: s.count };
+  }
+  return setCache[id];
+}
+let SET = null;
+function useSet(id) { const s = getSet(id); if (s) SET = s; return s; }
+const progress = () => save.sets[SET.id] || (save.sets[SET.id] = { stars: {}, max: 1 });
+
 // ---------- screens ----------
-const SCREENS = { menu: 'scrMenu', levels: 'scrLevels', result: 'scrResult' };
+const SCREENS = { menu: 'scrMenu', levels: 'scrLevels', custom: 'scrCustom', result: 'scrResult' };
 function show(name) {
   for (const k in SCREENS) $(SCREENS[k]).classList.toggle('show', k === name);
   if (name === 'levels') buildLevels();
-  if (name === 'menu') $('playBtn').textContent = save.max > 1 ? 'Play · Level ' + save.max : 'Play';
+  if (name === 'custom') buildCustom();
+  if (name === 'menu') {
+    const m = Math.min((save.sets.campaign || { max: 1 }).max, MFLevels.CAMPAIGN.count);
+    $('playBtn').textContent = m > 1 ? 'Play · Level ' + m : 'Play';
+  }
 }
+const LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 function buildLevels() {
-  const grid = $('lvGrid'), total = Math.max(20, Math.ceil((save.max + 5) / 5) * 5);
+  const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
+  $('lvTitle').textContent = SET.custom ? 'Custom levels' : 'Levels';
+  $('setNote').textContent = !SET.custom ? '' :
+    'Code ' + SET.code + ' · difficulty ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty +
+    (n < SET.asked ? ' · only ' + n + ' levels of different difficulty were possible' : '');
   grid.innerHTML = '';
-  for (let i = 1; i <= total; i++) {
-    const b = document.createElement('button'), st = save.stars[i] || 0, open = i <= save.max;
+  for (let i = 1; i <= n; i++) {
+    const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
-    b.innerHTML = open ? i + '<small>' + '★'.repeat(st) + '</small>' : '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+    b.innerHTML = open ? i + '<small>' + '★'.repeat(st) + '</small>' : LOCK;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
   }
-  const cur = grid.children[Math.max(0, save.max - 1)]; if (cur) cur.scrollIntoView({ block: 'center' });
+  const cur = grid.children[Math.min(n, P.max) - 1]; if (cur) cur.scrollIntoView({ block: 'center' });
 }
+
+// ---------- custom level sets ----------
+// A set is fully described by its share code: difficulty, number of levels, rope style and seed.
+const customCode = () => MFLevels.encodeCode(save.custom);
+function buildCustom() {
+  const c = save.custom;
+  for (const b of $('segMode').children) b.classList.toggle('on', b.dataset.v === c.mode);
+  for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
+  $('tTwisty').classList.toggle('on', c.twisty);
+  if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
+  $('codeOut').textContent = customCode();
+  const box = $('recent'); box.innerHTML = '';
+  for (const code of save.recent) {
+    const o = MFLevels.parseCode(code); if (!o) continue;
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = code;
+    b.onclick = () => { Object.assign(save.custom, o); persist(); playCustom(); };
+    box.appendChild(b);
+  }
+  $('recentLbl').style.display = box.children.length ? '' : 'none';
+}
+function playCustom() {
+  const code = customCode();
+  if (!useSet(code)) return;
+  save.recent = [code, ...save.recent.filter(c => c !== code)].slice(0, 6);
+  for (const k of Object.keys(save.sets)) if (k !== 'campaign' && !save.recent.includes(k)) delete save.sets[k]; // progress is kept for recent sets only
+  persist(); show('levels');
+}
+const segPick = (id, apply) => { $(id).onclick = e => { const b = e.target.closest('button'); if (b) { apply(b.dataset.v); persist(); buildCustom(); } }; };
+segPick('segMode', v => { save.custom.mode = v; });
+segPick('segCount', v => { save.custom.count = +v; });
+$('tTwisty').onclick = () => { save.custom.twisty = !save.custom.twisty; persist(); buildCustom(); };
+$('diceBtn').onclick = () => { save.custom.seed = MFLevels.randomSeed(); $('seedIn').blur(); persist(); buildCustom(); };
+$('seedIn').addEventListener('input', () => {
+  const full = MFLevels.parseCode($('seedIn').value); // pasting a whole share code sets everything at once
+  if (full) { Object.assign(save.custom, full); $('seedIn').value = full.seed; }
+  else { const s = MFLevels.cleanSeed($('seedIn').value); if (s) save.custom.seed = s; }
+  persist(); buildCustom();
+});
+$('seedIn').addEventListener('blur', () => { $('seedIn').value = save.custom.seed; });
+$('seedIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('seedIn').blur(); });
+$('codeOut').onclick = () => {
+  const code = customCode(), el = $('codeOut');
+  const done = () => { el.textContent = 'Copied'; setTimeout(() => { el.textContent = customCode(); }, 900); };
+  try { navigator.clipboard.writeText(code).then(done, () => {}); } catch (e) {}
+};
+
 function quit() { G.gen++; G.active = false; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); }
-$('playBtn').onclick = () => startLevel(save.max);
-$('levelsBtn').onclick = () => show('levels');
-$('backBtn').onclick = () => show('menu');
+$('playBtn').onclick = () => { useSet('campaign'); startLevel(Math.min(progress().max, SET.levels.length)); };
+$('levelsBtn').onclick = () => { useSet('campaign'); show('levels'); };
+$('customBtn').onclick = () => show('custom');
+$('genBtn').onclick = playCustom;
+$('customBack').onclick = () => show('menu');
+$('backBtn').onclick = () => show(SET && SET.custom ? 'custom' : 'menu');
 $('menuBtn').onclick = () => { quit(); show('levels'); };
 $('restartBtn').onclick = () => startLevel(G.level);
 $('hintBtn').onclick = showHint;
@@ -652,15 +677,15 @@ $('resMenuBtn').onclick = () => { quit(); show('levels'); };
     tick = setInterval(() => { left--; if (left > 0) btn.textContent = 'Keep holding… ' + left; }, 1000);
     timer = setTimeout(() => {
       clearInterval(tick); timer = 0;
-      save.stars = {}; save.max = 1; persist(); buildLevels();
+      save.sets[SET.id] = { stars: {}, max: 1 }; persist(); buildLevels();
       btn.textContent = 'Progress reset'; setTimeout(() => { btn.textContent = LABEL; }, 1500);
     }, 3000);
   });
   for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, () => { if (timer) cancel(); });
 }
 // Block the browser gestures a small child triggers by accident: pinch and double-tap zoom, long-press menus, page drags.
-for (const ev of ['gesturestart', 'gesturechange', 'dblclick', 'contextmenu', 'selectstart', 'dragstart']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
-document.addEventListener('touchmove', e => { if (e.touches.length > 1 || !e.target.closest('#lvGrid')) e.preventDefault(); }, { passive: false });
+for (const ev of ['gesturestart', 'gesturechange', 'dblclick', 'contextmenu', 'selectstart', 'dragstart']) document.addEventListener(ev, e => { if (!e.target.closest || !e.target.closest('input')) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 || !e.target.closest('#lvGrid, #scrCustom')) e.preventDefault(); }, { passive: false });
 const syncSound = () => { $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid); if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05); };
 $('tMusic').onclick = () => { save.music = !save.music; persist(); syncSound(); };
 $('tKid').onclick = () => { save.kid = !save.kid; persist(); syncSound(); };
@@ -715,7 +740,7 @@ function iconPNG(size) {
 show('menu');
 resize();
 requestAnimationFrame(frame);
-window.__mf = { iconPNG, monkeyFistSVG, G, save, genLevel, levelCfg, startLevel, tap, update, draw, ray, show, quit, showHint };
+window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, update, draw, ray, show, quit, showHint, current: () => SET };
 </script>
 </body>
 </html>
