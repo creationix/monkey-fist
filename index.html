@@ -17,7 +17,7 @@
   :root { --bg1:#12384a; --bg2:#081822; --panel:#143646; --panel2:#1d4a5e; --text:#f2fbff; --muted:#9cc3d1; --accent:#ff9a2e; --bad:#ff6b6b; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   /* The page colour is on <html> too, so any strip the layout doesn't reach is never white. */
-  html { height: 100%; margin: 0; background: #081822; }
+  html { height: 100%; min-height: calc(100% + env(safe-area-inset-top, 0px)); margin: 0; background: #081822; overflow: hidden; }
   body { margin: 0; }
   body {
     background: radial-gradient(circle at 50% 0%, var(--bg1), var(--bg2) 80%);
@@ -85,6 +85,7 @@
   .toggle.on::after { left: 29px; }
   #stars { font-size: 46px; letter-spacing: 6px; color: #2c5567; }
   #stars .on { color: var(--accent); text-shadow: 0 0 16px rgba(255,154,46,.7); }
+  #ver { position: absolute; left: 0; right: 0; bottom: calc(6px + var(--sab)); text-align: center; font-size: 11px; color: var(--muted); opacity: .6; pointer-events: none; }
   .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
 </style>
 </head>
@@ -102,7 +103,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 c</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
