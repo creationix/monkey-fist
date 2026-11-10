@@ -96,6 +96,9 @@
   .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .seg button { border: 0; border-radius: 12px; padding: 13px 0; background: var(--panel2); color: var(--text); font-weight: 800; font-size: 15px; cursor: pointer; }
   .seg button.on { background: var(--accent); color: #2a1c00; }
+  #segMode { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  #segMode button { font-size: 13px; }
+  .toggle:disabled { opacity: .35; cursor: default; }
   .seedRow { gap: 10px; padding: 8px 8px 8px 16px; }
   #seedIn { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 10px; padding: 0 12px; background: #0c2531; color: var(--text); text-align: center;
     font: 800 18px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
@@ -125,7 +128,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 f</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 g</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -148,9 +151,9 @@
 
 <div class="screen" id="scrCustom"><div class="card">
   <h2>Custom levels</h2>
-  <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button></div>
+  <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button><button data-v="X">Extreme</button></div>
   <div class="seg" id="segCount"><button data-v="10">10 levels</button><button data-v="20">20 levels</button><button data-v="30">30 levels</button></div>
-  <div class="row"><span>Long twisty ropes<small>On the bigger boards</small></span> <button class="toggle" id="tTwisty" aria-label="Long twisty ropes"></button></div>
+  <div class="row"><span>Long twisty ropes<small id="twNote">On the bigger boards</small></span> <button class="toggle" id="tTwisty" aria-label="Long twisty ropes"></button></div>
   <div class="row seedRow"><span>Seed</span><input id="seedIn" type="text" maxlength="14" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
     <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button></div>
   <p class="sub">Share code <button class="code" id="codeOut" title="Copy"></button><br><small>Same code, same levels, on any device.</small></p>
@@ -616,7 +619,9 @@ function buildCustom() {
   const c = save.custom;
   for (const b of $('segMode').children) b.classList.toggle('on', b.dataset.v === c.mode);
   for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
-  $('tTwisty').classList.toggle('on', c.twisty);
+  const ranged = !!MFLevels.MODES[c.mode].range; // Extreme aims at a difficulty range and has no twisty variant
+  $('tTwisty').classList.toggle('on', c.twisty && !ranged); $('tTwisty').disabled = ranged;
+  $('twNote').textContent = ranged ? 'Not available in ' + MFLevels.MODES[c.mode].name : 'On the bigger boards';
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('codeOut').textContent = customCode();
   const box = $('recent'); box.innerHTML = '';
@@ -658,7 +663,8 @@ function quit() { G.gen++; G.active = false; ctx.setTransform(1, 0, 0, 1, 0, 0);
 $('playBtn').onclick = () => { useSet('campaign'); startLevel(Math.min(progress().max, SET.levels.length)); };
 $('levelsBtn').onclick = () => { useSet('campaign'); show('levels'); };
 $('customBtn').onclick = () => show('custom');
-$('genBtn').onclick = playCustom;
+// Big sets take a moment to generate, so say so and let the screen repaint first.
+$('genBtn').onclick = () => { const b = $('genBtn'); if (b.disabled) return; b.disabled = true; b.textContent = 'Generating…'; setTimeout(() => { try { playCustom(); } finally { b.disabled = false; b.textContent = 'Play these levels'; } }, 30); };
 $('customBack').onclick = () => show('menu');
 $('backBtn').onclick = () => show(SET && SET.custom ? 'custom' : 'menu');
 $('menuBtn').onclick = () => { quit(); show('levels'); };

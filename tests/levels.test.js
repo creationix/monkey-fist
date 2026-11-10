@@ -201,6 +201,51 @@
     ok(e < h, 'Easy boards average ' + Math.round(e / SEEDS.length) + ' cells, Hard ' + Math.round(h / SEEDS.length));
   });
 
+  // ---------- Extreme: aims at the difficulty range 100-200 ----------
+  const X = {}, xSeeds = SEEDS.slice(0, 4);
+  let xMs = 0;
+  { const t0 = performance.now(); for (const seed of xSeeds) for (const count of L.COUNTS) X['X' + count + '-' + seed] = L.generateSet({ seed, mode: 'X', count }); xMs = performance.now() - t0; }
+  test('Extreme: no level scores below 100 or above 200', () => {
+    eq(L.MODES.X.range, [100, 200]);
+    for (const k in X) for (const lv of X[k].levels) ok(lv.difficulty >= 100 && lv.difficulty <= 200, k + ' has a level of difficulty ' + lv.difficulty);
+  });
+  test('Extreme: a set has the number of levels asked for', () => {
+    for (const k in X) eq(X[k].levels.length, X[k].count, k);
+  });
+  test('Extreme: every level has a unique difficulty and they run simplest to hardest', () => {
+    for (const k in X) { const d = X[k].levels.map(l => l.difficulty); for (let i = 1; i < d.length; i++) ok(d[i] > d[i - 1], k + ' at ' + i + ': ' + d[i - 1] + ' then ' + d[i]); }
+  });
+  test('Extreme: the levels fill the range evenly, one per equal slice of 100-200', () => {
+    for (const k in X) { const n = X[k].count, span = 101 / n; X[k].levels.forEach((lv, j) => eq(Math.min(n - 1, Math.floor((lv.difficulty - 100) / span)), j, k + ' level ' + (j + 1) + ' (difficulty ' + lv.difficulty + ')')); }
+    const d = X['X10-ALPHA'].levels.map(l => l.difficulty);
+    ok(d[0] <= 110 && d[9] >= 190, 'a 10-level set should start within 100-110 and end within 190-200, got ' + d[0] + ' and ' + d[9]);
+  });
+  test('Extreme: boards are at most 12x16, pass the quality rules, and rebuild from their descriptors', () => {
+    for (const k in X) for (const lv of X[k].levels) {
+      ok(lv.W <= 12 && lv.H <= 16, k + ' has a ' + lv.W + 'x' + lv.H + ' board');
+      const b = L.levelFrom(lv);
+      eq([b.ropes.length, L.difficulty(b.ropes, b.W, b.H)], [lv.ropes, lv.difficulty], k);
+      ok(L.goodEnough(b.ropes, b.W, b.H), k + ' has a board that fails the quality rules');
+    }
+  });
+  test('Extreme: the same code gives the same set, and the work is bounded', () => {
+    eq(L.generateSet({ seed: 'ALPHA', mode: 'X', count: 20 }).levels, X['X20-ALPHA'].levels);
+    ok(JSON.stringify(X['X20-ALPHA'].levels) !== JSON.stringify(X['X20-BRAVO'].levels));
+    for (const k in X) ok(X[k].builds <= X[k].count * 60, k + ' took ' + X[k].builds + ' builds');
+    window.__extreme = { sets: Object.keys(X).length, totalMs: Math.round(xMs), builds: Object.keys(X).map(k => k + ':' + X[k].builds) };
+  });
+  test('Extreme has no twisty variant: the option is ignored and dropped from the code', () => {
+    const t = L.generateSet({ seed: 'ALPHA', mode: 'X', count: 10, twisty: true });
+    eq(t.twisty, false); eq(t.code, 'X10-ALPHA'); eq(t.levels, X['X10-ALPHA'].levels);
+    eq(L.parseCode('x10t-alpha'), { mode: 'X', count: 10, twisty: false, seed: 'ALPHA' });
+    eq(L.parseCode('X20-K7F3Q'), { mode: 'X', count: 20, twisty: false, seed: 'K7F3Q' });
+    eq(L.encodeCode({ mode: 'X', count: 30, twisty: true, seed: 'Q' }), 'X30-Q');
+  });
+  test('Extreme is harder than Hard', () => {
+    const mean = s => s.levels.reduce((a, l) => a + l.difficulty, 0) / s.levels.length;
+    for (const seed of xSeeds) for (const count of L.COUNTS) ok(mean(X['X' + count + '-' + seed]) > mean(getSet(seed, 'H', count)), seed + ' ' + count);
+  });
+
   // ---------- long twisty ropes ----------
   const bends = p => { let n = 0; for (let i = 2; i < p.length; i++) if (p[i].x - p[i - 1].x !== p[i - 1].x - p[i - 2].x || p[i].y - p[i - 1].y !== p[i - 1].y - p[i - 2].y) n++; return n; };
   const ropeStats = (twisty) => { // over the larger boards of several Hard sets
@@ -249,7 +294,7 @@
     eq(getSet('K7F3Q', 'H', 20, true).code, 'H20T-K7F3Q');
   });
   test('bad share codes are rejected', () => {
-    for (const bad of ['', 'hello', 'X20-ABCDE', 'N20X-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
+    for (const bad of ['', 'hello', 'Z20-ABCDE', 'N20X-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
   });
   test('random seeds are five unambiguous characters', () => {
     for (let i = 0; i < 200; i++) ok(/^[A-HJ-NP-Z2-9]{5}$/.test(L.randomSeed()), 'bad seed');

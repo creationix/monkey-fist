@@ -12,7 +12,7 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 - The lightbulb highlights a rope that can leave right now.
 - **Kid mode** (menu toggle): bumps never cost a heart, and each bump points out a rope that can go.
 - **Levels**: 60 built-in levels, ordered from simplest to hardest.
-- **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal or Hard, optionally with long twisty ropes. Each set has a share code such as `N20-K7F3Q`; anyone who enters the same code gets exactly the same levels.
+- **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme, optionally with long twisty ropes. Each set has a share code such as `N20-K7F3Q`; anyone who enters the same code gets exactly the same levels.
 
 ## How levels are made
 
@@ -29,6 +29,15 @@ All level logic is in [`levels.js`](levels.js), which has no dependency on the p
 5. Return the picks in order from simplest to hardest.
 
 Bigger, fuller boards score higher, so the difficulty setting decides board size too. The built-in levels are one fixed set (`N60-MONKEYFIST`).
+
+**Extreme** works differently: it aims straight at a difficulty range, 100 to 200, and fills it evenly.
+
+1. Cut the range into one equal slot per level wanted. One level per slot means no level scores below 100, the set spreads across the whole range, and no two levels share a difficulty.
+2. Aim at the empty slots in turn: pick the board width most likely to land near that slot's difficulty (from a table of typical scores per width, corrected as it goes by what the boards actually score), then build a level.
+3. A level whose difficulty falls in a slot that is still empty takes it; otherwise it is discarded.
+4. Stop when every slot is filled.
+
+Extreme uses boards up to 12x16 and has no twisty variant: long ropes mean fewer ropes per board, and they cannot reach the top of the range reliably at that size.
 
 **Cost.** Checking a board is one topological sort of the "waits for" graph, which gives every rope's block cost and finds any deadlock in a single pass: `O(W*H + R * max(W, H))` for `R` ropes on a `W x H` board. Building a level untangles deadlocks by turning or dropping one rope from the knot at a time, at most `2R` passes. Generating a set stops at 3x the levels needed, when new difficulty scores stop turning up, or after 60 builds per level asked for, whichever comes first. The built-in 60-level set takes about a tenth of a second on a laptop.
 
