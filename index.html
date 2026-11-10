@@ -83,7 +83,11 @@
   .lvBtn small { font-size: 10px; color: var(--accent); letter-spacing: 1px; height: 12px; }
   .lvBtn:disabled { opacity: .35; cursor: default; }
   .row { display: flex; align-items: center; justify-content: space-between; background: var(--panel2); padding: 12px 16px; border-radius: 14px; font-weight: 700; }
-  .toggle { width: 56px; height: 30px; border-radius: 15px; border: 0; background: #3b6577; position: relative; cursor: pointer; transition: background .15s; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row span { text-align: left; }
+  .row small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
+  @media (max-height: 700px) { #logo { width: 120px; height: 120px; } }
+  .toggle { flex: none; width: 56px; height: 30px; border-radius: 15px; border: 0; background: #3b6577; position: relative; cursor: pointer; transition: background .15s; }
   .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .15s; }
   .toggle.on { background: #51cf66; }
   .toggle.on::after { left: 29px; }
@@ -107,14 +111,17 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 d</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 e</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
   <button class="big" id="playBtn">Play</button>
   <button class="big alt" id="levelsBtn">Levels</button>
-  <div class="row">Sound effects <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
-  <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
+  <div class="row2">
+    <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
+    <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
+  </div>
+  <div class="row"><span>Kid mode<small>Bumps never cost a heart</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -142,7 +149,7 @@ const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7
 const MAX_HEARTS = 3;
 
 // ---------- persistence ----------
-let save = { stars: {}, max: 1, sound: true, music: true };
+let save = { stars: {}, max: 1, sound: true, music: true, kid: false };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
@@ -395,6 +402,7 @@ function startLevel(n) {
 }
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
+  $('hearts').style.visibility = save.kid ? 'hidden' : '';
   const h = Math.max(0, Math.min(MAX_HEARTS, G.hearts));
   let s = '';
   for (let i = 0; i < MAX_HEARTS; i++) s += '<svg viewBox="0 0 24 24"' + (i < h ? '' : ' class="off"') + '><path d="M12 21s-7.5-4.7-9.6-9.3C.9 8.300 2.800 4.500 6.500 4.500c2.100 0 3.800 1.100 5.500 3.200 1.700-2.100 3.400-3.200 5.500-3.200 3.700 0 5.600 3.800 4.100 7.200C19.500 16.300 12 21 12 21z"/></svg>';
@@ -501,7 +509,11 @@ function update(dt) {
         if (n.s >= n.bumpMax) {
           n.s = n.bumpMax; n.phase = 1;
           // Only one heart can be lost per short window, so mashing several blocked ropes at once costs one, not all.
-          const hurt = G.grace <= 0 && G.hearts > 0;
+          const hurt = !save.kid && G.grace <= 0 && G.hearts > 0;
+          if (save.kid) { // in kid mode a bump just points out a rope that can go
+            const free = G.noodles.filter(m => m.state === 'idle' && ray(m.path, G.occ, G.W, G.H).clear);
+            if (free.length) { G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 3; }
+          }
           if (hurt) { G.hearts--; G.grace = 0.7; }
           G.shake = hurt ? 1 : 0.4; sfx.bump(); hud();
           if (hurt) { const hb = $('hearts'); hb.classList.remove('hit'); void hb.offsetWidth; hb.classList.add('hit'); }
@@ -649,8 +661,9 @@ $('resMenuBtn').onclick = () => { quit(); show('levels'); };
 // Block the browser gestures a small child triggers by accident: pinch and double-tap zoom, long-press menus, page drags.
 for (const ev of ['gesturestart', 'gesturechange', 'dblclick', 'contextmenu', 'selectstart', 'dragstart']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', e => { if (e.touches.length > 1 || !e.target.closest('#lvGrid')) e.preventDefault(); }, { passive: false });
-const syncSound = () => { $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05); };
+const syncSound = () => { $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid); if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05); };
 $('tMusic').onclick = () => { save.music = !save.music; persist(); syncSound(); };
+$('tKid').onclick = () => { save.kid = !save.kid; persist(); syncSound(); };
 $('tSound').onclick = () => { save.sound = !save.sound; persist(); syncSound(); sfx.pop(1); };
 syncSound();
 
