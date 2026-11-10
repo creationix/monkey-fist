@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Monkey Fist</title>
+<meta name="description" content="Tap the ropes in the right order to untangle the knot.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1f2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monkey Fist">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+  :root { --bg1:#12384a; --bg2:#081822; --panel:#143646; --panel2:#1d4a5e; --text:#f2fbff; --muted:#9cc3d1; --accent:#ff9a2e; --bad:#ff6b6b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, var(--bg1), var(--bg2) 80%);
+    color: var(--text); font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none;
+    position: fixed; inset: 0; overscroll-behavior: none;
+    --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
+  }
+  #game { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: calc(10px + var(--sat)) calc(10px + var(--sar)) calc(10px + var(--sab)) calc(10px + var(--sal)); }
+  #hud { width: 100%; max-width: 560px; display: flex; align-items: center; gap: 8px; }
+  #hud .mid { flex: 1; min-width: 0; text-align: center; }
+  #lvName { font-weight: 800; font-size: 18px; line-height: 1.1; }
+  #left { color: var(--muted); font-size: 13px; }
+  #hearts { font-size: 22px; letter-spacing: 2px; color: var(--bad); white-space: nowrap; min-width: 76px; text-align: right; }
+  #hearts .off { color: #2c5567; }
+  #hearts.hit { animation: hit .4s; }
+  @keyframes hit { 20% { transform: scale(1.35) rotate(-6deg); } 50% { transform: scale(.9) rotate(4deg); } }
+  .iconBtn { width: 44px; height: 44px; flex: none; border-radius: 12px; border: 0; background: var(--panel2); color: var(--text); font-size: 20px; cursor: pointer; display: grid; place-items: center; }
+  .iconBtn:active { transform: scale(.94); }
+  #tip { min-height: 18px; font-size: 14px; color: var(--muted); text-align: center; max-width: 560px; }
+  #boardWrap { flex: 1; width: 100%; min-height: 0; position: relative; }
+  #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+  #toast { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%); font-size: 40px; font-weight: 900; color: var(--accent); line-height: 1;
+    text-shadow: 0 3px 0 #6b4e00, 0 0 24px rgba(255,154,46,.7); pointer-events: none; opacity: 0; white-space: nowrap; }
+  #toast.show { animation: toast .9s ease-out; }
+  @keyframes toast { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.4); } 20% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-110%) scale(1); } }
+  @media (orientation: landscape) and (max-height: 540px) {
+    #game { flex-direction: row; align-items: stretch; }
+    #hud { width: 150px; flex: none; flex-direction: column; justify-content: center; }
+    #hearts { text-align: center; }
+    #tip { display: none; }
+  }
+
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; overflow-y: auto;
+    padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal));
+    background: radial-gradient(circle at 50% 0%, var(--bg1), var(--bg2) 80%); }
+  .screen.dim { background: rgba(4,14,20,.8); backdrop-filter: blur(3px); }
+  .screen.show { display: flex; }
+  .card { width: 100%; max-width: 380px; text-align: center; display: flex; flex-direction: column; gap: 12px; margin: auto; }
+  .dim .card { background: var(--panel); border-radius: 20px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  h1 { font-size: 44px; line-height: 1; margin: 0 0 4px; font-weight: 900; letter-spacing: -.02em;
+    background: linear-gradient(180deg, #fff, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h2 { margin: 0; font-size: 28px; font-weight: 900; }
+  .sub { color: var(--muted); margin: 0 0 8px; }
+  #logo { margin: 0 auto; width: 190px; height: 190px; }
+  #logo svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); }
+  button.big { border: 0; border-radius: 14px; padding: 14px 18px; font-size: 18px; font-weight: 800; cursor: pointer; color: #2a1c00;
+    background: linear-gradient(180deg, #ffc46b, #ff9a2e); box-shadow: 0 4px 0 #a3540a; }
+  button.big:active { transform: translateY(3px); box-shadow: 0 1px 0 #a3540a; }
+  button.big.alt { background: var(--panel2); color: var(--text); box-shadow: 0 4px 0 #0a2633; }
+  button.big.alt:active { box-shadow: 0 1px 0 #0a2633; }
+  #lvGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 6px 0; max-height: 52vh; overflow-y: auto; touch-action: pan-y; padding: 2px 2px 6px; }
+  .lvBtn { aspect-ratio: 1; border: 0; border-radius: 12px; background: var(--panel2); color: var(--text); cursor: pointer; font-weight: 900; font-size: 18px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 3px 0 #0a2633; }
+  .lvBtn small { font-size: 10px; color: var(--accent); letter-spacing: 1px; height: 12px; }
+  .lvBtn:disabled { opacity: .35; cursor: default; }
+  .row { display: flex; align-items: center; justify-content: space-between; background: var(--panel2); padding: 12px 16px; border-radius: 14px; font-weight: 700; }
+  .toggle { width: 56px; height: 30px; border-radius: 15px; border: 0; background: #3b6577; position: relative; cursor: pointer; transition: background .15s; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .toggle.on { background: #51cf66; }
+  .toggle.on::after { left: 29px; }
+  #stars { font-size: 46px; letter-spacing: 6px; color: #2c5567; }
+  #stars .on { color: var(--accent); text-shadow: 0 0 16px rgba(255,154,46,.7); }
+  .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="hud">
+    <button class="iconBtn" id="menuBtn" title="Levels" aria-label="Levels">&#9776;</button>
+    <button class="iconBtn" id="restartBtn" title="Restart level" aria-label="Restart level">&#8635;</button>
+    <div class="mid"><div id="lvName">Level 1</div><div id="left"></div></div>
+    <button class="iconBtn" id="hintBtn" title="Hint" aria-label="Hint">&#128161;</button>
+    <div id="hearts"></div>
+  </div>
+  <div id="tip"></div>
+  <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
+</div>
+
+<div class="screen show" id="scrMenu"><div class="card">
+  <div id="logo"></div>
+  <h1>Monkey Fist</h1>
+  <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
+  <button class="big" id="playBtn">Play</button>
+  <button class="big alt" id="levelsBtn">Levels</button>
+  <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound"></button></div>
+</div></div>
+
+<div class="screen" id="scrLevels"><div class="card">
+  <h2>Levels</h2>
+  <div id="lvGrid"></div>
+  <button class="big alt" id="backBtn">Back</button>
+  <button class="link" id="resetBtn">Reset progress</button>
+</div></div>
+
+<div class="screen dim" id="scrResult"><div class="card">
+  <h2 id="resTitle">Untangled!</h2>
+  <div id="stars"><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span></div>
+  <p class="sub" id="resText"></p>
+  <button class="big" id="nextBtn">Next Level</button>
+  <button class="big alt" id="retryBtn">Play Again</button>
+  <button class="big alt" id="resMenuBtn">Levels</button>
+</div></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#9775fa', '#f783ac', '#f1e3b5'];
+const MAX_HEARTS = 3;
+
+// ---------- persistence ----------
+let save = { stars: {}, max: 1, sound: true };
+try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
+function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
+
+// ---------- audio (synthesised) ----------
+let AC = null, out = null;
+function initAudio() {
+  if (!AC) {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    AC = new C(); out = AC.createGain(); out.gain.value = 0.9; out.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type, vol, when, to) {
+  if (!AC) return;
+  const t = AC.currentTime + (when || 0), o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+  if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.03);
+}
+function noise(d, vol, f0, f1) {
+  if (!AC) return;
+  const len = Math.floor(AC.sampleRate * d), buf = AC.createBuffer(1, len, AC.sampleRate), data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len);
+  const s = AC.createBufferSource(), g = AC.createGain(), f = AC.createBiquadFilter();
+  f.type = 'bandpass'; f.Q.value = 1.2; f.frequency.setValueAtTime(f0, AC.currentTime); f.frequency.exponentialRampToValueAtTime(f1, AC.currentTime + d);
+  s.buffer = buf; g.gain.value = vol; s.connect(f); f.connect(g); g.connect(out); s.start();
+}
+const on = () => save.sound && AC;
+const sfx = {
+  click() { if (on()) tone(700, 0.05, 'square', 0.05, 0, 900); },
+  slide() { if (on()) { noise(0.32, 0.35, 500, 3200); tone(300, 0.22, 'sine', 0.1, 0, 700); } },
+  pop(streak) { if (on()) { const f = 523.25 * Math.pow(2, Math.min(streak - 1, 12) * 2 / 12); tone(f, 0.14, 'sine', 0.25); tone(f * 1.5, 0.2, 'triangle', 0.12, 0.05); } },
+  bump() { if (on()) { tone(150, 0.25, 'sine', 0.5, 0, 50); noise(0.15, 0.3, 300, 120); tone(220, 0.15, 'sawtooth', 0.08, 0.02, 110); } },
+  hint() { if (on()) { tone(880, 0.1, 'sine', 0.15); tone(1320, 0.18, 'sine', 0.12, 0.08); } },
+  win() { if (on()) [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => { tone(f, 0.35, 'triangle', 0.2, i * 0.11); tone(f / 2, 0.35, 'sine', 0.1, i * 0.11); }); },
+  lose() { if (on()) [392, 329.63, 261.63, 196].forEach((f, i) => tone(f, 0.4, 'triangle', 0.2, i * 0.2)); },
+};
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(ev, initAudio, true);
+document.addEventListener('click', e => { if (e.target.closest('button')) sfx.click(); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+
+// ---------- level generation ----------
+// Every level is built from its number alone, so level N is the same puzzle every time,
+// and each one is checked to be solvable before it is used.
+function mulberry32(a) {
+  return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function levelCfg(n) {
+  const W = Math.min(4 + Math.floor(n / 2), 10);
+  return { W, H: Math.min(Math.round(W * 1.35), 14), maxLen: Math.min(3 + Math.floor(n / 2), 9), fill: Math.min(0.55 + 0.035 * n, 0.96), tries: Math.min(1 + Math.floor(n / 2), 10) };
+}
+const headDir = path => { const h = path[path.length - 1], p = path[path.length - 2]; return [h.x - p.x, h.y - p.y]; };
+// Walk forward from the head: is the way to the edge clear?
+function ray(path, occ, W, H) {
+  const h = path[path.length - 1], d = headDir(path);
+  let x = h.x + d[0], y = h.y + d[1], dist = 0;
+  while (x >= 0 && y >= 0 && x < W && y < H) {
+    const o = occ[y * W + x];
+    if (o !== -1) return { clear: false, dist, blocker: o };
+    x += d[0]; y += d[1]; dist++;
+  }
+  return { clear: true, dist, blocker: -1 };
+}
+function selfBlocked(path) {
+  const h = path[path.length - 1], d = headDir(path);
+  return path.some(p => (d[0] ? p.y === h.y && (p.x - h.x) * d[0] > 0 : p.x === h.x && (p.y - h.y) * d[1] > 0));
+}
+function solveRounds(ns, occ0, W, H) {
+  const occ = occ0.slice(), alive = new Set();
+  ns.forEach((n, i) => { if (!n.dead) alive.add(i); });
+  let rounds = 0;
+  while (alive.size) {
+    const free = [...alive].filter(i => ray(ns[i].path, occ, W, H).clear);
+    if (!free.length) return { rounds, stuck: [...alive] };
+    for (const i of free) { for (const p of ns[i].path) occ[p.y * W + p.x] = -1; alive.delete(i); }
+    rounds++;
+  }
+  return { rounds, stuck: [] };
+}
+function build(rng, cfg) {
+  const { W, H } = cfg, occ = new Int16Array(W * H).fill(-1), ns = [];
+  const cells = [...Array(W * H).keys()];
+  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+  let filled = 0;
+  for (const c of cells) {
+    if (filled >= cfg.fill * W * H) break;
+    if (occ[c] !== -1) continue;
+    const want = 2 + Math.floor(rng() * (cfg.maxLen - 1)), id = ns.length, path = [{ x: c % W, y: c / W | 0 }];
+    occ[c] = id;
+    let last = -1;
+    while (path.length < want) {
+      const h = path[path.length - 1], opts = [];
+      for (let d = 0; d < 4; d++) {
+        const nx = h.x + DIRS[d][0], ny = h.y + DIRS[d][1];
+        if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) opts.push(d);
+      }
+      if (!opts.length) break;
+      const d = last >= 0 && opts.includes(last) && rng() < 0.5 ? last : opts[Math.floor(rng() * opts.length)];
+      last = d;
+      const np = { x: h.x + DIRS[d][0], y: h.y + DIRS[d][1] };
+      path.push(np); occ[np.y * W + np.x] = id;
+    }
+    const drop = () => { for (const p of path) occ[p.y * W + p.x] = -1; };
+    if (path.length < 2) { drop(); continue; }
+    const rev = path.slice().reverse(), okA = !selfBlocked(path), okB = !selfBlocked(rev);
+    if (!okA && !okB) { drop(); continue; }
+    const useRev = okA && okB ? rng() < 0.5 : okB;
+    ns.push({ path: useRev ? rev : path, flipped: false, dead: false });
+    filled += path.length;
+  }
+  // Untangle deadlocks: turn a stuck rope around, or drop it if that doesn't help.
+  let res;
+  for (;;) {
+    res = solveRounds(ns, occ, W, H);
+    if (!res.stuck.length) break;
+    const n = ns[res.stuck[Math.floor(rng() * res.stuck.length)]];
+    const rev = n.path.slice().reverse();
+    if (!n.flipped && !selfBlocked(rev)) { n.path = rev; n.flipped = true; }
+    else { n.dead = true; for (const p of n.path) occ[p.y * W + p.x] = -1; }
+  }
+  const noodles = ns.filter(n => !n.dead).map(n => n.path);
+  return { W, H, noodles, rounds: res.rounds };
+}
+function genLevel(n) {
+  const cfg = levelCfg(n);
+  let best = null;
+  for (let k = 0; k < cfg.tries; k++) {
+    const L = build(mulberry32(n * 7919 + k * 104729), cfg);
+    L.score = L.rounds * 10 + L.noodles.length;
+    if (!best || L.score > best.score) best = L;
+  }
+  return best;
+}
+
+// ---------- game state ----------
+const cv = $('board'), ctx = cv.getContext('2d');
+let dpr = 1, cw = 300, ch = 300;
+const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodles: [], left: 0, hearts: MAX_HEARTS, streak: 0,
+  parts: [], shake: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
+
+function startLevel(n) {
+  const L = genLevel(n), rng = mulberry32(n * 31 + 7);
+  G.gen++;
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.noodles.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, hint: -1, hintT: 0 });
+  G.occ = new Int16Array(L.W * L.H).fill(-1);
+  let lastColor = -1;
+  G.noodles = L.noodles.map((path, id) => {
+    for (const p of path) G.occ[p.y * L.W + p.x] = id;
+    let c; do { c = Math.floor(rng() * PALETTE.length); } while (c === lastColor);
+    lastColor = c;
+    return { id, path, d: headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
+  });
+  $('lvName').textContent = 'Level ' + n;
+  $('tip').textContent = n === 1 ? 'Tap a rope to pull it out, arrow end first.' : n === 2 ? "A rope can't leave if another one is in its way." : n === 3 ? 'Stuck? The lightbulb shows one that can go.' : '';
+  show(null); resize(); hud();
+}
+function hud() {
+  $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
+  $('hearts').innerHTML = '♥'.repeat(G.hearts) + '<span class="off">' + '♥'.repeat(MAX_HEARTS - G.hearts) + '</span>';
+}
+function toast(text) { const t = $('toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); }
+function burst(px, py, color, n, speed) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU, v = speed * (0.3 + Math.random());
+    G.parts.push({ x: px, y: py, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, color, r: 2 + Math.random() * 3 });
+  }
+}
+function tap(n) {
+  if (!G.active || G.ended || n.state !== 'idle') return;
+  G.hint = -1;
+  const r = ray(n.path, G.occ, G.W, G.H);
+  if (r.clear) {
+    for (const p of n.path) G.occ[p.y * G.W + p.x] = -1;
+    n.state = 'out'; n.v = 7; n.exitAt = r.dist + 0.5;
+    G.left--; G.streak++;
+    sfx.slide(); hud();
+  } else {
+    n.state = 'bump'; n.phase = 0; n.bumpMax = r.dist + 0.28; n.blocker = r.blocker;
+    G.streak = 0;
+  }
+}
+function showHint() {
+  if (!G.active || G.ended) return;
+  const free = G.noodles.filter(n => n.state === 'idle' && ray(n.path, G.occ, G.W, G.H).clear);
+  if (!free.length) return;
+  G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 2.5; sfx.hint();
+}
+function finish(win) {
+  G.ended = true;
+  const stars = win ? G.hearts : 0, gen = G.gen;
+  if (win) {
+    save.stars[G.level] = Math.max(save.stars[G.level] || 0, stars);
+    save.max = Math.max(save.max, G.level + 1); persist();
+    for (let i = 0; i < 14; i++) burst(Math.random() * cw, Math.random() * ch * 0.7, PALETTE[i % PALETTE.length], 22, 320);
+  }
+  setTimeout(() => {
+    if (gen !== G.gen) return;
+    win ? sfx.win() : sfx.lose();
+    $('resTitle').textContent = win ? 'Untangled!' : 'Tangled up!';
+    [...$('stars').children].forEach((el, i) => el.classList.toggle('on', i < stars));
+    $('resText').textContent = win ? (stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.') : 'Too many bumps. Give it another go.';
+    $('nextBtn').style.display = win ? '' : 'none';
+    $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
+    show('result');
+  }, win ? 700 : 450);
+}
+
+// ---------- geometry ----------
+// A noodle slides along its own body, then straight on in its head's direction.
+function pointAt(n, t) {
+  const p = n.path, last = p.length - 1;
+  if (t >= last) return [p[last].x + n.d[0] * (t - last), p[last].y + n.d[1] * (t - last)];
+  const i = Math.floor(t), f = t - i;
+  return [p[i].x + (p[i + 1].x - p[i].x) * f, p[i].y + (p[i + 1].y - p[i].y) * f];
+}
+function shape(n) {
+  const last = n.path.length - 1, a = n.s, b = n.s + last, pts = [pointAt(n, a)];
+  for (let k = Math.floor(a) + 1; k < b && k <= last; k++) pts.push(pointAt(n, k));
+  pts.push(pointAt(n, b));
+  return pts;
+}
+const px = x => G.ox + (x + 0.5) * G.cs, py = y => G.oy + (y + 0.5) * G.cs;
+
+// ---------- loop ----------
+function resize() {
+  const wrap = $('boardWrap');
+  dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  cw = wrap.clientWidth; ch = wrap.clientHeight;
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  if (G.W) {
+    G.cs = Math.max(8, Math.min((cw - 20) / G.W, (ch - 20) / G.H, 76));
+    G.ox = (cw - G.cs * G.W) / 2; G.oy = (ch - G.cs * G.H) / 2;
+  }
+}
+window.addEventListener('resize', resize);
+
+function update(dt) {
+  let moving = false;
+  for (const n of G.noodles) {
+    if (n.appear < 1) n.appear = Math.min(1, n.appear + dt * 3.5);
+    if (n.flash > 0) n.flash = Math.max(0, n.flash - dt * 3);
+    if (n.state === 'out') {
+      moving = true;
+      n.v = Math.min(46, n.v + 70 * dt); n.s += n.v * dt;
+      if (!n.popped && n.s >= n.exitAt) {
+        n.popped = true;
+        const h = n.path[n.path.length - 1];
+        burst(px(h.x + n.d[0] * n.exitAt), py(h.y + n.d[1] * n.exitAt), n.color, 16, 220);
+        sfx.pop(G.streak);
+        if (G.streak > 0 && G.streak % 5 === 0) toast(G.streak + ' in a row!');
+      }
+      const t = pointAt(n, n.s), tx = px(t[0]), ty = py(t[1]), m = G.cs;
+      if (tx < -m || ty < -m || tx > cw + m || ty > ch + m) n.state = 'gone';
+    } else if (n.state === 'bump') {
+      moving = true;
+      if (n.phase === 0) {
+        n.s += 15 * dt;
+        if (n.s >= n.bumpMax) {
+          n.s = n.bumpMax; n.phase = 1;
+          G.hearts--; G.shake = 1; sfx.bump(); hud();
+          const hb = $('hearts'); hb.classList.remove('hit'); void hb.offsetWidth; hb.classList.add('hit');
+          const b = G.noodles[n.blocker]; if (b) b.flash = 1;
+          n.flash = 1;
+          const h = pointAt(n, n.s + n.path.length - 1);
+          burst(px(h[0] + n.d[0] * 0.4), py(h[1] + n.d[1] * 0.4), '#ffffff', 12, 160);
+        }
+      } else {
+        n.s -= 8 * dt;
+        if (n.s <= 0) { n.s = 0; n.state = 'idle'; if (G.hearts <= 0 && !G.ended) finish(false); }
+      }
+    }
+  }
+  for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt / 0.7; }
+  G.parts = G.parts.filter(q => q.life > 0);
+  G.shake = Math.max(0, G.shake - dt * 3.5);
+  if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) G.hint = -1; }
+  if (!G.ended && G.left === 0 && G.noodles.every(n => n.state === 'gone')) finish(true);
+  return moving;
+}
+function shade(hex, k) {
+  const v = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)));
+  return 'rgb(' + f(v >> 16) + ',' + f(v >> 8 & 255) + ',' + f(v & 255) + ')';
+}
+function drawNoodle(c, n, time, cs, ox, oy, hinted) {
+  const X = x => ox + (x + 0.5) * cs, Y = y => oy + (y + 0.5) * cs;
+  const pts = shape(n), a = Math.max(0, n.appear), ease = a < 1 ? 1 - Math.pow(1 - a, 3) : 1;
+  if (ease <= 0) return;
+  const pulse = hinted ? 0.5 + 0.5 * Math.sin(time * 9) : 0;
+  const w = cs * (0.4 + 0.07 * pulse) * ease, head = pts[pts.length - 1], hx = X(head[0]), hy = Y(head[1]), dx = n.d[0], dy = n.d[1];
+  const body = col => {
+    c.beginPath(); c.moveTo(X(pts[0][0]), Y(pts[0][1]));
+    for (let i = 1; i < pts.length; i++) c.lineTo(X(pts[i][0]), Y(pts[i][1]));
+    c.strokeStyle = col; c.stroke();
+  };
+  const arrow = (grow, col) => {
+    const tip = cs * 0.44 * ease + grow, back = cs * 0.12, half = cs * 0.34 * ease + grow;
+    c.beginPath();
+    c.moveTo(hx + dx * tip, hy + dy * tip);
+    c.lineTo(hx - dx * back - dy * half, hy - dy * back + dx * half);
+    c.lineTo(hx - dx * back + dy * half, hy - dy * back - dx * half);
+    c.closePath(); c.fillStyle = col; c.fill();
+  };
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  const dark = shade(n.color, -0.55);
+  if (hinted) { c.shadowColor = '#fff'; c.shadowBlur = cs * (0.3 + 0.4 * pulse); }
+  c.lineWidth = w + cs * 0.12; body(dark); arrow(cs * 0.07, dark);
+  c.shadowBlur = 0;
+  c.lineWidth = w; body(n.color); arrow(0, n.color);
+  // rope twist: short dark dashes along the body
+  c.lineCap = 'butt'; c.setLineDash([cs * 0.07, cs * 0.13]); c.lineDashOffset = n.s * cs;
+  c.lineWidth = w * 0.92; c.globalAlpha = 0.22; body(dark); c.globalAlpha = 1;
+  c.setLineDash([]); c.lineCap = 'round';
+  c.lineWidth = w * 0.26; c.globalAlpha = 0.3; body(shade(n.color, 0.7)); c.globalAlpha = 1;
+  if (n.flash > 0) {
+    c.globalAlpha = n.flash * 0.75; c.lineWidth = w; body('#fff'); arrow(0, '#fff'); c.globalAlpha = 1;
+  }
+}
+function draw(time) {
+  const c = ctx, cs = G.cs;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, cw, ch);
+  if (!G.active) return;
+  if (G.shake > 0) c.translate((Math.random() - 0.5) * G.shake * 12, (Math.random() - 0.5) * G.shake * 12);
+  // board
+  const pad = Math.min(8, G.ox - 2, G.oy - 2), bx = G.ox - pad, by = G.oy - pad, bw = G.W * cs + pad * 2, bh = G.H * cs + pad * 2;
+  c.beginPath(); if (c.roundRect) c.roundRect(bx, by, bw, bh, 18); else c.rect(bx, by, bw, bh);
+  c.fillStyle = 'rgba(255,255,255,.045)'; c.fill();
+  c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.08)'; c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.1)';
+  for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
+  for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint);
+  for (const n of G.noodles) if (n.state === 'out' || n.state === 'bump') drawNoodle(c, n, time, cs, G.ox, G.oy, false);
+  c.globalCompositeOperation = 'lighter';
+  for (const q of G.parts) { c.globalAlpha = Math.max(0, q.life); c.fillStyle = q.color; c.beginPath(); c.arc(q.x, q.y, q.r * (0.4 + q.life), 0, TAU); c.fill(); }
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+}
+let last = 0;
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000); last = ts;
+  if (G.active) { update(dt); draw(ts / 1000); }
+  requestAnimationFrame(frame);
+}
+
+// ---------- input ----------
+function noodleAt(e) {
+  const b = cv.getBoundingClientRect(), gx = (e.clientX - b.left - G.ox) / G.cs - 0.5, gy = (e.clientY - b.top - G.oy) / G.cs - 0.5;
+  let best = null, bd = 0.75;
+  for (const n of G.noodles) {
+    if (n.state !== 'idle') continue;
+    for (const p of n.path) { const d = Math.hypot(p.x - gx, p.y - gy); if (d < bd) { bd = d; best = n; } }
+  }
+  return best;
+}
+cv.addEventListener('pointerdown', e => { const n = noodleAt(e); if (n) tap(n); });
+
+// ---------- screens ----------
+const SCREENS = { menu: 'scrMenu', levels: 'scrLevels', result: 'scrResult' };
+function show(name) {
+  for (const k in SCREENS) $(SCREENS[k]).classList.toggle('show', k === name);
+  if (name === 'levels') buildLevels();
+  if (name === 'menu') $('playBtn').textContent = save.max > 1 ? 'Play · Level ' + save.max : 'Play';
+}
+function buildLevels() {
+  const grid = $('lvGrid'), total = Math.max(20, Math.ceil((save.max + 5) / 5) * 5);
+  grid.innerHTML = '';
+  for (let i = 1; i <= total; i++) {
+    const b = document.createElement('button'), st = save.stars[i] || 0, open = i <= save.max;
+    b.className = 'lvBtn'; b.disabled = !open;
+    b.innerHTML = open ? i + '<small>' + '★'.repeat(st) + '</small>' : '🔒';
+    b.onclick = () => startLevel(i);
+    grid.appendChild(b);
+  }
+  const cur = grid.children[Math.max(0, save.max - 1)]; if (cur) cur.scrollIntoView({ block: 'center' });
+}
+function quit() { G.gen++; G.active = false; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); }
+$('playBtn').onclick = () => startLevel(save.max);
+$('levelsBtn').onclick = () => show('levels');
+$('backBtn').onclick = () => show('menu');
+$('menuBtn').onclick = () => { quit(); show('levels'); };
+$('restartBtn').onclick = () => startLevel(G.level);
+$('hintBtn').onclick = showHint;
+$('nextBtn').onclick = () => startLevel(G.level + 1);
+$('retryBtn').onclick = () => startLevel(G.level);
+$('resMenuBtn').onclick = () => { quit(); show('levels'); };
+$('resetBtn').onclick = () => { if (confirm('Erase all level progress?')) { save.stars = {}; save.max = 1; persist(); buildLevels(); } };
+const syncSound = () => $('tSound').classList.toggle('on', save.sound);
+$('tSound').onclick = () => { save.sound = !save.sound; persist(); syncSound(); sfx.pop(1); };
+syncSound();
+
+// Logo: an orange monkey's fist knot, three visible faces with three rope strands each.
+function monkeyFistSVG() {
+  const P = [256, 226], a = 132, u = [a * 0.866, -a * 0.5], v = [-a * 0.866, -a * 0.5], w = [0, a];
+  const at = (L, s, C, t) => [P[0] + L[0] * s + C[0] * t, P[1] + L[1] * s + C[1] * t];
+  const f = p => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+  const line = '#5c2600';
+  let o = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">';
+  // the tail of the rope hanging out of the knot
+  const tail = 'M256 340 C 256 420, 300 438, 344 474';
+  o += '<path d="' + tail + '" fill="none" stroke="' + line + '" stroke-width="50" stroke-linecap="round"/>';
+  o += '<path d="' + tail + '" fill="none" stroke="#e8801a" stroke-width="36" stroke-linecap="round"/>';
+  o += '<path d="' + tail + '" fill="none" stroke="#b85a08" stroke-width="30" stroke-dasharray="6 14"/>';
+  // each face: three strands running along L, laid side by side across C
+  const face = (L, C, fill, twist) => {
+    for (let i = 0; i < 3; i++) {
+      const t0 = i / 3 + 0.012, t1 = (i + 1) / 3 - 0.012, m = (t0 + t1) / 2;
+      const a0 = at(L, 0, C, t0), a1 = at(L, 0, C, t1), b0 = at(L, 1, C, t0), b1 = at(L, 1, C, t1), bulge = at(L, 1.09, C, m);
+      o += '<path d="M' + f(a0) + ' L' + f(b0) + ' Q' + f(bulge) + ' ' + f(b1) + ' L' + f(a1) + 'Z" fill="' + fill + '" stroke="' + line + '" stroke-width="8" stroke-linejoin="round"/>';
+      for (let k = 1; k <= 5; k++) {
+        const s = k / 6;
+        o += '<path d="M' + f(at(L, s - 0.06, C, t0 + 0.075)) + ' L' + f(at(L, s + 0.06, C, t1 - 0.075)) + '" stroke="' + twist + '" stroke-width="6" stroke-linecap="round"/>';
+      }
+    }
+  };
+  face(u, v, '#ffab45', '#e58212'); // top
+  face(w, u, '#ee841a', '#c2620a'); // right
+  face(v, w, '#ff9728', '#d8720e'); // left
+  return o + '</svg>';
+}
+$('logo').innerHTML = monkeyFistSVG();
+// Renders the app icon at a given size (used once to produce the PNG icon files).
+function iconPNG(size) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, size);
+      g.addColorStop(0, '#1a4a60'); g.addColorStop(1, '#081822');
+      x.fillStyle = g; x.fillRect(0, 0, size, size);
+      const s = size * 0.8; x.drawImage(img, (size - s) / 2, (size - s) / 2 - size * 0.02, s, s);
+      c.toBlob(res, 'image/png');
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(monkeyFistSVG());
+  });
+}
+show('menu');
+resize();
+requestAnimationFrame(frame);
+window.__mf = { iconPNG, monkeyFistSVG, G, save, genLevel, levelCfg, startLevel, tap, update, draw, ray, show, quit, showHint };
+</script>
+</body>
+</html>
