@@ -38,6 +38,8 @@
   #tangle { color: var(--accent); font-weight: 800; font-size: 14px; line-height: 1.2; font-variant-numeric: tabular-nums; }
   #hearts { display: flex; gap: 3px; justify-content: flex-end; flex: none; color: var(--bad); }
   #hearts svg { width: 22px; height: 22px; display: block; fill: currentColor; }
+  #hearts .timer { min-width: 56px; text-align: right; color: var(--text); font-weight: 800; font-size: 20px; line-height: 22px; font-variant-numeric: tabular-nums; }
+  #timeScore { font-size: 54px; line-height: 1.1; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px rgba(255,154,46,.5); font-variant-numeric: tabular-nums; }
   #hearts svg.off { color: #2c5567; }
   #hearts.hit { animation: hit .4s; }
   @keyframes hit { 20% { transform: scale(1.35) rotate(-6deg); } 50% { transform: scale(.9) rotate(4deg); } }
@@ -129,7 +131,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 j</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 k</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -139,7 +141,7 @@
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
-  <div class="row"><span>Kid mode<small>Bumps never cost a heart</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
+  <div class="row"><span>Kid mode<small>No hearts or stars, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -167,6 +169,7 @@
 <div class="screen dim" id="scrResult"><div class="card">
   <h2 id="resTitle">Untangled!</h2>
   <div id="stars"><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span></div>
+  <div id="timeScore"></div>
   <p class="sub" id="resText"></p>
   <button class="big" id="nextBtn">Next Level</button>
   <button class="big alt" id="retryBtn">Play Again</button>
@@ -343,7 +346,7 @@ const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave
 function startLevel(n) {
   const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
-  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0 });
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
@@ -356,10 +359,11 @@ function startLevel(n) {
   $('tip').textContent = (!SET.custom && TIPS[n - 1]) || '';
   show(null); resize(); hud();
 }
+const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
   $('tangle').textContent = 'Tangle ' + G.tangle;
-  $('hearts').style.visibility = save.kid ? 'hidden' : '';
+  if (save.kid) { $('hearts').innerHTML = '<span class="timer">' + fmtTime(G.time) + '</span>'; return; } // kid mode has no hearts: show the clock instead
   const h = Math.max(0, Math.min(MAX_HEARTS, G.hearts));
   let s = '';
   for (let i = 0; i < MAX_HEARTS; i++) s += '<svg viewBox="0 0 24 24"' + (i < h ? '' : ' class="off"') + '><path d="M12 21s-7.5-4.7-9.6-9.3C.9 8.300 2.800 4.500 6.500 4.500c2.100 0 3.800 1.100 5.500 3.200 1.700-2.100 3.400-3.200 5.500-3.200 3.700 0 5.600 3.800 4.100 7.200C19.500 16.300 12 21 12 21z"/></svg>';
@@ -383,6 +387,7 @@ function tangleNow() {
 function tap(n, auto) {
   if (!G.active || G.ended || G.hearts <= 0 || n.state !== 'idle') return;
   G.hint = -1;
+  if (!auto) G.timing = true; // the clock starts on the player's first tap
   const r = ray(n.path, G.occ, G.W, G.H);
   if (r.clear) {
     for (const p of n.path) G.occ[p.y * G.W + p.x] = -1;
@@ -405,10 +410,13 @@ function showHint() {
 }
 function finish(win) {
   G.ended = true;
-  const stars = win ? G.hearts : 0, gen = G.gen;
+  // Kid mode has no hearts, so stars would mean nothing there: its score is the time taken.
+  const kid = save.kid, stars = win && !kid ? G.hearts : 0, gen = G.gen, took = Math.round(G.time * 10) / 10;
+  let prevBest = 0;
   if (win) {
     const P = progress();
-    P.stars[G.level] = Math.max(P.stars[G.level] || 0, stars);
+    if (kid) { P.times = P.times || {}; prevBest = P.times[G.level] || 0; if (!prevBest || took < prevBest) P.times[G.level] = took; }
+    else P.stars[G.level] = Math.max(P.stars[G.level] || 0, stars);
     P.max = Math.min(SET.levels.length, Math.max(P.max, G.level + 1)); persist();
     for (let i = 0; i < 14; i++) burst(Math.random() * cw, Math.random() * ch * 0.7, PALETTE[i % PALETTE.length], 22, 320);
   }
@@ -417,8 +425,11 @@ function finish(win) {
     win ? sfx.win() : sfx.lose();
     $('resTitle').textContent = win ? 'Untangled!' : 'Tangled up!';
     [...$('stars').children].forEach((el, i) => el.classList.toggle('on', i < stars));
+    const timed = kid && win;
+    $('stars').style.display = timed ? 'none' : ''; $('timeScore').style.display = timed ? '' : 'none'; $('timeScore').textContent = fmtTime(took);
+    const kidText = !prevBest ? 'Level ' + G.level + ' untangled.' : took < prevBest ? 'New best time! It was ' + fmtTime(prevBest) + '.' : 'Best time: ' + fmtTime(prevBest) + '.';
     const lastOne = G.level >= SET.levels.length;
-    $('resText').textContent = !win ? 'Too many bumps. Give it another go.' : lastOne ? 'That was the last level of this set!' : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
+    $('resText').textContent = !win ? 'Too many bumps. Give it another go.' : lastOne ? 'That was the last level of this set!' : kid ? kidText : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
     $('nextBtn').style.display = win && !lastOne ? '' : 'none';
     $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
     show('result');
@@ -501,6 +512,7 @@ function update(dt) {
   G.parts = G.parts.filter(q => q.life > 0);
   G.shake = Math.max(0, G.shake - dt * 3.5);
   if (G.grace > 0) G.grace -= dt;
+  if (G.timing && !G.ended && G.left > 0) { const sec = Math.floor(G.time); G.time += dt; if (save.kid && Math.floor(G.time) !== sec) hud(); }
   if (G.auto && !G.ended) { // release the remaining ropes one after another
     G.autoT -= dt;
     if (G.autoT <= 0) { const n = G.noodles.find(m => m.state === 'idle'); if (n) tap(n, true); G.autoT = 0.09; }
@@ -626,7 +638,8 @@ function buildLevels() {
   for (let i = 1; i <= n; i++) {
     const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
-    b.innerHTML = open ? i + '<small>' + '★'.repeat(st) + '</small>' : LOCK;
+    const badge = save.kid ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
+    b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
   }
