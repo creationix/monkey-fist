@@ -91,13 +91,15 @@
     eq(L.bendsOf(rope([0, 0], [0, 1], [1, 1], [1, 0])), 2); // U
     eq(L.bendsOf(rope([0, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2])), 4); // staircase
   });
-  test('a blocked rope scores its block cost plus its bends; a free rope scores 0 however bendy', () => {
+  test('every rope scores its block cost plus its bends, blocked or free', () => {
     const A = rope([0, 2], [0, 1], [1, 1], [1, 0], [2, 0]); // 3 bends, heads right along the top row, into B
     const B = rope([4, 0], [4, 1], [3, 1], [3, 2]);         // 2 bends, heads down off the board: free
     eq(L.blockCosts([A, B], 5, 3), [1, 0]);
-    eq(L.ropeScores([A, B], [1, 0]), [4, 0]);   // A: cost 1 + 3 bends. B: free, so 0 despite 2 bends
-    eq(L.difficulty([A, B], 5, 3), 4);
-    eq(L.difficulty([B], 5, 3), 0);             // once A is gone nothing is blocked
+    eq(L.ropeScores([A, B], [1, 0]), [4, 2]);   // A: cost 1 + 3 bends. B: free, but still 2 bends
+    eq(L.difficulty([A, B], 5, 3), 6);
+    eq(L.difficulty([B], 5, 3), 2);             // once A is gone nothing is blocked, but B's bends still count
+    ok(!L.nothingBlocked([A, B], 5, 3) && L.nothingBlocked([B], 5, 3), 'nothingBlocked should be false with A on the board and true without');
+    eq(L.difficulty([rope([0, 0], [1, 0])], 5, 3), 0); // only straight, unblocked ropes score 0
   });
   test('bends add to a chain: the same three-rope chain scores more when the waiting ropes wind around', () => {
     const C = rope([4, 2], [3, 2]);                         // heads left, clear
@@ -147,13 +149,14 @@
   test('300 random levels: block cost matches actually playing the level', () => {
     for (const b of sampleBuilds) { const c = costsByPlaying(b.ropes, b.W, b.H); eq(L.blockCosts(b.ropes, b.W, b.H), c); eq(b.costs, c); }
   });
-  test('300 random levels: difficulty is block cost plus bends over the blocked ropes, and is 0 exactly when nothing is blocked', () => {
+  test('300 random levels: difficulty is block cost plus bends over every rope, never rises as free ropes leave, and ends at 0', () => {
     let zero = 0;
     for (const b of sampleBuilds) {
       const costs = costsByPlaying(b.ropes, b.W, b.H);
-      let want = 0; b.ropes.forEach((p, i) => { if (costs[i] > 0) want += costs[i] + bends(p); });
+      let want = 0; b.ropes.forEach((p, i) => { want += costs[i] + bends(p); });
       eq(L.difficulty(b.ropes, b.W, b.H), want);
-      eq(want === 0, costs.every(c => c === 0));
+      eq(L.nothingBlocked(b.ropes, b.W, b.H), costs.every(c => c === 0));
+      eq(want === 0, costs.every(c => c === 0) && b.ropes.every(p => bends(p) === 0));
       // play it out: the score never rises as free ropes leave, and ends at 0
       let ropes = b.ropes, last = want;
       for (let guard = 0; ropes.length && guard < 500; guard++) {
@@ -182,8 +185,8 @@
   for (const seed of SEEDS) for (const mode of L.PLAYER_MODES) for (const count of L.COUNTS) getSet(seed, mode, count, false);
   for (const seed of SEEDS.slice(0, 3)) for (const mode of L.PLAYER_MODES) getSet(seed, mode, 20, true); // "bigger boards" sets go through every check too
 
-  test('the difficulty ranges are Easy 0-40, Normal 20-80, Hard 60-130, Extreme 100-200', () => {
-    eq(L.PLAYER_MODES.map(m => L.MODES[m].range), [[0, 40], [20, 80], [60, 130], [100, 200]]);
+  test('the difficulty ranges are Easy 2-40, Normal 20-80, Hard 60-130, Extreme 100-200', () => {
+    eq(L.PLAYER_MODES.map(m => L.MODES[m].range), [[2, 40], [20, 80], [60, 130], [100, 200]]);
   });
   test('a set has the number of levels asked for', () => {
     for (const k in sets) eq(sets[k].levels.length, sets[k].count, k);
@@ -294,7 +297,7 @@
 
   // ---------- the built-in levels ----------
   let campaign, campaignMs;
-  test('the built-in set has 60 levels covering difficulty 0-200, simplest first, all different', () => {
+  test('the built-in set has 60 levels covering difficulty 1-200, simplest first, all different', () => {
     const t0 = performance.now(); campaign = L.generateSet(L.CAMPAIGN); campaignMs = performance.now() - t0;
     eq(campaign.levels.length, 60);
     const d = campaign.levels.map(l => l.difficulty), e = L.slotEdges('C', 60);
@@ -304,7 +307,7 @@
   });
   test('the built-in set starts gently on a small board, climbs slowly at first, and ends hard', () => {
     const lv = campaign.levels;
-    ok(lv[0].W <= L.SMALL_W && lv[0].difficulty <= 2, 'level 1 is ' + lv[0].W + 'x' + lv[0].H + ' with difficulty ' + lv[0].difficulty);
+    ok(lv[0].W <= L.SMALL_W && lv[0].difficulty <= 3, 'level 1 is ' + lv[0].W + 'x' + lv[0].H + ' with difficulty ' + lv[0].difficulty);
     ok(lv[9].difficulty <= 20, 'level 10 has difficulty ' + lv[9].difficulty);       // a sixth of the way through, a tenth of the way up
     ok(lv[29].difficulty <= 80, 'level 30 has difficulty ' + lv[29].difficulty);      // halfway through, well under halfway up
     ok(lv[59].difficulty >= 195, 'level 60 has difficulty ' + lv[59].difficulty);

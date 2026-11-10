@@ -129,7 +129,7 @@
   <div id="boardWrap"><canvas id="board"></canvas><div id="toast"></div></div>
 </div>
 
-<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 i</div><div class="card">
+<div class="screen show" id="scrMenu"><div id="ver">build 2026-11-10 j</div><div class="card">
   <div id="logo"></div>
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
@@ -185,7 +185,7 @@ const MAX_HEARTS = 3;
 let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
-const GEN = 4; // bump whenever the level generator changes: every set's levels change with it
+const GEN = 5; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
   save.sets = { campaign: { stars: {}, max: far } }; save.recent = []; save.gen = GEN;
@@ -339,11 +339,11 @@ let dpr = 1, cw = 300, ch = 300;
 const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodles: [], left: 0, hearts: MAX_HEARTS, streak: 0,
   parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
 
-const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.', 'Tangle shows how knotted the board is. At 0 the rest go free.'];
+const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.', 'Tangle shows how knotted the board is. Once nothing is blocked, the rest go free.'];
 function startLevel(n) {
   const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
-  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, auto: false, autoT: 0 });
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0 });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
@@ -373,10 +373,11 @@ function burst(px, py, color, n, speed) {
     G.parts.push({ x: px, y: py, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, color, r: 2 + Math.random() * 3 });
   }
 }
-// The live tangle score: the sum of block costs of the ropes still on the board. It starts at
-// the level's difficulty and reaches 0 when nothing is blocked any more.
+// The live tangle score: block cost plus bends, summed over the ropes still on the board. It starts at
+// the level's difficulty and falls to 0 as the board empties. Also notes whether anything is still blocked.
 function tangleNow() {
   const paths = G.noodles.filter(n => n.state === 'idle' || n.state === 'bump').map(n => n.path);
+  G.clear = !paths.length || MFLevels.nothingBlocked(paths, G.W, G.H);
   return paths.length ? MFLevels.difficulty(paths, G.W, G.H) : 0;
 }
 function tap(n, auto) {
@@ -390,7 +391,7 @@ function tap(n, auto) {
     G.tangle = tangleNow();
     sfx.slide(); hud();
     // Nothing left is blocked: the puzzle is solved, so the rest let themselves out.
-    if (!auto && !G.auto && G.tangle === 0 && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
+    if (!auto && !G.auto && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
   } else {
     n.state = 'bump'; n.phase = 0; n.bumpMax = r.dist + 0.28; n.blocker = r.blocker;
     G.streak = 0;

@@ -8,11 +8,11 @@ A rope-untangling puzzle game for the browser and phone.
 
 The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it slides out of the board arrow-first, following its own bends. If another rope is in its path it bumps and you lose a heart, so the puzzle is finding the order that frees them all.
 
-- **Tangle** (top of the screen) is how knotted the board still is. It falls as you pull ropes out, and when it reaches 0 nothing is blocked any more, so the remaining ropes let themselves out.
+- **Tangle** (top of the screen) is how knotted the board still is, and it falls as you pull ropes out. Once nothing is blocked any more the puzzle is solved, so the remaining ropes let themselves out.
 - Three hearts per level; hearts left at the end are your stars.
 - The lightbulb highlights a rope that can leave right now.
 - **Kid mode** (menu toggle): bumps never cost a heart, and each bump points out a rope that can go.
-- **Levels**: 60 built-in levels, from tangle 0 up to 200, starting gently.
+- **Levels**: 60 built-in levels, from tangle 1 up to 200, starting gently.
 - **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme. Each set has a share code such as `N20-K7F3Q`; anyone who enters the same code gets exactly the same levels.
 
 ## How levels are made
@@ -21,17 +21,17 @@ All level logic is in [`levels.js`](levels.js), which has no dependency on the p
 
 **Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
 
-A rope's *score* is 0 if it is free, however it is shaped, and otherwise its block cost plus one for each bend in it: a rope that winds around is harder to follow and to plan around than a straight one. A level's difficulty is the sum of its ropes' scores, and the live tangle score is the same sum over the ropes still on the board. Because free ropes score 0, the total is 0 exactly when nothing is blocked.
+A rope's *score* is its block cost plus one for each bend in it, whether or not it is blocked: a rope that winds around is harder to follow and to plan around than a straight one. A level's difficulty is the sum of its ropes' scores, and the live tangle score is the same sum over the ropes still on the board, so it falls to 0 as the board empties.
 
 **Each setting is a difficulty range**, and a set fills its range evenly:
 
 | Setting | Difficulty |
 | --- | --- |
-| Easy | 0 to 40 |
+| Easy | 2 to 40 |
 | Normal | 20 to 80 |
 | Hard | 60 to 130 |
 | Extreme | 100 to 200 |
-| Built-in levels | 0 to 200, bunched toward the easy end |
+| Built-in levels | 1 to 200, bunched toward the easy end |
 
 **Generating a set** from a seed, a setting and a number of levels:
 
