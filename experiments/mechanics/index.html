@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1f2a">
+  <title>Monkey Fist · Mechanics playground</title>
+  <link rel="stylesheet" href="sandbox.css">
+</head>
+<body>
+  <main>
+    <aside>
+      <a class="back" href="../../">← Monkey Fist</a>
+      <div class="eyebrow">Experimental playground</div>
+      <h1>New twists.<br> Same simple taps.</h1>
+      <p class="intro">Try mirrors, key gates, and spring blocks. Tap a rope to move it. Everything else happens automatically.</p>
+      <label for="puzzle">Choose a puzzle</label>
+      <select id="puzzle"></select>
+      <div class="puzzle-heading"><span id="count"></span><span id="kind"></span></div>
+      <h2 id="title"></h2>
+      <p id="note"></p>
+      <div class="controls">
+        <button id="undo" disabled>↶ Undo</button>
+        <button id="hint">◇ Hint</button>
+        <button id="restart">↻ Restart</button>
+      </div>
+      <div class="legend" aria-label="Mechanics guide">
+        <div><span class="symbol mirror">◩</span><span><strong>Mirror</strong>Turns the rope 90°.</span></div>
+        <div><span class="symbol gate">A</span><span><strong>Key gate</strong>Free its matching lettered rope.</span></div>
+        <div><span class="symbol spring">⇋</span><span><strong>Spring</strong>Swaps head and tail on contact.</span></div>
+      </div>
+      <p class="footer">An early experiment, separate from your game progress. Undo as often as you like.</p>
+    </aside>
+    <section class="play-area" aria-label="Puzzle area">
+      <header><span id="stats"></span><span class="pill">Tap to explore</span></header>
+      <div id="board-wrap"><canvas id="board" aria-label="Rope puzzle. Tap a rope to move it."></canvas></div>
+      <div id="message" role="status" aria-live="polite"></div>
+      <nav aria-label="Puzzle navigation"><button id="prev">← Previous</button><button id="next">Next puzzle →</button></nav>
+    </section>
+  </main>
+  <script src="sandbox-logic.js"></script>
+  <script src="sandbox-generated.js"></script>
+  <script src="sandbox-levels.js"></script>
+  <script src="sandbox.js"></script>
+</body>
+</html>

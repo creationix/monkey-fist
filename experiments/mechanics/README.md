@@ -1,7 +1,22 @@
 # Advanced mechanics feasibility spike
 
-Research only. Nothing here is imported by the game or cached by its service worker.
-The existing level format, generator, saves, and shipped solver are unchanged.
+The browser playground is a separate, tap-to-play subpage. Nothing here is imported by the
+main game. The existing level format, generator, saves, and shipped solver are unchanged.
+
+## Play the experiments
+
+Open [the playground](https://creationix.github.io/monkey-fist/experiments/mechanics/).
+It includes eight introductory puzzles and four frozen generated examples, with mirrors,
+key gates, spring blocks, and combinations of all three. Moves animate along their actual
+routes; spring contact reverses the whole rope. Hint, Restart, and unlimited Undo are available.
+There is no saved progress and no effect on your main game. Link to a specific puzzle using
+`?puzzle=5` (the first spring puzzle), for example.
+
+Serve the repository root with a static server to run locally, then visit
+`/experiments/mechanics/`. The page uses `sandbox-logic.js` for both play and hint search;
+all twelve starting boards have replay-verified solutions in `sandbox.test.cjs`.
+`sandbox-generated.js` freezes actual generated examples rather than generating on load.
+The sandbox remains a prototype, not the production animation or level-generation engine.
 
 ## Recommendation
 
@@ -16,8 +31,8 @@ exception. Mirrors, springs, and gates act automatically; there is no tool selec
 flip button, special tap, or consumable powerup mode. The original free-flip experiment
 is retained below as historical solver research, not a proposed gameplay feature.
 
-This spike implements solver extensions and generation experiments, not production gameplay,
-animations, exact par calculation, or a finished advanced-level generator.
+This spike implements solver extensions, generation experiments, and a playable browser
+prototype, not production integration, exact par calculation, or a finished advanced generator.
 
 ## Reproduce
 
@@ -27,6 +42,12 @@ Requires Node; no packages or browser required:
 node --test experiments/mechanics/*.test.cjs
 node experiments/mechanics/run.cjs
 node experiments/mechanics/springs-run.cjs
+```
+
+Browser checks require Playwright, Chromium, and a server on port 4173 (or `MF_TEST_URL`):
+
+```sh
+node --test tests/playground.test.cjs
 ```
 
 `results.json` records one run on Node v24.22.1. The corpus is deterministic: seeds ALPHA,
