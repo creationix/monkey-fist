@@ -1,4 +1,5 @@
 // Unit tests for levels.js. Open tests/index.html in a browser to run them.
+// The first part covers the original game; the sliding game's tests are marked as such.
 'use strict';
 (() => {
   const L = MFLevels, results = [];
@@ -28,6 +29,7 @@
   }
   const bends = p => { let n = 0; for (let i = 2; i < p.length; i++) if (p[i].x - p[i - 1].x !== p[i - 1].x - p[i - 2].x || p[i].y - p[i - 1].y !== p[i - 1].y - p[i - 2].y) n++; return n; };
   const SEEDS = ['ALPHA', 'BRAVO', 'K7F3Q', 'ZZ999', 'TODDLER', '2'];
+  const CAMPAIGN_FINGERPRINT = 3458906560; // hashString of the original game's 60 built-in levels (see the test that uses it)
 
   // ---------- block cost ----------
   test('a rope with a clear path costs 0', () => {
@@ -185,6 +187,9 @@
       eq(last, 0);
     }
   });
+  test('built boards come with their own solution: the ropes in order of block cost', () => {
+    for (const b of boards) { eq(b.taps.length, b.ropes.length); eq(b.slides, 0); eq(b.knots, 0); ok(L.play(b.ropes, b.W, b.H, b.taps).every(p => p === null), 'the solution left ropes on the board'); }
+  });
   test('the same plan and seed always build the same level', () => {
     const b = boards[7], again = L.construct(L.mulberry32(b.cfg.seed), b.cfg);
     eq([again.W, again.H, again.ropes, again.costs], [b.W, b.H, b.ropes, b.costs]);
@@ -341,19 +346,212 @@
     ok(!L.goodEnough(rows, 6, 8), 'a full 6x8 board where nothing blocks anything passed');
   });
 
+  // ---------- the sliding game: rules ----------
+  test('a sliding rope follows its own bends, then carries straight on', () => {
+    const r = rope([0, 2], [0, 1], [0, 0], [1, 0], [2, 0]); // up the left side, then heading right along the top
+    eq(L.advance(r, 0), r);
+    eq(L.advance(r, 1), rope([0, 1], [0, 0], [1, 0], [2, 0], [3, 0]));
+    eq(L.advance(r, 3), rope([1, 0], [2, 0], [3, 0], [4, 0], [5, 0]));
+    eq(L.bendsOf(L.advance(r, 1)), 1); eq(L.bendsOf(L.advance(r, 3)), 0); // it straightens out as it goes
+    eq(L.advance(rope([0, 0], [0, 1]), 2), rope([0, 2], [0, 3]));
+  });
+  // A knot. X heads right along the top with a gap before B; B heads down and is blocked by J;
+  // J heads left along the bottom and is blocked by X's tail.
+  const X = rope([0, 2], [0, 1], [0, 0], [1, 0], [2, 0]), KB = rope([5, 0], [5, 1]), KJ = rope([6, 2], [5, 2]), KNOT = [X, KB, KJ];
+  test('a knot: ropes waiting on each other in a loop, which the original game cannot solve and a slide undoes', () => {
+    eq(L.loopsOf(KNOT, 7, 3), [[0, 1, 2]]);
+    eq(L.blockCosts(KNOT, 7, 3), null);                       // in the original game nothing here can ever leave
+    eq(L.deadRopes(KNOT, 7, 3), []);                          // in the sliding game nothing is lost
+    const after = L.play(KNOT, 7, 3, [0]);                     // tap X: it slides until it meets B, drawing its tail off J's way out
+    eq(after[0], rope([0, 0], [1, 0], [2, 0], [3, 0], [4, 0])); eq(after[1], KB); eq(after[2], KJ);
+    eq(L.loopsOf(after, 7, 3), []);
+    eq(L.blockCosts(after, 7, 3), [2, 1, 0]);                 // now an ordinary chain: J, then B, then X
+    ok(L.play(KNOT, 7, 3, [0, 2, 1, 0]).every(p => p === null), 'slide X, then J, B and X leave');
+    ok(L.play(KNOT, 7, 3, [0, 1]).some(Boolean), 'tapping B while J is in its way does not get it out');
+  });
+  test('tapping a rope that is hard against another moves nothing', () => {
+    const after = L.play(KNOT, 7, 3, [1, 1, 1]); // B's head is right against J
+    eq(after, KNOT);
+  });
+  // A trap. Y heads right with a gap before B; B heads up and waits on J; J heads down, through that gap.
+  const TY = rope([0, 2], [1, 2]), TB = rope([3, 2], [3, 1]), TJ = rope([3, 0], [2, 0], [2, 1]), TRAP = [TY, TB, TJ];
+  test('a trap: a slide that ties the board for good', () => {
+    eq(L.loopsOf(TRAP, 4, 4), []); eq(L.blockCosts(TRAP, 4, 4), [2, 1, 0]); // as it stands: J, B, Y
+    ok(L.play(TRAP, 4, 4, [2, 1, 0]).every(p => p === null));
+    const after = L.play(TRAP, 4, 4, [0]);                                  // but slide Y first and it lies across J's way out, hard against B
+    eq(after[0], rope([1, 2], [2, 2]));
+    eq(L.deadRopes(after, 4, 4), [0, 1, 2]);
+    eq(L.solve(after, 4, 4).solved, false);
+    eq(L.deadRopes(TRAP, 4, 4), []);
+  });
+  test('ropes facing each other can never leave, however much room there is between them', () => {
+    const A = rope([0, 0], [1, 0]), B = rope([7, 0], [6, 0]);
+    eq(L.solve([A, B], 8, 1).solved, false);
+    eq(L.deadRopes([A, B], 8, 1), []);                  // the quick check is generous: each could get past if the other were not coming
+    eq(L.deadRopes(L.play([A, B], 8, 1, [0, 1]), 8, 1), [0, 1]); // once they meet it sees it
+    eq(L.deadRopes([rope([0, 0], [1, 0]), rope([3, 0], [2, 0])], 4, 1), [0, 1]);
+    eq(L.deadRopes([rope([2, 0], [2, 1], [1, 1], [0, 1], [0, 0], [1, 0])], 3, 2), [0]); // nor can a rope pointing at itself
+  });
+  test('the solver finds the taps, says so when there are none, and stops at its budget', () => {
+    const s = L.solve(KNOT, 7, 3);
+    eq(s.solved, true); ok(L.play(KNOT, 7, 3, s.moves).every(p => p === null), 'the taps it gave do not clear the board');
+    eq(L.solve(TRAP, 4, 4).solved, true); eq(L.solve(TRAP, 4, 4).moves[0] !== 0, true);
+    eq(L.solve([], 3, 3).solved, true);
+    eq(L.solve(chain(40), 82, 82, 5).solved, null); // 80 ropes cannot be cleared in 5 looks
+    eq(L.solve(chain(40), 82, 82).moves.length, 80);
+  });
+
+  // ---------- the sliding game: levels ----------
+  const slideSets = {};
+  let slideMs = 0;
+  const slideSet = (seed, mode, count, big) => {
+    const k = L.encodeCode({ seed, mode, count, big, slide: true });
+    if (!slideSets[k]) { const t0 = performance.now(); slideSets[k] = L.generateSet({ seed, mode, count, big, slide: true }); slideSets[k].ms = performance.now() - t0; slideMs += slideSets[k].ms; }
+    return slideSets[k];
+  };
+  for (const seed of SEEDS.slice(0, 4)) for (const mode of L.PLAYER_MODES) for (const count of [10, 30]) slideSet(seed, mode, count, false);
+  for (const mode of L.PLAYER_MODES) slideSet('ALPHA', mode, 20, true);
+  const eachSlide = fn => { for (const k in slideSets) for (const lv of slideSets[k].levels) fn(lv, k, L.levelFrom(lv)); };
+  const cleared = left => left.every(p => p === null);
+
+  test('sliding sets fill the same difficulty ranges: the number asked for, one level per slice, simplest first', () => {
+    for (const k in slideSets) {
+      const s = slideSets[k], e = L.slotEdges(s.mode, s.count, s.big);
+      eq(s.levels.length, s.count, k); ok(s.slide, k + ' is not marked as a sliding set');
+      s.levels.forEach((lv, j) => ok(lv.difficulty >= e[j] && lv.difficulty < e[j + 1], k + ' level ' + (j + 1) + ' has difficulty ' + lv.difficulty + ', outside its slice'));
+    }
+  });
+  test('every sliding level comes with a solution that clears the board', () => {
+    eachSlide((lv, k, b) => {
+      eq([b.W, b.H, b.ropes.length, b.score, b.knots, b.traps], [lv.W, lv.H, lv.ropes, lv.difficulty, lv.knots, lv.traps], k);
+      ok(cleared(L.play(b.ropes, b.W, b.H, b.taps)), k + ': a level of difficulty ' + lv.difficulty + ' is not cleared by its own solution');
+    });
+  });
+  test('a sliding level\'s difficulty is that of the board once its knots are undone, and it meets the depth floor', () => {
+    eachSlide((lv, k, b) => {
+      const undone = L.play(b.ropes, b.W, b.H, b.taps.slice(0, b.slides)); // just the slides
+      ok(undone.every(Boolean), k + ': a rope left the board during the slides');
+      eq(L.loopsOf(undone, b.W, b.H), [], k + ': still knotted after the slides');
+      eq(L.difficulty(undone, b.W, b.H), lv.difficulty, k);
+      eq(L.blockCosts(undone, b.W, b.H), b.costs, k);
+      ok(Math.abs(sum(b.costs) / b.costs.length - lv.avgCost) < 1e-9 && lv.avgCost >= L.floorFor(lv.difficulty), k + ': difficulty ' + lv.difficulty + ' averages ' + lv.avgCost);
+    });
+  });
+  test('the knot floor rises with difficulty, and every sliding level has at least that many knots', () => {
+    eq([0, 14, 15, 39, 40, 79, 80, 149, 150, 249, 250, 1000].map(L.knotFloorFor), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+    const per = { E: [], N: [], H: [], X: [] };
+    eachSlide((lv, k) => { ok(lv.knots >= L.knotFloorFor(lv.difficulty), k + ': difficulty ' + lv.difficulty + ' has only ' + lv.knots + ' knots'); per[slideSets[k].mode].push(lv.knots); });
+    const mean = a => sum(a) / a.length, m = L.PLAYER_MODES.map(x => +mean(per[x]).toFixed(1));
+    window.__slide = { knotsPerLevel: m, mostKnots: L.PLAYER_MODES.map(x => Math.max(...per[x])) };
+    ok(m[0] < m[1] && m[1] < m[2] && m[2] < m[3], 'knots per level by setting: ' + m);
+  });
+  test('a knotted level cannot be solved the old way: tapping only ropes that can leave gets stuck', () => {
+    let knotted = 0;
+    eachSlide((lv, k, b) => {
+      if (!lv.knots) return;
+      knotted++;
+      ok(L.loopsOf(b.ropes, b.W, b.H).length > 0 && L.blockCosts(b.ropes, b.W, b.H) === null, k + ': a level with ' + lv.knots + ' knots has no loop');
+      ok(costsByPlaying(b.ropes, b.W, b.H) === null, k + ': a level with knots was cleared by ropes leaving one after another');
+      ok(b.slides >= lv.knots, k + ': fewer slides than knots');
+    });
+    ok(knotted > 300, 'only ' + knotted + ' knotted levels were made');
+  });
+  test('no sliding level starts with a rope that can never leave, and none turns up along its solution', () => {
+    eachSlide((lv, k, b) => {
+      for (let i = 0; i <= b.taps.length; i += Math.max(1, b.taps.length >> 3)) {
+        const left = L.play(b.ropes, b.W, b.H, b.taps.slice(0, i)).filter(Boolean);
+        eq(L.deadRopes(left, b.W, b.H), [], k + ': dead ropes ' + i + ' taps into the solution of a level of difficulty ' + lv.difficulty);
+      }
+    });
+  });
+  test('the traps counted in a level are real: each is a slide open at the start after which the board cannot be solved', () => {
+    let traps = 0, slides = 0, levels = 0, withTrap = 0;
+    eachSlide((lv, k, b) => {
+      const occ = L.occupancy(b.ropes, b.W, b.H); let n = 0; levels++;
+      b.ropes.forEach((p, i) => {
+        const r = L.ray(p, occ, b.W, b.H);
+        if (r.clear || !r.dist) return;
+        slides++;
+        const next = b.ropes.slice(); next[i] = L.advance(p, r.dist);
+        if (L.deadRopes(next, b.W, b.H).length) { n++; eq(L.solve(next, b.W, b.H, 2000).solved, false, k); }
+      });
+      eq(n, lv.traps, k); traps += n; if (n) withTrap++;
+    });
+    Object.assign(window.__slide, { slidesOpenAtStart: +(slides / levels).toFixed(1), trapsPerLevel: +(traps / levels).toFixed(1), levelsWithATrap: withTrap + '/' + levels });
+    ok(withTrap > levels * 0.4, 'only ' + withTrap + ' of ' + levels + ' sliding levels have a trap open at the start');
+  });
+  test('the solver clears every sliding level, guided by the level\'s own solution or not', () => {
+    let worst = 0, unguided = 0, levels = 0;
+    eachSlide((lv, k, b) => {
+      const s = L.solve(b.ropes, b.W, b.H, 4000, b.taps); levels++;
+      eq(s.solved, true, k); ok(cleared(L.play(b.ropes, b.W, b.H, s.moves)), k + ': the solver\'s taps do not clear the board');
+      worst = Math.max(worst, s.nodes);
+      const u = L.solve(b.ropes, b.W, b.H, 4000);
+      if (u.solved) { unguided++; ok(cleared(L.play(b.ropes, b.W, b.H, u.moves)), k + ': the unguided taps do not clear the board'); } else ok(u.solved === null, k + ': the solver called a solvable level unsolvable');
+    });
+    Object.assign(window.__slide, { guidedWorstNodes: worst, unguidedSolved: unguided + '/' + levels });
+    ok(worst < 200, 'following a known solution took ' + worst + ' looks');
+  });
+  test('the solver keeps finding a way after a player wanders off the known one', () => {
+    // A careless player makes any legal move; a move that loses the board is taken back. After every
+    // move the solver is asked for a way out, given the last one it found.
+    const rng = L.mulberry32(31); let calls = 0, found = 0, lost = 0, gaveUp = 0, finished = 0, games = 0;
+    for (const code of ['N10S-ALPHA', 'H10S-ALPHA', 'X10S-ALPHA']) for (const lv of slideSets[code].levels) {
+      const b = L.levelFrom(lv); let cur = b.ropes.slice(), plan = b.taps.slice(), left = cur.length; games++;
+      for (let guard = 0; guard < 400 && left; guard++) {
+        const live = cur.map((p, i) => (p ? i : -1)).filter(i => i >= 0), ps = live.map(i => cur[i]), occ = L.occupancy(ps, b.W, b.H), pool = [];
+        ps.forEach((p, j) => { const r = L.ray(p, occ, b.W, b.H); if (r.clear) pool.push([live[j], -1]); else if (r.dist > 0) pool.push([live[j], r.dist]); });
+        if (!pool.length) break;
+        const m = pool[Math.floor(rng() * pool.length)], next = cur.slice(); next[m[0]] = m[1] < 0 ? null : L.advance(cur[m[0]], m[1]);
+        const live2 = next.map((p, i) => (p ? i : -1)).filter(i => i >= 0), ps2 = live2.map(i => next[i]);
+        if (!ps2.length) { left = 0; break; }
+        const at = new Map(live2.map((i, j) => [i, j])), s = L.solve(ps2, b.W, b.H, 4000, plan.filter(i => at.has(i)).map(i => at.get(i))); calls++;
+        if (s.solved) { found++; ok(cleared(L.play(ps2, b.W, b.H, s.moves)), 'a way out that does not work'); cur = next; left = ps2.length; plan = s.moves.map(j => live2[j]); }
+        else if (s.solved === false) lost++; else gaveUp++;
+      }
+      if (!left) finished++;
+    }
+    Object.assign(window.__slide, { wandering: { asked: calls, wayFound: found, lostForGood: lost, gaveUp, gamesFinished: finished + '/' + games } });
+    eq(finished, games); ok(lost > 0, 'no careless move ever lost a board'); ok(gaveUp < calls * 0.05, 'the solver gave up on ' + gaveUp + ' of ' + calls + ' boards');
+  });
+  test('sliding boards: at least 72% rope past the smallest sizes, within the size limits, never wider than tall', () => {
+    eachSlide((lv, k, b) => {
+      const q = L.quality(b.ropes, b.W, b.H, b.costs), big = slideSets[k].big;
+      ok(b.H >= b.W && b.W <= (big ? 16 : 12) && b.H <= (big ? 22 : 16), k + ' has a ' + b.W + 'x' + b.H + ' board');
+      ok(q.coverage >= (b.W > L.SMALL_W ? L.MIN_COVERAGE_SLIDE : L.MIN_COVERAGE_SMALL), k + ': a ' + b.W + 'x' + b.H + ' board is only ' + Math.round(q.coverage * 100) + '% rope');
+    });
+  });
+  test('the same code always gives the same sliding set, and it is not the original game\'s set', () => {
+    for (const mode of L.PLAYER_MODES) eq(L.generateSet({ seed: 'ALPHA', mode, count: 10, slide: true }).levels, slideSet('ALPHA', mode, 10).levels);
+    ok(JSON.stringify(slideSet('ALPHA', 'N', 30).levels) !== JSON.stringify(getSet('ALPHA', 'N', 30).levels), 'N30S-ALPHA and N30-ALPHA are the same levels');
+    ok(JSON.stringify(slideSet('ALPHA', 'N', 30).levels) !== JSON.stringify(slideSet('BRAVO', 'N', 30).levels));
+  });
+  test('generating a sliding set is bounded too, and quick', () => {
+    let worst = '';
+    for (const k in slideSets) { ok(slideSets[k].builds <= slideSets[k].count * 60, k + ' took ' + slideSets[k].builds + ' builds'); if (!worst || slideSets[k].ms > slideSets[worst].ms) worst = k; }
+    Object.assign(window.__slide, { sets: Object.keys(slideSets).length, totalMs: Math.round(slideMs), slowest: worst + ' ' + Math.round(slideSets[worst].ms) + ' ms, ' + slideSets[worst].builds + ' builds' });
+    ok(slideSets[worst].ms < 5000, 'slowest sliding set: ' + window.__slide.slowest);
+  });
+
   // ---------- share codes ----------
   test('share codes round-trip', () => {
     for (const mode of L.PLAYER_MODES) for (const count of L.COUNTS) for (const big of [false, true]) {
-      const code = L.encodeCode({ mode, count, big, seed: 'K7F3Q' });
-      eq(L.parseCode(code), { mode, count, big, seed: 'K7F3Q' });
+      for (const slide of [false, true]) {
+        const code = L.encodeCode({ mode, count, big, slide, seed: 'K7F3Q' });
+        eq(L.parseCode(code), { mode, count, big, slide, seed: 'K7F3Q' });
+      }
     }
     eq(getSet('K7F3Q', 'N', 20).code, 'N20-K7F3Q');
     eq(getSet('K7F3Q', 'X', 20, true).code, 'X20B-K7F3Q');
-    eq(L.parseCode('  h30-abc12 '), { mode: 'H', count: 30, big: false, seed: 'ABC12' });
-    eq(L.parseCode('x10b-abc12'), { mode: 'X', count: 10, big: true, seed: 'ABC12' });
+    eq(slideSet('K7F3Q', 'N', 20).code, 'N20S-K7F3Q');
+    eq(slideSet('K7F3Q', 'X', 20, true).code, 'X20BS-K7F3Q');
+    eq(L.parseCode('  h30-abc12 '), { mode: 'H', count: 30, big: false, slide: false, seed: 'ABC12' });
+    eq(L.parseCode('x10b-abc12'), { mode: 'X', count: 10, big: true, slide: false, seed: 'ABC12' });
+    eq(L.parseCode('x10bs-abc12'), { mode: 'X', count: 10, big: true, slide: true, seed: 'ABC12' });
+    eq(L.parseCode(' n20 s - abc12'), { mode: 'N', count: 20, big: false, slide: true, seed: 'ABC12' });
   });
   test('bad share codes are rejected', () => {
-    for (const bad of ['', 'hello', 'Z20-ABCDE', 'C60-MONKEYFIST', 'N20T-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
+    for (const bad of ['', 'hello', 'Z20-ABCDE', 'C60-MONKEYFIST', 'N20T-ABCDE', 'N20SB-ABCDE', 'N20SS-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
   });
   test('random seeds are five unambiguous characters', () => {
     for (let i = 0; i < 200; i++) ok(/^[A-HJ-NP-Z2-9]{5}$/.test(L.randomSeed()), 'bad seed');
@@ -381,6 +579,29 @@
     for (const lv of campaign.levels) { const avg = avgCostOf(lv); ok(avg >= L.floorFor(lv.difficulty), 'a built-in level of difficulty ' + lv.difficulty + ' averages only ' + avg.toFixed(2)); }
   });
   test('generating the built-in set takes under 3 seconds', () => { ok(campaignMs < 3000, Math.round(campaignMs) + ' ms'); });
+
+  // The original game was not regenerated when the sliding game was added, so players keep their
+  // progress in it. That only holds while its levels stay exactly as they were.
+  test('the original game\'s built-in levels are exactly the ones players already have progress in', () => {
+    eq(L.hashString(JSON.stringify(campaign.levels.map(l => L.levelFrom(l).ropes))), CAMPAIGN_FINGERPRINT);
+  });
+  let slideCampaign, slideCampaignMs;
+  test('the sliding game has its own 60 built-in levels over the same range, simplest first, all different', () => {
+    const t0 = performance.now(); slideCampaign = L.generateSet(L.CAMPAIGN_SLIDE); slideCampaignMs = performance.now() - t0;
+    eq(slideCampaign.levels.length, 60); eq(slideCampaign.slide, true);
+    const d = slideCampaign.levels.map(l => l.difficulty), e = L.slotEdges('C', 60);
+    d.forEach((x, j) => ok(x >= e[j] && x < e[j + 1], 'level ' + (j + 1) + ' has difficulty ' + x + ', outside its slice'));
+    eq(L.generateSet(L.CAMPAIGN_SLIDE).levels, slideCampaign.levels, 'not repeatable');
+    ok(slideCampaignMs < 5000, Math.round(slideCampaignMs) + ' ms');
+  });
+  test('the sliding built-in levels start without knots, bring them in early, and end with many', () => {
+    const lv = slideCampaign.levels, firstKnot = lv.findIndex(l => l.knots > 0);
+    for (const l of lv) { const b = L.levelFrom(l); ok(cleared(L.play(b.ropes, b.W, b.H, b.taps)), 'a built-in sliding level of difficulty ' + l.difficulty + ' is not cleared by its solution'); ok(l.knots >= L.knotFloorFor(l.difficulty) && l.W <= 12 && l.H <= 16); }
+    ok(lv[0].knots === 0 && lv[1].knots === 0 && lv[0].W <= L.SMALL_W, 'level 1 has ' + lv[0].knots + ' knots on a ' + lv[0].W + ' wide board');
+    ok(firstKnot >= 2 && firstKnot <= 9, 'the first knot is in level ' + (firstKnot + 1));
+    ok(lv[59].knots >= 5 && lv[59].difficulty >= 290, 'level 60 has ' + lv[59].knots + ' knots at difficulty ' + lv[59].difficulty);
+    Object.assign(window.__slide, { campaignMs: Math.round(slideCampaignMs), campaign: lv.map(l => [l.W + 'x' + l.H, l.ropes, l.difficulty, l.knots, l.traps]) });
+  });
 
   // ---------- report ----------
   const failed = results.filter(r => !r.ok);

@@ -6,18 +6,30 @@ A rope-untangling puzzle game for the browser and phone.
 
 ## How to play
 
-The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it slides out of the board arrow-first, following its own bends. If another rope is in its path it bumps and you lose a heart, so the puzzle is finding the order that frees them all.
+The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it slides out of the board arrow-first, following its own bends. There are two games on the same boards.
 
-- **Tangle** (top of the screen) is how knotted the board still is, and it falls as you pull ropes out. Once nothing is blocked any more the puzzle is solved, so the remaining ropes let themselves out.
-- Three hearts per level; hearts left at the end are your stars.
+**Sliding ropes** (the default). A rope whose way is clear leaves. A rope that is blocked slides forward until it meets another rope, and stays there. Ropes never go backwards, so every slide is for keeps.
+
+- Some ropes start tied in a **knot**: a loop in which each rope is waiting on the next, so none of them can leave. Sliding the right one forward draws its tail out of another's way and undoes it.
+- Some slides are **traps**: they tie a knot that can never be undone. The game says "Knotted!" as soon as that happens.
+- There are no hearts. Instead each level allows **three undos**, each taking back one move. A knot with no undos left loses the level. Stars are 3 for no undos used, 2 for one, 1 otherwise.
+- The top of the screen shows how many ropes are tied in knots. Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
+- The lightbulb highlights the next tap of a way out that is known to work.
+
+**The original game** (turn Sliding ropes off, or turn Kid mode on). A blocked rope bumps and springs back, and costs a heart: three hearts per level, and hearts left at the end are your stars. Nothing you tap can make the board worse, so the puzzle is purely finding the order.
+
+- **Tangle** (top of the screen) is how knotted the board still is, and it falls as you pull ropes out.
 - The lightbulb highlights a rope that can leave right now.
-- **Kid mode** (menu toggle): bumps never cost a heart, and each bump points out a rope that can go.
-- **Levels**: 60 built-in levels, from tangle 1 up to 300, starting gently.
-- **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme. Each set has a share code such as `N20-K7F3Q`; anyone who enters the same code gets exactly the same levels.
+- **Kid mode**: always the original game, with no hearts. Each bump points out a rope that can go, and the score is your time.
+
+Both games:
+
+- **Levels**: 60 built-in levels for each game, from tangle 1 up to 300, starting gently. The sliding game's first few have no knots.
+- **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme, for either game. Each set has a share code such as `N20S-K7F3Q`; anyone who enters the same code gets exactly the same levels. The `S` marks a sliding set.
 
 ## How levels are made
 
-All level logic is in [`levels.js`](levels.js), which has no dependency on the page.
+All level logic is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after.
 
 **Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
 
@@ -84,9 +96,50 @@ Board size follows from difficulty: Easy sets are small boards, and the top of E
 
 On a laptop a 30-level set takes 10 to 55 ms and the built-in 60 levels about 50 ms.
 
+## How sliding levels are made
+
+In the original game no tap can make the board worse, so any rope that can leave is always safe and no arrangement of ropes can demand planning. The sliding game changes that with one rule: a blocked rope slides until it meets something and stays. Two things follow, and the generator builds both in on purpose.
+
+**A knot** is a rope that starts the level pulled back from where it belongs, with its tail lying across the way out of a rope it is itself waiting on. That closes a loop, which the original game could never solve. Sliding the rope forward draws its tail clear.
+
+**A trap** is a rope with a gap in front of it that it must not be slid into yet, because there it would lie across the way out of a rope it is waiting on, hard against its blocker with nowhere left to go.
+
+**Building one.** The board is built exactly as above, under the same no-loops rule, with knots and traps laid into it as it goes:
+
+- A knot is laid *in the place it will slide to*: head hard against another rope, loop-free there like every other rope. Its first few cells run straight so that it can start one to three cells further back, and the cells its tail then reaches into are kept empty for it. Those cells must cross the way out of a rope it waits on, directly or down a chain.
+- A trap is laid where it stays, with one to three cells kept empty in front of it, at least one of which crosses the way out of a rope it waits on.
+
+So the board that gets built is the level *with its knots already undone*, and everything said above about it still holds. The level then starts with each knot pulled back. That gives every level a known solution for free: slide each knot forward, oldest first, then take the ropes out in order of block cost. The builder replays that solution before handing a level out.
+
+**Difficulty** of a sliding level is that of the board once its knots are undone, so the same ranges and the same depth floor apply. Knots are counted separately, and there is a **knot floor**:
+
+| Difficulty | Fewest knots |
+| --- | --- |
+| under 15 | none |
+| 15 to 39 | 1 |
+| 40 to 79 | 2 |
+| 80 to 149 | 3 |
+| 150 to 249 | 4 |
+| 250 and up | 5 |
+
+A level is built with about `0.6 * sqrt(difficulty)` knots and as many traps, or as many as the board will take. Typical sets come out at about 1 knot per level on Easy, 3 on Normal, 5 on Hard and 9 on Extreme (up to 16), with a little over one fatal slide open at the start on average. Sliding boards are a little less full than the original's (at least 72% rope), because the gaps are part of the puzzle.
+
+**Can it still be solved?** Because a slide cannot be taken back, this takes more than a sort.
+
+- *The quick check* lets every rope move as freely as it ever could: in rounds, each rope pushes forward through empty cells, and through a cell another rope sits on once that rope has slid clear of it or left. A rope that does not get out even so can never leave, and the board is lost. It is generous (it ignores that one rope sliding may get in another's way), so it never condemns a board that could be solved. `O(W*H + R * (max(W, H) + rounds))`.
+- *The solver* is a search: try a tap, and if the board that leaves cannot be finished, take it back and try another. It gives up at once on any board the quick check condemns, remembers every board it has found hopeless, and tries the taps of a known solution first. The game runs it after every move, to say "Knotted!" the moment a board is lost and to keep a hint ready. Following a known solution it looks at one board per tap; after a careless move it typically looks at a few dozen, and it is capped at 4000.
+
+**What is measured.** On generated sets, a player who only ever taps ropes that can leave (which always wins the original game) finishes no sliding level from Normal up, since every one of them has a knot. One who does that and slides a rope at random whenever stuck finishes about two thirds of Normal, half of Hard and a quarter of Extreme.
+
+**Cost.** A sliding set takes 30 to 250 ms on a laptop (up to about 750 ms for 30 Extreme levels with Bigger boards), and the 60 built-in sliding levels about 150 ms.
+
 ## Tests
 
-Open [`tests/index.html`](tests/index.html) in a browser (served from the project folder), or visit https://creationix.github.io/monkey-fist/tests/. The page title and heading show `PASS n/n` or `FAIL`. The tests cover block-cost and bend scoring on hand-built boards, 300 built boards cross-checked against actually playing them (solvable, costs correct, never over their slot), that every setting fills its range evenly with unique difficulties, the depth floor, how full the boards are, how hard the hardest Extreme level is, rope-style variety, board-size limits, share codes, and the board-quality rules.
+Open [`tests/index.html`](tests/index.html) in a browser (served from the project folder), or visit https://creationix.github.io/monkey-fist/tests/. The page title and heading show `PASS n/n` or `FAIL`.
+
+For the original game the tests cover block-cost and bend scoring on hand-built boards, 300 built boards cross-checked against actually playing them (solvable, costs correct, never over their slot), that every setting fills its range evenly with unique difficulties, the depth floor, how full the boards are, how hard the hardest Extreme level is, rope-style variety, board-size limits, share codes, and the board-quality rules. A fingerprint test pins its 60 built-in levels, so that progress already made in them stays valid.
+
+For the sliding game they cover the slide rule, a knot and a trap built by hand, the quick check and the solver, and then 720 generated levels: each is cleared by its own solution, has the difficulty it claims once its knots are undone, meets the knot floor, cannot be cleared by ropes simply leaving, and has exactly the traps it counts. The solver is also run after every move of a simulated careless player.
 
 ## Install
 

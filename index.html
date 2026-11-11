@@ -46,6 +46,9 @@
   .iconBtn { width: 44px; height: 44px; flex: none; border-radius: 12px; border: 0; background: var(--panel2); color: var(--text); padding: 0; cursor: pointer; display: grid; place-items: center; }
   .iconBtn svg { width: 24px; height: 24px; display: block; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   #hintBtn { color: var(--accent); }
+  #undoBtn { position: relative; }
+  #undoBtn.off { opacity: .4; }
+  #undoN { position: absolute; right: -5px; top: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: #2a1c00; font: 800 12px/20px system-ui, sans-serif; text-align: center; pointer-events: none; }
   .lvBtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .iconBtn:active { transform: scale(.94); }
   #tip { min-height: 18px; font-size: 14px; color: var(--muted); text-align: center; max-width: 560px; }
@@ -113,7 +116,7 @@
   .chip { border: 0; border-radius: 999px; padding: 8px 12px; background: var(--panel2); color: var(--text); font: 700 13px/1 ui-monospace, Menlo, Consolas, monospace; cursor: pointer; }
   #setNote:empty { display: none; }
   #ver { position: absolute; left: 0; right: 0; bottom: calc(6px + var(--sab)); text-align: center; font-size: 11px; color: var(--muted); opacity: .6; pointer-events: none; }
-  @media (max-height: 560px) { #ver { position: static; } } /* the menu scrolls here: keep the label under the card, not over it */
+  @media (max-height: 660px) { #ver { position: static; } } /* the menu may scroll here: keep the label under the card, not over it */
   .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
 </style>
 </head>
@@ -125,6 +128,7 @@
     <button class="iconBtn" id="restartBtn" title="Restart level" aria-label="Restart level"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>
     <div class="mid"><div id="lvName">Level 1</div><div id="left"></div><div id="tangle"></div></div>
     <button class="iconBtn" id="hintBtn" title="Hint" aria-label="Hint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg></button>
+    <button class="iconBtn" id="undoBtn" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.500 5.500 0 0 1 0 11H11"/></svg><b id="undoN"></b></button>
     <div id="hearts"></div>
   </div>
   <div id="tip"></div>
@@ -141,8 +145,9 @@
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
-  <div class="row"><span>Kid mode<small>No hearts or stars, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 a (all levels unlocked)</div>
+  <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
+  <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
+  <div id="ver">build 2026-11-11 b (all levels unlocked)</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -158,6 +163,7 @@
   <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button><button data-v="X">Extreme</button></div>
   <div class="seg" id="segCount"><button data-v="10">10 levels</button><button data-v="20">20 levels</button><button data-v="30">30 levels</button></div>
   <div class="row"><span>Bigger boards<small>Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
+  <div class="row"><span>Sliding ropes<small>Off for the original game</small></span> <button class="toggle" id="tCSlide" aria-label="Sliding ropes"></button></div>
   <div class="row seedRow"><span>Seed</span><input id="seedIn" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
     <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button></div>
   <p class="sub">Share code <button class="code" id="codeOut" title="Copy"></button><br><small id="rangeNote"></small></p>
@@ -184,10 +190,12 @@ const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#9775fa', '#f783ac', '#f1e3b5'];
 const MAX_HEARTS = 3;
+const MAX_UNDOS = 3;       // the sliding game has no hearts: a level allows this many moves to be taken back
+const SOLVE_BUDGET = 4000; // how hard to look for a way out after each move in the sliding game (boards examined)
 const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened without clearing the one before. Set to false to restore normal unlocking.
 
 // ---------- persistence ----------
-let save = { sound: true, music: true, kid: false, gen: 0, sets: null, recent: [], custom: null };
+let save = { sound: true, music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
 // Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
 const GEN = 8; // bump whenever the level generator changes: every set's levels change with it
@@ -199,6 +207,11 @@ delete save.stars; delete save.max;
 if (!Array.isArray(save.recent)) save.recent = [];
 if (!save.custom || !MFLevels.PLAYER_MODES.includes(save.custom.mode) || !MFLevels.COUNTS.includes(save.custom.count)) save.custom = { mode: 'N', count: 20, big: false, seed: MFLevels.randomSeed() };
 delete save.custom.twisty; save.custom.big = !!save.custom.big;
+save.slide = save.slide !== false;
+// There are two games. The original: a blocked rope bumps and springs back. Sliding ropes: it slides
+// until it meets something and stays there. Kid mode always plays the original.
+const sliding = () => save.slide && !save.kid;
+save.custom.slide = save.custom.slide === undefined ? sliding() : !!save.custom.slide;
 save.custom.seed = MFLevels.cleanSeed(save.custom.seed) || MFLevels.randomSeed();
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
@@ -275,13 +288,16 @@ const sfx = {
     if (streak % 10 === 0) [0, 2, 4, 5].forEach((k, i) => pluck(ch.mel[k] * 2, 0.14, 0.05 + i * 0.06, 0.5)); // sparkle on every tenth
   },
   bump() { if (on()) { tone(140, 0.28, 'sine', 0.6, 0, 55); noise(0.16, 0.35, 300, 90); tone(110, 0.2, 'triangle', 0.2, 0.01, 70); } },
+  // a sliding rope coming to rest against another: a soft knock
+  thud() { if (on()) { tone(170, 0.14, 'sine', 0.3, 0, 90); noise(0.07, 0.14, 420, 160); } },
+  undo() { if (on()) tone(620, 0.16, 'sine', 0.2, 0, 330); },
   hint() { if (on()) { pluck(880, 0.35, 0, 0.25); pluck(1318.5, 0.35, 0.09, 0.4); } },
   win() { if (on()) [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568].forEach((f, i) => { pluck(f, 0.45, i * 0.1, 0.6); tone(f / 2, 0.4, 'triangle', 0.2, i * 0.1); }); },
   lose() { if (on()) [392, 349.23, 311.13, 261.63].forEach((f, i) => { tone(f, 0.45, 'triangle', 0.4, i * 0.22); tone(f / 2, 0.45, 'sine', 0.3, i * 0.22); }); },
 };
 // Each effect has a minimum gap between plays, and a failing sound can never break the game.
 {
-  const GAP = { click: 50, slide: 45, pop: 45, bump: 110, hint: 250, win: 1500, lose: 1500 }, lastAt = {};
+  const GAP = { click: 50, slide: 45, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 }, lastAt = {};
   for (const k of Object.keys(sfx)) {
     const play = sfx[k];
     sfx[k] = (...args) => {
@@ -345,27 +361,39 @@ const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodle
   parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
 
 const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.', 'Tangle shows how knotted the board is. Once nothing is blocked, the rest go free.'];
+const TIPS_SLIDE = ['Tap a rope to pull it out, arrow end first.', 'A blocked rope slides until it meets another, and stays there.', 'Ropes never go backwards, so look where one will stop before you tap.', 'Undo takes a move back. You get three a level.'];
+const KNOT_TIP = 'A loop of ropes is a knot. Slide one of them forward to let the rest out.';
+// Kid mode belongs to the original game: no hearts, a clock, and a pointer after every bump.
+const kidNow = () => save.kid && !G.slide;
 function startLevel(n) {
   const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
-  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false });
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
+    // the sliding game: moves made (for undo), undos left, a known way to finish from here (rope ids in tapping order), and whether the board is past saving
+    slide: !!SET.slide, history: [], undos: MAX_UNDOS, plan: L.taps.slice(), lost: false, warned: false, dead: [], pulse: 0, knots: 0 });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
     for (const p of path) G.occ[p.y * L.W + p.x] = id;
     let c; do { c = Math.floor(rng() * PALETTE.length); } while (c === lastColor);
     lastColor = c;
-    return { id, path, d: headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
+    // path is where the rope starts and never changes: it is what the rope is drawn along. off is how many
+    // cells it has slid, and cur the cells it is on now. In the original game off stays 0 and cur is path.
+    return { id, path, cur: path, off: 0, d: headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
   });
+  if (G.slide) tangleNow();
   $('lvName').textContent = 'Level ' + n + (SET.custom ? '/' + SET.levels.length : '');
-  $('tip').textContent = (!SET.custom && TIPS[n - 1]) || '';
+  G.tip = SET.custom ? '' : G.slide ? TIPS_SLIDE[n - 1] || (d.knots && n <= 8 ? KNOT_TIP : '') : TIPS[n - 1] || '';
+  $('tip').textContent = G.tip;
   show(null); resize(); hud();
 }
 const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
-  $('tangle').textContent = 'Tangle ' + G.tangle;
-  if (save.kid) { $('hearts').innerHTML = '<span class="timer">' + fmtTime(G.time) + '</span>'; return; } // kid mode has no hearts: show the clock instead
+  $('tangle').textContent = !G.slide ? 'Tangle ' + G.tangle : G.knots ? G.knots + ' knotted' : 'No knots';
+  $('undoBtn').style.display = G.slide ? '' : 'none'; $('hearts').style.display = G.slide ? 'none' : '';
+  if (G.slide) { $('undoN').textContent = G.undos; $('undoBtn').classList.toggle('off', !G.undos || !G.history.length); return; } // the sliding game has undos, not hearts
+  if (kidNow()) { $('hearts').innerHTML = '<span class="timer">' + fmtTime(G.time) + '</span>'; return; } // kid mode has no hearts: show the clock instead
   const h = Math.max(0, Math.min(MAX_HEARTS, G.hearts));
   let s = '';
   for (let i = 0; i < MAX_HEARTS; i++) s += '<svg viewBox="0 0 24 24"' + (i < h ? '' : ' class="off"') + '><path d="M12 21s-7.5-4.7-9.6-9.3C.9 8.300 2.800 4.500 6.500 4.500c2.100 0 3.800 1.100 5.500 3.200 1.700-2.100 3.400-3.200 5.500-3.200 3.700 0 5.600 3.800 4.100 7.200C19.500 16.300 12 21 12 21z"/></svg>';
@@ -379,41 +407,95 @@ function burst(px, py, color, n, speed) {
     G.parts.push({ x: px, y: py, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, color, r: 2 + Math.random() * 3 });
   }
 }
+// The ropes still on the board, wherever they are in an animation.
+const onBoard = () => G.noodles.filter(n => n.state === 'idle' || n.state === 'bump' || n.state === 'slide' || n.state === 'back');
 // The live tangle score: block cost plus bends, summed over the ropes still on the board. It starts at
 // the level's difficulty and falls to 0 as the board empties. Also notes whether anything is still blocked.
+// In the sliding game, where a loop of ropes has no block cost, it counts the ropes tied in loops instead.
 function tangleNow() {
-  const paths = G.noodles.filter(n => n.state === 'idle' || n.state === 'bump').map(n => n.path);
+  const paths = onBoard().map(n => n.cur);
   G.clear = !paths.length || MFLevels.nothingBlocked(paths, G.W, G.H);
+  if (G.slide) { G.knots = paths.length ? MFLevels.loopsOf(paths, G.W, G.H).reduce((a, loop) => a + loop.length, 0) : 0; return 0; }
   return paths.length ? MFLevels.difficulty(paths, G.W, G.H) : 0;
 }
+// Sliding game: can the board still be solved? Keeps a way to finish in G.plan (used for hints), or
+// sets G.lost when there is certainly none. If the search runs out of budget the board is given the
+// benefit of the doubt.
+function judge(budget) {
+  const ns = onBoard(), at = new Map(ns.map((n, j) => [n.id, j]));
+  G.lost = false; G.dead = [];
+  if (!ns.length) { G.plan = []; return; }
+  const paths = ns.map(n => n.cur), s = MFLevels.solve(paths, G.W, G.H, budget || SOLVE_BUDGET, G.plan.filter(id => at.has(id)).map(id => at.get(id)));
+  G.plan = s.solved ? s.moves.map(j => ns[j].id) : [];
+  if (s.solved === false) { G.lost = true; G.dead = MFLevels.deadRopes(paths, G.W, G.H).map(j => ns[j].id); }
+}
+// The move just made tied a knot that cannot be undone. Say so; with no undos left, that is the level lost.
+function warn() {
+  G.warned = true; G.shake = 1; G.pulse = 1.1; sfx.bump(); toast('Knotted!');
+  for (const id of G.dead) G.noodles[id].flash = 1;
+  if (G.undos > 0) $('tip').textContent = 'That knot cannot be undone. Take the move back, or start again.';
+  else finish(false);
+}
 function tap(n, auto) {
-  if (!G.active || G.ended || G.hearts <= 0 || n.state !== 'idle') return;
+  if (!G.active || G.ended || n.state !== 'idle' || (!G.slide && G.hearts <= 0)) return;
+  if (G.lost) { toast('Knotted!'); return; } // nothing more can be done until the move is taken back
   G.hint = -1;
   if (!auto) G.timing = true; // the clock starts on the player's first tap
-  const r = ray(n.path, G.occ, G.W, G.H);
-  if (r.clear) {
-    for (const p of n.path) G.occ[p.y * G.W + p.x] = -1;
-    n.state = 'out'; n.v = 7; n.exitAt = r.dist + 0.5;
-    G.left--; G.streak++;
+  const r = ray(n.cur, G.occ, G.W, G.H);
+  if (r.clear || (G.slide && r.dist > 0)) {
+    for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
+    if (G.slide) G.history.push({ id: n.id, from: n.off, out: r.clear });
+    if (r.clear) { n.state = 'out'; n.v = 7; n.exitAt = n.off + r.dist + 0.5; G.left--; G.streak++; }
+    else { // sliding game: it goes as far as it can and stays there
+      n.cur = MFLevels.advance(n.cur, r.dist); n.off += r.dist;
+      for (const p of n.cur) G.occ[p.y * G.W + p.x] = n.id;
+      n.state = 'slide'; n.v = 7; n.blocker = r.blocker;
+    }
     G.tangle = tangleNow();
+    if (G.slide && !auto) { if (G.plan[0] === n.id) G.plan.shift(); else judge(); } // still on the known way out, or look for a new one
     sfx.slide(); hud();
+    if (G.lost && r.clear) warn(); // (a slide says so when it comes to rest)
     // Nothing left is blocked: the puzzle is solved, so the rest let themselves out.
-    if (!auto && !G.auto && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
+    if (!auto && !G.auto && !G.lost && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
   } else {
-    n.state = 'bump'; n.phase = 0; n.bumpMax = r.dist + 0.28; n.blocker = r.blocker;
+    n.state = 'bump'; n.phase = 0; n.bumpMax = n.off + r.dist + 0.28; n.blocker = r.blocker;
     G.streak = 0;
   }
 }
+// Sliding game: take the last move back. Each level allows only a few.
+function undo() {
+  if (!G.slide || !G.active || G.ended || G.auto || !G.history.length) return;
+  if (G.undos <= 0) { toast('No undos left'); return; }
+  const m = G.history.pop(), n = G.noodles[m.id];
+  if (m.out) { G.left++; n.popped = false; n.s = Math.min(n.s, n.exitAt + 1); }
+  else for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
+  n.off = m.from; n.cur = MFLevels.advance(n.path, m.from);
+  for (const p of n.cur) G.occ[p.y * G.W + p.x] = n.id;
+  n.state = 'back';
+  G.undos--; G.streak = 0; G.hint = -1; G.warned = false; $('tip').textContent = G.tip;
+  G.tangle = tangleNow(); judge(); sfx.undo(); hud();
+  if (G.lost) warn(); // the board was already past saving before that move
+}
 function showHint() {
   if (!G.active || G.ended) return;
-  const free = G.noodles.filter(n => n.state === 'idle' && ray(n.path, G.occ, G.W, G.H).clear);
+  if (G.slide) { // the next tap of a known way out
+    if (G.lost) { toast('Knotted!'); return; }
+    if (!G.plan.length) { judge(SOLVE_BUDGET * 5); if (G.lost) { warn(); return; } }
+    const n = G.noodles[G.plan[0]];
+    if (!n) { toast('No way in sight'); return; }
+    if (n.state !== 'idle') return;
+    G.hint = n.id; G.hintT = 2.5; sfx.hint();
+    return;
+  }
+  const free = G.noodles.filter(n => n.state === 'idle' && ray(n.cur, G.occ, G.W, G.H).clear);
   if (!free.length) return;
   G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 2.5; sfx.hint();
 }
 function finish(win) {
   G.ended = true;
   // Kid mode has no hearts, so stars would mean nothing there: its score is the time taken.
-  const kid = save.kid, stars = win && !kid ? G.hearts : 0, gen = G.gen, took = Math.round(G.time * 10) / 10;
+  const kid = kidNow(), slide = G.slide, gen = G.gen, took = Math.round(G.time * 10) / 10;
+  const stars = !win || kid ? 0 : slide ? Math.max(1, G.undos) : G.hearts; // sliding game: a star lost for each move taken back
   let prevBest = 0;
   if (win) {
     const P = progress();
@@ -431,7 +513,8 @@ function finish(win) {
     $('stars').style.display = timed ? 'none' : ''; $('timeScore').style.display = timed ? '' : 'none'; $('timeScore').textContent = fmtTime(took);
     const kidText = !prevBest ? 'Level ' + G.level + ' untangled.' : took < prevBest ? 'New best time! It was ' + fmtTime(prevBest) + '.' : 'Best time: ' + fmtTime(prevBest) + '.';
     const lastOne = G.level >= SET.levels.length;
-    $('resText').textContent = !win ? 'Too many bumps. Give it another go.' : lastOne ? 'That was the last level of this set!' : kid ? kidText : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
+    $('resText').textContent = !win ? (slide ? 'Tied in a knot, with no undos left. Give it another go.' : 'Too many bumps. Give it another go.') : lastOne ? 'That was the last level of this set!' : kid ? kidText
+      : stars === 3 ? (slide ? 'Perfect — not one move taken back.' : 'Perfect — not a single bump.') : 'Level ' + G.level + ' cleared.';
     $('nextBtn').style.display = win && !lastOne ? '' : 'none';
     $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
     show('result');
@@ -484,6 +567,21 @@ function update(dt) {
       }
       const t = pointAt(n, n.s), tx = px(t[0]), ty = py(t[1]), m = G.cs;
       if (tx < -m || ty < -m || tx > cw + m || ty > ch + m) n.state = 'gone';
+    } else if (n.state === 'slide') { // sliding game: on its way to where it will stay
+      moving = true;
+      n.v = Math.min(46, n.v + 70 * dt); n.s += n.v * dt;
+      if (n.s >= n.off) {
+        n.s = n.off; n.state = 'idle';
+        const h = pointAt(n, n.s + n.path.length - 1), b = G.noodles[n.blocker];
+        burst(px(h[0] + n.d[0] * 0.4), py(h[1] + n.d[1] * 0.4), '#ffffff', 6, 110);
+        if (b) b.flash = 0.6;
+        sfx.thud();
+        if (G.lost && !G.warned && !G.ended) warn();
+      }
+    } else if (n.state === 'back') { // sliding game: a move being taken back
+      moving = true;
+      n.s -= 32 * dt;
+      if (n.s <= n.off) { n.s = n.off; n.state = 'idle'; }
     } else if (n.state === 'bump') {
       moving = true;
       if (n.phase === 0) {
@@ -491,9 +589,10 @@ function update(dt) {
         if (n.s >= n.bumpMax) {
           n.s = n.bumpMax; n.phase = 1;
           // Only one heart can be lost per short window, so mashing several blocked ropes at once costs one, not all.
-          const hurt = !save.kid && G.grace <= 0 && G.hearts > 0;
-          if (save.kid) { // in kid mode a bump just points out a rope that can go
-            const free = G.noodles.filter(m => m.state === 'idle' && ray(m.path, G.occ, G.W, G.H).clear);
+          // (In the sliding game a rope that cannot move at all just knocks: there are no hearts to lose.)
+          const kid = kidNow(), hurt = !G.slide && !kid && G.grace <= 0 && G.hearts > 0;
+          if (kid) { // in kid mode a bump just points out a rope that can go
+            const free = G.noodles.filter(m => m.state === 'idle' && ray(m.cur, G.occ, G.W, G.H).clear);
             if (free.length) { G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 3; }
           }
           if (hurt) { G.hearts--; G.grace = 0.7; }
@@ -506,7 +605,7 @@ function update(dt) {
         }
       } else {
         n.s -= 8 * dt;
-        if (n.s <= 0) { n.s = 0; n.state = 'idle'; if (G.hearts <= 0 && !G.ended) finish(false); }
+        if (n.s <= n.off) { n.s = n.off; n.state = 'idle'; if (!G.slide && G.hearts <= 0 && !G.ended) finish(false); }
       }
     }
   }
@@ -514,7 +613,8 @@ function update(dt) {
   G.parts = G.parts.filter(q => q.life > 0);
   G.shake = Math.max(0, G.shake - dt * 3.5);
   if (G.grace > 0) G.grace -= dt;
-  if (G.timing && !G.ended && G.left > 0) { const sec = Math.floor(G.time); G.time += dt; if (save.kid && Math.floor(G.time) !== sec) hud(); }
+  if (G.timing && !G.ended && G.left > 0) { const sec = Math.floor(G.time); G.time += dt; if (kidNow() && Math.floor(G.time) !== sec) hud(); }
+  if (G.lost && G.warned && !G.ended) { G.pulse -= dt; if (G.pulse <= 0) { G.pulse = 1.1; for (const id of G.dead) G.noodles[id].flash = 0.7; } } // keep pointing at the knot
   if (G.auto && !G.ended) { // release the remaining ropes one after another
     G.autoT -= dt;
     if (G.autoT <= 0) { const n = G.noodles.find(m => m.state === 'idle'); if (n) tap(n, true); G.autoT = 0.09; }
@@ -575,7 +675,7 @@ function draw(time) {
   c.fillStyle = 'rgba(255,255,255,.1)';
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
   for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint);
-  for (const n of G.noodles) if (n.state === 'out' || n.state === 'bump') drawNoodle(c, n, time, cs, G.ox, G.oy, false);
+  for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false);
   c.globalCompositeOperation = 'lighter';
   for (const q of G.parts) { c.globalAlpha = Math.max(0, q.life); c.fillStyle = q.color; c.beginPath(); c.arc(q.x, q.y, q.r * (0.4 + q.life), 0, TAU); c.fill(); }
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
@@ -594,7 +694,7 @@ function noodleAt(e) {
   let best = null, bd = 0.75;
   for (const n of G.noodles) {
     if (n.state !== 'idle') continue;
-    for (const p of n.path) { const d = Math.hypot(p.x - gx, p.y - gy); if (d < bd) { bd = d; best = n; } }
+    for (const p of n.cur) { const d = Math.hypot(p.x - gx, p.y - gy); if (d < bd) { bd = d; best = n; } }
   }
   return best;
 }
@@ -602,15 +702,17 @@ cv.addEventListener('pointerdown', e => { const n = noodleAt(e); if (n) tap(n); 
 
 // ---------- level sets ----------
 // The built-in levels and every custom set come from the same generator (levels.js):
-// the built-in ones are just a fixed seed. A set is generated when first opened
-// (well under a second) and kept for the rest of the session.
-const setCache = {};
+// the built-in ones are just a fixed seed, one set for each game ('campaign' is the original
+// game's, 'slide' the sliding game's). A set is generated when first opened (well under a second)
+// and kept for the rest of the session. Which game a set is for is part of the set.
+const setCache = {}, BUILT_IN = { campaign: MFLevels.CAMPAIGN, slide: MFLevels.CAMPAIGN_SLIDE };
+const builtIn = () => (sliding() ? 'slide' : 'campaign');
 function getSet(id) {
   if (!setCache[id]) {
-    const opts = id === 'campaign' ? MFLevels.CAMPAIGN : MFLevels.parseCode(id);
+    const opts = BUILT_IN[id] || MFLevels.parseCode(id);
     if (!opts) return null;
     const s = MFLevels.generateSet(opts);
-    setCache[id] = { id, custom: id !== 'campaign', code: s.code, levels: s.levels, asked: s.count };
+    setCache[id] = { id, custom: !BUILT_IN[id], slide: s.slide, code: s.code, levels: s.levels, asked: s.count };
   }
   return setCache[id];
 }
@@ -625,7 +727,7 @@ function show(name) {
   if (name === 'levels') buildLevels();
   if (name === 'custom') buildCustom();
   if (name === 'menu') {
-    const m = Math.min((save.sets.campaign || { max: 1 }).max, MFLevels.CAMPAIGN.count);
+    const m = Math.min((save.sets[builtIn()] || { max: 1 }).max, MFLevels.CAMPAIGN.count);
     $('playBtn').textContent = m > 1 ? 'Play · Level ' + m : 'Play';
   }
 }
@@ -640,7 +742,7 @@ function buildLevels() {
   for (let i = 1; i <= n; i++) {
     const b = document.createElement('button'), st = P.stars[i] || 0, open = UNLOCK_ALL || i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
-    const badge = save.kid ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
+    const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
@@ -656,9 +758,10 @@ function buildCustom() {
   for (const b of $('segMode').children) b.classList.toggle('on', b.dataset.v === c.mode);
   for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
   const range = MFLevels.rangeFor(c.mode, c.big);
-  $('tBig').classList.toggle('on', !!c.big);
+  $('tBig').classList.toggle('on', !!c.big); $('tCSlide').classList.toggle('on', !!c.slide);
   const d0 = MFLevels.floorFor(range[0]), d1 = MFLevels.floorFor(range[1]), depth = d0 === d1 ? d1 + '+' : (d0 || 'any') + ' to ' + d1 + '+';
-  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + ' · ropes blocked ' + depth + ' deep on average';
+  const k0 = MFLevels.knotFloorFor(range[0]), k1 = MFLevels.knotFloorFor(range[1]);
+  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + (c.slide ? ' · ' + (k0 === k1 ? k1 : k0 + ' to ' + k1) + ' knots or more a level' : ' · ropes blocked ' + depth + ' deep on average');
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('codeOut').textContent = customCode();
   const box = $('recent'); box.innerHTML = '';
@@ -674,13 +777,14 @@ function playCustom() {
   const code = customCode();
   if (!useSet(code)) return;
   save.recent = [code, ...save.recent.filter(c => c !== code)].slice(0, 6);
-  for (const k of Object.keys(save.sets)) if (k !== 'campaign' && !save.recent.includes(k)) delete save.sets[k]; // progress is kept for recent sets only
+  for (const k of Object.keys(save.sets)) if (!BUILT_IN[k] && !save.recent.includes(k)) delete save.sets[k]; // progress is kept for recent sets only
   persist(); show('levels');
 }
 const segPick = (id, apply) => { $(id).onclick = e => { const b = e.target.closest('button'); if (b) { apply(b.dataset.v); persist(); buildCustom(); } }; };
 segPick('segMode', v => { save.custom.mode = v; });
 segPick('segCount', v => { save.custom.count = +v; });
 $('tBig').onclick = () => { save.custom.big = !save.custom.big; persist(); buildCustom(); };
+$('tCSlide').onclick = () => { save.custom.slide = !save.custom.slide; persist(); buildCustom(); };
 $('diceBtn').onclick = () => { save.custom.seed = MFLevels.randomSeed(); $('seedIn').blur(); persist(); buildCustom(); };
 $('seedIn').addEventListener('input', () => {
   const full = MFLevels.parseCode($('seedIn').value); // pasting a whole share code sets everything at once
@@ -697,8 +801,8 @@ $('codeOut').onclick = () => {
 };
 
 function quit() { G.gen++; G.active = false; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); }
-$('playBtn').onclick = () => { useSet('campaign'); startLevel(Math.min(progress().max, SET.levels.length)); };
-$('levelsBtn').onclick = () => { useSet('campaign'); show('levels'); };
+$('playBtn').onclick = () => { useSet(builtIn()); startLevel(Math.min(progress().max, SET.levels.length)); };
+$('levelsBtn').onclick = () => { useSet(builtIn()); show('levels'); };
 $('customBtn').onclick = () => show('custom');
 // Big sets take a moment to generate, so say so and let the screen repaint first.
 $('genBtn').onclick = () => { const b = $('genBtn'); if (b.disabled) return; b.disabled = true; b.textContent = 'Generating…'; setTimeout(() => { try { playCustom(); } finally { b.disabled = false; b.textContent = 'Play these levels'; } }, 30); };
@@ -707,6 +811,7 @@ $('backBtn').onclick = () => show(SET && SET.custom ? 'custom' : 'menu');
 $('menuBtn').onclick = () => { quit(); show('levels'); };
 $('restartBtn').onclick = () => startLevel(G.level);
 $('hintBtn').onclick = showHint;
+$('undoBtn').onclick = undo;
 $('nextBtn').onclick = () => startLevel(G.level + 1);
 $('retryBtn').onclick = () => startLevel(G.level);
 $('resMenuBtn').onclick = () => { quit(); show('levels'); };
@@ -734,9 +839,16 @@ document.addEventListener('touchmove', e => {
   const t = e.target.closest ? e.target : null;
   if (e.touches.length > 1 || !t || !(overflows(t.closest('#lvGrid')) || overflows(t.closest('.screen')))) e.preventDefault();
 }, { passive: false });
-const syncSound = () => { $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid); if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05); };
+const syncSound = () => {
+  $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid);
+  $('tSlide').classList.toggle('on', sliding()); $('tSlide').disabled = save.kid; // kid mode always plays the original game
+  if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05);
+};
+// Changing game also changes what the Custom screen offers to make, and which built-in levels Play continues.
+const setGame = () => { save.custom.slide = sliding(); persist(); syncSound(); show('menu'); };
 $('tMusic').onclick = () => { save.music = !save.music; persist(); syncSound(); };
-$('tKid').onclick = () => { save.kid = !save.kid; persist(); syncSound(); };
+$('tKid').onclick = () => { save.kid = !save.kid; setGame(); };
+$('tSlide').onclick = () => { save.slide = !save.slide; setGame(); };
 $('tSound').onclick = () => { save.sound = !save.sound; persist(); syncSound(); sfx.pop(1); };
 syncSound();
 
@@ -788,7 +900,7 @@ function iconPNG(size) {
 show('menu');
 resize();
 requestAnimationFrame(frame);
-window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, update, draw, ray, show, quit, showHint, current: () => SET };
+window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET };
 </script>
 </body>
 </html>
