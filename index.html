@@ -46,6 +46,8 @@
   .iconBtn { width: 44px; height: 44px; flex: none; border-radius: 12px; border: 0; background: var(--panel2); color: var(--text); padding: 0; cursor: pointer; display: grid; place-items: center; }
   .iconBtn svg { width: 24px; height: 24px; display: block; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   #hintBtn { color: var(--accent); }
+  #hintBtn { position: relative; }
+  #hintCost { position: absolute; right: -5px; top: -5px; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 10px; background: var(--panel2); color: var(--accent); font: 800 10px/20px system-ui, sans-serif; pointer-events: none; }
   #undoBtn { position: relative; }
   #undoBtn.off { opacity: .4; }
   #undoN { position: absolute; right: -5px; top: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: #2a1c00; font: 800 12px/20px system-ui, sans-serif; text-align: center; pointer-events: none; }
@@ -160,7 +162,7 @@
     <button class="iconBtn" id="menuBtn" title="Levels" aria-label="Levels"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <button class="iconBtn" id="restartBtn" title="Restart level" aria-label="Restart level"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>
     <div class="mid"><div id="lvName">Level 1</div><div id="left"></div><div id="tangle"></div></div>
-    <button class="iconBtn" id="hintBtn" title="Hint" aria-label="Hint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg></button>
+    <button class="iconBtn" id="hintBtn" title="Hint (+2 taps)" aria-label="Hint (+2 taps)"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg><b id="hintCost">+2</b></button>
     <button class="iconBtn" id="undoBtn" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.500 5.500 0 0 1 0 11H11"/></svg><b id="undoN"></b></button>
     <div id="hearts"></div>
   </div>
@@ -180,7 +182,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 l</div>
+  <div id="ver">build 2026-11-11 m</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -216,12 +218,12 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=24"></script>
-<script src="sets.js?v=24"></script>
-<script src="mechanics.js?v=24"></script>
-<script src="twists.js?v=24"></script>
-<script src="mechanics-render.js?v=24"></script>
-<script src="music.js?v=24"></script>
+<script src="levels.js?v=25"></script>
+<script src="sets.js?v=25"></script>
+<script src="mechanics.js?v=25"></script>
+<script src="twists.js?v=25"></script>
+<script src="mechanics-render.js?v=25"></script>
+<script src="music.js?v=25"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -229,6 +231,7 @@ const TAU = Math.PI * 2;
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#9775fa', '#f783ac', '#f1e3b5'];
 const MAX_HEARTS = 3;
 const MAX_UNDOS = 3;       // the sliding game has no hearts: a level allows this many moves to be taken back
+const HINT_TAP_COST = 2;   // all scored actions use taps: rope 1, undo 1, hint 2
 const SOLVE_BUDGET = 4000; // how hard to look for a way out after each move in the sliding game (boards examined)
 
 // ---------- persistence ----------
@@ -383,7 +386,9 @@ function startLevel(n) {
   const d = SET.levels[n - 1], L = d.twist ? MFTwists.levelFrom(d) : MFLevels.levelFrom(d), rng = mulberry32((typeof d.seed === 'string' ? MFLevels.hashString(d.seed) : d.seed) ^ 0x5bd1e995);
   G.gen++;
   if (musicPlayer) musicPlayer.setLevel(n);
-  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
+  Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, clearNo: 0,
+    hintedRopes: new Set(), hintsUsed: 0,
+    parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
     // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
     // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes that can never move again
     slide: !!SET.slide, twist: !!L.twist, features: L.definition || null, paths: L.twist ? L.ropes.slice() : null,
@@ -408,6 +413,11 @@ const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padSt
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
   $('tangle').textContent = !G.slide ? 'Tangle ' + G.tangle : 'Taps ' + G.taps + ' · par ' + G.par;
+  const hintLabel = G.slide ? 'Hint (+2 score taps; breaks combo)' : kidNow() ? 'Hint (+5 seconds; breaks combo)' : 'Hint (costs 1 star; breaks combo)';
+  $('hintBtn').title = hintLabel; $('hintBtn').setAttribute('aria-label', hintLabel);
+  $('hintCost').textContent = G.slide ? '+2' : kidNow() ? '+5s' : '−★';
+  const undoLabel = 'Undo (+1 tap; ' + G.undos + ' remaining)';
+  $('undoBtn').title = undoLabel; $('undoBtn').setAttribute('aria-label', undoLabel);
   $('undoBtn').style.display = G.slide ? '' : 'none'; $('hearts').style.display = G.slide ? 'none' : '';
   if (G.slide) { $('undoN').textContent = G.undos; $('undoBtn').classList.toggle('off', !G.undos || !G.history.length); return; } // the sliding game has undos, not hearts
   if (kidNow()) { $('hearts').innerHTML = '<span class="timer">' + fmtTime(G.time) + '</span>'; return; } // kid mode has no hearts: show the clock instead
@@ -471,13 +481,15 @@ function stuck() {
 function tap(n, auto) {
   if (!G.active || G.ended || n.state !== 'idle' || (G.auto && !auto) || (!G.slide && G.hearts <= 0)) return;
   if (G.twist) { tapTwist(n, auto); return; }
+  n.comboAwarded = false;
   G.hint = -1;
   if (!auto) { G.timing = true; G.taps++; } // Count actual player taps, including bumps, never automatic releases.
+  if (!auto && G.hintedRopes.has(n.id)) G.streak = 0;
   const r = ray(n.cur, G.occ, G.W, G.H);
   if (r.clear || (G.slide && r.dist > 0)) {
     for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
     if (G.slide && !auto) G.history.push({ id: n.id, from: n.off, out: r.clear });
-    if (r.clear) { n.state = 'out'; n.v = 7; n.exitAt = n.off + r.dist + 0.5; G.left--; G.streak++; }
+    if (r.clear) { n.state = 'out'; n.v = 7; n.exitAt = n.off + r.dist + 0.5; G.left--; countClear(n, auto); }
     else { // sliding game: it goes as far as it can and stays there
       n.cur = MFLevels.advance(n.cur, r.dist); n.off += r.dist;
       for (const p of n.cur) G.occ[p.y * G.W + p.x] = n.id;
@@ -489,19 +501,29 @@ function tap(n, auto) {
     if (G.lost && !G.warned && r.clear) warn(); // (a slide says so when it comes to rest)
     stuck();
     // Nothing left is blocked: the puzzle is solved, so the rest let themselves out.
-    if (!auto && !G.auto && !G.lost && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
+    if (!auto && !G.auto && !G.lost && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; if (!n.comboAwarded) toast('All clear!'); }
   } else {
     n.state = 'bump'; n.phase = 0; n.bumpMax = n.off + r.dist + 0.28; n.blocker = r.blocker;
     G.streak = 0; hud();
   }
 }
+function countClear(n, auto) {
+  n.comboAwarded = false;
+  n.popNote = ++G.clearNo; // Music can still vary across automatic releases without awarding a combo.
+  if (auto) return;
+  if (G.hintedRopes.has(n.id)) { G.streak = 0; return; }
+  G.streak++;
+  if (G.streak % 5 === 0) { n.comboAwarded = true; toast(G.streak + ' in a row!'); }
+}
 function tapTwist(n, auto) {
   // One routed move settles before another starts, so gate and spring transitions are unambiguous.
   if (G.noodles.some(m => m.state === 'twist')) return;
+  n.comboAwarded = false;
   G.hint = -1;
   if (!auto) { G.taps++; G.timing = true; }
+  if (!auto && G.hintedRopes.has(n.id)) G.streak = 0;
   const next = MFMechanics.tap(G.features, G.paths, n.id);
-  if (!next) { n.flash = .7; G.shake = .3; sfx.thud(); hud(); return; }
+  if (!next) { G.streak = 0; n.flash = .7; G.shake = .3; sfx.thud(); hud(); return; }
   if (!auto) G.history.push({ twist: true, paths: G.paths.slice(), plan: G.plan.slice(), lost: G.lost });
   n.path = n.cur; n.route = next.route; n.s = 0; n.v = 7; n.state = 'twist'; n.move = next; n.automatic = !!auto;
   n.bounceWait = next.event === 'bounce' ? .18 : 0;
@@ -516,12 +538,12 @@ function settleTwist(n) {
   if (n.cur) {
     n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.state = 'idle';
     if (move.event === 'bounce') { n.flash = .65; toast('Boing!'); sfx.undo(); } else sfx.thud();
-  } else { n.state = 'gone'; G.left--; G.streak++; sfx.pop(G.streak); }
+  } else { n.state = 'gone'; G.left--; countClear(n, n.automatic); sfx.pop(n.popNote); }
   G.tangle = tangleNow();
   if (!n.automatic) {
     if (G.plan[0] === n.id) G.plan.shift(); else judge();
     if (G.lost && !G.warned) warn();
-    if (!G.lost && G.clear && G.left) { G.auto = true; G.autoT = .35; toast('All clear!'); }
+    if (!G.lost && G.clear && G.left) { G.auto = true; G.autoT = .35; if (!n.comboAwarded) toast('All clear!'); }
   }
   hud();
 }
@@ -534,7 +556,7 @@ function undoTwist() {
     n.state = n.cur ? 'idle' : 'gone';
     if (n.cur) { n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.flash = .4; }
   }
-  G.undos--; G.warned = false; G.lost = !!move.lost; G.hint = -1; G.tangle = tangleNow();
+  G.undos--; G.streak = 0; G.warned = false; G.lost = !!move.lost; G.hint = -1; G.tangle = tangleNow();
   $('tip').textContent = G.tip; sfx.undo(); hud();
   if (G.lost) warn();
 }
@@ -546,6 +568,7 @@ function syncTwistOccupancy() {
 function undo() {
   if (!G.slide || !G.active || G.ended || G.auto || !G.history.length) return;
   if (G.undos <= 0) { toast('No undos left'); return; }
+  G.taps++; // The original move remains spent; undo is an additional scored action.
   if (G.twist) { undoTwist(); return; }
   const m = G.history.pop(), n = G.noodles[m.id];
   if (m.out) { G.left++; n.popped = false; n.s = Math.min(n.s, n.exitAt + 1); }
@@ -558,25 +581,35 @@ function undo() {
   if (G.lost) warn(); // the board was already past saving before that move
 }
 function showHint() {
-  if (!G.active || G.ended) return;
+  if (!G.active || G.ended || G.auto || (G.twist && G.noodles.some(n => n.state === 'twist'))) return;
   if (G.slide) { // the next tap of a known way out
     if (G.lost) { toast('Knotted!'); return; }
     if (!G.plan.length) { judge(SOLVE_BUDGET * 5); if (G.lost) { warn(); return; } }
     const n = G.noodles[G.plan[0]];
     if (!n) { toast('No way in sight'); return; }
     if (n.state !== 'idle') return;
-    G.hint = n.id; G.hintT = 2.5; sfx.hint();
+    revealHint(n);
     return;
   }
   const free = G.noodles.filter(n => n.state === 'idle' && ray(n.cur, G.occ, G.W, G.H).clear);
   if (!free.length) return;
-  G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 2.5; sfx.hint();
+  revealHint(free[Math.floor(Math.random() * free.length)]);
+}
+function revealHint(n) {
+  // Refreshing an already-visible hint gives no new help and must not double-charge a stray tap.
+  if (G.hint === n.id && G.hintT > 0) { G.hintT = 2.5; return; }
+  G.streak = 0; G.hintsUsed++; G.hintedRopes.add(n.id);
+  // Remember the assisted rope until restart, across highlight expiry and undo.
+  if (G.slide) { G.taps += HINT_TAP_COST; toast('Hint: +2 taps'); }
+  else if (kidNow()) { G.time += 5; G.timing = true; toast('Hint: +5 seconds'); }
+  else toast('Hint: −1 star');
+  G.hint = n.id; G.hintT = 2.5; sfx.hint(); hud();
 }
 function finish(win) {
   G.ended = true;
   // Kid mode has no hearts, so stars would mean nothing there: its score is the time taken.
   const kid = kidNow(), slide = G.slide, gen = G.gen, took = Math.round(G.time * 10) / 10;
-  const over = G.taps - G.par, stars = !win || kid ? 0 : slide ? (over <= 0 ? 3 : over <= 2 ? 2 : 1) : G.hearts; // sliding game: three stars for par, two for up to two taps over
+  const over = G.taps - G.par, stars = !win || kid ? 0 : slide ? (over <= 0 ? 3 : over <= 2 ? 2 : 1) : Math.max(0, G.hearts - G.hintsUsed);
   let prevBest = 0;
   if (win) {
     const P = progress();
@@ -596,7 +629,7 @@ function finish(win) {
     const lastOne = G.level >= SET.levels.length;
     const tapText = G.taps + (G.taps === 1 ? ' tap' : ' taps') + (over < 0 ? ', ' + -over + ' under par!' : over ? '. Par is ' + G.par + '.' : G.parExact ? ', the fewest possible.' : ': par.');
     $('resText').textContent = !win ? (slide ? 'Knotted, with nothing left to move and no undos. Give it another go.' : 'Too many bumps. Give it another go.') : slide ? tapText + (lastOne ? ' That was the last level of this set!' : '')
-      : lastOne ? 'That was the last level of this set!' : kid ? kidText : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
+      : lastOne ? 'That was the last level of this set!' : kid ? kidText : G.hintsUsed ? 'Level ' + G.level + ' cleared. ' + G.hintsUsed + (G.hintsUsed === 1 ? ' hint: −1 star.' : ' hints: −' + G.hintsUsed + ' stars.') : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
     $('nextBtn').style.display = win && !lastOne ? '' : 'none';
     $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
     show('result');
@@ -659,8 +692,7 @@ function update(dt) {
         n.popped = true;
         const h = n.path[n.path.length - 1];
         burst(px(h.x + n.d[0] * n.exitAt), py(h.y + n.d[1] * n.exitAt), n.color, 16, 220);
-        sfx.pop(G.streak);
-        if (G.streak > 0 && G.streak % 5 === 0) toast(G.streak + ' in a row!');
+        sfx.pop(n.popNote);
       }
       const t = pointAt(n, n.s), tx = px(t[0]), ty = py(t[1]), m = G.cs;
       // Tail coordinates are in the board's view space, before the canvas rotation.
@@ -692,7 +724,7 @@ function update(dt) {
           const kid = kidNow(), hurt = !G.slide && !kid && G.grace <= 0 && G.hearts > 0;
           if (kid) { // in kid mode a bump just points out a rope that can go
             const free = G.noodles.filter(m => m.state === 'idle' && ray(m.cur, G.occ, G.W, G.H).clear);
-            if (free.length) { G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 3; }
+            if (free.length) { G.hint = free[Math.floor(Math.random() * free.length)].id; G.hintT = 3; G.hintedRopes.add(G.hint); }
           }
           if (hurt) { G.hearts--; G.grace = 0.7; }
           G.shake = hurt ? 1 : 0.4; sfx.bump(); hud();

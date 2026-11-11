@@ -83,13 +83,13 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
       __mf.startLevel(8); const before = JSON.stringify(__mf.G.paths); __mf.tap(__mf.G.noodles[0]);
       __mf.undo(); return { before, after: JSON.stringify(__mf.G.paths), taps: __mf.G.taps, undos: __mf.G.undos, state: __mf.G.noodles[0].state };
     });
-    assert.equal(spring.before, spring.after); assert.equal(spring.taps, 1); assert.equal(spring.undos, 2); assert.equal(spring.state, 'idle');
+    assert.equal(spring.before, spring.after); assert.equal(spring.taps, 2); assert.equal(spring.undos, 2); assert.equal(spring.state, 'idle');
     const gate = await page.evaluate(() => {
       __mf.startLevel(10); __mf.tap(__mf.G.noodles[1]);
       for (let i = 0; i < 200; i++) __mf.update(.05);
       const open = !__mf.G.paths[1]; __mf.undo(); return { open, restored: !!__mf.G.paths[1], taps: __mf.G.taps };
     });
-    assert.deepEqual(gate, { open: true, restored: true, taps: 1 });
+    assert.deepEqual(gate, { open: true, restored: true, taps: 2 });
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.waitForFunction(() => !!navigator.serviceWorker.controller);
     await context.setOffline(true); await page.reload();

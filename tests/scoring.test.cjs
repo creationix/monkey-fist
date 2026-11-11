@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
-test('only player taps count, including early exits, bumps, and undone moves', { timeout: 60000 }, async () => {
+test('the tap score counts player actions and undo, but excludes automatic releases', { timeout: 60000 }, async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
@@ -41,7 +41,7 @@ test('only player taps count, including early exits, bumps, and undone moves', {
     await page.evaluate(() => { __mf.startLevel(16); __mf.tap(__mf.G.noodles[2]); });
     await page.waitForFunction(() => __mf.G.noodles[2].state === 'idle');
     await page.locator('#undoBtn').click();
-    assert.equal(await page.evaluate(() => __mf.G.taps), 1, 'undo must not refund the player tap');
+    assert.equal(await page.evaluate(() => __mf.G.taps), 2, 'undo retains the original tap and costs one additional tap');
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 });

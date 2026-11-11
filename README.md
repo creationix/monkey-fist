@@ -13,15 +13,17 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 - Some ropes start tied in a **knot**: a loop in which each rope is waiting on the next, so none of them can leave. Sliding the right one forward draws its tail out of another's way and undoes it.
 - Some slides are **traps**: they leave ropes that can never get out. The game says "Knotted!" as soon as that happens, and dims any rope that can never move again. Nothing is locked, and any rope that can still move can still be tapped, but the board can no longer be cleared.
 - There are no hearts. Instead each level allows **three undos**, each taking back one move. The level is lost only when the board is knotted, nothing on it can move and no undos are left.
-- **Every player tap counts**, including blocked taps and moves you take back. Automatic releases do not count. Free the blockers efficiently and let the remaining ropes go by themselves; tapping those free ropes early costs extra. The top of the screen shows your taps against **par**, the fewest player taps known to solve the level. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
+- **One tap score**: a rope tap costs 1, undo costs 1, and a successful hint costs 2. The original move stays spent when undone. Automatic releases cost 0. There are still only three undos, and no hard tap budget. Free the blockers efficiently and let the remaining ropes go by themselves; tapping those free ropes early costs extra. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
 - Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
 - The lightbulb highlights the next tap of a solution in par.
+- **Combos** count unassisted manual rope exits only. Hints, undo, and bumps break the combo; automatic releases never increase it. A revealed rope remains assisted until the level is restarted, even after its highlight fades or a move is undone. Each five-rope milestone is announced once, rather than once per delayed exit animation.
 
 **The original game** (turn Sliding ropes off, or turn Kid mode on). A blocked rope bumps and springs back, and costs a heart: three hearts per level, and hearts left at the end are your stars. Nothing you tap can make the board worse, so the puzzle is purely finding the order.
 
 - **Tangle** (top of the screen) is how knotted the board still is, and it falls as you pull ropes out.
 - The lightbulb highlights a rope that can leave right now.
 - **Kid mode**: always the original game, with no hearts. Each bump points out a rope that can go, and the score is your time.
+- Requested hints cost one star in the original game and five seconds in Kid mode; both break combos. Automatic Kid-mode bump guidance remains free, but the indicated rope does not earn combo credit.
 
 Both games:
 
@@ -182,7 +184,7 @@ The game needs to answer this after every move, to say "Knotted!" the moment a b
 
 ### The fewest taps
 
-Par counts player taps only. Once no rope is blocked, the rest auto-release for free. An already-free board still needs one initiating tap; a harder board rewards freeing its blockers before tapping ropes that would eventually leave automatically. Blocked taps count too, and undo does not refund a tap.
+Par is the best unassisted player-tap score. Once no rope is blocked, the rest auto-release for free. An already-free board still needs one initiating tap; a harder board rewards freeing its blockers before tapping ropes that would eventually leave automatically. Blocked taps cost 1, undo adds 1 without refunding the move, and a successful hint adds 2. These action costs share the single tap score; they do not impose a hard failure budget.
 
 The par search uses depth-first iterative deepening [13], starting with the builder's complete solution as a fallback but scoring only its prefix before auto-release. It searches for a shorter player-tap prefix, ending as soon as every remaining rope has a clear exit. It cannot greedily remove free ropes: unnecessary early taps now cost points. A lower bound counts distinct ropes blocking exit rays, each of which must move before the board becomes fully free. Search also rejects proved deadlocks and remembers failed states with their remaining tap budget.
 
