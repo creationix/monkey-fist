@@ -147,7 +147,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 e (all levels unlocked)</div>
+  <div id="ver">build 2026-11-11 f</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -192,7 +192,6 @@ const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7
 const MAX_HEARTS = 3;
 const MAX_UNDOS = 3;       // the sliding game has no hearts: a level allows this many moves to be taken back
 const SOLVE_BUDGET = 4000; // how hard to look for a way out after each move in the sliding game (boards examined)
-const UNLOCK_ALL = true; // TEMPORARY, for testing: every level can be opened without clearing the one before. Set to false to restore normal unlocking.
 
 // ---------- persistence ----------
 let save = { sound: true, music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
@@ -759,7 +758,7 @@ function buildLevels() {
     (n < SET.asked ? ' · only ' + n + ' levels of different difficulty were possible' : '');
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
-    const b = document.createElement('button'), st = P.stars[i] || 0, open = UNLOCK_ALL || i <= P.max;
+    const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
     const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
