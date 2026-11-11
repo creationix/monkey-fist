@@ -88,10 +88,9 @@
   }
   // Reversing springs can revisit states; the cache includes full rope geometry.
   function minimum(level, budget = 6000, fallback = []) {
-    const queue = [{ paths: level.ropes, moves: [] }], seen = new Set();
+    const queue = [{ paths: level.ropes, moves: [] }], seen = new Set([JSON.stringify(level.ropes)]);
     for (let q = 0; q < queue.length && q < budget; q++) {
-      const { paths, moves } = queue[q], key = JSON.stringify(paths);
-      if (seen.has(key)) continue; seen.add(key);
+      const { paths, moves } = queue[q];
       if (allFree(level, paths)) {
         const suffix = paths.map((p, i) => p ? i : -1).filter(i => i >= 0);
         const full = moves.concat(suffix);
@@ -99,7 +98,9 @@
       }
       for (let i = 0; i < paths.length; i++) {
         const next = tap(level, paths, i);
-        if (next && !seen.has(JSON.stringify(next.paths))) queue.push({ paths: next.paths, moves: moves.concat(i) });
+        if (!next) continue;
+        const key = JSON.stringify(next.paths);
+        if (!seen.has(key)) { seen.add(key); queue.push({ paths: next.paths, moves: moves.concat(i) }); }
       }
     }
     const par = score(level, fallback);

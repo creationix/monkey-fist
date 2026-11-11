@@ -80,12 +80,23 @@ test('hints cost two taps and cannot farm combos through expiry or undo', { time
     await page.evaluate(() => { __mf.useSet('T12S-MONKEYFIST'); __mf.startLevel(1); });
     await page.locator('#hintBtn').click();
     assert.equal(await page.evaluate(() => __mf.G.taps), 2);
-    await page.evaluate(() => { __mf.tap(__mf.G.noodles[0]); for (let t = 0; t < 500; t++) __mf.update(.05); });
+    await page.evaluate(() => {
+      const g = __mf.G, hinted = g.hint; __mf.tap(g.noodles[hinted]);
+      for (let t = 0; t < 500 && g.noodles.some(n => n.state === 'twist'); t++) __mf.update(.05);
+    });
     assert.equal(await page.evaluate(() => __mf.G.taps), 3);
     assert.equal(await page.evaluate(() => __mf.G.streak), 0);
+    await page.evaluate(() => {
+      const g = __mf.G;
+      for (let k = 0; k < 60 && !g.ended; k++) {
+        if (!g.auto) __mf.tap(g.noodles[g.plan[0]]);
+        for (let t = 0; t < 600 && !g.ended; t++) { __mf.update(.05); if (!g.auto && !g.noodles.some(n => n.state === 'twist')) break; }
+      }
+    });
+    assert.equal(await page.evaluate(() => __mf.G.taps - __mf.G.par), 2);
     await page.waitForFunction(() => document.querySelector('#scrResult').classList.contains('show'));
     assert.equal(await page.locator('#stars .on').count(), 2, 'the hint is reflected in the tap-based star score');
-    assert.match(await page.locator('#resText').textContent(), /^3 taps/);
+    assert.match(await page.locator('#resText').textContent(), new RegExp('^' + await page.evaluate(() => __mf.G.taps) + ' taps'));
     const original = await page.evaluate(() => {
       __mf.save.kid = false; __mf.useSet('campaign'); __mf.startLevel(1); __mf.G.streak = 4; __mf.showHint();
       return { hints: __mf.G.hintsUsed, hearts: __mf.G.hearts, streak: __mf.G.streak, label: document.querySelector('#hintBtn').title };

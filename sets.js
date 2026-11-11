@@ -5,7 +5,8 @@
   const DEFAULT_SEED = 'MONKEYFIST';
   const defaults = slide => ({ mode: 'C', count: 60, big: false, slide: !!slide, seed: DEFAULT_SEED });
   function normalize(opts) {
-    if (opts.mode === 'T') return { mode: 'T', count: 12, big: false, slide: true, seed: L.cleanSeed(opts.seed) || DEFAULT_SEED };
+    if (opts.mode === 'T') return { mode: 'T', count: [...L.SET_COUNTS, 12].includes(opts.count) ? opts.count : 20,
+      big: !!opts.big, slide: true, seed: L.cleanSeed(opts.seed) || DEFAULT_SEED };
     return { mode: L.SET_MODES.includes(opts.mode) ? opts.mode : 'C', count: L.SET_COUNTS.includes(opts.count) ? opts.count : 60,
       big: !!opts.big, slide: !!opts.slide, seed: L.cleanSeed(opts.seed) || DEFAULT_SEED };
   }
@@ -16,6 +17,15 @@
   }
   function migrate(save) {
     save.sets = save.sets || {};
+    // The former curated Twists stars do not describe the new procedural boards.
+    // Archive only those results, leaving every other style's progress untouched.
+    if (save.twistsGen !== 1) {
+      for (const code of Object.keys(save.sets)) if ((L.parseCode(code) || {}).mode === 'T') {
+        save.twistsArchive = save.twistsArchive || {};
+        save.twistsArchive[code] = save.sets[code]; delete save.sets[code];
+      }
+      save.twistsGen = 1;
+    }
     for (const legacy of ['campaign', 'slide']) {
       const old = save.sets[legacy]; if (!old) continue;
       const id = code(options(legacy)), target = save.sets[id] || { max: 1, stars: {} };

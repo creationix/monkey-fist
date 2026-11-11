@@ -182,7 +182,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 m</div>
+  <div id="ver">build 2026-11-11 n</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -192,7 +192,7 @@
     <label>Style<select id="setMode" aria-label="Level style"><option value="C">Progressive</option><option value="E">Easy</option><option value="N">Normal</option><option value="H">Hard</option><option value="X">Extreme</option><option value="T">Twists</option></select></label>
     <label>Levels<select id="setCount" aria-label="Number of levels"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="12" hidden>12</option></select></label>
   </div>
-  <div class="row"><span>Bigger boards<small>Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
+  <div class="row"><span>Bigger boards<small id="bigNote">Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
   <label>Seed</label>
   <div class="row seedRow"><input id="seedIn" type="text" maxlength="24" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
     <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button>
@@ -218,12 +218,12 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=25"></script>
-<script src="sets.js?v=25"></script>
-<script src="mechanics.js?v=25"></script>
-<script src="twists.js?v=25"></script>
-<script src="mechanics-render.js?v=25"></script>
-<script src="music.js?v=25"></script>
+<script src="levels.js?v=26"></script>
+<script src="sets.js?v=26"></script>
+<script src="mechanics.js?v=26"></script>
+<script src="twists.js?v=26"></script>
+<script src="mechanics-render.js?v=26"></script>
+<script src="music.js?v=26"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -886,7 +886,7 @@ const LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" 
 function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
   $('lvTitle').textContent = 'Levels';
-  $('setNote').textContent = SET.mode === 'T' ? '12 Twists · mirrors, key gates, and springs' :
+  $('setNote').textContent = SET.mode === 'T' ? n + ' generated Twists · mirrors, key gates, and springs' :
     n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty;
   $('genBtn').textContent = P.max > 1 ? 'Continue · Level ' + Math.min(P.max, n) : 'Play · Level 1';
   grid.innerHTML = '';
@@ -895,7 +895,7 @@ function buildLevels() {
     b.className = 'lvBtn'; b.disabled = !open;
     const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st);
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
-    if (SET.mode === 'T') b.title = MFTwists.PACK[i - 1].title;
+    if (SET.mode === 'T') b.title = SET.levels[i - 1].title;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
   }
@@ -906,13 +906,14 @@ function buildLevels() {
 function buildCustom() {
   const c = save.custom, twist = c.mode === 'T';
   $('setMode').value = c.mode; $('setCount').value = c.count;
-  $('setCount').disabled = twist;
-  $('setCount').querySelector('[value="12"]').hidden = !twist;
-  $('tBig').classList.toggle('on', !!c.big); $('tBig').disabled = twist;
+  $('setCount').disabled = false;
+  $('setCount').querySelector('[value="12"]').hidden = c.count !== 12;
+  $('tBig').classList.toggle('on', !!c.big); $('tBig').disabled = false;
+  $('bigNote').textContent = twist ? 'Larger tangles, bounded for the routed solver' : 'Up to 16×22, twice the tangle';
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('defaultSeedBtn').disabled = c.seed === MFSets.DEFAULT_SEED;
   $('codeOut').textContent = customCode();
-  $('rangeNote').textContent = twist ? '12 curated puzzles. Other seeds turn and reflect their layouts. Sliding rules apply.' :
+  $('rangeNote').textContent = twist ? 'Every seed generates new rope layouts and mechanic placements, with verified solutions. Sliding rules apply.' :
     c.mode === 'C' ? 'A gentle start, growing into deeper tangles.' : 'Every seed makes a repeatable set at this difficulty.';
   const box = $('recent'); box.innerHTML = '';
   for (const code of save.recent.filter(code => code !== customCode())) {
@@ -941,8 +942,8 @@ function scheduleSet(delay = 30) {
 function playCustom() { activateCurrent(); show('levels'); }
 $('setMode').onchange = () => {
   const previous = save.custom.mode; save.custom.mode = $('setMode').value;
-  if (save.custom.mode === 'T') Object.assign(save.custom, { count: 12, big: false, slide: true });
-  else if (previous === 'T') save.custom.count = save.custom.mode === 'C' ? 60 : 20;
+  if (save.custom.mode === 'T') save.custom.slide = true;
+  else if (previous === 'T' && save.custom.count === 12) save.custom.count = 20;
   syncSetGame(); scheduleSet();
 };
 $('setCount').onchange = () => { save.custom.count = +$('setCount').value; scheduleSet(); };

@@ -27,11 +27,24 @@ test('legacy default progress, stars, kid times, and custom progress survive mig
   S.migrate(save);
   assert.deepEqual(save.sets['C60S-MONKEYFIST'], { max: 1, stars: {} }, 'explicit resets must not resurrect migrated progress');
 });
-test('all set styles share a canonical round-trippable code; Twists has twelve sliding levels', () => {
+test('all set styles share a canonical round-trippable code; procedural Twists supports counts and big boards', () => {
   for (const mode of ['C', 'E', 'N', 'H', 'X', 'T']) {
     const opts = S.normalize({ mode, count: 60, big: true, seed: 'ALPHA', slide: false });
     assert.deepEqual(L.parseCode(S.code(opts)), opts);
-    if (mode === 'T') assert.deepEqual(opts, { mode: 'T', count: 12, big: false, slide: true, seed: 'ALPHA' });
+    if (mode === 'T') assert.deepEqual(opts, { mode: 'T', count: 60, big: true, slide: true, seed: 'ALPHA' });
   }
-  for (const bad of ['T12-ALPHA', 'T12BS-ALPHA', 'T20S-ALPHA']) assert.equal(L.parseCode(bad), null);
+  for (const bad of ['T12-ALPHA', 'T15S-ALPHA', 'T20B-ALPHA']) assert.equal(L.parseCode(bad), null);
+  assert.equal(L.parseCode('T12S-ALPHA').count, 12, 'legacy share codes still open a generated set');
+});
+test('only former curated Twists progress is archived, once', () => {
+  const old = { max: 8, stars: { 1: 3, 7: 2 } }, normal = { max: 30, stars: { 1: 3 } };
+  const save = { setUI: 1, custom: { mode: 'T', count: 12, seed: 'ALPHA' }, sets: { 'T12S-ALPHA': old, 'C60S-MONKEYFIST': normal } };
+  S.migrate(save);
+  assert.equal(save.sets['T12S-ALPHA'], undefined);
+  assert.deepEqual(save.twistsArchive['T12S-ALPHA'], old);
+  assert.equal(save.sets['C60S-MONKEYFIST'], normal);
+  save.sets['T12S-ALPHA'] = { max: 3, stars: { 1: 2 } };
+  S.migrate(save);
+  assert.equal(save.sets['T12S-ALPHA'].max, 3, 'new generated progress survives reload');
+  assert.equal(save.custom.mode, 'T');
 });

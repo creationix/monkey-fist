@@ -31,6 +31,21 @@ test('one set screen restores defaults, persists selections, and preserves legac
     await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
     assert.equal(await page.locator('#lvGrid button:enabled').count(), 7);
     assert.equal(await page.evaluate(() => __mf.save.sets['X10BS-E5DDK'].stars[2]), 2);
+    await page.selectOption('#setMode', 'T'); await page.selectOption('#setCount', '10');
+    await page.locator('#tBig').click();
+    await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
+    assert.equal(await page.locator('#codeOut').textContent(), 'T10BS-MONKEYFIST');
+    assert.equal(await page.locator('#lvGrid button').count(), 10);
+    await page.locator('#genBtn').click();
+    const originalBoard = await page.evaluate(() => JSON.stringify(__mf.G.paths));
+    await page.locator('#menuBtn').click(); await page.locator('#diceBtn').click();
+    await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
+    const newCode = await page.locator('#codeOut').textContent();
+    assert.notEqual(newCode, 'T10BS-MONKEYFIST');
+    await page.locator('#genBtn').click();
+    assert.notEqual(await page.evaluate(() => JSON.stringify(__mf.G.paths)), originalBoard);
+    await page.reload(); await page.locator('#levelsBtn').click();
+    assert.equal(await page.locator('#codeOut').textContent(), newCode, 'procedural Twists settings survive reload');
   } finally { await browser.close(); }
 });
 
@@ -42,11 +57,14 @@ test('every real Twists level animates, clears at par, and awards progression on
       const errors = []; page.on('pageerror', e => errors.push(String(e)));
       await page.goto(base); await page.locator('#levelsBtn').click();
       await page.selectOption('#setMode', 'T');
+      await page.selectOption('#setCount', '20');
       await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
-      assert.equal(await page.locator('#lvGrid button').count(), 12);
+      assert.equal(await page.locator('#lvGrid button').count(), 20);
+      assert.equal(await page.locator('#setCount').isEnabled(), true);
+      assert.equal(await page.locator('#tBig').isEnabled(), true);
       assert.equal(await page.locator('#lvGrid button:enabled').count(), 1);
       await page.locator('#genBtn').click();
-      for (let level = 1; level <= 12; level++) {
+      for (let level = 1; level <= 20; level++) {
         await page.evaluate(level => __mf.startLevel(level), level);
         for (let move = 0; move < 60; move++) {
           const state = await page.evaluate(() => ({ auto: __mf.G.auto, ended: __mf.G.ended }));
@@ -66,7 +84,7 @@ test('every real Twists level animates, clears at par, and awards progression on
           stars: __mf.progress().stars[__mf.G.level], unlocked: __mf.progress().max }));
         assert.equal(result.ended, true, `${width}: twist ${level}`);
         assert.equal(result.taps, result.par, `${width}: twist ${level} par`);
-        assert.equal(result.stars, 3); assert.equal(result.unlocked, Math.min(12, level + 1));
+        assert.equal(result.stars, 3); assert.equal(result.unlocked, Math.min(20, level + 1));
       }
       assert.deepEqual(errors, []); await page.close();
     }
@@ -80,14 +98,30 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
     await page.goto(base); await page.locator('#levelsBtn').click(); await page.selectOption('#setMode', 'T');
     await page.waitForFunction(() => !document.querySelector('#genBtn').disabled); await page.locator('#genBtn').click();
     const spring = await page.evaluate(() => {
-      __mf.startLevel(8); const before = JSON.stringify(__mf.G.paths); __mf.tap(__mf.G.noodles[0]);
-      __mf.undo(); return { before, after: JSON.stringify(__mf.G.paths), taps: __mf.G.taps, undos: __mf.G.undos, state: __mf.G.noodles[0].state };
+      __mf.startLevel(8);
+      for (let k = 0; k < 60; k++) {
+        const g = __mf.G, i = g.plan[0], next = MFMechanics.tap(g.features, g.paths, i);
+        if (next.event === 'bounce') {
+          const before = JSON.stringify(g.paths), taps = g.taps; __mf.tap(g.noodles[i]); __mf.undo();
+          return { before, after: JSON.stringify(g.paths), taps: g.taps - taps, undos: g.undos, state: g.noodles[i].state };
+        }
+        __mf.tap(g.noodles[i]); for (let t = 0; t < 200 && g.noodles.some(n => n.state === 'twist'); t++) __mf.update(.05);
+      }
+      throw Error('No generated spring bounce');
     });
     assert.equal(spring.before, spring.after); assert.equal(spring.taps, 2); assert.equal(spring.undos, 2); assert.equal(spring.state, 'idle');
     const gate = await page.evaluate(() => {
-      __mf.startLevel(10); __mf.tap(__mf.G.noodles[1]);
-      for (let i = 0; i < 200; i++) __mf.update(.05);
-      const open = !__mf.G.paths[1]; __mf.undo(); return { open, restored: !!__mf.G.paths[1], taps: __mf.G.taps };
+      __mf.startLevel(3);
+      const g = __mf.G, key = g.features.gates[0].key;
+      for (let k = 0; k < 60; k++) {
+        const i = g.plan[0], next = MFMechanics.tap(g.features, g.paths, i), taps = g.taps;
+        __mf.tap(g.noodles[i]);
+        for (let t = 0; t < 200 && g.noodles.some(n => n.state === 'twist'); t++) __mf.update(.05);
+        if (i === key && next.event === 'exit') {
+          const open = !g.paths[key]; __mf.undo(); return { open, restored: !!g.paths[key], taps: g.taps - taps };
+        }
+      }
+      throw Error('No generated gate key exit');
     });
     assert.deepEqual(gate, { open: true, restored: true, taps: 2 });
     await page.evaluate(() => navigator.serviceWorker.ready);

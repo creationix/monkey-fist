@@ -30,7 +30,7 @@ Both games:
 - **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Progressive, Easy, Normal, Hard, and Extreme support 10, 20, 30, or 60 levels. The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
 - **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Its boards are unchanged, and old stars, unlocked levels, and Kid-mode times are migrated to the canonical set code.
 - **Share codes**: every set has a code such as `N20S-K7F3Q`; paste the whole code into the Seed field to select that same set. The `S` marks sliding rules. Switching sets keeps their progress; recent sets are quick shortcuts, not a separate interface.
-- **Twists**: choose Twists in the same Style selector for a 12-level introduction to mirrors, key gates, and springs. Its code is `T12S-MONKEYFIST`. Other seeds deterministically turn or reflect the curated layouts; they do not generate wholly new Twists puzzles yet.
+- **Twists**: choose Twists in the same Style selector for procedurally generated mirrors, key gates, and springs. Choose 10, 20, 30, or 60 levels and optionally Bigger boards, e.g. `T20S-MONKEYFIST` or `T30BS-ALPHA`. Changing the seed changes rope geometry and mechanic placements, not just orientation. The same code always reconstructs the same puzzles.
 - **Responsive layout**: wide screens put the controls beside the puzzle. Boards automatically turn to whichever orientation gives the largest cells, including when resizing or rotating a device mid-level. The puzzle, progress, hints, and undo stay the same.
 
 ## Music
@@ -48,9 +48,27 @@ rope, swap head and tail automatically, and end that move. Once all remaining ro
 clear exits, auto-release completes the board without adding player taps.
 
 The first two levels teach mirrors, the next two gates, and the next two springs. Levels
-7–9 introduce pairs; levels 10–12 combine all three, ending with a generated tangle adapted
-and curated for the pack. Every level has a replay-verified full solution and exact
-player-tap par. The fixed pack and all eight orientation transforms are tested.
+7–9 introduce pairs; level 10 onward combines all three in increasingly tangled boards.
+Only this teaching sequence is fixed: the puzzles themselves are generated for every seed.
+
+`twists.js` constructs a seeded sliding-rope board using the existing weaving generator,
+then searches empty cells for playable mechanic placements. A bounded full-geometry
+solver verifies each candidate. The final solution must actually encounter every mirror,
+spring, and opened gate; a closed gate must change an available move. Every published
+board has a replay-verified solution. Breadth-first search calculates player-tap par;
+when its budget is exhausted, par is the verified best known score, not falsely marked
+as an exact minimum. Auto-release moves never count towards par.
+
+Generation is lazy (one board when opened), cached, deterministic, and bounded by attempt
+and search-node limits. If placement search exhausts its budget, a separate constructive
+algorithm grows a randomly bent rope with a guaranteed reverse exit, then adds the requested
+mechanics and key. That fallback also generates new geometry; it never selects a premade
+puzzle. Tests cover hundreds of generated boards, seed diversity beyond reflections and
+rotations, certificates, feature use, teaching order, and constructive fallback orientations.
+
+Former curated Twists results are archived once in the save's `twistsArchive`, since those
+stars no longer describe the new boards. Progress in every other style is untouched.
+Legacy `T12S-…` codes still open a deterministic twelve-level procedural set.
 
 `mechanics.js` is the shared transition kernel for main-game Twists and the playground.
 It computes the actual route, gate state, reversal, and exit geometry; main-game animation,
@@ -120,7 +138,7 @@ That one rule lets the builder do two useful things on purpose. It can lay a rop
 
 Board size follows from difficulty: Easy sets are small boards, and the top of Extreme is 12x16.
 
-**Bigger boards** (a Levels option, `B` in the share code) allows boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off; Twists uses fixed curated board sizes.
+**Bigger boards** (a Levels option, `B` in the share code) allows straight-track boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off. Twists also supports this option, targeting larger tangles while keeping rope counts and routed-solver work bounded.
 
 **Cost.** For `R` ropes on a `W x H` board:
 

@@ -1259,7 +1259,7 @@ const MFLevels = (() => {
     const m = /^\s*([CENHXT])\s*(\d{1,2})\s*(B?)\s*(S?)\s*-\s*([A-Z0-9]{1,10})\s*$/i.exec(String(text));
     if (!m) return null;
     const count = +m[2];
-    if (m[1].toUpperCase() === 'T') return count === 12 && !m[3] && !!m[4] ? { mode: 'T', count, big: false, slide: true, seed: m[5].toUpperCase() } : null;
+    if (m[1].toUpperCase() === 'T') return (SET_COUNTS.includes(count) || count === 12) && !!m[4] ? { mode: 'T', count, big: !!m[3], slide: true, seed: m[5].toUpperCase() } : null;
     if (!SET_COUNTS.includes(count)) return null;
     return { mode: m[1].toUpperCase(), count, big: !!m[3], slide: !!m[4], seed: m[5].toUpperCase() };
   }

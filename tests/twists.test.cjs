@@ -1,42 +1,79 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const T = require('../twists.js'), M = require('../mechanics.js');
+const T = require('../twists.js'), M = require('../mechanics.js'), L = require('../levels.js');
 
-test('the twelve Twists levels introduce mirrors, gates, springs, then combinations', () => {
-  assert.equal(T.PACK.length, 12);
-  const has = (i, key) => !!T.PACK[i][key]?.length;
-  for (const i of [0, 1]) assert.ok(has(i, 'mirrors') && !has(i, 'gates') && !has(i, 'springs'));
-  for (const i of [2, 3]) assert.ok(has(i, 'gates') && !has(i, 'mirrors') && !has(i, 'springs'));
-  for (const i of [4, 5]) assert.ok(has(i, 'springs') && !has(i, 'gates') && !has(i, 'mirrors'));
-  for (const i of [9, 10, 11]) assert.ok(has(i, 'mirrors') && has(i, 'gates') && has(i, 'springs'));
-});
-test('all 96 seed transforms preserve their solution, tap-only interaction, and player-tap par', () => {
-  for (let bits = 0; bits < 8; bits++) for (const base of T.PACK) {
-    const level = T.transform(base, bits), replay = M.replay(level, level.solution);
-    assert.equal(replay.solved, true, base.title + ' transform ' + bits);
-    assert.equal(M.score(level, level.solution), level.par);
-    assert.ok(level.solution.every(Number.isInteger));
-    if (level.springs.length) assert.ok(replay.events.includes('bounce'), base.title);
-  }
-});
-test('curated par is the fewest player taps on every teaching puzzle', () => {
-  for (const level of T.PACK.slice(0, 11)) {
-    const p = M.minimum(level, 10000, level.solution);
-    assert.equal(p.exact, true); assert.equal(p.par, level.par, level.title);
-  }
-});
-test('the default seed is the authored layout and every other seed is deterministic', () => {
-  for (const seed of ['MONKEYFIST', 'ALPHA', 'BRAVO']) {
-    const set = T.generateSet({ seed });
-    assert.equal(set.code, 'T12S-' + seed);
-    for (const d of set.levels) {
-      const a = T.levelFrom(d), b = T.levelFrom(d);
-      assert.deepEqual(a, b);
-      assert.equal(M.replay(a.definition, a.best).solved, true);
+function check(level, index) {
+  const b = level.definition, occupied = new Set(), tiles = new Set();
+  for (const path of b.ropes) {
+    assert.ok(path.length >= 2);
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i], cell = p.y * b.W + p.x;
+      assert.ok(p.x >= 0 && p.y >= 0 && p.x < b.W && p.y < b.H);
+      assert.ok(!occupied.has(cell), 'ropes must not overlap'); occupied.add(cell);
+      if (i) assert.equal(Math.abs(p.x - path[i - 1].x) + Math.abs(p.y - path[i - 1].y), 1);
     }
   }
+  for (const kind of ['mirrors', 'gates', 'springs']) {
+    assert.equal(!!b[kind].length, T.featuresFor(index).includes(kind));
+    if (b[kind].length) assert.ok(T.uses(b, level.best, kind), 'the solution must use ' + kind);
+    for (const feature of b[kind]) {
+      const cell = typeof feature === 'number' ? feature : feature.cell;
+      assert.ok(cell >= 0 && cell < b.W * b.H && !occupied.has(cell) && !tiles.has(cell)); tiles.add(cell);
+      if (kind === 'gates') assert.ok(b.ropes[feature.key]);
+    }
+  }
+  assert.equal(M.replay(b, level.best).solved, true);
+  assert.equal(M.score(b, level.best), level.par);
+  assert.equal(M.allFree(b, b.ropes), false, 'a puzzle needs at least one player decision');
+}
+test('seeded Twists cover the whole set, introduce mechanics, and certify every generated board', () => {
+  for (const seed of ['MONKEYFIST', 'ALPHA', 'BRAVO', 'E5DDK']) for (const big of [false, true]) {
+    const set = T.generateSet({ seed, count: 60, big });
+    assert.equal(set.levels.length, 60);
+    assert.deepEqual(L.parseCode(set.code), { seed, mode: 'T', count: 60, big, slide: true });
+    for (const d of set.levels) check(T.levelFrom(d), d.index);
+  }
 });
-test('endless spring bounces are not auto-free, and a solver timeout is not a proved loss', () => {
+test('same seed reconstructs identical boards after cache eviction; other seeds change geometry, not just orientation', () => {
+  const opts = { seed: 'REPEAT', count: 20 }, set = T.generateSet(opts);
+  const first = JSON.stringify(set.levels.map(d => T.levelFrom(d)));
+  for (const seed of ['EVICT1', 'EVICT2', 'EVICT3', 'EVICT4']) for (const d of T.generateSet({ seed, count: 20 }).levels) T.levelFrom(d);
+  assert.equal(JSON.stringify(T.generateSet(opts).levels.map(d => T.levelFrom(d))), first);
+  const canonical = b => Array.from({ length: 8 }, (_, bits) => {
+    const t = T.transform(b, bits); return JSON.stringify([t.W, t.H, t.ropes]);
+  }).sort()[0];
+  for (const index of [0, 9]) {
+    const boards = new Set();
+    for (let i = 0; i < 20; i++) boards.add(canonical(T.levelFrom({ seed: 'VARIETY' + i, index }).definition));
+    assert.equal(boards.size, 20);
+  }
+});
+test('bounded constructive generation is itself procedural, verified, and preserves every orientation', () => {
+  const geometries = new Set();
+  for (let seed = 0; seed < 50; seed++) for (const index of [0, 2, 4, 6, 7, 8, 9]) {
+    const b = T.construct(L.mulberry32(seed), T.featuresFor(index), seed % 2 === 0);
+    geometries.add(JSON.stringify(b.ropes));
+    for (let bits = 0; bits < 8; bits++) {
+      const t = T.transform(b, bits);
+      assert.equal(M.replay(t, t.solution).solved, true);
+      assert.equal(M.score(t, t.solution), t.par);
+    }
+  }
+  assert.ok(geometries.size >= 100, 'fallback builds new rope paths, never selects stored puzzles');
+});
+test('exact pars agree with a larger independent search; bounded results remain replay-verified', () => {
+  for (const d of T.generateSet({ seed: 'PARS', count: 10 }).levels) {
+    const level = T.levelFrom(d), p = M.minimum(level.definition, 12000, level.best);
+    if (level.parExact) { assert.equal(p.exact, true); assert.equal(p.par, level.par); }
+    else assert.ok(p.par <= level.par);
+  }
+});
+test('counts are configurable, big boards expand the generated geometry, and endless bounces remain unknown on timeout', () => {
+  for (const count of [10, 12, 20, 30, 60]) assert.equal(T.generateSet({ seed: 'ALPHA', count }).levels.length, count);
+  const area = big => T.generateSet({ seed: 'SIZES', count: 20, big }).levels.reduce((sum, d) => {
+    const b = T.levelFrom(d); return sum + b.W * b.H;
+  }, 0);
+  assert.ok(area(true) > area(false));
   const level = { W: 6, H: 3, springs: [6, 11], ropes: [[{ x: 2, y: 1 }, { x: 3, y: 1 }]] };
   assert.equal(M.allFree(level, level.ropes), false);
   assert.equal(M.solve(level).solved, false);
