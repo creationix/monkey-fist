@@ -2,7 +2,6 @@
   "name": "Monkey Fist",
   "short_name": "Monkey Fist",
   "description": "Tap the ropes in the right order to untangle the knot.",
-  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
