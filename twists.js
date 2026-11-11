@@ -4,7 +4,7 @@
   const node = typeof module !== 'undefined' && module.exports;
   const L = node ? require('./levels.js') : MFLevels;
   const M = node ? require('./mechanics.js') : root.MFMechanics;
-  const VERSION = 1, cache = new Map();
+  const VERSION = 2, cache = new Map();
   const id = (p, W) => p.y * W + p.x;
   const inside = (p, b) => p.x >= 0 && p.y >= 0 && p.x < b.W && p.y < b.H;
   function shuffle(a, rng) {
@@ -21,6 +21,25 @@
     if (index === 7) return ['springs', 'mirrors'];
     if (index === 8) return ['springs', 'gates'];
     return ['springs', 'mirrors', 'gates'];
+  }
+  function progressiveFeatures(index, count) {
+    const stage = L.progressiveStage(index, count);
+    if (stage < 8) return [];
+    if (stage < 16) return ['mirrors'];
+    if (stage < 20) return ['gates'];
+    if (stage < 24) return ['mirrors', 'gates'];
+    if (stage < 28) return ['springs'];
+    if (stage < 32) return ['springs', 'mirrors'];
+    if (stage < 40) return stage % 2 ? ['springs', 'gates'] : ['mirrors', 'gates'];
+    return ['springs', 'mirrors', 'gates'];
+  }
+  function integrate(set) {
+    if (set.mode !== 'C' || !set.slide) return set;
+    return { ...set, levels: set.levels.map((base, index) => {
+      const kinds = progressiveFeatures(index, set.levels.length);
+      return kinds.length ? { twist: true, base, kinds, index, seed: set.seed, big: set.big,
+        difficulty: base.difficulty, title: label(kinds) } : base;
+    }) };
   }
   const label = kinds => kinds.map(k => ({ mirrors: 'Mirrors', gates: 'Key gates', springs: 'Springs' })[k]).join(' + ');
   function transform(level, bits) {
@@ -78,7 +97,10 @@
     return null;
   }
   function certify(level, fallback, kinds) {
-    const best = M.minimum(level, 1800, fallback);
+    const n = level.ropes.length;
+    // Never exhaustively enumerate a large board just to display a par. Its
+    // certificate remains playable; the UI labels an unproved par as best known.
+    const best = M.minimum(level, n <= 10 ? 1800 : n <= 18 ? 150 : 35, fallback);
     if (best.par === null || !M.replay(level, best.moves).solved ||
         kinds.some(k => !uses(level, best.moves, k))) return null;
     return { ...level, solution: best.moves, par: best.par, parExact: best.exact };
@@ -86,8 +108,8 @@
   // Bounded constructive escape hatch, not a stored board. A randomly bent,
   // x-monotone rope has a clear reverse exit; a spring sends it there. Optional
   // mirrors turn that exit, and a separate random key opens the forward gate.
-  function construct(rng, kinds, big) {
-    const W = (big ? 14 : 11) + Math.floor(rng() * 4), H = 7 + Math.floor(rng() * (big ? 7 : 4));
+  function construct(rng, kinds, big, size = {}) {
+    const W = Math.max(11, size.W || (big ? 14 : 11) + Math.floor(rng() * 4)), H = Math.max(7, size.H || 7 + Math.floor(rng() * (big ? 7 : 4)));
     const row = 2 + Math.floor(rng() * 2), tailRow = row + Math.floor(rng() * (H - row - 1));
     const path = [{ x: 2, y: tailRow }, { x: 3, y: tailRow }, { x: 4, y: tailRow }];
     let y = tailRow;
@@ -112,14 +134,44 @@
     if (!verified) throw new Error('Invalid procedural Twists construction');
     return transform(verified, Math.floor(rng() * 8));
   }
+  // Grow a full puzzle backwards from a certified mechanic route. Each new rope
+  // can exit first; later additions may block earlier ones, building dependency
+  // chains. The extended certificate follows by induction, without a global search.
+  function grow(level, rng) {
+    const occupied = new Set(level.ropes.flat().map(p => id(p, level.W)));
+    const tiles = new Set([...level.springs, ...level.mirrors.map(m => m.cell), ...level.gates.map(g => g.cell)]);
+    const ropes = level.ropes.slice(), moves = level.solution.slice(), area = level.W * level.H;
+    for (let attempt = 0; attempt < area * 10 && occupied.size < area * .8; attempt++) {
+      const cell = Math.floor(rng() * area); if (occupied.has(cell) || tiles.has(cell)) continue;
+      const path = [{ x: cell % level.W, y: Math.floor(cell / level.W) }], used = new Set([cell]);
+      const want = 3 + Math.floor(rng() * 6);
+      while (path.length < want) {
+        const p = path[path.length - 1];
+        const choices = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
+          .filter(q => inside(q, level) && !occupied.has(id(q, level.W)) && !tiles.has(id(q, level.W)) && !used.has(id(q, level.W)));
+        if (!choices.length) break;
+        const q = choices[Math.floor(rng() * choices.length)]; path.push(q); used.add(id(q, level.W));
+      }
+      if (path.length < 3) continue;
+      const i = ropes.length, variant = { ...level, ropes: ropes.concat([path]) };
+      const next = M.tap(variant, variant.ropes, i);
+      if (!next || next.event !== 'exit') continue;
+      ropes.push(path); moves.unshift(i); for (const c of used) occupied.add(c);
+    }
+    return { ...level, ropes, solution: moves };
+  }
   function generate(d) {
-    const kinds = featuresFor(d.index), rng = L.mulberry32(L.hashString('twists/' + VERSION + '|' + d.seed + '|' + d.index + '|' + !!d.big));
+    const kinds = d.kinds || featuresFor(d.index), rng = L.mulberry32(L.hashString('twists/' + VERSION + '|' + d.seed + '|' + d.index + '|' + !!d.big));
+    // Standalone Twists climbs into the same board sizes as the main campaign.
+    const target = Math.min(d.big ? 600 : 300, 10 + d.index * (d.big ? 10 : 5));
+    let size = d.base ? { W: d.base.W, H: d.base.H } : L.plan(rng, target, target + 12, d.big, 0, true);
     let searches = 0;
-    for (let attempt = 0; attempt < 36 && searches < 100; attempt++) {
-      const target = 10 + Math.min(d.index, 20) + (d.big ? 10 : 0);
-      const cfg = L.plan(rng, target, target + 10, d.big, attempt, true);
+    for (let attempt = 0; attempt < 12 && searches < 45; attempt++) {
+      const cfg = d.base && attempt === 0 ? { ...d.base, W: d.base.boardW, H: d.base.boardH } :
+        L.plan(rng, d.base ? Math.max(10, d.difficulty - 8) : target, d.base ? d.difficulty + 12 : target + 12, d.big, attempt, true);
       const base = L.weave(L.mulberry32(cfg.seed), cfg);
-      if (!base || base.ropes.length > (d.big ? 12 : 10)) continue;
+      if (!base) continue;
+      size = { W: base.W, H: base.H };
       let level = { W: base.W, H: base.H, ropes: base.ropes, mirrors: [], springs: [], gates: [] }, moves = base.taps;
       const occupied = new Set(base.ropes.flat().map(p => id(p, base.W)));
       let empty = shuffle(Array.from({ length: base.W * base.H }, (_, c) => c).filter(c => !occupied.has(c)), rng), ok = true;
@@ -132,14 +184,15 @@
         let found = false;
         for (const cell of empty.slice(0, 12)) {
           for (const slope of kind === 'mirrors' ? shuffle(['/', '\\'], rng) : ['']) {
-            if (++searches > 100) break;
+            if (++searches > 45) break;
             const variant = { ...level, [kind]: kind === 'mirrors' ? [{ cell, slope }] : [cell] };
-            const solution = M.solve(variant, variant.ropes, 500);
+            const unchanged = M.replay(variant, moves);
+            const solution = unchanged.solved ? { solved: true, moves } : M.solve(variant, variant.ropes, 100, moves);
             if (!solution.solved || !uses(variant, solution.moves, kind) ||
                 kinds.some(k => k !== 'gates' && level[k].length && !uses(variant, solution.moves, k))) continue;
             level = variant; moves = solution.moves; empty = empty.filter(c => c !== cell); found = true; break;
           }
-          if (found || searches > 100) break;
+          if (found || searches > 45) break;
         }
         if (!found) { ok = false; break; }
       }
@@ -148,7 +201,13 @@
         if (verified) return { ...verified, construction: 'weave' };
       }
     }
-    return { ...construct(rng, kinds, d.big), construction: 'corridor' };
+    const fallback = grow(construct(rng, kinds, d.big, size), rng);
+    // An alternate short route may bypass a tile. Keep the construction's
+    // certificate in that case, rather than failing a perfectly playable seed.
+    const verified = certify(fallback, fallback.solution, kinds) ||
+      { ...fallback, par: M.score(fallback, fallback.solution), parExact: false };
+    if (verified.par === null || !M.replay(verified, verified.solution).solved) throw new Error('Invalid grown Twists certificate');
+    return { ...verified, construction: 'grown' };
   }
   function generateSet(opts) {
     const seed = L.cleanSeed(opts.seed) || 'MONKEYFIST', count = [...L.SET_COUNTS, 12].includes(opts.count) ? opts.count : 20, big = !!opts.big;
@@ -157,12 +216,13 @@
       ({ twist: true, index, seed, big, difficulty: index + 1, title: label(featuresFor(index)) })) };
   }
   function levelFrom(d) {
-    const key = d.seed + '|' + d.index + '|' + !!d.big;
+    const key = JSON.stringify([d.seed, d.index, !!d.big, d.base || null, d.kinds || null]);
     if (!cache.has(key)) {
       const definition = generate(d);
-      definition.title = label(featuresFor(d.index));
-      definition.note = d.index < 2 ? 'Two-sided mirrors turn a rope 90°. Its body follows the head.' :
-        d.index < 4 ? 'Free a lettered key rope to open its matching gate.' : d.index < 6 ?
+      const kinds = d.kinds || featuresFor(d.index);
+      definition.title = label(kinds);
+      definition.note = kinds.length === 1 && kinds[0] === 'mirrors' ? 'Two-sided mirrors turn a rope 90°. Its body follows the head.' :
+        kinds.length === 1 && kinds[0] === 'gates' ? 'Free a lettered key rope to open its matching gate.' : kinds.length === 1 && kinds[0] === 'springs' ?
         'A spring swaps head and tail on contact. Once all ropes have clear exits, they leave automatically.' :
         'Plan your exits around the mirrors, key gates, and springs. Every move is still a simple tap.';
       if (cache.size >= 64) cache.delete(cache.keys().next().value);
@@ -172,6 +232,6 @@
     return { W: definition.W, H: definition.H, ropes: definition.ropes, definition, twist: true,
       best: definition.solution.slice(), taps: definition.solution.slice(), par: definition.par, parExact: definition.parExact };
   }
-  const api = { VERSION, featuresFor, uses, construct, transform, generateSet, levelFrom };
+  const api = { VERSION, featuresFor, progressiveFeatures, integrate, uses, construct, grow, transform, generateSet, levelFrom };
   if (node) module.exports = api; else root.MFTwists = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

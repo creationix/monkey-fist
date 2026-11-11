@@ -182,7 +182,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 n</div>
+  <div id="ver">build 2026-11-11 o</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -190,7 +190,7 @@
   <div class="set-layout"><div class="set-controls">
   <div class="row2">
     <label>Style<select id="setMode" aria-label="Level style"><option value="C">Progressive</option><option value="E">Easy</option><option value="N">Normal</option><option value="H">Hard</option><option value="X">Extreme</option><option value="T">Twists</option></select></label>
-    <label>Levels<select id="setCount" aria-label="Number of levels"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="12" hidden>12</option></select></label>
+    <label>Levels<select id="setCount" aria-label="Number of levels"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="120">120</option><option value="12" hidden>12</option></select></label>
   </div>
   <div class="row"><span>Bigger boards<small id="bigNote">Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
   <label>Seed</label>
@@ -199,6 +199,7 @@
     <button class="iconBtn" id="defaultSeedBtn" title="Restore default seed" aria-label="Restore default seed"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg></button></div>
   <div style="text-align:center"><button class="code" id="codeOut" title="Copy share code"></button></div>
   <div id="rangeNote"></div>
+  <div class="row"><span>Unlock all levels<small>Temporary playtest · earned progress stays separate</small></span> <button class="toggle" id="tUnlock" aria-label="Unlock all levels for testing"></button></div>
   <button class="big" id="genBtn">Continue</button>
   <div id="recentLbl" class="sub">Recent</div>
   <div id="recent"></div>
@@ -218,12 +219,12 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=26"></script>
-<script src="sets.js?v=26"></script>
-<script src="mechanics.js?v=26"></script>
-<script src="twists.js?v=26"></script>
-<script src="mechanics-render.js?v=26"></script>
-<script src="music.js?v=26"></script>
+<script src="levels.js?v=27"></script>
+<script src="sets.js?v=27"></script>
+<script src="mechanics.js?v=27"></script>
+<script src="twists.js?v=27"></script>
+<script src="mechanics-render.js?v=27"></script>
+<script src="music.js?v=27"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -233,6 +234,9 @@ const MAX_HEARTS = 3;
 const MAX_UNDOS = 3;       // the sliding game has no hearts: a level allows this many moves to be taken back
 const HINT_TAP_COST = 2;   // all scored actions use taps: rope 1, undo 1, hint 2
 const SOLVE_BUDGET = 4000; // how hard to look for a way out after each move in the sliding game (boards examined)
+// Temporary playtest flag. Remove/turn off after testing; never writes fake unlocks.
+const TEST_UNLOCK_ALL = true;
+let previewUnlocked = TEST_UNLOCK_ALL;
 
 // ---------- persistence ----------
 let save = { sound: true, music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
@@ -262,6 +266,11 @@ const sliding = () => save.slide && !save.kid;
 save.custom.slide = save.custom.slide === undefined ? sliding() : !!save.custom.slide;
 save.custom.seed = MFLevels.cleanSeed(save.custom.seed) || MFLevels.randomSeed();
 MFSets.migrate(save);
+const sharedSet = MFSets.options(new URLSearchParams(location.search).get('set') || '');
+if (sharedSet) {
+  save.custom = MFSets.normalize(sharedSet); save.slide = save.custom.slide;
+  if (save.slide) save.kid = false;
+}
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- audio (synthesised) ----------
@@ -404,7 +413,7 @@ function startLevel(n) {
     return { id, path, cur: path, off: 0, d: L.twist ? MFMechanics.direction(L.definition, path) : headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
   });
   if (G.slide) tangleNow();
-  $('lvName').textContent = (G.twist ? 'Twist ' : 'Level ') + n + '/' + SET.levels.length;
+  $('lvName').textContent = (SET.mode === 'T' ? 'Twist ' : 'Level ') + n + '/' + SET.levels.length;
   G.tip = G.twist ? L.definition.note : SET.mode === 'C' ? (G.slide ? TIPS_SLIDE[n - 1] || (d.knots && n <= 8 ? KNOT_TIP : '') : TIPS[n - 1] || '') : '';
   $('tip').textContent = G.tip;
   show(null); resize(); hud();
@@ -450,7 +459,9 @@ function tangleNow() {
 // benefit of the doubt.
 function judge(budget) {
   if (G.twist) {
-    const s = MFMechanics.solve(G.features, G.paths, budget || SOLVE_BUDGET);
+    const left = G.paths.filter(Boolean).length;
+    const limit = Math.min(budget || SOLVE_BUDGET, Math.max(120, Math.floor(18000 / Math.max(1, left))));
+    const s = MFMechanics.solve(G.features, G.paths, limit, G.plan);
     G.lost = s.solved === false; G.fixed = [];
     G.plan = s.solved ? s.moves : [];
     return;
@@ -524,7 +535,7 @@ function tapTwist(n, auto) {
   if (!auto && G.hintedRopes.has(n.id)) G.streak = 0;
   const next = MFMechanics.tap(G.features, G.paths, n.id);
   if (!next) { G.streak = 0; n.flash = .7; G.shake = .3; sfx.thud(); hud(); return; }
-  if (!auto) G.history.push({ twist: true, paths: G.paths.slice(), plan: G.plan.slice(), lost: G.lost });
+  if (!auto) G.history.push({ twist: true, id: n.id, paths: G.paths.slice(), plan: G.plan.slice(), lost: G.lost });
   n.path = n.cur; n.route = next.route; n.s = 0; n.v = 7; n.state = 'twist'; n.move = next; n.automatic = !!auto;
   n.bounceWait = next.event === 'bounce' ? .18 : 0;
   n.d = headDir(next.route); // extrapolation beyond the compiled exit route
@@ -615,7 +626,8 @@ function finish(win) {
     const P = progress();
     if (kid) { P.times = P.times || {}; prevBest = P.times[G.level] || 0; if (!prevBest || took < prevBest) P.times[G.level] = took; }
     else P.stars[G.level] = Math.max(P.stars[G.level] || 0, stars);
-    P.max = Math.min(SET.levels.length, Math.max(P.max, G.level + 1)); persist();
+    if (G.level <= P.max) P.max = Math.min(SET.levels.length, Math.max(P.max, G.level + 1));
+    persist(); // previewing a later level must not permanently unlock everything before it
     for (let i = 0; i < 14; i++) burst(Math.random() * cw, Math.random() * ch * 0.7, PALETTE[i % PALETTE.length], 22, 320);
   }
   setTimeout(() => {
@@ -854,7 +866,7 @@ function getSet(id) {
   const opts = MFSets.options(id); if (!opts) return null;
   const canonical = MFSets.code(opts);
   if (!setCache[canonical]) {
-    const s = opts.mode === 'T' ? MFTwists.generateSet(opts) : MFLevels.generateSet(opts);
+    const s = opts.mode === 'T' ? MFTwists.generateSet(opts) : MFTwists.integrate(MFLevels.generateSet(opts));
     setCache[canonical] = { id: canonical, custom: true, slide: s.slide, code: s.code, levels: s.levels, asked: s.count, mode: s.mode };
   }
   return setCache[canonical];
@@ -886,16 +898,17 @@ const LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" 
 function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
   $('lvTitle').textContent = 'Levels';
-  $('setNote').textContent = SET.mode === 'T' ? n + ' generated Twists · mirrors, key gates, and springs' :
-    n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty;
+  $('setNote').textContent = (previewUnlocked ? 'Playtest: all levels unlocked · ' : '') + (SET.mode === 'T' ? n + ' generated Twists · mirrors, key gates, and springs' :
+    SET.mode === 'C' && SET.slide ? n + ' levels · mirrors → gates → springs → mixed tangles' :
+    n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty);
   $('genBtn').textContent = P.max > 1 ? 'Continue · Level ' + Math.min(P.max, n) : 'Play · Level 1';
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
-    const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
+    const b = document.createElement('button'), st = P.stars[i] || 0, open = previewUnlocked || i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
     const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st);
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
-    if (SET.mode === 'T') b.title = SET.levels[i - 1].title;
+    if (SET.levels[i - 1].twist) b.title = SET.levels[i - 1].title;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
   }
@@ -907,13 +920,15 @@ function buildCustom() {
   const c = save.custom, twist = c.mode === 'T';
   $('setMode').value = c.mode; $('setCount').value = c.count;
   $('setCount').disabled = false;
+  $('tUnlock').classList.toggle('on', previewUnlocked);
   $('setCount').querySelector('[value="12"]').hidden = c.count !== 12;
   $('tBig').classList.toggle('on', !!c.big); $('tBig').disabled = false;
-  $('bigNote').textContent = twist ? 'Larger tangles, bounded for the routed solver' : 'Up to 16×22, twice the tangle';
+  $('bigNote').textContent = 'Up to 16×22, twice the tangle';
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
   $('defaultSeedBtn').disabled = c.seed === MFSets.DEFAULT_SEED;
   $('codeOut').textContent = customCode();
   $('rangeNote').textContent = twist ? 'Every seed generates new rope layouts and mechanic placements, with verified solutions. Sliding rules apply.' :
+    c.mode === 'C' && c.slide ? 'A gentle start. Mirrors, key gates, and springs arrive gradually as the boards grow.' :
     c.mode === 'C' ? 'A gentle start, growing into deeper tangles.' : 'Every seed makes a repeatable set at this difficulty.';
   const box = $('recent'); box.innerHTML = '';
   for (const code of save.recent.filter(code => code !== customCode())) {
@@ -947,6 +962,7 @@ $('setMode').onchange = () => {
   syncSetGame(); scheduleSet();
 };
 $('setCount').onchange = () => { save.custom.count = +$('setCount').value; scheduleSet(); };
+$('tUnlock').onclick = () => { previewUnlocked = !previewUnlocked; buildCustom(); buildLevels(); };
 $('tBig').onclick = () => { save.custom.big = !save.custom.big; scheduleSet(); };
 $('diceBtn').onclick = () => { save.custom.seed = MFLevels.randomSeed(); $('seedIn').blur(); scheduleSet(); };
 $('defaultSeedBtn').onclick = () => { save.custom.seed = MFSets.DEFAULT_SEED; $('seedIn').blur(); scheduleSet(); };
@@ -1063,7 +1079,7 @@ function iconPNG(size) {
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(monkeyFistSVG());
   });
 }
-show('menu');
+show(sharedSet ? 'levels' : 'menu');
 resize();
 requestAnimationFrame(frame);
 window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET, get music() { return musicPlayer; } };

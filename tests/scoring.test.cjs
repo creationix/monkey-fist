@@ -34,13 +34,12 @@ test('the tap score counts player actions and undo, but excludes automatic relea
     assert.equal(await page.evaluate(() => __mf.G.taps), 2);
     const bumped = await page.evaluate(() => {
       __mf.startLevel(16); const g = __mf.G;
-      const n = g.noodles.find(n => { const r = __mf.ray(n.cur, g.occ, g.W, g.H); return !r.clear && !r.dist; });
+      const n = g.noodles.find(n => { if (g.twist) return !MFMechanics.tap(g.features, g.paths, n.id);
+        const r = __mf.ray(n.cur, g.occ, g.W, g.H); return !r.clear && !r.dist; });
       __mf.tap(n); return { taps: g.taps, moves: g.history.length };
     });
     assert.deepEqual(bumped, { taps: 1, moves: 0 });
-    await page.evaluate(() => { __mf.startLevel(16); __mf.tap(__mf.G.noodles[2]); });
-    await page.waitForFunction(() => __mf.G.noodles[2].state === 'idle');
-    await page.locator('#undoBtn').click();
+    await page.evaluate(() => { __mf.startLevel(16); __mf.tap(__mf.G.noodles[__mf.G.plan[0]]); __mf.undo(); });
     assert.equal(await page.evaluate(() => __mf.G.taps), 2, 'undo retains the original tap and costs one additional tap');
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }

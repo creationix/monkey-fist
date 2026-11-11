@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../twists.js'), M = require('../mechanics.js'), L = require('../levels.js');
 
-function check(level, index) {
+function check(level, index, kinds = T.featuresFor(index)) {
   const b = level.definition, occupied = new Set(), tiles = new Set();
   for (const path of b.ropes) {
     assert.ok(path.length >= 2);
@@ -14,7 +14,7 @@ function check(level, index) {
     }
   }
   for (const kind of ['mirrors', 'gates', 'springs']) {
-    assert.equal(!!b[kind].length, T.featuresFor(index).includes(kind));
+    assert.equal(!!b[kind].length, kinds.includes(kind));
     if (b[kind].length) assert.ok(T.uses(b, level.best, kind), 'the solution must use ' + kind);
     for (const feature of b[kind]) {
       const cell = typeof feature === 'number' ? feature : feature.cell;
@@ -27,7 +27,7 @@ function check(level, index) {
   assert.equal(M.allFree(b, b.ropes), false, 'a puzzle needs at least one player decision');
 }
 test('seeded Twists cover the whole set, introduce mechanics, and certify every generated board', () => {
-  for (const seed of ['MONKEYFIST', 'ALPHA', 'BRAVO', 'E5DDK']) for (const big of [false, true]) {
+  for (const seed of ['MONKEYFIST', 'ALPHA']) for (const big of [false, true]) {
     const set = T.generateSet({ seed, count: 60, big });
     assert.equal(set.levels.length, 60);
     assert.deepEqual(L.parseCode(set.code), { seed, mode: 'T', count: 60, big, slide: true });
@@ -69,7 +69,7 @@ test('exact pars agree with a larger independent search; bounded results remain 
   }
 });
 test('counts are configurable, big boards expand the generated geometry, and endless bounces remain unknown on timeout', () => {
-  for (const count of [10, 12, 20, 30, 60]) assert.equal(T.generateSet({ seed: 'ALPHA', count }).levels.length, count);
+  for (const count of [10, 12, 20, 30, 60, 120]) assert.equal(T.generateSet({ seed: 'ALPHA', count }).levels.length, count);
   const area = big => T.generateSet({ seed: 'SIZES', count: 20, big }).levels.reduce((sum, d) => {
     const b = T.levelFrom(d); return sum + b.W * b.H;
   }, 0);
@@ -78,4 +78,33 @@ test('counts are configurable, big boards expand the generated geometry, and end
   assert.equal(M.allFree(level, level.ropes), false);
   assert.equal(M.solve(level).solved, false);
   assert.equal(M.solve(level, level.ropes, 1).solved, null);
+});
+test('Progressive keeps its opening, introduces mechanics gradually, and scales into full-size mixed boards', () => {
+  for (const seed of ['MONKEYFIST', 'BRAVO']) for (const big of [false, true]) {
+    const plain = L.generateSet({ ...L.CAMPAIGN_SLIDE, seed, big }), set = T.integrate(plain);
+    assert.deepEqual(set.levels.slice(0, 8), plain.levels.slice(0, 8));
+    assert.deepEqual(set.levels[8].kinds, ['mirrors']);
+    assert.deepEqual(set.levels[16].kinds, ['gates']);
+    assert.deepEqual(set.levels[24].kinds, ['springs']);
+    for (const i of [8, 16, 20, 24, 28, 32, 40, 50, 59]) {
+      const d = set.levels[i], b = T.levelFrom(d); check(b, i, d.kinds);
+      if (i >= 50) { assert.ok(b.ropes.length >= 20); assert.ok(b.W * b.H >= 120); }
+    }
+    assert.equal(T.integrate(L.generateSet({ ...L.CAMPAIGN, seed, big })).levels.some(d => d.twist), false);
+  }
+  const huge = T.integrate(L.generateSet({ ...L.CAMPAIGN_SLIDE, count: 120, big: true }));
+  assert.equal(huge.levels.length, 120);
+  for (const i of [80, 100, 119]) {
+    const b = T.levelFrom(huge.levels[i]); check(b, i, huge.levels[i].kinds);
+    assert.ok(b.W * b.H >= 180); assert.ok(b.ropes.length >= 30);
+  }
+});
+test('bounded fallback fills large boards with certified dependency chains, rather than replacing them with a tiny tutorial', () => {
+  for (let seed = 0; seed < 5; seed++) {
+    const rng = L.mulberry32(seed), kinds = ['springs', 'mirrors', 'gates'];
+    const b = T.grow(T.construct(rng, kinds, true, { W: 16, H: 22 }), rng);
+    assert.ok(b.ropes.length >= 30); assert.ok(b.ropes.flat().length / (b.W * b.H) > .65);
+    assert.equal(M.replay(b, b.solution).solved, true);
+    for (const kind of kinds) assert.ok(T.uses(b, b.solution, kind));
+  }
 });

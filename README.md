@@ -27,10 +27,12 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 
 Both games:
 
-- **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Progressive, Easy, Normal, Hard, and Extreme support 10, 20, 30, or 60 levels. The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
-- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Its boards are unchanged, and old stars, unlocked levels, and Kid-mode times are migrated to the canonical set code.
+- **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Counts are 10, 20, 30, 60, or 120 (difficulty styles may fill fewer slots if their range is narrower). The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
+- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Sliding Progressive gradually introduces mirrors, gates, and springs; the opening eight boards and the original/Kid-mode campaign are unchanged.
 - **Share codes**: every set has a code such as `N20S-K7F3Q`; paste the whole code into the Seed field to select that same set. The `S` marks sliding rules. Switching sets keeps their progress; recent sets are quick shortcuts, not a separate interface.
-- **Twists**: choose Twists in the same Style selector for procedurally generated mirrors, key gates, and springs. Choose 10, 20, 30, or 60 levels and optionally Bigger boards, e.g. `T20S-MONKEYFIST` or `T30BS-ALPHA`. Changing the seed changes rope geometry and mechanic placements, not just orientation. The same code always reconstructs the same puzzles.
+- **Twists**: choose Twists in the same Style selector to start with mechanics immediately. Choose up to 120 levels and optionally Bigger boards, e.g. `T120BS-ALPHA`. Later boards grow to the campaign's full sizes (up to 12×16, or 16×22 with Bigger boards), with dozens of ropes. Changing the seed changes rope geometry and mechanic placements, not just orientation.
+- **Temporary playtest unlock**: Unlock all levels defaults on in this build. It can be switched off on Levels to see genuine progress. It never writes fake stars or unlocks; clearing a skipped level records its earned stars but does not permanently unlock the intervening levels. Set `TEST_UNLOCK_ALL` false to end the default-on preview.
+- **Direct set links**: `?set=C120BS-MONKEYFIST` opens that set on the level grid, including style, count, seed, and board-size options.
 - **Responsive layout**: wide screens put the controls beside the puzzle. Boards automatically turn to whichever orientation gives the largest cells, including when resizing or rotating a device mid-level. The puzzle, progress, hints, and undo stay the same.
 
 ## Music
@@ -47,9 +49,16 @@ Lettered gates open after the matching key rope has fully left. Springs stop an 
 rope, swap head and tail automatically, and end that move. Once all remaining ropes have
 clear exits, auto-release completes the board without adding player taps.
 
-The first two levels teach mirrors, the next two gates, and the next two springs. Levels
+In the standalone Twists style, the first two levels teach mirrors, the next two gates, and the next two springs. Levels
 7–9 introduce pairs; level 10 onward combines all three in increasingly tangled boards.
 Only this teaching sequence is fixed: the puzzles themselves are generated for every seed.
+
+In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes.
+Mirrors arrive at level 9, gates at 17, springs at 25, and mixed-mechanic tangles follow.
+The teaching pace scales with set length (e.g. 120 levels introduces them at 17/33/49).
+`MFTwists.integrate` decorates Progressive descriptors; the ordinary generator and its
+original/Kid-mode sets retain their identities. Mechanic boards use those same growing
+weave layouts as their starting points, rather than a separate small-board difficulty cap.
 
 `twists.js` constructs a seeded sliding-rope board using the existing weaving generator,
 then searches empty cells for playable mechanic placements. A bounded full-geometry
@@ -62,18 +71,24 @@ as an exact minimum. Auto-release moves never count towards par.
 Generation is lazy (one board when opened), cached, deterministic, and bounded by attempt
 and search-node limits. If placement search exhausts its budget, a separate constructive
 algorithm grows a randomly bent rope with a guaranteed reverse exit, then adds the requested
-mechanics and key. That fallback also generates new geometry; it never selects a premade
+mechanics and key and fills the board backwards with exit-certified ropes. These additions
+create dependency chains and a full-size puzzle with a certificate by construction; the
+fallback never collapses a late large board into a tiny teaching scene. It never selects a premade
 puzzle. Tests cover hundreds of generated boards, seed diversity beyond reflections and
 rotations, certificates, feature use, teaching order, and constructive fallback orientations.
 
-Former curated Twists results are archived once in the save's `twistsArchive`, since those
-stars no longer describe the new boards. Progress in every other style is untouched.
+Changed Twists results are archived in the save's `levelArchives` by generation; older
+`twistsArchive` data is retained. Changed Sliding Progressive scores are also archived;
+genuine unlocks and stars on unchanged opening boards are retained. Original/Kid-mode and
+Easy/Normal/Hard/Extreme progress is untouched. Upgrades run once, not on every reload.
 Legacy `T12S-…` codes still open a deterministic twelve-level procedural set.
 
 `mechanics.js` is the shared transition kernel for main-game Twists and the playground.
 It computes the actual route, gate state, reversal, and exit geometry; main-game animation,
 hints, undo, auto-release, and deadlock checks use that same result. Its bounded solver
-uses full rope geometry because springs can revisit earlier states; budget exhaustion
+uses full rope geometry because springs can revisit earlier states, and tries the existing
+certificate's move order first to scale to larger puzzles. Live search budgets scale down
+with rope count; large-board par is explicitly best known, not an exhaustive proof. Budget exhaustion
 remains unknown rather than a false loss. Existing straight-track sets continue to use
 their optimized solver in `levels.js`.
 

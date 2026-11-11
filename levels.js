@@ -1112,7 +1112,9 @@ const MFLevels = (() => {
   const PLAYER_MODES = ['E', 'N', 'H', 'X'];
   const COUNTS = [10, 20, 30];
   const SET_MODES = ['C', ...PLAYER_MODES, 'T'];
-  const SET_COUNTS = [...COUNTS, 60];
+  const SET_COUNTS = [...COUNTS, 60, 120];
+  // Keep the teaching pace consistent when a Progressive set has a different length.
+  const progressiveStage = (index, count) => Math.floor(index * 60 / count);
   // With bigger boards allowed there is room for far more rope, so the top of every range doubles.
   const rangeFor = (mode, big) => { const r = MODES[mode].range; return big ? [r[0], r[1] * 2] : r; };
 
@@ -1256,7 +1258,7 @@ const MFLevels = (() => {
   const cleanSeed = s => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
   function encodeCode(o) { return o.mode + o.count + (o.big ? 'B' : '') + (o.slide ? 'S' : '') + '-' + cleanSeed(o.seed); }
   function parseCode(text) {
-    const m = /^\s*([CENHXT])\s*(\d{1,2})\s*(B?)\s*(S?)\s*-\s*([A-Z0-9]{1,10})\s*$/i.exec(String(text));
+    const m = /^\s*([CENHXT])\s*(\d{1,3})\s*(B?)\s*(S?)\s*-\s*([A-Z0-9]{1,10})\s*$/i.exec(String(text));
     if (!m) return null;
     const count = +m[2];
     if (m[1].toUpperCase() === 'T') return (SET_COUNTS.includes(count) || count === 12) && !!m[4] ? { mode: 'T', count, big: !!m[3], slide: true, seed: m[5].toUpperCase() } : null;
@@ -1270,6 +1272,6 @@ const MFLevels = (() => {
 
   return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, fewestPlayerTaps, playerTapCount, play, bendsOf, ropeScores, nothingBlocked, difficulty,
     construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
-    MODES, PLAYER_MODES, COUNTS, SET_MODES, SET_COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
+    MODES, PLAYER_MODES, COUNTS, SET_MODES, SET_COUNTS, progressiveStage, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = MFLevels;

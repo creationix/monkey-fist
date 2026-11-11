@@ -72,7 +72,7 @@ test('resizing fits the board, preserves moves, and maps taps through either ori
       if (previous) assert.equal(layout.state, previous, 'resizing must preserve the puzzle and undo history');
       const target = await page.evaluate(() => {
         const g = __mf.G, b = document.querySelector('#board').getBoundingClientRect();
-        const rope = g.noodles.find(n => n.state === 'idle' && __mf.ray(n.cur, g.occ, g.W, g.H).dist > 0);
+        const rope = g.twist ? g.noodles[g.plan[0]] : g.noodles.find(n => n.state === 'idle' && __mf.ray(n.cur, g.occ, g.W, g.H).dist > 0);
         const p = rope.cur[rope.cur.length - 1], x = g.ox + (p.x + 0.5) * g.cs, y = g.oy + (p.y + 0.5) * g.cs;
         return { id: rope.id, x: b.left + (g.rotated ? b.width - y : x), y: b.top + (g.rotated ? x : y), taps: g.taps };
       });

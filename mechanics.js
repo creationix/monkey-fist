@@ -53,8 +53,10 @@
     }
     return { solved: paths.every(p => !p), paths, events };
   }
-  function solve(level, paths = level.ropes, budget = 4000) {
+  function solve(level, paths = level.ropes, budget = 4000, prefer = []) {
     const visited = new Set(), moves = [];
+    const first = new Map(), last = new Map(), moved = new Uint16Array(paths.length);
+    prefer.forEach((i, k) => { if (!first.has(i)) first.set(i, k); last.set(i, k); });
     let nodes = 0, unknown = false;
     function search(current) {
       if (current.every(p => !p)) return true;
@@ -62,11 +64,18 @@
       if (visited.has(key)) return false;
       if (++nodes > budget) { unknown = true; return false; }
       visited.add(key);
+      const tries = [];
       for (let i = 0; i < current.length; i++) {
         const next = tap(level, current, i); if (!next) continue;
+        const rank = (moved[i] ? last : first).get(i) ?? paths.length * 4;
+        tries.push({ i, next, order: rank * 3 + (next.event === 'exit' ? 0 : next.event === 'bounce' ? 1 : 2) });
+      }
+      tries.sort((a, b) => a.order - b.order || a.i - b.i);
+      for (const { i, next } of tries) {
         moves.push(i);
+        moved[i]++;
         if (search(next.paths)) return true;
-        moves.pop(); if (unknown) return false;
+        moved[i]--; moves.pop(); if (unknown) return false;
       }
       return false;
     }

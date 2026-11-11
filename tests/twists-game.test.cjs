@@ -13,6 +13,8 @@ test('one set screen restores defaults, persists selections, and preserves legac
         sets: { slide: { max: 7, stars: { 1: 3 } }, 'X10BS-E5DDK': { max: 4, stars: { 2: 2 } } }, custom: { mode: 'N', count: 20, seed: 'ALPHA', slide: true } }));
     });
     await page.goto(base); await page.locator('#levelsBtn').click();
+    assert.equal(await page.locator('#lvGrid button:enabled').count(), 60, 'temporary preview starts with every level available');
+    await page.locator('#tUnlock').click();
     assert.equal(await page.locator('#customBtn').count(), 0);
     assert.equal(await page.locator('#scrCustom').count(), 0);
     assert.equal(await page.inputValue('#seedIn'), 'MONKEYFIST');
@@ -25,7 +27,7 @@ test('one set screen restores defaults, persists selections, and preserves legac
     await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
     assert.equal(await page.inputValue('#seedIn'), 'MONKEYFIST');
     assert.equal(await page.inputValue('#setMode'), 'N'); assert.equal(await page.inputValue('#setCount'), '20');
-    await page.reload(); await page.locator('#levelsBtn').click();
+    await page.reload(); await page.locator('#levelsBtn').click(); await page.locator('#tUnlock').click();
     assert.equal(await page.inputValue('#setMode'), 'N');
     await page.locator('#seedIn').fill('C60S-MONKEYFIST'); await page.locator('#seedIn').blur();
     await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
@@ -56,6 +58,7 @@ test('every real Twists level animates, clears at par, and awards progression on
       const page = await browser.newPage({ viewport: { width, height } });
       const errors = []; page.on('pageerror', e => errors.push(String(e)));
       await page.goto(base); await page.locator('#levelsBtn').click();
+      await page.locator('#tUnlock').click();
       await page.selectOption('#setMode', 'T');
       await page.selectOption('#setCount', '20');
       await page.waitForFunction(() => !document.querySelector('#genBtn').disabled);
@@ -130,5 +133,50 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
     await page.locator('#levelsBtn').click();
     assert.equal(await page.inputValue('#setMode'), 'T');
     await page.locator('#genBtn').click(); assert.equal(await page.evaluate(() => __mf.G.twist), true);
+  } finally { await browser.close(); }
+});
+
+test('Progressive preview opens large mixed boards on desktop and mobile without granting permanent unlocks', { timeout: 120000 }, async () => {
+  const browser = await launch();
+  try {
+    for (const [width, height] of [[1366, 900], [390, 844]]) {
+      const page = await browser.newPage({ viewport: { width, height } }), errors = [];
+      page.on('pageerror', e => errors.push(String(e)));
+      await page.goto(base + '?set=C120BS-MONKEYFIST');
+      assert.equal(await page.locator('#scrLevels').evaluate(el => el.classList.contains('show')), true);
+      assert.equal(await page.inputValue('#setMode'), 'C'); assert.equal(await page.inputValue('#setCount'), '120');
+      assert.equal(await page.locator('#lvGrid button:enabled').count(), 120);
+      assert.equal(await page.evaluate(() => __mf.progress().max), 1);
+      await page.locator('#lvGrid button').nth(119).click();
+      const before = await page.evaluate(() => ({ W: __mf.G.W, H: __mf.G.H, n: __mf.G.left,
+        features: ['mirrors', 'gates', 'springs'].map(k => __mf.G.features[k].length) }));
+      assert.ok(before.W * before.H >= 200); assert.ok(before.n >= 30); assert.deepEqual(before.features, [1, 1, 1]);
+      for (let move = 0; move < 180; move++) {
+        if (await page.evaluate(() => __mf.G.ended)) break;
+        if (!await page.evaluate(() => __mf.G.auto)) {
+          const at = await page.evaluate(() => {
+            const g = __mf.G, p = g.noodles[g.plan[0]].cur.at(-1), b = document.querySelector('#board').getBoundingClientRect();
+            const x = g.ox + (p.x + .5) * g.cs, y = g.oy + (p.y + .5) * g.cs;
+            return { x: b.left + (g.rotated ? b.width - y : x), y: b.top + (g.rotated ? x : y) };
+          });
+          await page.mouse.click(at.x, at.y);
+        }
+        await page.evaluate(() => { for (let t = 0; t < 1000 && !__mf.G.ended; t++) {
+          __mf.update(.05); if (!__mf.G.auto && !__mf.G.noodles.some(n => n.state === 'twist')) break;
+        } });
+      }
+      const result = await page.evaluate(() => ({ ended: __mf.G.ended, score: __mf.G.taps, par: __mf.G.par,
+        max: __mf.progress().max, stars: __mf.progress().stars[120] }));
+      assert.equal(result.ended, true); assert.equal(result.score, result.par); assert.equal(result.stars, 3);
+      assert.equal(result.max, 1, 'preview must not turn skipped levels into earned unlocks');
+      await page.waitForFunction(() => document.querySelector('#scrResult').classList.contains('show'));
+      await page.locator('#resMenuBtn').click(); await page.locator('#tUnlock').click();
+      assert.equal(await page.locator('#lvGrid button:enabled').count(), 1);
+      await page.reload();
+      assert.equal(await page.locator('#lvGrid button:enabled').count(), 120);
+      assert.equal(await page.evaluate(() => __mf.progress().max), 1);
+      assert.equal(await page.evaluate(() => __mf.progress().stars[120]), 3);
+      assert.deepEqual(errors, []); await page.close();
+    }
   } finally { await browser.close(); }
 });

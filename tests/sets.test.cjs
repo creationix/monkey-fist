@@ -41,10 +41,25 @@ test('only former curated Twists progress is archived, once', () => {
   const save = { setUI: 1, custom: { mode: 'T', count: 12, seed: 'ALPHA' }, sets: { 'T12S-ALPHA': old, 'C60S-MONKEYFIST': normal } };
   S.migrate(save);
   assert.equal(save.sets['T12S-ALPHA'], undefined);
-  assert.deepEqual(save.twistsArchive['T12S-ALPHA'], old);
+  assert.deepEqual(save.levelArchives['twists-curated']['T12S-ALPHA'], old);
   assert.equal(save.sets['C60S-MONKEYFIST'], normal);
   save.sets['T12S-ALPHA'] = { max: 3, stars: { 1: 2 } };
   S.migrate(save);
   assert.equal(save.sets['T12S-ALPHA'].max, 3, 'new generated progress survives reload');
   assert.equal(save.custom.mode, 'T');
+});
+test('mechanics upgrades archive only changed scores, keep genuine unlocks, and do not touch other modes', () => {
+  const ordinary = { max: 12, stars: { 9: 3 } }, oldTwists = { max: 20, stars: { 1: 3 } };
+  const save = { setUI: 1, twistsGen: 1, custom: S.defaults(true), sets: {
+    'C60S-MONKEYFIST': { max: 40, stars: { 1: 3, 8: 2, 9: 3, 40: 3 } },
+    'C60-MONKEYFIST': ordinary, 'N20S-ALPHA': ordinary, 'T60S-ALPHA': oldTwists
+  } };
+  S.migrate(save);
+  assert.equal(save.sets['C60S-MONKEYFIST'].max, 40);
+  assert.deepEqual(save.sets['C60S-MONKEYFIST'].stars, { 1: 3, 8: 2 });
+  assert.equal(save.levelArchives['progressive-0']['C60S-MONKEYFIST'].stars[40], 3);
+  assert.equal(save.levelArchives['twists-1']['T60S-ALPHA'], oldTwists);
+  assert.equal(save.sets['N20S-ALPHA'], ordinary); assert.equal(save.sets['C60-MONKEYFIST'], ordinary);
+  save.sets['C60S-MONKEYFIST'].stars[9] = 3; S.migrate(save);
+  assert.equal(save.sets['C60S-MONKEYFIST'].stars[9], 3, 'migration must run only once');
 });
