@@ -366,6 +366,9 @@
     eq(after[0], rope([0, 0], [1, 0], [2, 0], [3, 0], [4, 0])); eq(after[1], KB); eq(after[2], KJ);
     eq(L.loopsOf(after, 7, 3), []);
     eq(L.blockCosts(after, 7, 3), [2, 1, 0]);                 // now an ordinary chain: J, then B, then X
+    eq(L.solutionCosts(KNOT, 7, 3, [0, 2, 1, 0]), [3, 2, 1]);  // counted from the start, the slide is a layer of its own: J 1, B 2, X 3
+    eq(L.solutionCosts(KNOT, 7, 3, [0, 1]), null);             // not a solution
+    eq(L.solutionCosts(chain(4), 9, 9, [7, 6, 5, 4, 3, 2, 1, 0]), L.blockCosts(chain(4), 9, 9)); // with no slides it is the original block cost
     ok(L.play(KNOT, 7, 3, [0, 2, 1, 0]).every(p => p === null), 'slide X, then J, B and X leave');
     ok(L.play(KNOT, 7, 3, [0, 1]).some(Boolean), 'tapping B while J is in its way does not get it out');
   });
@@ -411,7 +414,8 @@
   };
   for (const seed of SEEDS.slice(0, 4)) for (const mode of L.PLAYER_MODES) for (const count of [10, 30]) slideSet(seed, mode, count, false);
   for (const mode of L.PLAYER_MODES) slideSet('ALPHA', mode, 20, true);
-  const eachSlide = fn => { for (const k in slideSets) for (const lv of slideSets[k].levels) fn(lv, k, L.levelFrom(lv)); };
+  const built = new Map(); // each level is rebuilt from its descriptor once, and the tests share the result
+  const eachSlide = fn => { for (const k in slideSets) for (const lv of slideSets[k].levels) { if (!built.has(lv)) built.set(lv, L.levelFrom(lv)); fn(lv, k, built.get(lv)); } };
   const cleared = left => left.every(p => p === null);
 
   test('sliding sets fill the same difficulty ranges: the number asked for, one level per slice, simplest first', () => {
@@ -427,22 +431,41 @@
       ok(cleared(L.play(b.ropes, b.W, b.H, b.taps)), k + ': a level of difficulty ' + lv.difficulty + ' is not cleared by its own solution');
     });
   });
-  test('a sliding level\'s difficulty is that of the board once its knots are undone, and it meets the depth floor', () => {
+  test('a sliding level\'s difficulty is its block costs plus bends, the costs being the layers of its solution, and it meets the depth floor', () => {
     eachSlide((lv, k, b) => {
-      const undone = L.play(b.ropes, b.W, b.H, b.taps.slice(0, b.slides)); // just the slides
-      ok(undone.every(Boolean), k + ': a rope left the board during the slides');
-      eq(L.loopsOf(undone, b.W, b.H), [], k + ': still knotted after the slides');
-      eq(L.difficulty(undone, b.W, b.H), lv.difficulty, k);
-      eq(L.blockCosts(undone, b.W, b.H), b.costs, k);
-      ok(Math.abs(sum(b.costs) / b.costs.length - lv.avgCost) < 1e-9 && lv.avgCost >= L.floorFor(lv.difficulty), k + ': difficulty ' + lv.difficulty + ' averages ' + lv.avgCost);
+      const costs = L.solutionCosts(b.ropes, b.W, b.H, b.taps);
+      eq(costs, b.costs, k);
+      eq(sum(costs) + sum(b.ropes.map(bends)), lv.difficulty, k);
+      eq(b.taps.length - b.ropes.length, b.slides, k);
+      ok(Math.abs(sum(costs) / costs.length - lv.avgCost) < 1e-9 && lv.avgCost >= L.floorFor(lv.difficulty), k + ': difficulty ' + lv.difficulty + ' averages ' + lv.avgCost);
     });
+  });
+  test('slides and exits are woven together: knots held shut by a rope in their gap, and knots that must be slid in order', () => {
+    // For every slide in every solution: could the rope have made that same slide at the very start?
+    // And is the rope it comes to rest against one that had itself slid into place?
+    let slides = 0, locked = 0, chained = 0, levels = 0, woven = 0;
+    eachSlide((lv, k, b) => {
+      const W = b.W, H = b.H, start = L.occupancy(b.ropes, W, H), moved = new Uint8Array(b.ropes.length); let cur = b.ropes.slice(), any = false; levels++;
+      for (const i of b.taps) {
+        const live = cur.map((p, j) => (p ? j : -1)).filter(j => j >= 0), r = L.ray(cur[i], L.occupancy(live.map(j => cur[j]), W, H), W, H);
+        if (r.clear) { cur[i] = null; continue; }
+        slides++;
+        if (!moved[i]) { const r0 = L.ray(b.ropes[i], start, W, H); if (r0.clear || r0.dist !== r.dist) { locked++; any = true; } }
+        if (moved[live[r.blocker]]) { chained++; any = true; }
+        moved[i] = 1; cur[i] = L.advance(cur[i], r.dist);
+      }
+      if (any) woven++;
+    });
+    window.__slide = Object.assign(window.__slide || {}, { slidesPerLevel: +(slides / levels).toFixed(1), lockedAtStart: Math.round(100 * locked / slides) + '%', againstARopeThatSlid: Math.round(100 * chained / slides) + '%', levelsWoven: woven + '/' + levels });
+    ok(locked > slides * 0.2, 'only ' + locked + ' of ' + slides + ' slides are held back at the start');
+    ok(chained > slides * 0.03, 'only ' + chained + ' of ' + slides + ' slides come to rest against a rope that slid into place');
   });
   test('the knot floor rises with difficulty, and every sliding level has at least that many knots', () => {
     eq([0, 14, 15, 39, 40, 79, 80, 149, 150, 249, 250, 1000].map(L.knotFloorFor), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
     const per = { E: [], N: [], H: [], X: [] };
     eachSlide((lv, k) => { ok(lv.knots >= L.knotFloorFor(lv.difficulty), k + ': difficulty ' + lv.difficulty + ' has only ' + lv.knots + ' knots'); per[slideSets[k].mode].push(lv.knots); });
     const mean = a => sum(a) / a.length, m = L.PLAYER_MODES.map(x => +mean(per[x]).toFixed(1));
-    window.__slide = { knotsPerLevel: m, mostKnots: L.PLAYER_MODES.map(x => Math.max(...per[x])) };
+    window.__slide = Object.assign(window.__slide || {}, { knotsPerLevel: m, mostKnots: L.PLAYER_MODES.map(x => Math.max(...per[x])) });
     ok(m[0] < m[1] && m[1] < m[2] && m[2] < m[3], 'knots per level by setting: ' + m);
   });
   test('a knotted level cannot be solved the old way: tapping only ropes that can leave gets stuck', () => {

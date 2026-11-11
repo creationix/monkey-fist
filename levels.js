@@ -294,72 +294,15 @@ const MFLevels = (() => {
     return costs ? total(ropeScores(paths, costs)) : Infinity;
   }
 
-  // ---------- building one level ----------
-  // Ropes are added one at a time under a single rule:
-  //
-  //     a new rope must never close a loop.
-  //
-  // A new rope waits on whatever stands in its way out, and every rope whose way out it lies
-  // across now waits on it. Before it is placed, the builder follows the chain down from the
-  // ropes it would wait on; if that reaches any rope that would wait on it, the placement is
-  // refused. So the "waits for" links can never form a loop, and the board is solvable by
-  // construction with nothing to untangle afterwards.
-  //
-  // That lets the builder do two things on purpose. It can lay a rope across the way out of a
-  // rope at the bottom of a long chain, making every rope up that chain one deeper. And it can
-  // drop a rope into an enclosed pocket, where it simply waits on the ropes around it, which is
-  // what lets a board be packed full.
-  //
-  // Stage one lays ropes. Each rope's effect on the score is known before it is placed, so the
-  // builder steers: it paces the score to arrive in the slot [lo, hi) about when the board is
-  // full, keeps the average block cost per rope up near `wantAvg`, never adds more than the slot
-  // allows, and never adds a rope the depth floor could not afford. It then goes round the cells
-  // still empty and packs a rope into each gap that will take one.
-  //
-  // Stage two runs only if the board is still short of its slot: it turns ropes around, keeping
-  // a turn when the board stays solvable and the total block cost rises without overshooting.
-  //
-  // Finally any empty outer rows and columns are trimmed off.
-  //
-  // For the sliding game (cfg.slide) the same board is built, with knots and traps laid into it
-  // as it goes: up to cfg.tie knots and cfg.bait traps, each reaching up to cfg.pull cells. The
-  // board that is built is the level with its knots already undone, so it is loop-free like any
-  // other and everything above still holds; the level then starts with each knot pulled back. Its
-  // difficulty is that of the board built, and the knots are counted separately.
-  //
-  // cfg: { W, H, lenLo, lenHi, straight, minLen, lo, hi, wantAvg, floor, cover, bends, slide, tie, bait, pull }
-  // Returns { W, H, ropes, costs, score, taps, slides, knots, traps }, or null if the board is no good.
-  //   ropes  - the level as it starts.
-  //   costs  - each rope's block cost on the board as built (knots undone), and score its difficulty:
-  //            no higher than the slot's top but possibly below its bottom (the caller decides what to do with it).
-  //   taps   - one way to solve it: the ropes to tap, in order. The first `slides` of them slide a knot forward.
-  //   knots  - how many ropes start tied in a loop that only sliding them undoes.
-  //   traps  - how many of the slides open at the start would tie the board for good.
-  //
-  // Cost, with R ropes. Stage one tries a bounded number of placements per rope (6 while laying,
-  // 3 per empty cell while packing); trying one walks the rope, a few ways out (a board side
-  // each), the chain below it for the loop check and the ropes whose cost it would raise, each
-  // at most R ropes and their links. Stage two makes at most 4R tries, each one topological sort
-  // over lists worked out once. All of it is a few thousand simple steps per level.
-  const TRIES_PER_STEP = 6, KNOT_TRIES = 12, MAX_STUCK = 4; // KNOT_TRIES: tries per step at a knot, and as many again at a trap
-  function construct(rng, cfg) {
-    const W = cfg.W, H = cfg.H, N = W * H;
-    const occ = new Int16Array(N).fill(-1);
-    const lanes = new Array(N);  // lanes[cell]: the ropes whose way out passes through this cell
-    // waiters[i]: ropes waiting on rope i. waitsOn[i]: ropes it waits on. up[i]: roughly how long the chain above it is. laneFree[i]: empty cells left on its way out.
-    const paths = [], laneCells = [], laneFree = [], waiters = [], waitsOn = [], up = [];
-    const firsts = [];           // firsts[i]: where rope i starts the level if it is a knot (pulled back), else null
-    const KEPT = -3;             // a cell kept for a knot's tail, or kept empty in front of a trap: nothing else may be laid there
-    let cost = [], costSum = 0, bendSum = 0, covered = 0, knots = 0, traps = 0;
-    const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
-    const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
-    const xy = c => ({ x: c % W, y: c / W | 0 });
-
-    // A random walk through empty cells starting at `start`, optionally with its first step (or
-    // first `forced` steps) made in direction `first`. `straight` is the chance each later step
-    // carries straight on. `extra` asks for that many cells more than a rope's usual length.
-    const grow = (start, first, straight, forced, extra) => {
-      const want = cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1)) + (extra || 0), lead = forced || 1, cells = [start];
+  // ---------- shaping ropes ----------
+  // Ways to shape a new rope on a board, shared by both builders. `occ` is the board (-1 where a
+  // cell is empty); cfg gives the rope lengths and how straight they run.
+  function shaper(occ, W, H, rng, cfg) {
+    const N = W * H, xy = c => ({ x: c % W, y: c / W | 0 });
+    // A random walk through empty cells starting at `start`, optionally with its first step
+    // forced in direction `first`. `straight` is the chance each step carries straight on.
+    const grow = (start, first, straight) => {
+      const want = cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1)), cells = [start];
       let last = -1;
       occ[start] = -2;
       while (cells.length < want) {
@@ -368,8 +311,8 @@ const MFLevels = (() => {
           const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
           if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) opts.push(d);
         }
-        if (!opts.length || (cells.length <= lead && first >= 0 && !opts.includes(first))) break;
-        const d = cells.length <= lead && first >= 0 ? first : last >= 0 && opts.includes(last) && rng() < straight ? last : opts[Math.floor(rng() * opts.length)];
+        if (!opts.length || (cells.length === 1 && first >= 0 && !opts.includes(first))) break;
+        const d = cells.length === 1 && first >= 0 ? first : last >= 0 && opts.includes(last) && rng() < straight ? last : opts[Math.floor(rng() * opts.length)];
         last = d;
         const nc = (y + DIRS[d][1]) * W + x + DIRS[d][0];
         cells.push(nc); occ[nc] = -2;
@@ -388,19 +331,6 @@ const MFLevels = (() => {
         if (o === -1) free++; else if (o >= 0 && !ids.includes(o)) ids.push(o);
       }
       return { cells, free, ids };
-    };
-    // Pick an existing rope to lay the next one across. 'deep' favours ropes at the bottom of
-    // long chains, 'leaf' is any rope nothing is blocking yet, 'inner' is any rope already blocked.
-    const pickParent = kind => {
-      let sum = 0;
-      const w = paths.map((_, i) => { // only ropes that still have room on their way out for another to be laid across it
-        const v = !laneFree[i] ? 0 : kind === 'inner' ? (cost[i] > 0 ? 1 : 0) : cost[i] > 0 ? 0 : kind === 'deep' ? (up[i] + 1) * (up[i] + 1) : 1;
-        sum += v; return v;
-      });
-      if (!sum) return -1;
-      let r = rng() * sum;
-      for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; }
-      return w.length - 1;
     };
     // Shape a rope that includes `start`. Usually head-first: point the head from `start` (longer
     // ways out favoured: they cross more of the board) and lay the body out behind it. Otherwise
@@ -429,6 +359,72 @@ const MFLevels = (() => {
       if (!ok.length) return null;
       return ok.length === 2 && (ok[1].lane.cells.length > ok[0].lane.cells.length || (ok[1].lane.cells.length === ok[0].lane.cells.length && rng() < 0.5)) ? ok[1] : ok[0];
     };
+    return { xy, grow, wayOut, shape };
+  }
+
+  // ---------- building one level for the original game ----------
+  // Ropes are added one at a time under a single rule:
+  //
+  //     a new rope must never close a loop.
+  //
+  // A new rope waits on whatever stands in its way out, and every rope whose way out it lies
+  // across now waits on it. Before it is placed, the builder follows the chain down from the
+  // ropes it would wait on; if that reaches any rope that would wait on it, the placement is
+  // refused. So the "waits for" links can never form a loop, and the board is solvable by
+  // construction with nothing to untangle afterwards.
+  //
+  // That lets the builder do two things on purpose. It can lay a rope across the way out of a
+  // rope at the bottom of a long chain, making every rope up that chain one deeper. And it can
+  // drop a rope into an enclosed pocket, where it simply waits on the ropes around it, which is
+  // what lets a board be packed full.
+  //
+  // Stage one lays ropes. Each rope's effect on the score is known before it is placed, so the
+  // builder steers: it paces the score to arrive in the slot [lo, hi) about when the board is
+  // full, keeps the average block cost per rope up near `wantAvg`, never adds more than the slot
+  // allows, and never adds a rope the depth floor could not afford. It then goes round the cells
+  // still empty and packs a rope into each gap that will take one.
+  //
+  // Stage two runs only if the board is still short of its slot: it turns ropes around, keeping
+  // a turn when the board stays solvable and the total block cost rises without overshooting.
+  //
+  // Finally any empty outer rows and columns are trimmed off.
+  //
+  // cfg: { W, H, lenLo, lenHi, straight, minLen, lo, hi, wantAvg, floor, cover, bends }
+  // Returns { W, H, ropes, costs, score, taps }, or null if the board is no good. `score` is the
+  // difficulty: no higher than the slot's top but possibly below its bottom (the caller decides
+  // what to do with it). `taps` is a solution: the ropes in the order to tap them.
+  // (slides, knots and traps are always 0 here; they belong to the sliding game, built by weave.)
+  //
+  // Cost, with R ropes. Stage one tries a bounded number of placements per rope (6 while laying,
+  // 3 per empty cell while packing); trying one walks the rope, a few ways out (a board side
+  // each), the chain below it for the loop check and the ropes whose cost it would raise, each
+  // at most R ropes and their links. Stage two makes at most 4R tries, each one topological sort
+  // over lists worked out once. All of it is a few thousand simple steps per level.
+  const TRIES_PER_STEP = 6, MAX_STUCK = 4;
+  function construct(rng, cfg) {
+    const W = cfg.W, H = cfg.H, N = W * H;
+    const occ = new Int16Array(N).fill(-1);
+    const lanes = new Array(N);  // lanes[cell]: the ropes whose way out passes through this cell
+    // waiters[i]: ropes waiting on rope i. waitsOn[i]: ropes it waits on. up[i]: roughly how long the chain above it is. laneFree[i]: empty cells left on its way out.
+    const paths = [], laneCells = [], laneFree = [], waiters = [], waitsOn = [], up = [];
+    let cost = [], costSum = 0, bendSum = 0, covered = 0;
+    const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
+    const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
+    const { xy, wayOut, shape } = shaper(occ, W, H, rng, cfg);
+
+    // Pick an existing rope to lay the next one across. 'deep' favours ropes at the bottom of
+    // long chains, 'leaf' is any rope nothing is blocking yet, 'inner' is any rope already blocked.
+    const pickParent = kind => {
+      let sum = 0;
+      const w = paths.map((_, i) => { // only ropes that still have room on their way out for another to be laid across it
+        const v = !laneFree[i] ? 0 : kind === 'inner' ? (cost[i] > 0 ? 1 : 0) : cost[i] > 0 ? 0 : kind === 'deep' ? (up[i] + 1) * (up[i] + 1) : 1;
+        sum += v; return v;
+      });
+      if (!sum) return -1;
+      let r = rng() * sum;
+      for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; }
+      return w.length - 1;
+    };
     // Would the ropes in `above` end up waiting, down some chain, on themselves? `blockers` are
     // the ropes the new one would wait on; follow everything they wait on in turn.
     const mark = new Int32Array(N + 1); let stamp = 0;
@@ -441,8 +437,16 @@ const MFLevels = (() => {
       for (const u of above) if (mark[u] === stamp) return true;
       return false;
     };
-    // What laying rope `c` ({ cells, path, lane }) would do to the score. Null if it would close a loop.
-    const weigh = c => {
+    // One possible next rope, with what it would do to the score. Null if it does not fit.
+    // 'plain' is a straight rope anywhere: the kind least likely to move the score.
+    const candidate = (kind, at) => {
+      let start = at >= 0 ? at : -1;
+      const parent = start >= 0 || kind === 'any' || kind === 'plain' ? -1 : pickParent(kind);
+      if (parent >= 0) { const free = laneCells[parent].filter(c => occ[c] === -1); if (free.length) start = free[Math.floor(rng() * free.length)]; }
+      for (let t = 0; start < 0 && t < 6; t++) { const c = Math.floor(rng() * N); if (occ[c] === -1) start = c; }
+      if (start < 0) return null;
+      const c = shape(start, kind === 'plain' ? 1 : cfg.straight);
+      if (!c) return null;
       // The ropes whose way out this one would lie across (they would wait on it), and the ropes
       // standing in its own way out (it would wait on them). It must not close a loop.
       const above = new Set(), blockers = c.lane.ids;
@@ -460,107 +464,6 @@ const MFLevels = (() => {
       }
       return { path: c.path, lane: c.lane, cells: c.cells, above, blockers, own, next, gain, bends: bendsOf(c.path) };
     };
-    // One possible next rope, with what it would do to the score. Null if it does not fit.
-    // 'plain' is a straight rope anywhere: the kind least likely to move the score.
-    const candidate = (kind, at) => {
-      let start = at >= 0 ? at : -1;
-      const parent = start >= 0 || kind === 'any' || kind === 'plain' ? -1 : pickParent(kind);
-      if (parent >= 0) { const free = laneCells[parent].filter(c => occ[c] === -1); if (free.length) start = free[Math.floor(rng() * free.length)]; }
-      for (let t = 0; start < 0 && t < 6; t++) { const c = Math.floor(rng() * N); if (occ[c] === -1) start = c; }
-      if (start < 0) return null;
-      const c = shape(start, kind === 'plain' ? 1 : cfg.straight);
-      return c && weigh(c);
-    };
-    // The sliding game's two special ropes. Both are laid like any other rope, loop-free where
-    // they lie, so the rest of the board is built around them as usual.
-    //
-    // A knot starts the level pulled back from where it belongs, with its tail lying across the
-    // way out of a rope it is itself waiting on. Nothing in that loop can leave until this rope is
-    // slid forward, which draws its tail clear. It is laid in the place it slides to: head hard
-    // against another rope, its first k + 2 cells straight so that it can start k cells back, and
-    // the k cells its tail then reaches into kept empty for it.
-    //
-    // A trap is the opposite: a rope with a gap in front of it that it must not be slid into,
-    // because there it would lie across the way out of a rope it is waiting on, hard against its
-    // blocker with nowhere left to go. The gap is kept empty so the temptation stays.
-    //
-    // spots() lists where either could go: an empty cell for the head and a direction, with a rope
-    // directly ahead (and how much straight room there is behind), or a rope a gap ahead.
-    const spots = () => {
-      const tight = [], gapped = [];
-      for (let c = 0; c < N; c++) {
-        if (occ[c] !== -1) continue;
-        const x = c % W, y = c / W | 0;
-        for (let di = 0; di < 4; di++) {
-          const d = DIRS[di];
-          let gap = 0, nx = x + d[0], ny = y + d[1];
-          while (gap <= cfg.pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) { gap++; nx += d[0]; ny += d[1]; }
-          if (gap > cfg.pull || nx < 0 || ny < 0 || nx >= W || ny >= H || occ[ny * W + nx] < 0) continue; // nothing to stop against
-          if (gap) { gapped.push({ c, di, gap }); continue; }
-          let room = 0, bx = x - d[0], by = y - d[1];
-          while (room <= cfg.pull && bx >= 0 && by >= 0 && bx < W && by < H && occ[by * W + bx] === -1) { room++; bx -= d[0]; by -= d[1]; }
-          if (room >= 2) tight.push({ c, di, room });
-        }
-      }
-      return { tight, gapped };
-    };
-    // Mark every rope the ropes in `blockers` are waiting on, directly or down a chain. A cell is
-    // `tied` if one of them has its way out through it: a rope lying there would close a loop.
-    const below = blockers => {
-      stamp++;
-      const stack = blockers.slice();
-      for (const b of stack) mark[b] = stamp;
-      while (stack.length) { const x = stack.pop(); for (const y of waitsOn[x]) if (mark[y] !== stamp) { mark[y] = stamp; stack.push(y); } }
-    };
-    const tied = cell => { const l = lanes[cell]; if (l) for (const id of l) if (mark[id] === stamp) return true; return false; };
-    const special = (spot, isKnot) => {
-      const d = DIRS[spot.di], back = (spot.di + 2) % 4, sx = spot.c % W, sy = spot.c / W | 0, lane = wayOut(sx, sy, d);
-      below(lane.ids);
-      if (tied(spot.c)) return null;
-      const k = isKnot ? 1 + Math.floor(rng() * Math.min(cfg.pull, spot.room - 1)) : 0;
-      // Walk the body out behind the head, keeping off tied cells so that it is loop-free where it lies.
-      const want = Math.max(k + 2, cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1))), cells = [spot.c], tail = [];
-      let last = back, got = false;
-      occ[spot.c] = -2;
-      while (cells.length + tail.length < want + k) {
-        const body = cells.length < want, c = body ? cells[cells.length - 1] : tail.length ? tail[tail.length - 1] : cells[cells.length - 1], x = c % W, y = c / W | 0, opts = [];
-        for (let di = 0; di < 4; di++) {
-          const nx = x + DIRS[di][0], ny = y + DIRS[di][1], nc = ny * W + nx;
-          if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[nc] === -1 && (!body || !tied(nc))) opts.push(di);
-        }
-        if (!opts.length) break;
-        let di;
-        if (body) { // the first step is straight back, and a knot's first k + 1 are
-          if (cells.length <= k + 1) { if (!opts.includes(back)) break; di = back; }
-          else di = opts.includes(last) && rng() < cfg.straight ? last : opts[Math.floor(rng() * opts.length)];
-        } else { // the tail of a knot heads for a tied cell if it has not found one yet
-          const ties = got ? [] : opts.filter(o => tied((y + DIRS[o][1]) * W + x + DIRS[o][0]));
-          di = ties.length ? ties[Math.floor(rng() * ties.length)] : opts[Math.floor(rng() * opts.length)];
-        }
-        last = di;
-        const nc = (y + DIRS[di][1]) * W + x + DIRS[di][0];
-        occ[nc] = -2;
-        if (body) cells.push(nc); else { tail.push(nc); if (tied(nc)) got = true; }
-      }
-      for (const c of cells) occ[c] = -1;
-      for (const c of tail) occ[c] = -1;
-      if (cells.length < Math.max(cfg.minLen, k + 2)) return null;
-      const path = cells.map(xy).reverse();
-      if (selfBlocked(path)) return null;
-      let gap = null, first = null;
-      if (isKnot) {
-        if (tail.length < k || !got) return null; // the tail must tie a loop
-        first = cells.slice(k).concat(tail).map(xy).reverse();
-        if (selfBlocked(first)) return null;
-      } else {
-        gap = lane.cells.slice(0, spot.gap);
-        if (!gap.some(tied)) return null; // sliding into the gap must close a loop
-      }
-      const c = weigh({ cells, path, lane });
-      if (!c) return null;
-      if (isKnot) { c.tail = tail; c.first = first; } else c.gap = gap;
-      return c;
-    };
     const commit = c => {
       const id = paths.length;
       paths.push(c.path);
@@ -573,9 +476,6 @@ const MFLevels = (() => {
       up.push(u);
       laneCells.push(c.lane.cells); laneFree.push(c.lane.free);
       for (const cell of c.lane.cells) if (occ[cell] === -1) (lanes[cell] || (lanes[cell] = [])).push(id);
-      firsts.push(c.first || null);
-      if (c.tail) knots++; else if (c.gap) traps++;
-      for (const cell of c.tail || c.gap || []) { occ[cell] = KEPT; if (lanes[cell]) for (const i of lanes[cell]) laneFree[i]--; }
     };
 
     let stuck = 0;
@@ -596,20 +496,7 @@ const MFLevels = (() => {
       const need = sMin - score;
       const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
       let best = null, bestMiss = Infinity;
-      // While the level still wants knots or traps, try for one first, spreading them over the build.
-      // Places for them are scarce, so one that fits is taken.
-      const wantKnots = (cfg.tie || 0) - knots, wantTraps = (cfg.bait || 0) - traps;
-      if (n >= 2 && (wantKnots > 0 || wantTraps > 0) && rng() < 2 * (wantKnots + wantTraps) / room) {
-        // Whichever kind the level is shorter of gets the first tries, and the other kind the rest.
-        const sp = spots(), knotFirst = wantKnots > 0 && (wantTraps <= 0 || knots <= traps);
-        for (let k = 0; k < 2 * KNOT_TRIES && !best; k++) {
-          const isKnot = k < KNOT_TRIES ? knotFirst : !knotFirst, list = isKnot ? sp.tight : sp.gapped;
-          if (!list.length || (isKnot ? wantKnots : wantTraps) <= 0) { k = k < KNOT_TRIES ? KNOT_TRIES - 1 : 2 * KNOT_TRIES; continue; }
-          const c = special(list[Math.floor(rng() * list.length)], isKnot);
-          if (c && c.gain + c.bends <= budget && cfg.floor * (n + 1) + bendSum + c.bends <= sMax) best = c;
-        }
-      }
-      for (let k = 0; k < TRIES_PER_STEP && !(best && (best.tail || best.gap)); k++) {
+      for (let k = 0; k < TRIES_PER_STEP; k++) {
         const c = candidate(kinds[k % kinds.length]);
         if (!c || c.gain + c.bends > budget) continue;
         // Never add a rope the depth floor cannot afford: with one more rope and its bends, the slot's
@@ -658,11 +545,11 @@ const MFLevels = (() => {
         for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) {
           const o = occ[y * W + x];
           if (o === me) return null;
-          if (o >= 0 && !ids.includes(o)) ids.push(o);
+          if (o !== -1 && !ids.includes(o)) ids.push(o);
         }
         return ids;
       };
-      const now = paths.map(facing), turned = paths.map((p, i) => (firsts[i] ? null : facing(p.slice().reverse()))), flipped = new Uint8Array(n); // a knot is never turned
+      const now = paths.map(facing), turned = paths.map(p => facing(p.slice().reverse())), flipped = new Uint8Array(n);
       const waiting = new Int16Array(n), by = paths.map(() => []), queue = new Int16Array(n);
       let trial = new Array(n);
       const evaluate = () => { // total block cost with the current lists, or -1 if they loop
@@ -694,37 +581,379 @@ const MFLevels = (() => {
     }
     const n = paths.length;
     if (n < MIN_ROPES) return null;
-    // That is the board with its knots undone, and it is what the level's difficulty is taken from.
-    // The level itself starts with every knot pulled back. One way to solve it: slide each knot
-    // forward (oldest first, since a later one may come to rest against an earlier one), which
-    // gives the loop-free board that was built, then take the ropes out in order of block cost.
-    const start = paths.map((p, i) => firsts[i] || p), taps = [];
-    for (let i = 0; i < n; i++) if (firsts[i]) taps.push(i);
-    const slides = taps.length;
-    const order = paths.map((_, i) => i).sort((a, b) => cost[a] - cost[b] || a - b);
-    for (const i of order) taps.push(i);
-    // Trim away empty outer rows and columns. Nothing depends on them (a rope sliding over empty
-    // cells meets the same ropes), and it stops a level sitting in a half-empty board.
+    // Trim away empty outer rows and columns. Nothing depends on them (a way out that crossed
+    // empty cells still crosses the same ropes), and it stops a level sitting in a half-empty board.
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
-    for (const p of start) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
+    for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
     let w = x1 - x0 + 1, h = y1 - y0 + 1;
     const tall = h >= w; // keep boards portrait: if trimming left it wider than tall, turn it on its side
-    const ropes = start.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
+    const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
     if (!tall) { const t = w; w = h; h = t; }
-    if (!goodEnough(ropes, w, h, cost, cfg.slide)) return null;
-    let knotted = 0, fatal = 0;
-    if (cfg.slide) {
-      if (play(ropes, w, h, taps).some(Boolean)) return null; // cannot happen; but never hand out a level without its solution
-      // Count the knots that really are one (starting in a loop, which only a slide can undo),
-      // and the slides open at the start that would tie the board for good.
-      const looped = new Set([].concat(...loopsOf(ropes, w, h))), b = boardOf(ropes, w, h);
-      for (let i = 0; i < n; i++) {
-        if (firsts[i] && looped.has(i)) knotted++;
-        const to = slideTo(b, i);
-        if (to > 0) { place(b, i, to); if (relax(b)) fatal++; place(b, i, 0); }
+    if (!goodEnough(ropes, w, h, cost)) return null;
+    const taps = paths.map((_, i) => i).sort((a, b) => cost[a] - cost[b] || a - b); // in order of block cost, nothing is ever in the way
+    return { W: w, H: h, ropes, costs: cost, score: costSum + bendSum, taps, slides: 0, knots: 0, traps: 0 };
+  }
+
+  // ---------- building one level for the sliding game ----------
+  // A sliding level is built backwards from the solved board, as a board together with a way to
+  // solve it. The way to solve it is kept as intentions rather than as a fixed list of taps: for
+  // each rope, the places it is meant to slide to and stop, in order, before it finally leaves.
+  // `replay` plays those intentions out: it goes round the ropes tapping any whose tap would do
+  // exactly what is meant for it next (stop on that very cell, or leave) until the board is empty
+  // or nothing more can be done. A board whose intentions replay to an empty board is solvable,
+  // and the taps the replay made are its solution.
+  //
+  // Every step of the build is one of three moves made in reverse, and is kept only if the board
+  // still replays:
+  //
+  //   lay    - a rope appears on the board, meant simply to leave. It may lie anywhere there is
+  //            room: across other ropes' ways out, in a pocket where it must wait its turn, or
+  //            in the gap a knot is going to slide into, in which case it has to leave first.
+  //   knot   - a rope appears already pulled back from the place it is meant to slide to, where
+  //            its head will be hard against another rope. Its tail lies across the way out of
+  //            a rope it is itself waiting on, so nothing in that loop can leave until it slides.
+  //            The rope it comes to rest against may itself be a knot that has to slide into
+  //            place first.
+  //   trap   - a rope appears with a gap in front of it, kept empty, into which it must not be
+  //            slid: checked directly, by sliding it there and finding ropes that can then never leave.
+  //
+  // Because the replay goes by what each tap would do, not by a remembered order, a new rope
+  // re-times everything around it by itself. A rope laid in a knot's gap holds that slide back
+  // until it has gone; a knot laid against another knot's resting place cannot slide until that
+  // one has. That is what weaves slides and exits together.
+  //
+  // Block cost comes out of the same replay. Each tap is given a layer: one more than the latest
+  // layer among the taps it had to wait for (those that emptied a cell it passes over, the one
+  // that brought the rope it stops against into place, and the rope's own last slide), or 0 if it
+  // waited for nothing. A rope's block cost is the layer of the tap that takes it off the board.
+  // On a board with no slides that is exactly the original game's block cost; a knot adds a layer
+  // to everything waiting behind it. Difficulty is the sum of block costs plus bends, as before,
+  // so each candidate's effect on the score is known exactly and the builder steers by it, just
+  // as the original builder does.
+  //
+  // cfg: as for construct, plus tie (knots wanted), bait (traps wanted) and pull (longest slide).
+  // Returns { W, H, ropes, costs, score, taps, slides, knots, traps }, or null if the board is no good.
+  //   ropes  - the level as it starts.         costs - each rope's block cost.
+  //   taps   - the solution: ropes in the order to tap them. `slides` of them stop short of leaving.
+  //   knots  - ropes that start tied in a loop and are meant to slide.
+  //   traps  - slides open at the start that would leave ropes that can never get out.
+  //
+  // Cost. A replay is one or two passes over the ropes, each tap walking at most a board side:
+  // O(R * max(W, H)) plus O(W*H) to set the board up. Each step tries a bounded number of
+  // candidates (6 ropes, and up to 12 knots and 12 traps while those are wanted), so a level
+  // costs a few hundred replays.
+  const NO_STOPS = [], KNOT_TRIES = 12; // KNOT_TRIES: tries per step at a knot, and as many again at a trap
+  function weave(rng, cfg) {
+    const W = cfg.W, H = cfg.H, N = W * H, KEPT = -3;
+    const occ = new Int16Array(N).fill(-1); // the board as the level starts; KEPT marks a cell held empty in front of a trap
+    const { xy, wayOut, shape } = shaper(occ, W, H, rng, cfg);
+    const paths = [], stops = [];           // per rope: where it starts, and the offsets it is meant to slide to before leaving
+    let order = [];                         // the ropes in the order the last replay first tapped them: the order to try them in next time
+    // The board the replay runs on (see boardOf), able to take one more rope at a time.
+    const b = { n: 0, left: 0, occ: new Int16Array(N), at: new Int16Array(N), seq: [], len: new Int16Array(N), off: new Int16Array(N), was: new Int16Array(N), now: new Int16Array(N) };
+    const add = (path, st) => {
+      const h = path[path.length - 1], d = headDir(path), q = path.map(c => c.y * W + c.x);
+      for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) q.push(y * W + x);
+      b.seq[b.n] = Int16Array.from(q); b.len[b.n] = path.length; paths[b.n] = path; stops[b.n] = st;
+      return b.n++;
+    };
+    const drop = () => { b.n--; b.seq.length = paths.length = stops.length = b.n; };
+    const setUp = () => { b.occ.fill(-1); b.left = 0; for (let i = 0; i < b.n; i++) { b.off[i] = -1; place(b, i, 0); } };
+    // What the last replay found: each rope's block cost, the rope its last wait was for, the taps, and the total.
+    const cost = new Int16Array(N), dep = new Int16Array(N), cellAt = new Int16Array(N), ropeAt = new Int16Array(N), cellBy = new Int16Array(N), done = new Uint8Array(N);
+    let taps = [], costSum = 0;
+    // Tap rope i if that does what is meant for it next. True if it moved.
+    const tap = i => {
+      const q = b.seq[i], L = b.len[i], from = b.off[i];
+      let p = from + L, lay = ropeAt[i], by = -1;
+      while (p < q.length && b.occ[q[p]] === -1) { if (cellAt[q[p]] > lay) { lay = cellAt[q[p]]; by = cellBy[q[p]]; } p++; }
+      const to = p === q.length ? -1 : p - L;
+      if (to !== (done[i] < stops[i].length ? stops[i][done[i]] : -1)) return false;
+      if (to >= 0) { const z = b.occ[q[p]]; if (ropeAt[z] > lay) { lay = ropeAt[z]; by = z; } } // what it stops against had to get there first
+      lay++;
+      for (let c = from, end = to < 0 ? from + L : Math.min(from + L, to); c < end; c++) { cellAt[q[c]] = lay; cellBy[q[c]] = i; }
+      place(b, i, to);
+      ropeAt[i] = lay; taps.push(i);
+      if (to < 0) { cost[i] = lay; dep[i] = by; costSum += lay; } else done[i]++;
+      return true;
+    };
+    // Play the board out. `list` is the order to try the ropes in; `fresh`, if given, is a rope
+    // just added, which is tried again after every tap so that it goes as early as it can.
+    const replay = (list, fresh) => {
+      setUp();
+      cellAt.fill(-1); ropeAt.fill(-1, 0, b.n); done.fill(0, 0, b.n);
+      taps = []; costSum = 0;
+      for (let moved = true; moved && b.left;) {
+        moved = false;
+        for (const i of list) {
+          if (b.off[i] >= 0 && tap(i)) { moved = true; while (fresh >= 0 && b.off[fresh] >= 0 && tap(fresh)); }
+        }
+      }
+      return b.left === 0;
+    };
+    // The total block cost if this rope were added, or -1 if the board would no longer play out.
+    const trial = (path, st) => {
+      const id = add(path, st), ok = replay([id].concat(order), id), sum = costSum;
+      drop();
+      return ok ? sum : -1;
+    };
+    let total0 = 0, bendSum = 0, covered = 0, knots = 0, traps = 0; // total0: the block cost total of the board as it stands
+    const commit = c => {
+      const id = add(c.first || c.path, c.first ? [c.pull] : NO_STOPS);
+      replay([id].concat(order), id);
+      total0 = costSum;
+      order = []; for (const i of taps) if (!order.includes(i)) order.push(i);
+      for (const p of paths[id]) occ[p.y * W + p.x] = id;
+      covered += paths[id].length; bendSum += c.bends;
+      if (c.first) { knots++; for (const cell of c.rest) rest[cell] = id; }
+      if (c.gap) { traps++; for (const cell of c.gap) occ[cell] = KEPT; }
+    };
+
+    // How the board stands as the level starts: ahead[i] the empty cells on rope i's way out,
+    // blk[i] the ropes on it, lanes[cell] the ropes whose way out crosses an empty cell, and
+    // up[i] roughly how long a chain of ropes is waiting on rope i.
+    let ahead = [], blk = [], lanes = [];
+    const up = new Int16Array(N);
+    const survey = () => {
+      ahead = []; blk = []; lanes = new Array(N);
+      for (let i = 0; i < b.n; i++) {
+        const q = b.seq[i], free = [], ids = [];
+        for (let p = b.len[i]; p < q.length; p++) {
+          const o = occ[q[p]];
+          if (o === -1) { free.push(q[p]); (lanes[q[p]] || (lanes[q[p]] = [])).push(i); } else if (o >= 0 && !ids.includes(o)) ids.push(o);
+        }
+        ahead.push(free); blk.push(ids);
+      }
+      up.fill(0, 0, b.n);
+      const byCost = order.slice().sort((x, y) => cost[y] - cost[x]);
+      for (const i of byCost) if (dep[i] >= 0 && up[i] + 1 > up[dep[i]]) up[dep[i]] = up[i] + 1;
+    };
+    // Pick an existing rope to lay the next one across. 'deep' favours free ropes with long chains
+    // waiting on them, 'leaf' is any free rope, 'inner' any rope already blocked.
+    const pickParent = kind => {
+      let sum = 0;
+      const w = paths.map((_, i) => {
+        const v = !ahead[i].length ? 0 : kind === 'inner' ? (cost[i] > 0 ? 1 : 0) : cost[i] > 0 ? 0 : kind === 'deep' ? (up[i] + 1) * (up[i] + 1) : 1;
+        sum += v; return v;
+      });
+      if (!sum) return -1;
+      let r = rng() * sum;
+      for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; }
+      return w.length - 1;
+    };
+    // One possible next rope, with what it would do to the score. Null if it does not fit.
+    const candidate = (kind, at) => {
+      let start = at >= 0 ? at : -1;
+      const parent = start >= 0 || kind === 'any' || kind === 'plain' ? -1 : pickParent(kind);
+      if (parent >= 0) start = ahead[parent][Math.floor(rng() * ahead[parent].length)];
+      for (let t = 0; start < 0 && t < 6; t++) { const c = Math.floor(rng() * N); if (occ[c] === -1) start = c; }
+      if (start < 0) return null;
+      const c = shape(start, kind === 'plain' ? 1 : cfg.straight);
+      if (!c) return null;
+      const sum = trial(c.path, NO_STOPS);
+      if (sum < 0) return null;
+      return { path: c.path, lane: c.lane, gain: sum - total0, bends: bendsOf(c.path) };
+    };
+
+    // Knots and traps. spots() lists where either could go: an empty cell for the head and a
+    // direction, with something to stop against directly ahead (and how much straight room there
+    // is behind), or a rope a gap ahead. `tight` spots are against a rope that is there now;
+    // `chain` spots are against the place another knot will come to rest, so that the two have to
+    // be slid in the right order; `gapped` spots have a rope a short gap ahead.
+    const rest = new Int16Array(N).fill(-1); // rest[cell]: the knot that will come to rest on this cell, which is empty for now
+    const spots = () => {
+      const tight = [], chain = [], gapped = [];
+      for (let c = 0; c < N; c++) {
+        if (occ[c] !== -1) continue;
+        const x = c % W, y = c / W | 0;
+        for (let di = 0; di < 4; di++) {
+          const d = DIRS[di], ax = x + d[0], ay = y + d[1];
+          if (ax < 0 || ay < 0 || ax >= W || ay >= H) continue;
+          const o = occ[ay * W + ax], against = o === -1 ? rest[ay * W + ax] : -1;
+          if (o >= 0 || against >= 0) {
+            let room = 0, bx = x - d[0], by = y - d[1];
+            while (room <= cfg.pull && bx >= 0 && by >= 0 && bx < W && by < H && occ[by * W + bx] === -1) { room++; bx -= d[0]; by -= d[1]; }
+            if (room >= 2) (o >= 0 ? tight : chain).push({ c, di, room, against });
+            continue;
+          }
+          let gap = 0, nx = ax, ny = ay;
+          while (gap <= cfg.pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) { gap++; nx += d[0]; ny += d[1]; }
+          if (gap && gap <= cfg.pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] >= 0) gapped.push({ c, di, gap });
+        }
+      }
+      return { tight, chain, gapped };
+    };
+    // Mark every rope the ropes in `blockers` are waiting on, directly or down a chain. A cell is
+    // `tied` if one of them has its way out through it: a rope lying there would close a loop.
+    const mark = new Int32Array(N + 1); let stamp = 0;
+    const below = blockers => {
+      stamp++;
+      const stack = blockers.slice();
+      for (const z of stack) mark[z] = stamp;
+      while (stack.length) { const x = stack.pop(); for (const y of blk[x]) if (mark[y] !== stamp) { mark[y] = stamp; stack.push(y); } }
+    };
+    const tied = cell => { const l = lanes[cell]; if (l) for (const id of l) if (mark[id] === stamp) return true; return false; };
+    // Walk out a rope for a spot: its body behind the head, keeping off tied cells so that it
+    // closes no loop where it lies, and then, for a knot, k more cells of tail which must reach a
+    // tied cell. A knot's first k + 2 cells run straight, so that it can start k cells back.
+    // Returns the body cells (head first) and the tail cells, or null.
+    const walk = (spot, k) => {
+      const back = (spot.di + 2) % 4, want = Math.max(k + 2, cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1))), cells = [spot.c], tail = [];
+      let last = back, got = false;
+      occ[spot.c] = -2;
+      while (cells.length + tail.length < want + k) {
+        const body = cells.length < want, c = body || !tail.length ? cells[cells.length - 1] : tail[tail.length - 1], x = c % W, y = c / W | 0, opts = [];
+        for (let di = 0; di < 4; di++) {
+          const nx = x + DIRS[di][0], ny = y + DIRS[di][1], nc = ny * W + nx;
+          if (nx >= 0 && ny >= 0 && nx < W && ny < H && occ[nc] === -1 && (!body || !tied(nc))) opts.push(di);
+        }
+        if (!opts.length) break;
+        let di;
+        if (body) { // the first step is straight back, and a knot's first k + 1 are
+          if (cells.length <= k + 1) { if (!opts.includes(back)) break; di = back; }
+          else di = opts.includes(last) && rng() < cfg.straight ? last : opts[Math.floor(rng() * opts.length)];
+        } else { // the tail of a knot heads for a tied cell if it has not found one yet
+          const ties = got ? [] : opts.filter(o => tied((y + DIRS[o][1]) * W + x + DIRS[o][0]));
+          di = ties.length ? ties[Math.floor(rng() * ties.length)] : opts[Math.floor(rng() * opts.length)];
+        }
+        last = di;
+        const nc = (y + DIRS[di][1]) * W + x + DIRS[di][0];
+        occ[nc] = -2;
+        if (body) cells.push(nc); else { tail.push(nc); if (tied(nc)) got = true; }
+      }
+      for (const c of cells) occ[c] = -1;
+      for (const c of tail) occ[c] = -1;
+      if (cells.length < Math.max(cfg.minLen, k + 2) || selfBlocked(cells.map(xy).reverse())) return null;
+      if (k && (tail.length < k || !got || selfBlocked(cells.slice(k).concat(tail).map(xy).reverse()))) return null;
+      return { cells, tail };
+    };
+    // A knot at a spot where there is something to stop against: shaped in the place it slides
+    // to, and starting k cells back.
+    const knot = spot => {
+      const lane = wayOut(spot.c % W, spot.c / W | 0, DIRS[spot.di]);
+      below(spot.against >= 0 ? lane.ids.concat([spot.against]) : lane.ids);
+      if (tied(spot.c)) return null;
+      const k = 1 + Math.floor(rng() * Math.min(cfg.pull, spot.room - 1)), w = walk(spot, k);
+      if (!w) return null;
+      const first = w.cells.slice(k).concat(w.tail).map(xy).reverse(), sum = trial(first, [k]);
+      return sum < 0 ? null : { first, pull: k, rest: w.cells.slice(0, k), gain: sum - total0, bends: bendsOf(first) };
+    };
+    // A trap at a spot with a gap ahead. Sliding it into the gap must leave ropes that can never
+    // get out, which is checked by doing it.
+    const trap = spot => {
+      const lane = wayOut(spot.c % W, spot.c / W | 0, DIRS[spot.di]), gap = lane.cells.slice(0, spot.gap);
+      below(lane.ids);
+      if (tied(spot.c) || !gap.some(tied)) return null;
+      const w = walk(spot, 0);
+      if (!w) return null;
+      const path = w.cells.map(xy).reverse(), sum = trial(path, NO_STOPS);
+      if (sum < 0) return null;
+      const id = add(path, NO_STOPS);
+      setUp(); place(b, id, spot.gap);
+      const dead = relax(b);
+      drop();
+      return dead ? { path, gap, gain: sum - total0, bends: bendsOf(path) } : null;
+    };
+    const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
+    const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
+    // Lay ropes, steering exactly as the original builder does: pace the score to arrive in its
+    // slot about when the board is full, keep the average block cost up near wantAvg, never add
+    // more than the slot allows, never add a rope the depth floor could not afford.
+    let stuck = 0;
+    for (let guard = 0; guard < 2 * N; guard++) {
+      const n = b.n, score = total0 + bendSum;
+      if (score >= sMin && n >= MIN_ROPES && covered >= coverGoal) break;
+      const budget = sMax - score;
+      const room = Math.max(1, (coverGoal - covered) / meanLen);
+      const pace = ((sMin + sMax) / 2 - score) / room - cfg.bends, depth = cfg.wantAvg * (n + 1) - total0;
+      const desire = Math.max(0, Math.min(budget, Math.round(Math.max(pace, depth))));
+      const need = sMin - score;
+      const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
+      survey();
+      const fits = c => c && c.gain + c.bends <= budget && cfg.floor * (n + 1) + bendSum + c.bends <= sMax;
+      let best = null, bestMiss = Infinity;
+      // While the level still wants knots or traps, try for one first, spreading them over the build.
+      // Places for them are scarce, so one that fits is taken. Whichever kind the level is shorter of
+      // gets the first tries.
+      const wantKnots = cfg.tie - knots, wantTraps = cfg.bait - traps;
+      if (n >= 2 && (wantKnots > 0 || wantTraps > 0) && rng() < 2 * (wantKnots + wantTraps) / room) {
+        const sp = spots(), knotFirst = wantKnots > 0 && (wantTraps <= 0 || knots <= traps);
+        for (let k = 0; k < 2 * KNOT_TRIES && !best; k++) {
+          const isKnot = k < KNOT_TRIES ? knotFirst : !knotFirst;
+          if ((isKnot ? wantKnots : wantTraps) <= 0) { k = k < KNOT_TRIES ? KNOT_TRIES - 1 : 2 * KNOT_TRIES; continue; }
+          // A knot goes against another knot's resting place half the time, if there is one.
+          const list = !isKnot ? sp.gapped : sp.chain.length && (rng() < 0.5 || !sp.tight.length) ? sp.chain : sp.tight;
+          if (!list.length) continue;
+          const spot = list[Math.floor(rng() * list.length)], c = isKnot ? knot(spot) : trap(spot);
+          if (fits(c)) best = c;
+        }
+      }
+      for (let k = best ? TRIES_PER_STEP : 0; k < TRIES_PER_STEP; k++) {
+        const c = candidate(kinds[k % kinds.length], -1);
+        if (!fits(c)) continue;
+        const lands = need > 0 && c.gain + c.bends >= need && covered + c.path.length >= MIN_COVERAGE_SLIDE * N;
+        const miss = Math.abs(c.gain - desire) + rng() * 0.6 - (desire >= 2 ? Math.min(c.lane.free, 4) * 0.2 : 0) - (lands ? 100 : 0);
+        if (miss < bestMiss) { best = c; bestMiss = miss; }
+      }
+      if (!best) { if (++stuck > MAX_STUCK) break; continue; }
+      stuck = 0; commit(best);
+    }
+    // Pack the gaps: go round the cells still empty and fit a rope into each that will take one.
+    for (let sweep = 0; sweep < 2; sweep++) {
+      const empty = [];
+      for (let c = 0; c < N; c++) if (occ[c] === -1) empty.push(c);
+      for (let i = empty.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = empty[i]; empty[i] = empty[j]; empty[j] = t; }
+      for (const cell of empty) {
+        if (occ[cell] !== -1) continue;
+        const n = b.n, budget = sMax - total0 - bendSum;
+        for (let t = 0; t < 3; t++) {
+          const c = candidate(budget < 1 ? 'plain' : 'any', cell);
+          if (!c || c.gain + c.bends > budget || cfg.floor * (n + 1) + bendSum + c.bends > sMax) continue;
+          commit(c); break;
+        }
       }
     }
-    return { W: w, H: h, ropes, costs: cost, score: costSum + bendSum, taps, slides, knots: knotted, traps: fatal };
+    const n = b.n;
+    if (n < MIN_ROPES || !replay(order, -1)) return null;
+    const costs = Array.from(cost.subarray(0, n)), solution = taps.slice();
+    // Trim away empty outer rows and columns, and keep the board portrait (see construct).
+    let x0 = W, y0 = H, x1 = 0, y1 = 0;
+    for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
+    let w = x1 - x0 + 1, h = y1 - y0 + 1;
+    const tall = h >= w;
+    const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
+    if (!tall) { const t = w; w = h; h = t; }
+    if (!goodEnough(ropes, w, h, costs, true)) return null;
+    if (play(ropes, w, h, solution).some(Boolean)) return null; // cannot happen; but never hand out a level without its solution
+    // Count the knots that really are one (a rope meant to slide that starts in a loop), and the
+    // slides open at the start that would leave ropes that can never get out.
+    const looped = new Set([].concat(...loopsOf(ropes, w, h))), fin = boardOf(ropes, w, h);
+    let tiedUp = 0, fatal = 0;
+    for (let i = 0; i < n; i++) {
+      if (stops[i].length && looped.has(i)) tiedUp++;
+      const to = slideTo(fin, i);
+      if (to > 0) { place(fin, i, to); if (relax(fin)) fatal++; place(fin, i, 0); }
+    }
+    return { W: w, H: h, ropes, costs, score: total0 + bendSum, taps: solution, slides: solution.length - n, knots: tiedUp, traps: fatal };
+  }
+  // Each rope's block cost in a sliding level, given a solution: the layer of the tap that takes
+  // it off the board (see weave). Null if the taps do not clear the board.
+  function solutionCosts(paths, W, H, taps) {
+    const b = boardOf(paths, W, H), cost = new Array(b.n).fill(0), cellAt = new Int16Array(W * H).fill(-1), ropeAt = new Int16Array(b.n).fill(-1);
+    for (const i of taps) {
+      if (b.off[i] < 0) continue;
+      const q = b.seq[i], L = b.len[i], from = b.off[i];
+      let p = from + L, lay = ropeAt[i];
+      while (p < q.length && b.occ[q[p]] === -1) { if (cellAt[q[p]] > lay) lay = cellAt[q[p]]; p++; }
+      const to = p === q.length ? -1 : p - L;
+      if (to === from) continue;
+      if (to >= 0 && ropeAt[b.occ[q[p]]] > lay) lay = ropeAt[b.occ[q[p]]];
+      lay++;
+      for (let c = from, end = to < 0 ? from + L : Math.min(from + L, to); c < end; c++) cellAt[q[c]] = lay;
+      place(b, i, to); ropeAt[i] = lay;
+      if (to < 0) cost[i] = lay;
+    }
+    return b.left ? null : cost;
   }
 
   // ---------- level sets ----------
@@ -842,7 +1071,7 @@ const MFLevels = (() => {
   function generateSet(opts) {
     const mode = MODES[opts.mode] ? opts.mode : 'N', seed = cleanSeed(opts.seed), big = !!opts.big, slide = !!opts.slide, range = rangeFor(mode, big);
     const count = Math.max(1, opts.count | 0), n = Math.min(count, range[1] - range[0] + 1);
-    const rng = mulberry32(hashString('monkey-fist/9|' + mode + (big ? 'B' : '') + (slide ? 'S|' : '|') + seed));
+    const rng = mulberry32(hashString('monkey-fist/9|' + mode + (big ? 'B' : '') + (slide ? 'S2|' : '|') + seed));
     const edges = slotEdges(mode, n, big), slots = new Array(n).fill(null);
     const slotOf = score => { let j = 0; while (j < n - 1 && score >= edges[j + 1]) j++; return j; };
     const maxBuilds = count * 60, maxStall = 600;
@@ -850,7 +1079,7 @@ const MFLevels = (() => {
     while (filled < n && builds < maxBuilds && stall < maxStall) {
       builds++; stall++;
       while (slots[next % n]) next++;
-      const aim = next++ % n, cfg = plan(rng, edges[aim], edges[aim + 1], big, builds, slide), L = construct(mulberry32(cfg.seed), cfg);
+      const aim = next++ % n, cfg = plan(rng, edges[aim], edges[aim + 1], big, builds, slide), L = (slide ? weave : construct)(mulberry32(cfg.seed), cfg);
       if (!L) continue;
       const costSum = total(L.costs), score = L.score, avgCost = costSum / L.ropes.length;
       if (score < range[0] || score > range[1] || avgCost < floorFor(score) || (slide && L.knots < knotFloorFor(score))) continue;
@@ -864,7 +1093,7 @@ const MFLevels = (() => {
     return { seed, mode, count, big, slide, levels, builds, code: encodeCode({ seed, mode, count, big, slide }) };
   }
   // Rebuild a level's ropes from its descriptor.
-  function levelFrom(d) { return construct(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH })); }
+  function levelFrom(d) { return (d.slide ? weave : construct)(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH })); }
 
   // ---------- share codes: mode + count (+ B for bigger boards) (+ S for the sliding game) + seed, e.g. "N20-K7F3Q" or "X30BS-K7F3Q" ----------
   const SEED_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
@@ -888,7 +1117,7 @@ const MFLevels = (() => {
   const CAMPAIGN_SLIDE = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: true };
 
   return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, blockCosts, solve, play, bendsOf, ropeScores, nothingBlocked, difficulty,
-    construct, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
+    construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = MFLevels;

@@ -147,7 +147,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 b (all levels unlocked)</div>
+  <div id="ver">build 2026-11-11 c (all levels unlocked)</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -208,6 +208,14 @@ if (!Array.isArray(save.recent)) save.recent = [];
 if (!save.custom || !MFLevels.PLAYER_MODES.includes(save.custom.mode) || !MFLevels.COUNTS.includes(save.custom.count)) save.custom = { mode: 'N', count: 20, big: false, seed: MFLevels.randomSeed() };
 delete save.custom.twisty; save.custom.big = !!save.custom.big;
 save.slide = save.slide !== false;
+// The sliding game's levels have a generation number of their own, so that changing how they are
+// made resets progress in them alone and leaves the original game's untouched.
+const SLIDE_GEN = 2;
+if (save.sgen !== SLIDE_GEN) {
+  const isSlide = k => k === 'slide' || !!(MFLevels.parseCode(k) || {}).slide;
+  for (const k of Object.keys(save.sets)) if (isSlide(k)) delete save.sets[k];
+  save.recent = save.recent.filter(k => !isSlide(k)); save.sgen = SLIDE_GEN;
+}
 // There are two games. The original: a blocked rope bumps and springs back. Sliding ropes: it slides
 // until it meets something and stays there. Kid mode always plays the original.
 const sliding = () => save.slide && !save.kid;
