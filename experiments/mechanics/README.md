@@ -70,7 +70,9 @@ game's 4,000-state interactive budget; `null` means unknown, never impossible.
 | Reverse an arrow to create a flip-required puzzle | Found on 26/27 boards, trying at most eight arrows each | An initial flip restores a verified original solution |
 | Search those flip-required puzzles with one charge | 24 solved, 2 unknown | A valid puzzle can already exceed the interactive budget |
 
-Mirrors here are fixed `/` or `\` reflectors on grid cells. Entering one bends the head
+Mirrors here are fixed, two-sided `/` or `\` reflectors on grid cells. Their art is a thin,
+symmetric diagonal strip: neither half of the cell is filled as a triangular solid.
+Entering one bends the head
 90 degrees and the body follows the resulting track. A mirror is not an impassable wall;
 ropes may occupy its cell and block other ropes there. This is a movement model for the
 suggested triangular reflectors, not a decision about their final artwork.

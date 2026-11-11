@@ -79,11 +79,10 @@
   function drawTiles() {
     for (const m of level.mirrors || []) {
       const [x, y, s] = tile(m.cell, '#7ce6ec');
-      c.fillStyle = '#7ce6ec33'; c.beginPath();
-      if (m.slope === '/') { c.moveTo(x - s * .3, y + s * .3); c.lineTo(x + s * .3, y - s * .3); c.lineTo(x + s * .3, y + s * .3); }
-      else { c.moveTo(x - s * .3, y - s * .3); c.lineTo(x + s * .3, y + s * .3); c.lineTo(x - s * .3, y + s * .3); }
-      c.closePath(); c.fill(); c.strokeStyle = '#7ce6ec'; c.lineWidth = 4;
+      // A thin, symmetric strip communicates reflection from either side, not a solid wedge.
+      c.lineCap = 'round'; c.strokeStyle = '#7ce6ec'; c.lineWidth = Math.max(3, s * .075);
       c.beginPath(); c.moveTo(x - s * .3, y + s * (m.slope === '/' ? .3 : -.3)); c.lineTo(x + s * .3, y + s * (m.slope === '/' ? -.3 : .3)); c.stroke();
+      c.strokeStyle = '#d9ffff'; c.lineWidth = Math.max(1, s * .02); c.stroke();
     }
     for (const cell of level.springs || []) {
       const [x, y, s] = tile(cell, '#d4a5ff');

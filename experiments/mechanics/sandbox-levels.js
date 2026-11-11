@@ -2,7 +2,7 @@
   'use strict';
   const rope = (...points) => points.map(([x, y]) => ({ x, y }));
   const levels = [
-    { title: 'Around the corner', kind: 'Mirror', note: 'Tap the rope. The triangular mirror turns it through 90°.',
+    { title: 'Around the corner', kind: 'Mirror', note: 'Tap the rope. The thin mirror turns it 90° and reflects from either side.',
       W: 6, H: 6, ropes: [rope([0, 3], [1, 3], [2, 3])], mirrors: [{ cell: 21, slope: '/' }] },
     { title: 'Clear the crossing', kind: 'Mirrors', note: 'Ropes still block each other after a turn. Clear the crossing, then follow the mirrors.',
       W: 7, H: 7, ropes: [rope([0, 5], [1, 5]), rope([3, 3], [2, 3])], mirrors: [{ cell: 37, slope: '/' }, { cell: 16, slope: '\\' }] },
