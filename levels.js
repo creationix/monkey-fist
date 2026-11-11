@@ -222,26 +222,18 @@ const MFLevels = (() => {
     if (relax(b)) for (let i = 0; i < b.n; i++) if (b.now[i] !== GONE) dead.push(i);
     return dead;
   }
-  // The knot itself: of the ropes that can never leave, those locked together in a ring. Many
-  // ropes may be unable to leave only because they are waiting behind a knot (and some of those
-  // can still move); the knot is the reason. Push every rope as far as it could ever get (relax);
-  // each rope left on the board is then held by one other, the one on the cell in front of it.
-  // Follow "is held by" from any of them and it must come round in a circle. The ropes on those
-  // circles are the knot: each needs the next one gone, all the way round.
-  function knotRopes(paths, W, H) {
-    const b = boardOf(paths, W, H), n = b.n, held = new Int32Array(n).fill(-1), state = new Uint8Array(n), knot = [];
-    if (!relax(b)) return knot;
-    for (let i = 0; i < n; i++) if (b.off[i] >= 0 && b.now[i] !== GONE) held[i] = b.occ[b.seq[i][b.now[i] + b.len[i]]];
-    for (let start = 0; start < n; start++) {
-      if (held[start] < 0 || state[start]) continue;
-      const walk = [];
-      let i = start;
-      while (!state[i]) { state[i] = 1; walk.push(i); i = held[i]; } // 1: on this walk. 2: finished
-      if (state[i] === 1) for (let k = walk.indexOf(i); k < walk.length; k++) knot.push(walk[k]); // came back onto this walk: a ring
-      for (const j of walk) state[j] = 2;
-    }
-    return knot.sort((x, y) => x - y);
+  // The ropes that can never move again, whatever is tapped. relax lets every rope get as far as
+  // it ever could, each waiting on the others in turn, so a rope that gets nowhere even there is
+  // truly fixed for good: it never names a rope that could still move. (It may miss one that is
+  // fixed for a subtler reason.) A board with such a rope is lost, since that rope can never leave.
+  // A lost board need not have one: ropes that can never leave can often still slide a little.
+  function frozenRopes(paths, W, H) {
+    const b = boardOf(paths, W, H), frozen = [];
+    relax(b);
+    for (let i = 0; i < b.n; i++) if (b.now[i] === b.off[i]) frozen.push(i);
+    return frozen;
   }
+
   // ---------- solving ----------
   // Find an order of taps that clears the board. Because a slide cannot be taken back, this is a
   // search: try a tap, and if the board that leaves cannot be finished, take it back and try
@@ -1203,7 +1195,7 @@ const MFLevels = (() => {
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: false };
   const CAMPAIGN_SLIDE = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: true };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, knotRopes, blockCosts, solve, fewestTaps, play, bendsOf, ropeScores, nothingBlocked, difficulty,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, play, bendsOf, ropeScores, nothingBlocked, difficulty,
     construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();

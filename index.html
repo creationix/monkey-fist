@@ -147,7 +147,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 d (all levels unlocked)</div>
+  <div id="ver">build 2026-11-11 e (all levels unlocked)</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -378,8 +378,8 @@ function startLevel(n) {
   G.gen++;
   Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
     // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
-    // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes locked together that make it so
-    slide: !!SET.slide, history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, dead: [] });
+    // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes that can never move again
+    slide: !!SET.slide, history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, fixed: [] });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
@@ -431,20 +431,20 @@ function tangleNow() {
 // benefit of the doubt.
 function judge(budget) {
   const ns = onBoard(), at = new Map(ns.map((n, j) => [n.id, j]));
-  G.lost = false; G.dead = [];
+  G.lost = false; G.fixed = [];
   if (!ns.length) { G.plan = []; return; }
   const paths = ns.map(n => n.cur), s = MFLevels.solve(paths, G.W, G.H, budget || SOLVE_BUDGET, G.plan.filter(id => at.has(id)).map(id => at.get(id)));
   G.plan = s.solved ? s.moves.map(j => ns[j].id) : [];
-  if (s.solved === false) { G.lost = true; G.dead = MFLevels.knotRopes(paths, G.W, G.H).map(j => ns[j].id); } // the ropes locked together, which is why
+  if (s.solved === false) { G.lost = true; G.fixed = MFLevels.frozenRopes(paths, G.W, G.H).map(j => ns[j].id); } // the ropes that can never move again, if any
 }
 // The move just made left a board that can no longer be cleared, though ropes may still be able to
-// move. Say so, and show why: the ropes now locked together for good are drawn dimmed for as long as
-// that lasts (see draw). Nothing is locked: any rope that can still move can still be tapped. The
-// level is only lost once nothing can move and there are no undos left to get out of it (see stuck).
+// move. Say so. A rope that can never move again, whatever is tapped, is drawn dimmed for as long as
+// that lasts (see draw); there may be none. That is all that is given away: ropes that can still
+// slide but can never leave are not marked. Nothing is locked: any rope that can still move can
+// still be tapped. The level is only lost once nothing can move and there are no undos left (see stuck).
 function warn() {
   G.warned = true; G.shake = 1; sfx.bump(); toast('Knotted!');
-  for (const id of G.dead) G.noodles[id].flash = 1;
-  $('tip').textContent = (G.dead.length ? 'The dimmed ropes are locked together for good.' : 'The board can no longer be cleared.') + (G.undos > 0 ? ' Undo, or start again.' : ' No undos left: start again.');
+  $('tip').textContent = 'The board can no longer be cleared.' + (G.undos > 0 ? ' Undo, or start again.' : ' No undos left: start again.');
   stuck();
 }
 // Sliding game: the level is lost when the board cannot be cleared, nothing on it can move, and there is no undo left.
@@ -644,7 +644,7 @@ function shade(hex, k) {
   const v = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)));
   return 'rgb(' + f(v >> 16) + ',' + f(v >> 8 & 255) + ',' + f(v & 255) + ')';
 }
-function drawNoodle(c, n, time, cs, ox, oy, hinted, doomed) {
+function drawNoodle(c, n, time, cs, ox, oy, hinted, fixed) {
   const X = x => ox + (x + 0.5) * cs, Y = y => oy + (y + 0.5) * cs;
   const pts = shape(n), a = Math.max(0, n.appear), ease = a < 1 ? 1 - Math.pow(1 - a, 3) : 1;
   if (ease <= 0) return;
@@ -664,7 +664,7 @@ function drawNoodle(c, n, time, cs, ox, oy, hinted, doomed) {
     c.closePath(); c.fillStyle = col; c.fill();
   };
   c.lineCap = 'round'; c.lineJoin = 'round';
-  const col = doomed ? shade(n.color, -0.6) : n.color; // a rope locked in a knot for good is drawn dark
+  const col = fixed ? shade(n.color, -0.6) : n.color; // a rope that can never move again is drawn dark
   const dark = shade(col, -0.55);
   if (hinted) { c.shadowColor = '#fff'; c.shadowBlur = cs * (0.3 + 0.4 * pulse); }
   c.lineWidth = w + cs * 0.12; body(dark); arrow(cs * 0.07, dark);
@@ -692,9 +692,9 @@ function draw(time) {
   c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.08)'; c.stroke();
   c.fillStyle = 'rgba(255,255,255,.1)';
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
-  const doomed = n => G.lost && G.warned && G.dead.includes(n.id);
-  for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint, doomed(n));
-  for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false, doomed(n));
+  const fixed = n => G.lost && G.warned && G.fixed.includes(n.id);
+  for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint, fixed(n));
+  for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false, fixed(n));
   c.globalCompositeOperation = 'lighter';
   for (const q of G.parts) { c.globalAlpha = Math.max(0, q.life); c.fillStyle = q.color; c.beginPath(); c.arc(q.x, q.y, q.r * (0.4 + q.life), 0, TAU); c.fill(); }
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';

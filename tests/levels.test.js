@@ -387,26 +387,39 @@
     eq(L.solve(after, 4, 4).solved, false);
     eq(L.deadRopes(TRAP, 4, 4), []);
   });
-  test('the knot is the ring of ropes locked together, not every rope stuck behind it', () => {
-    eq(L.knotRopes(TRAP, 4, 4), []);                                  // nothing is lost yet
-    eq(L.knotRopes(L.play(TRAP, 4, 4, [0]), 4, 4), [0, 1, 2]);       // Y against B, B waiting on J, J waiting on Y: all three are the ring
-    const free = rope([0, 3], [1, 3]), withFree = L.play(TRAP, 4, 4, [0]).concat([free]);   // a fourth rope along the bottom row, clear of them all
-    eq(L.deadRopes(withFree, 4, 4), [0, 1, 2]); eq(L.knotRopes(withFree, 4, 4), [0, 1, 2]);
-    const behind = rope([0, 0], [1, 0]), withBehind = L.play(TRAP, 4, 4, [0]).concat([behind]); // or along the top row, pointing at J: it can never leave either, but it is not in the ring
-    eq(L.deadRopes(withBehind, 4, 4), [0, 1, 2, 3]); eq(L.knotRopes(withBehind, 4, 4), [0, 1, 2]);
-    eq(L.knotRopes([rope([2, 0], [2, 1], [1, 1], [0, 1], [0, 0], [1, 0])], 3, 2), [0]); // a rope pointing at itself is a ring of one
+  test('the ropes that can never move again are found soundly: never one that could still move', () => {
+    eq(L.frozenRopes(TRAP, 4, 4), []); eq(L.frozenRopes(KNOT, 7, 3), []);   // nothing is lost: everything can move in time
+    eq(L.frozenRopes(L.play(TRAP, 4, 4, [0]), 4, 4), [0, 1, 2]);           // Y hard against B, B against J, J against Y: none can ever move
+    const behind = rope([0, 0], [1, 0]), board = L.play(TRAP, 4, 4, [0]).concat([behind]); // a fourth along the top row, hard against J: it can never move either
+    eq(L.frozenRopes(board, 4, 4), [0, 1, 2, 3]);
+    // Two ropes facing each other with room between can never leave, but each can still slide, so neither is named.
+    const facing = [rope([0, 0], [1, 0]), rope([7, 0], [6, 0])];
+    eq(L.solve(facing, 8, 1).solved, false); eq(L.frozenRopes(facing, 8, 1), []);
+    eq(L.frozenRopes(L.play(facing, 8, 1, [0, 1]), 8, 1), [0, 1]);         // once they have met, both are
   });
-  test('a player\'s report, built-in sliding level 16: one slide ties three ropes for good, though two others can still move', () => {
+  test('a player\'s report, built-in sliding level 16: one slide loses the board though other ropes can still move', () => {
     const lv = L.generateSet(L.CAMPAIGN_SLIDE).levels[15], b = L.levelFrom(lv), W = b.W, H = b.H;
     eq([W, H, b.ropes.length, b.par, b.parExact], [6, 8, 8, 10, true]);
     const after = b.ropes.slice(); after[2] = L.advance(after[2], 3);          // the long rope down the right-hand side slides three cells
     eq(L.play(b.ropes, W, H, [2]), after);
     eq(L.solve(after, W, H).solved, false); eq(trueFewest(after, W, H, 1e5), -1); // no sequence of taps at all clears it
-    eq(L.deadRopes(after, W, H).length, 7);                                    // seven of the eight can never leave...
-    eq(L.knotRopes(after, W, H), [0, 1, 2]);                                   // ...because of these three, each waiting on the next
-    const occ = L.occupancy(after, W, H), canMove = after.map((p, i) => { const r = L.ray(p, occ, W, H); return r.clear || r.dist > 0 ? i : -1; }).filter(i => i >= 0);
-    eq(canMove, [6, 7]);                                                       // and two ropes can still move, one of which can never leave
-    ok(L.deadRopes(after, W, H).includes(6) && !L.deadRopes(after, W, H).includes(7));
+    eq(L.deadRopes(after, W, H).length, 7);                                    // seven of the eight can never leave, which the game does not give away
+    const movable = ropes => { const occ = L.occupancy(ropes, W, H); return ropes.map((p, i) => { const r = L.ray(p, occ, W, H); return r.clear || r.dist > 0 ? i : -1; }).filter(i => i >= 0); };
+    eq(movable(after), [6, 7]);                                                // two ropes can move at once, and three more will be able to in time
+    eq(L.frozenRopes(after, W, H), [2, 5]);                                    // only two can never move again: the rope that slid, and one pinned behind another for good
+    // Every order of play from here: a rope named as never able to move again must never move, on any board reached.
+    const seen = new Set(); let boards = 0;
+    const explore = (cur, named) => {
+      const live = cur.map((p, i) => (p ? i : -1)).filter(i => i >= 0), ps = live.map(i => cur[i]), key = ps.map(p => p[p.length - 1].x + ',' + p[p.length - 1].y).join('|') + '/' + live.join();
+      if (seen.has(key)) return; seen.add(key); boards++;
+      const can = movable(ps).map(j => live[j]), now = new Set(named);
+      for (const i of named) ok(!can.includes(i), 'a rope named as never able to move again can move');
+      for (const j of L.frozenRopes(ps, W, H)) now.add(live[j]);
+      const occ = L.occupancy(ps, W, H);
+      for (const i of can) { const r = L.ray(cur[i], occ, W, H), nx = cur.slice(); nx[i] = r.clear ? null : L.advance(cur[i], r.dist); explore(nx, now); }
+    };
+    explore(after, new Set());
+    eq(boards, 18);
   });
   test('ropes facing each other can never leave, however much room there is between them', () => {
     const A = rope([0, 0], [1, 0]), B = rope([7, 0], [6, 0]);
