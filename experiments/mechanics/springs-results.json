@@ -1,0 +1,372 @@
+{
+  "budget": 4000,
+  "summary": {
+    "candidates": 36,
+    "solved": 14,
+    "impossible": 5,
+    "unknown": 17,
+    "boardsWithSolution": 6
+  },
+  "rows": [
+    {
+      "mode": "N",
+      "level": 1,
+      "cell": 15,
+      "ropes": 6,
+      "solved": false,
+      "nodes": 44,
+      "bounces": null,
+      "ms": 1.901
+    },
+    {
+      "mode": "N",
+      "level": 1,
+      "cell": 14,
+      "ropes": 6,
+      "solved": false,
+      "nodes": 28,
+      "bounces": null,
+      "ms": 1.119
+    },
+    {
+      "mode": "N",
+      "level": 1,
+      "cell": 10,
+      "ropes": 6,
+      "solved": true,
+      "nodes": 8,
+      "bounces": 1,
+      "ms": 0.656
+    },
+    {
+      "mode": "N",
+      "level": 1,
+      "cell": 23,
+      "ropes": 6,
+      "solved": false,
+      "nodes": 58,
+      "bounces": null,
+      "ms": 1.311
+    },
+    {
+      "mode": "N",
+      "level": 5,
+      "cell": 30,
+      "ropes": 13,
+      "solved": true,
+      "nodes": 18,
+      "bounces": 1,
+      "ms": 0.77
+    },
+    {
+      "mode": "N",
+      "level": 5,
+      "cell": 23,
+      "ropes": 13,
+      "solved": true,
+      "nodes": 18,
+      "bounces": 1,
+      "ms": 0.676
+    },
+    {
+      "mode": "N",
+      "level": 5,
+      "cell": 38,
+      "ropes": 13,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 202.87
+    },
+    {
+      "mode": "N",
+      "level": 5,
+      "cell": 40,
+      "ropes": 13,
+      "solved": true,
+      "nodes": 19,
+      "bounces": 2,
+      "ms": 0.811
+    },
+    {
+      "mode": "N",
+      "level": 10,
+      "cell": 54,
+      "ropes": 16,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 361.572
+    },
+    {
+      "mode": "N",
+      "level": 10,
+      "cell": 45,
+      "ropes": 16,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 401.257
+    },
+    {
+      "mode": "N",
+      "level": 10,
+      "cell": 36,
+      "ropes": 16,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 306.639
+    },
+    {
+      "mode": "N",
+      "level": 10,
+      "cell": 27,
+      "ropes": 16,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 451.867
+    },
+    {
+      "mode": "H",
+      "level": 1,
+      "cell": 53,
+      "ropes": 12,
+      "solved": false,
+      "nodes": 2115,
+      "bounces": null,
+      "ms": 92.811
+    },
+    {
+      "mode": "H",
+      "level": 1,
+      "cell": 60,
+      "ropes": 12,
+      "solved": true,
+      "nodes": 18,
+      "bounces": 2,
+      "ms": 0.536
+    },
+    {
+      "mode": "H",
+      "level": 1,
+      "cell": 38,
+      "ropes": 12,
+      "solved": false,
+      "nodes": 1792,
+      "bounces": null,
+      "ms": 82.857
+    },
+    {
+      "mode": "H",
+      "level": 1,
+      "cell": 36,
+      "ropes": 12,
+      "solved": true,
+      "nodes": 18,
+      "bounces": 2,
+      "ms": 0.48
+    },
+    {
+      "mode": "H",
+      "level": 5,
+      "cell": 64,
+      "ropes": 19,
+      "solved": true,
+      "nodes": 26,
+      "bounces": 1,
+      "ms": 1.461
+    },
+    {
+      "mode": "H",
+      "level": 5,
+      "cell": 62,
+      "ropes": 19,
+      "solved": true,
+      "nodes": 26,
+      "bounces": 2,
+      "ms": 1.233
+    },
+    {
+      "mode": "H",
+      "level": 5,
+      "cell": 61,
+      "ropes": 19,
+      "solved": true,
+      "nodes": 53,
+      "bounces": 2,
+      "ms": 1.616
+    },
+    {
+      "mode": "H",
+      "level": 5,
+      "cell": 33,
+      "ropes": 19,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 295.633
+    },
+    {
+      "mode": "H",
+      "level": 10,
+      "cell": 48,
+      "ropes": 18,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 343.046
+    },
+    {
+      "mode": "H",
+      "level": 10,
+      "cell": 40,
+      "ropes": 18,
+      "solved": true,
+      "nodes": 32,
+      "bounces": 2,
+      "ms": 1.741
+    },
+    {
+      "mode": "H",
+      "level": 10,
+      "cell": 32,
+      "ropes": 18,
+      "solved": true,
+      "nodes": 32,
+      "bounces": 2,
+      "ms": 1.264
+    },
+    {
+      "mode": "H",
+      "level": 10,
+      "cell": 8,
+      "ropes": 18,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 297.485
+    },
+    {
+      "mode": "X",
+      "level": 1,
+      "cell": 107,
+      "ropes": 31,
+      "solved": true,
+      "nodes": 43,
+      "bounces": 2,
+      "ms": 26.765
+    },
+    {
+      "mode": "X",
+      "level": 1,
+      "cell": 57,
+      "ropes": 31,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 425.578
+    },
+    {
+      "mode": "X",
+      "level": 1,
+      "cell": 105,
+      "ropes": 31,
+      "solved": true,
+      "nodes": 41,
+      "bounces": 2,
+      "ms": 3.861
+    },
+    {
+      "mode": "X",
+      "level": 1,
+      "cell": 78,
+      "ropes": 31,
+      "solved": true,
+      "nodes": 41,
+      "bounces": 1,
+      "ms": 4.303
+    },
+    {
+      "mode": "X",
+      "level": 5,
+      "cell": 203,
+      "ropes": 53,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 940.203
+    },
+    {
+      "mode": "X",
+      "level": 5,
+      "cell": 11,
+      "ropes": 53,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 1041.031
+    },
+    {
+      "mode": "X",
+      "level": 5,
+      "cell": 218,
+      "ropes": 53,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 941.135
+    },
+    {
+      "mode": "X",
+      "level": 5,
+      "cell": 217,
+      "ropes": 53,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 879.922
+    },
+    {
+      "mode": "X",
+      "level": 10,
+      "cell": 158,
+      "ropes": 67,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 1089.775
+    },
+    {
+      "mode": "X",
+      "level": 10,
+      "cell": 188,
+      "ropes": 67,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 1212.793
+    },
+    {
+      "mode": "X",
+      "level": 10,
+      "cell": 252,
+      "ropes": 67,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 1020.016
+    },
+    {
+      "mode": "X",
+      "level": 10,
+      "cell": 284,
+      "ropes": 67,
+      "solved": null,
+      "nodes": 4001,
+      "bounces": null,
+      "ms": 897.889
+    }
+  ]
+}

@@ -7,8 +7,14 @@ The existing level format, generator, saves, and shipped solver are unchanged.
 
 Build **fixed 45-degree mirrors** as the first substantial new movement mechanic, with
 **key ropes and gates** as the lowest-risk complementary mechanic. Start with a small
-curated pack, then add constrained generation. Defer consumable direction flips and tunnels.
+curated pack, then add constrained generation. Automatic **spring blocks** are a promising
+follow-up. Player-triggered direction flips are ruled out; defer tunnels.
 Permanent barriers alone do not add useful puzzles under the current movement rules.
+
+**Interaction constraint:** the only puzzle action is tapping a rope. Undo is the only
+exception. Mirrors, springs, and gates act automatically; there is no tool selection,
+flip button, special tap, or consumable powerup mode. The original free-flip experiment
+is retained below as historical solver research, not a proposed gameplay feature.
 
 This spike implements solver extensions and generation experiments, not production gameplay,
 animations, exact par calculation, or a finished advanced-level generator.
@@ -18,8 +24,9 @@ animations, exact par calculation, or a finished advanced-level generator.
 Requires Node; no packages or browser required:
 
 ```sh
-node --test experiments/mechanics/engine.test.cjs
+node --test experiments/mechanics/*.test.cjs
 node experiments/mechanics/run.cjs
+node experiments/mechanics/springs-run.cjs
 ```
 
 `results.json` records one run on Node v24.22.1. The corpus is deterministic: seeds ALPHA,
@@ -117,9 +124,10 @@ give `weave` a fixed mirror field before it lays ropes, and make every trial rep
 the routed tracks. This full reverse-generator integration is proposed, not implemented.
 Recalibrate difficulty and par; a solved mirror overlay may be easier than its source board.
 
-### Direction flips: easy witnesses, more expensive interactive search
+### Player-triggered direction flips: rejected interaction, historical measurements
 
-The prototype allows one flip of any current rope body, including after a slide. It reverses
+This is no longer a proposed mechanic: it violates the rope-tap-only interaction constraint.
+The original prototype allows one flip of any current rope body, including after a slide. It reverses
 the current path and rebuilds its track. To generate a guaranteed example, reverse one
 original arrow, prove the board without a flip is impossible, then verify the witness
 `flip that rope; replay original solution`. This found 26 candidates; the remaining board
@@ -130,9 +138,46 @@ dead under its present track can escape after reversal. The spike disables that 
 until the charge is spent; cache keys also include charge and changed track geometry.
 Two known-solvable Extreme candidates then exhausted 4,000 states; the slowest search in
 the recorded flip sample took about 276 ms. New pruning would be needed for responsive hints
-and loss detection on larger boards. Restricting flips to one marked rope is worth testing
-before offering a freely targeted powerup. The existing fewest-taps/par search also needs
+and loss detection on larger boards. The existing fewest-taps/par search also needs
 to count flip actions rather than assuming every extra action is a slide.
+
+### Spring blocks: automatic reversal using only ordinary rope taps
+
+`springs.cjs` models a solid spring cell. A tap moves the rope forward as usual. When its
+head reaches the spring, it stops immediately before the block, swaps head and tail, and
+ends the move. The next ordinary tap moves from the new arrow end. A spring directly ahead
+can trigger the same reversal without an approach slide. Another rope can block access to
+the spring. This stop-after-bounce rule is an explicit spike assumption: continuing within
+the same tap would need additional rules to prevent endless automatic bouncing.
+
+The entire current body reverses, rather than the head bending 180 degrees into its own
+neck. For a bent rope, the new outgoing direction follows the old tail's segment, so it
+need not be geometrically opposite the old head's heading. A production animation should
+make the head/tail swap unmistakable, for example with spring compression and an arrow
+transition. This experiment implements the logical transition, not that animation.
+
+All solution moves are plain rope indices; there is no flip action or charge. Transitions
+return a new path array and preserve the pre-tap snapshot for undo. The solver stores full
+current geometry and marks visited states before descending, which detects cycles such as
+one rope bouncing endlessly between two springs. It intentionally avoids fixed-track deadlock
+pruning because a future bounce can change the route.
+
+`springs-results.json` records 36 placements on nine existing boards: ALPHA, Normal/Hard/
+Extreme, levels 1/5/10, Bigger boards for Extreme, up to four initially empty exit-lane cells
+per board. Fourteen candidates solved with a replayed solution that actually bounced at least
+once, five were proved impossible, and seventeen exceeded 4,000 states. Six of the nine
+boards yielded at least one verified solution. This is a different, smaller corpus than
+the earlier mirror sample, and does not establish comparative performance at equal workload.
+
+Five additional tests cover approach and reversal, adjacent contact, another rope blocking
+access, bent-body reversal with immutable undo snapshots, and endless bounce cycles. The
+spring prototype does not yet combine mirrors, gates, or animated gameplay. For generation,
+accept only replay-verified candidates, discard budget-unknown placements, and reserve a
+forward/inverse replay strategy for later work. Reverse-building through a spring may have
+multiple predecessors; the old monotone offset proof does not automatically apply.
+
+Naming: **spring block** communicates the bounce most directly. Reserve **mirror** for
+the fixed 90-degree triangular reflectors, so the two automatic effects remain distinct.
 
 ### Tunnels: topology only, collision and animation remain open
 
