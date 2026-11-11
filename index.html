@@ -58,11 +58,28 @@
     text-shadow: 0 3px 0 #6b4e00, 0 0 24px rgba(255,154,46,.7); pointer-events: none; opacity: 0; white-space: nowrap; }
   #toast.show { animation: toast .9s ease-out; }
   @keyframes toast { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.4); } 20% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-110%) scale(1); } }
-  @media (orientation: landscape) and (max-height: 540px) {
-    #game { flex-direction: row; align-items: stretch; }
-    #hud { width: 150px; flex: none; flex-direction: column; justify-content: center; }
-    #hearts { justify-content: center; }
+  @media (min-width: 640px) and (min-aspect-ratio: 6/5) {
+    #game { display: grid; grid-template-columns: clamp(140px, 17vw, 220px) minmax(0, 1fr); grid-template-rows: 1fr auto; gap: 20px; padding: calc(20px + var(--sat)) calc(20px + var(--sar)) calc(20px + var(--sab)) calc(20px + var(--sal)); }
+    #hud { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: repeat(2, 44px); justify-content: center; align-content: center; gap: 18px 24px; }
+    #hud .mid { grid-column: 1 / -1; grid-row: 1; }
+    #lvName { font-size: 24px; margin-bottom: 8px; }
+    #left { font-size: 15px; margin-bottom: 6px; }
+    #tangle { font-size: 16px; }
+    #hearts { grid-column: 1 / -1; justify-content: center; }
+    #tip { grid-column: 1; grid-row: 2; min-height: 0; line-height: 1.5; padding-bottom: 12px; }
+    #tip:empty { display: none; }
+    #boardWrap { grid-column: 2; grid-row: 1 / -1; height: 100%; }
+  }
+  @media (max-height: 440px) and (min-width: 640px) {
+    #game { gap: 10px; padding-top: calc(10px + var(--sat)); padding-bottom: calc(10px + var(--sab)); }
+    #hud { gap: 10px 20px; }
     #tip { display: none; }
+  }
+  @media (max-width: 380px) {
+    #hud { gap: 4px; }
+    #hud .iconBtn { width: 38px; height: 42px; }
+    #lvName { font-size: 16px; }
+    #hearts svg { width: 18px; }
   }
 
   .screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; overflow-y: auto; touch-action: pan-y;
@@ -118,6 +135,11 @@
   #ver { position: absolute; left: 0; right: 0; bottom: calc(6px + var(--sab)); text-align: center; font-size: 11px; color: var(--muted); opacity: .6; pointer-events: none; }
   @media (max-height: 660px) { #ver { position: static; } } /* the menu may scroll here: keep the label under the card, not over it */
   .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
+  @media (min-width: 900px) and (min-height: 500px) {
+    #scrLevels .card { max-width: 760px; }
+    #lvGrid { grid-template-columns: repeat(10, 1fr); max-height: 65vh; }
+    #scrCustom .card { max-width: 520px; }
+  }
 </style>
 </head>
 <body>
@@ -147,7 +169,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 f</div>
+  <div id="ver">build 2026-11-11 h</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -184,6 +206,7 @@
 </div></div>
 
 <script src="levels.js"></script>
+<script src="music.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -223,7 +246,7 @@ save.custom.seed = MFLevels.cleanSeed(save.custom.seed) || MFLevels.randomSeed()
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- audio (synthesised) ----------
-let AC = null, out = null, sfxBus = null, musicBus = null, unlocked = false;
+let AC = null, out = null, sfxBus = null, musicBus = null, musicPlayer = null, unlocked = false;
 function initAudio() {
   if (!AC) {
     const C = window.AudioContext || window.webkitAudioContext;
@@ -236,8 +259,11 @@ function initAudio() {
     comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.2;
     out = AC.createGain(); out.gain.value = 1; out.connect(comp); comp.connect(AC.destination);
     sfxBus = AC.createGain(); sfxBus.gain.value = 0.6; sfxBus.connect(out);
-    musicBus = AC.createGain(); musicBus.gain.value = save.music ? 0.55 : 0; musicBus.connect(out);
-    setInterval(musicTick, 80);
+    musicBus = AC.createGain(); musicBus.gain.value = 0.55; musicBus.connect(out);
+    musicPlayer = MFMusic.createMusicPlayer(AC, musicBus);
+    musicPlayer.setLevel(G.active ? G.level : 1);
+    musicPlayer.setEnabled(save.music);
+    setInterval(() => musicPlayer.tick(), 80);
   }
   if (AC.state !== 'running') AC.resume().catch(() => {});
   if (!unlocked) {
@@ -285,14 +311,14 @@ const sfx = {
   pop(streak) {
     if (!on()) return;
     streak = Math.max(1, streak | 0); // a bump can reset the streak to 0 while a rope is still on its way out
-    const bar = save.music ? Math.max(0, stepNo - 1) >> 3 : Math.floor(AC.currentTime / (STEP * 8));
-    const ch = CHORDS[bar % 4];
+    const playing = musicPlayer && musicPlayer.getChord();
+    const ch = playing || { bass: 65.41, melody: [523.25, 587.33, 659.25, 783.99] };
     const s = (streak - 1) % 10, idx = s < 6 ? s : 10 - s;
     const lift = Math.floor((streak - 1) / 10) % 2 ? 0.5 : 1; // every other run of ten drops an octave for contrast
-    const f = ch.mel[idx] * lift;
+    const f = ch.melody[idx % ch.melody.length] * lift;
     pluck(f, 0.3 + Math.random() * 0.06, 0, 0.45);
-    if (streak % 3 === 0) pluck(ch.mel[(idx + 2) % 6] * lift, 0.16, 0.09, 0.4); // a little answering note
-    if (streak % 10 === 0) [0, 2, 4, 5].forEach((k, i) => pluck(ch.mel[k] * 2, 0.14, 0.05 + i * 0.06, 0.5)); // sparkle on every tenth
+    if (streak % 3 === 0) pluck(ch.melody[(idx + 2) % ch.melody.length] * lift, 0.16, 0.09, 0.4); // a little answering note
+    if (streak % 10 === 0) ch.melody.forEach((f, i) => pluck(f * 2, 0.12, 0.05 + i * 0.06, 0.5)); // sparkle on every tenth
   },
   bump() { if (on()) { tone(140, 0.28, 'sine', 0.6, 0, 55); noise(0.16, 0.35, 300, 90); tone(110, 0.2, 'triangle', 0.2, 0.01, 70); } },
   // a sliding rope coming to rest against another: a soft knock
@@ -316,41 +342,6 @@ const sfx = {
   }
 }
 
-// ---------- music: a gentle generated loop, scheduled a little ahead of the audio clock ----------
-const STEP = 0.3; // seconds per eighth note
-const CHORDS = [ // root, then the notes the melody may use (Hz)
-  { bass: 65.41, pad: [261.63, 329.63, 392.0, 493.88], mel: [523.25, 587.33, 659.25, 783.99, 987.77, 1046.5] }, // Cmaj7
-  { bass: 55.0, pad: [220.0, 261.63, 329.63, 392.0], mel: [440.0, 523.25, 659.25, 783.99, 880.0, 1046.5] },   // Am7
-  { bass: 87.31, pad: [174.61, 261.63, 329.63, 440.0], mel: [523.25, 587.33, 698.46, 880.0, 1046.5, 1174.7] }, // Fmaj7
-  { bass: 98.0, pad: [196.0, 246.94, 293.66, 392.0], mel: [493.88, 587.33, 659.25, 783.99, 987.77, 1174.7] },  // G6
-];
-const RIFFS = [ // index into the chord's melody notes; -1 is a rest
-  [0, -1, 2, 3, -1, 2, 4, -1], [3, 2, -1, 0, 2, -1, 3, 4], [0, 2, 3, -1, 5, 4, 3, -1], [4, -1, 3, 2, -1, 0, -1, 2],
-  [2, 3, 4, -1, 3, -1, 2, 0], [5, -1, 4, 3, 2, -1, 3, -1],
-];
-let nextT = 0, stepNo = 0;
-function musicTick() {
-  if (!AC || !save.music || AC.state !== 'running') return;
-  if (nextT < AC.currentTime) { nextT = AC.currentTime + 0.06; }
-  while (nextT < AC.currentTime + 0.35) {
-    const bar = stepNo >> 3, i = stepNo & 7, ch = CHORDS[bar % 4], when = nextT - AC.currentTime;
-    if (i === 0) {
-      // soft pad under the whole bar
-      for (const f of ch.pad) {
-        const t = nextT, o = AC.createOscillator(), g = AC.createGain(), len = STEP * 8;
-        o.type = 'triangle'; o.frequency.value = f; o.detune.value = (Math.random() - 0.5) * 12;
-        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.045, t + 0.7); g.gain.setValueAtTime(0.045, t + len - 0.3); g.gain.linearRampToValueAtTime(0.0001, t + len + 0.5);
-        o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + len + 0.6);
-      }
-    }
-    if (i === 0 || i === 5) tone(ch.bass * 2, 0.7, 'sine', 0.22, when, null, musicBus);
-    if (i === 0) tone(ch.bass, 1.2, 'triangle', 0.12, when, null, musicBus);
-    const riff = RIFFS[(bar + (bar >> 2) * 3) % RIFFS.length], n = riff[i];
-    if (n >= 0) pluck(ch.mel[n], 0.11, when, 0.55, musicBus);
-    if (i % 2 === 1) noise(0.05, 0.035, 6000, 9000, when, musicBus); // light shaker on the off-beats
-    nextT += STEP; stepNo++;
-  }
-}
 for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, initAudio, true);
 // Don't keep playing when the app is in the background.
 document.addEventListener('visibilitychange', () => { if (AC) { if (document.hidden) AC.suspend(); else AC.resume().catch(() => {}); } });
@@ -375,6 +366,7 @@ const kidNow = () => save.kid && !G.slide;
 function startLevel(n) {
   const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
+  if (musicPlayer) musicPlayer.setLevel(n);
   Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
     // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
     // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes that can never move again
@@ -561,11 +553,19 @@ function resize() {
   cw = wrap.clientWidth; ch = wrap.clientHeight;
   cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
   if (G.W) {
-    G.cs = Math.max(8, Math.min((cw - 20) / G.W, (ch - 20) / G.H, 76));
-    G.ox = (cw - G.cs * G.W) / 2; G.oy = (ch - G.cs * G.H) / 2;
+    // Rotate only the view: saved boards, moves, hints, and undo retain their original coordinates.
+    const normal = Math.min((cw - 20) / G.W, (ch - 20) / G.H);
+    const rotated = Math.min((ch - 20) / G.W, (cw - 20) / G.H);
+    G.rotated = rotated > normal;
+    const width = G.rotated ? ch : cw, height = G.rotated ? cw : ch;
+    G.cs = Math.max(1, Math.min(G.rotated ? rotated : normal, 76));
+    G.ox = (width - G.cs * G.W) / 2; G.oy = (height - G.cs * G.H) / 2;
+    // Particles use view pixels; clear their short-lived trails when the canvas changes size.
+    G.parts = [];
   }
 }
 window.addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe($('boardWrap'));
 
 function update(dt) {
   let moving = false;
@@ -683,6 +683,7 @@ function draw(time) {
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.clearRect(0, 0, cw, ch);
   if (!G.active) return;
+  if (G.rotated) { c.translate(cw, 0); c.rotate(Math.PI / 2); }
   if (G.shake > 0) c.translate((Math.random() - 0.5) * G.shake * 12, (Math.random() - 0.5) * G.shake * 12);
   // board
   const pad = Math.min(8, G.ox - 2, G.oy - 2), bx = G.ox - pad, by = G.oy - pad, bw = G.W * cs + pad * 2, bh = G.H * cs + pad * 2;
@@ -708,7 +709,9 @@ function frame(ts) {
 
 // ---------- input ----------
 function noodleAt(e) {
-  const b = cv.getBoundingClientRect(), gx = (e.clientX - b.left - G.ox) / G.cs - 0.5, gy = (e.clientY - b.top - G.oy) / G.cs - 0.5;
+  const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  const gx = ((G.rotated ? y : x) - G.ox) / G.cs - 0.5;
+  const gy = ((G.rotated ? cw - x : y) - G.oy) / G.cs - 0.5;
   let best = null, bd = 0.75;
   for (const n of G.noodles) {
     if (n.state !== 'idle') continue;
@@ -860,7 +863,7 @@ document.addEventListener('touchmove', e => {
 const syncSound = () => {
   $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid);
   $('tSlide').classList.toggle('on', sliding()); $('tSlide').disabled = save.kid; // kid mode always plays the original game
-  if (musicBus) musicBus.gain.setTargetAtTime(save.music ? 0.55 : 0, AC.currentTime, 0.05);
+  if (musicPlayer) musicPlayer.setEnabled(save.music);
 };
 // Changing game also changes what the Custom screen offers to make, and which built-in levels Play continues.
 const setGame = () => { save.custom.slide = sliding(); persist(); syncSound(); show('menu'); };
@@ -918,7 +921,7 @@ function iconPNG(size) {
 show('menu');
 resize();
 requestAnimationFrame(frame);
-window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET };
+window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET, get music() { return musicPlayer; } };
 </script>
 </body>
 </html>

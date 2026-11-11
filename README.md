@@ -27,6 +27,13 @@ Both games:
 
 - **Levels**: 60 built-in levels for each game, from tangle 1 up to 300, starting gently. The sliding game's first few have no knots.
 - **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme, for either game. Each set has a share code such as `N20S-K7F3Q`; anyone who enters the same code gets exactly the same levels. The `S` marks a sliding set.
+- **Responsive layout**: wide screens put the controls beside the puzzle. Boards automatically turn to whichever orientation gives the largest cells, including when resizing or rotating a device mid-level. The puzzle, progress, hints, and undo stay the same.
+
+## Music
+
+The soundtrack has six original synthesised songs: **Canopy Hop**, **Vine Swing**, **Temple Steps**, **River Riddle**, **Bamboo Dash**, and **Moonlit Knot**. Levels rotate through them in order, so moving to the next level always changes the music while retrying a level keeps its song. Each track has its own tempo, melody, arrangement, and instrumental character, and transitions fade cleanly between songs.
+
+Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the harmony of the current song. Music remains independent of sound effects, and turning Music off stops its synthesised voices instead of merely silencing them.
 
 ## How levels are made
 
