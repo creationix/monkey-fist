@@ -1,0 +1,2343 @@
+{
+  "node": "v24.22.1",
+  "budget": 4000,
+  "summary": {
+    "boards": 27,
+    "baselineSolved": 27,
+    "prototypeSolved": 27,
+    "exitWallsRejected": 27,
+    "exitWallsTested": 27,
+    "inertWallsSolved": 24,
+    "inertWallsTested": 24,
+    "gatedBoards": 27,
+    "gatedSolved": 27,
+    "firstGateProvenNewDependency": 19,
+    "firstGateRedundant": 6,
+    "firstGateDependencyUnknown": 2,
+    "flipRequiredBoards": 26,
+    "flipSolved": 24,
+    "flipUnknown": 2,
+    "mirrorBoardsWithSolution": 27,
+    "mirrorCandidates": 390,
+    "mirrorSolved": 251,
+    "mirrorUnsupported": 18,
+    "mirrorImpossible": 82,
+    "mirrorUnknown": 39
+  },
+  "rows": [
+    {
+      "seed": "ALPHA",
+      "mode": "N",
+      "level": 1,
+      "size": "5x7",
+      "ropes": 6,
+      "generationMs": 79.563,
+      "baseline": {
+        "solved": true,
+        "nodes": 7,
+        "ms": 0.872
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 7,
+        "pruned": 0,
+        "ms": 2.063
+      },
+      "walls": [
+        {
+          "cell": 10,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.099
+        },
+        null
+      ],
+      "gateCandidates": 9,
+      "gates": [
+        {
+          "cell": 14,
+          "key": 4,
+          "firstUse": 1,
+          "affected": 2
+        },
+        {
+          "cell": 15,
+          "key": 4,
+          "firstUse": 2,
+          "affected": 1
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 7,
+        "pruned": 0,
+        "ms": 0.259
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 51,
+        "pruned": 0,
+        "ms": 0.596
+      },
+      "mirrorProbe": {
+        "tried": 8,
+        "unsupported": 1,
+        "solved": 5,
+        "impossible": 2,
+        "unknown": 0,
+        "example": {
+          "cell": 10,
+          "slope": "/",
+          "nodes": 7,
+          "ms": 0.416
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 9,
+        "pruned": 0,
+        "ms": 0.414
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "N",
+      "level": 5,
+      "size": "7x9",
+      "ropes": 13,
+      "generationMs": 79.563,
+      "baseline": {
+        "solved": true,
+        "nodes": 17,
+        "ms": 0.174
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 17,
+        "pruned": 0,
+        "ms": 0.614
+      },
+      "walls": [
+        {
+          "cell": 17,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.121
+        },
+        null
+      ],
+      "gateCandidates": 74,
+      "gates": [
+        {
+          "cell": 60,
+          "key": 11,
+          "firstUse": 2,
+          "affected": 7
+        },
+        {
+          "cell": 25,
+          "key": 11,
+          "firstUse": 3,
+          "affected": 5
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 17,
+        "pruned": 0,
+        "ms": 0.764
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.076
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 14,
+        "impossible": 1,
+        "unknown": 1,
+        "example": {
+          "cell": 17,
+          "slope": "\\",
+          "nodes": 16,
+          "ms": 0.606
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 1.143
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "N",
+      "level": 10,
+      "size": "9x12",
+      "ropes": 16,
+      "generationMs": 79.563,
+      "baseline": {
+        "solved": true,
+        "nodes": 19,
+        "ms": 0.359
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 1.453
+      },
+      "walls": [
+        {
+          "cell": 5,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.292
+        },
+        {
+          "cell": 15,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 19,
+          "pruned": 0,
+          "ms": 1.266
+        }
+      ],
+      "gateCandidates": 91,
+      "gates": [
+        {
+          "cell": 22,
+          "key": 5,
+          "firstUse": 3,
+          "affected": 3
+        },
+        {
+          "cell": 49,
+          "key": 5,
+          "firstUse": 4,
+          "affected": 8
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.714
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 1497,
+        "pruned": 0,
+        "ms": 8.136
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 1,
+        "solved": 11,
+        "impossible": 3,
+        "unknown": 1,
+        "example": {
+          "cell": 5,
+          "slope": "/",
+          "nodes": 19,
+          "ms": 0.411
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 22,
+        "pruned": 0,
+        "ms": 0.562
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "H",
+      "level": 1,
+      "size": "7x9",
+      "ropes": 12,
+      "generationMs": 84.591,
+      "baseline": {
+        "solved": true,
+        "nodes": 14,
+        "ms": 0.1
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 14,
+        "pruned": 0,
+        "ms": 0.202
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.021
+        },
+        {
+          "cell": 31,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 14,
+          "pruned": 0,
+          "ms": 0.091
+        }
+      ],
+      "gateCandidates": 57,
+      "gates": [
+        {
+          "cell": 24,
+          "key": 9,
+          "firstUse": 3,
+          "affected": 3
+        },
+        {
+          "cell": 16,
+          "key": 9,
+          "firstUse": 4,
+          "affected": 2
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 14,
+        "pruned": 0,
+        "ms": 0.266
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 1505,
+        "pruned": 0,
+        "ms": 4.095
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 1,
+        "solved": 11,
+        "impossible": 4,
+        "unknown": 0,
+        "example": {
+          "cell": 0,
+          "slope": "\\",
+          "nodes": 14,
+          "ms": 0.673
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.204
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "H",
+      "level": 5,
+      "size": "10x14",
+      "ropes": 19,
+      "generationMs": 84.591,
+      "baseline": {
+        "solved": true,
+        "nodes": 23,
+        "ms": 0.306
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 23,
+        "pruned": 0,
+        "ms": 0.443
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.038
+        },
+        {
+          "cell": 96,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 23,
+          "pruned": 0,
+          "ms": 0.465
+        }
+      ],
+      "gateCandidates": 283,
+      "gates": [
+        {
+          "cell": 111,
+          "key": 18,
+          "firstUse": 2,
+          "affected": 12
+        },
+        {
+          "cell": 101,
+          "key": 18,
+          "firstUse": 2,
+          "affected": 12
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 23,
+        "pruned": 0,
+        "ms": 0.345
+      },
+      "gateDependency": {
+        "solved": null,
+        "nodes": 4001,
+        "pruned": 0,
+        "ms": 20.198
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 13,
+        "impossible": 1,
+        "unknown": 2,
+        "example": {
+          "cell": 0,
+          "slope": "\\",
+          "nodes": 23,
+          "ms": 0.248
+        }
+      },
+      "flipTrials": 5,
+      "flipped": {
+        "rope": 4,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 651,
+        "pruned": 496,
+        "ms": 10.373
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "H",
+      "level": 10,
+      "size": "8x11",
+      "ropes": 18,
+      "generationMs": 84.591,
+      "baseline": {
+        "solved": true,
+        "nodes": 23,
+        "ms": 0.217
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 23,
+        "pruned": 0,
+        "ms": 0.467
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.082
+        },
+        {
+          "cell": 11,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 23,
+          "pruned": 0,
+          "ms": 0.386
+        }
+      ],
+      "gateCandidates": 95,
+      "gates": [
+        {
+          "cell": 48,
+          "key": 17,
+          "firstUse": 2,
+          "affected": 15
+        },
+        {
+          "cell": 21,
+          "key": 17,
+          "firstUse": 6,
+          "affected": 6
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 23,
+        "pruned": 0,
+        "ms": 0.433
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.028
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 13,
+        "impossible": 2,
+        "unknown": 1,
+        "example": {
+          "cell": 0,
+          "slope": "/",
+          "nodes": 30,
+          "ms": 0.462
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 30,
+        "pruned": 0,
+        "ms": 0.779
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "X",
+      "level": 1,
+      "size": "10x14",
+      "ropes": 31,
+      "generationMs": 147.317,
+      "baseline": {
+        "solved": true,
+        "nodes": 39,
+        "ms": 0.311
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 39,
+        "pruned": 0,
+        "ms": 1.47
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.158
+        },
+        {
+          "cell": 1,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 39,
+          "pruned": 0,
+          "ms": 0.772
+        }
+      ],
+      "gateCandidates": 289,
+      "gates": [
+        {
+          "cell": 132,
+          "key": 27,
+          "firstUse": 1,
+          "affected": 26
+        },
+        {
+          "cell": 129,
+          "key": 27,
+          "firstUse": 3,
+          "affected": 25
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 39,
+        "pruned": 0,
+        "ms": 0.611
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.12
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 11,
+        "impossible": 2,
+        "unknown": 3,
+        "example": {
+          "cell": 0,
+          "slope": "/",
+          "nodes": 39,
+          "ms": 0.725
+        }
+      },
+      "flipTrials": 5,
+      "flipped": {
+        "rope": 4,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 57,
+        "pruned": 3,
+        "ms": 1.818
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "X",
+      "level": 5,
+      "size": "16x22",
+      "ropes": 53,
+      "generationMs": 147.317,
+      "baseline": {
+        "solved": true,
+        "nodes": 66,
+        "ms": 0.867
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 66,
+        "pruned": 0,
+        "ms": 1.979
+      },
+      "walls": [
+        {
+          "cell": 4,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.177
+        },
+        {
+          "cell": 20,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 66,
+          "pruned": 0,
+          "ms": 1.617
+        }
+      ],
+      "gateCandidates": 1715,
+      "gates": [
+        {
+          "cell": 53,
+          "key": 51,
+          "firstUse": 2,
+          "affected": 50
+        },
+        {
+          "cell": 37,
+          "key": 51,
+          "firstUse": 2,
+          "affected": 50
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 66,
+        "pruned": 0,
+        "ms": 2.173
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 3,
+        "pruned": 0,
+        "ms": 0.073
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 9,
+        "impossible": 5,
+        "unknown": 2,
+        "example": {
+          "cell": 4,
+          "slope": "\\",
+          "nodes": 64,
+          "ms": 2.298
+        }
+      },
+      "flipTrials": 3,
+      "flipped": {
+        "rope": 2,
+        "witnessVerified": true,
+        "without": false,
+        "solved": null,
+        "nodes": 4001,
+        "pruned": 3654,
+        "ms": 276.247
+      }
+    },
+    {
+      "seed": "ALPHA",
+      "mode": "X",
+      "level": 10,
+      "size": "16x22",
+      "ropes": 67,
+      "generationMs": 147.317,
+      "baseline": {
+        "solved": true,
+        "nodes": 85,
+        "ms": 2.915
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 85,
+        "pruned": 0,
+        "ms": 5.571
+      },
+      "walls": [
+        {
+          "cell": 9,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.32
+        },
+        {
+          "cell": 30,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 85,
+          "pruned": 0,
+          "ms": 10.695
+        }
+      ],
+      "gateCandidates": 2764,
+      "gates": [
+        {
+          "cell": 130,
+          "key": 66,
+          "firstUse": 2,
+          "affected": 55
+        },
+        {
+          "cell": 179,
+          "key": 66,
+          "firstUse": 3,
+          "affected": 48
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 85,
+        "pruned": 0,
+        "ms": 8.813
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 39,
+        "pruned": 0,
+        "ms": 1.763
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 14,
+        "impossible": 0,
+        "unknown": 2,
+        "example": {
+          "cell": 9,
+          "slope": "/",
+          "nodes": 85,
+          "ms": 8.868
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 135,
+        "pruned": 13,
+        "ms": 8.097
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "N",
+      "level": 1,
+      "size": "5x7",
+      "ropes": 6,
+      "generationMs": 87.124,
+      "baseline": {
+        "solved": true,
+        "nodes": 7,
+        "ms": 0.057
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 7,
+        "pruned": 0,
+        "ms": 0.065
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.025
+        },
+        {
+          "cell": 4,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 7,
+          "pruned": 0,
+          "ms": 0.041
+        }
+      ],
+      "gateCandidates": 3,
+      "gates": [
+        {
+          "cell": 0,
+          "key": 4,
+          "firstUse": 4,
+          "affected": 1
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 7,
+        "pruned": 0,
+        "ms": 0.039
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 6,
+        "pruned": 0,
+        "ms": 0.025
+      },
+      "mirrorProbe": {
+        "tried": 10,
+        "unsupported": 2,
+        "solved": 5,
+        "impossible": 3,
+        "unknown": 0,
+        "example": {
+          "cell": 0,
+          "slope": "/",
+          "nodes": 9,
+          "ms": 0.06
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 9,
+        "pruned": 1,
+        "ms": 0.06
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "N",
+      "level": 5,
+      "size": "8x11",
+      "ropes": 12,
+      "generationMs": 87.124,
+      "baseline": {
+        "solved": true,
+        "nodes": 14,
+        "ms": 0.073
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 14,
+        "pruned": 0,
+        "ms": 0.143
+      },
+      "walls": [
+        {
+          "cell": 11,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.018
+        },
+        {
+          "cell": 4,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 14,
+          "pruned": 0,
+          "ms": 0.097
+        }
+      ],
+      "gateCandidates": 87,
+      "gates": [
+        {
+          "cell": 45,
+          "key": 11,
+          "firstUse": 3,
+          "affected": 6
+        },
+        {
+          "cell": 67,
+          "key": 11,
+          "firstUse": 5,
+          "affected": 2
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 14,
+        "pruned": 0,
+        "ms": 0.301
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 11,
+        "pruned": 0,
+        "ms": 0.087
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 1,
+        "solved": 13,
+        "impossible": 2,
+        "unknown": 0,
+        "example": {
+          "cell": 11,
+          "slope": "/",
+          "nodes": 15,
+          "ms": 0.611
+        }
+      },
+      "flipTrials": 5,
+      "flipped": {
+        "rope": 4,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 20,
+        "pruned": 1,
+        "ms": 0.189
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "N",
+      "level": 10,
+      "size": "9x12",
+      "ropes": 14,
+      "generationMs": 87.124,
+      "baseline": {
+        "solved": true,
+        "nodes": 18,
+        "ms": 0.092
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 18,
+        "pruned": 0,
+        "ms": 0.208
+      },
+      "walls": [
+        {
+          "cell": 2,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.018
+        },
+        {
+          "cell": 54,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 18,
+          "pruned": 0,
+          "ms": 0.147
+        }
+      ],
+      "gateCandidates": 103,
+      "gates": [
+        {
+          "cell": 98,
+          "key": 13,
+          "firstUse": 2,
+          "affected": 11
+        },
+        {
+          "cell": 107,
+          "key": 13,
+          "firstUse": 2,
+          "affected": 11
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 18,
+        "pruned": 0,
+        "ms": 0.258
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.018
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 8,
+        "impossible": 8,
+        "unknown": 0,
+        "example": {
+          "cell": 5,
+          "slope": "/",
+          "nodes": 20,
+          "ms": 0.213
+        }
+      },
+      "flipTrials": 3,
+      "flipped": {
+        "rope": 2,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 35,
+        "pruned": 12,
+        "ms": 0.425
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "H",
+      "level": 1,
+      "size": "7x9",
+      "ropes": 11,
+      "generationMs": 61.018,
+      "baseline": {
+        "solved": true,
+        "nodes": 15,
+        "ms": 0.058
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 15,
+        "pruned": 0,
+        "ms": 0.157
+      },
+      "walls": [
+        {
+          "cell": 10,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.017
+        },
+        {
+          "cell": 37,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 15,
+          "pruned": 0,
+          "ms": 0.097
+        }
+      ],
+      "gateCandidates": 8,
+      "gates": [
+        {
+          "cell": 10,
+          "key": 10,
+          "firstUse": 1,
+          "affected": 7
+        },
+        {
+          "cell": 28,
+          "key": 10,
+          "firstUse": 4,
+          "affected": 4
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 15,
+        "pruned": 0,
+        "ms": 0.093
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 66,
+        "pruned": 0,
+        "ms": 0.145
+      },
+      "mirrorProbe": {
+        "tried": 8,
+        "unsupported": 1,
+        "solved": 4,
+        "impossible": 3,
+        "unknown": 0,
+        "example": {
+          "cell": 10,
+          "slope": "/",
+          "nodes": 15,
+          "ms": 0.11
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.163
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "H",
+      "level": 5,
+      "size": "8x11",
+      "ropes": 18,
+      "generationMs": 61.018,
+      "baseline": {
+        "solved": true,
+        "nodes": 22,
+        "ms": 0.107
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 22,
+        "pruned": 0,
+        "ms": 0.2
+      },
+      "walls": [
+        {
+          "cell": 19,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.019
+        },
+        {
+          "cell": 6,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 22,
+          "pruned": 0,
+          "ms": 0.173
+        }
+      ],
+      "gateCandidates": 99,
+      "gates": [
+        {
+          "cell": 19,
+          "key": 17,
+          "firstUse": 4,
+          "affected": 9
+        },
+        {
+          "cell": 27,
+          "key": 17,
+          "firstUse": 4,
+          "affected": 9
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 22,
+        "pruned": 0,
+        "ms": 0.217
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 8,
+        "pruned": 0,
+        "ms": 0.049
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 9,
+        "impossible": 7,
+        "unknown": 0,
+        "example": {
+          "cell": 24,
+          "slope": "/",
+          "nodes": 25,
+          "ms": 0.215
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 27,
+        "pruned": 1,
+        "ms": 0.26
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "H",
+      "level": 10,
+      "size": "9x12",
+      "ropes": 22,
+      "generationMs": 61.018,
+      "baseline": {
+        "solved": true,
+        "nodes": 29,
+        "ms": 0.182
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 29,
+        "pruned": 0,
+        "ms": 0.896
+      },
+      "walls": [
+        {
+          "cell": 1,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.029
+        },
+        {
+          "cell": 41,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 29,
+          "pruned": 0,
+          "ms": 0.264
+        }
+      ],
+      "gateCandidates": 125,
+      "gates": [
+        {
+          "cell": 95,
+          "key": 21,
+          "firstUse": 1,
+          "affected": 19
+        },
+        {
+          "cell": 104,
+          "key": 21,
+          "firstUse": 1,
+          "affected": 19
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 29,
+        "pruned": 0,
+        "ms": 0.364
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.021
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 10,
+        "impossible": 2,
+        "unknown": 4,
+        "example": {
+          "cell": 1,
+          "slope": "/",
+          "nodes": 32,
+          "ms": 0.509
+        }
+      },
+      "flipTrials": 8,
+      "flipped": null
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "X",
+      "level": 1,
+      "size": "12x16",
+      "ropes": 37,
+      "generationMs": 295.338,
+      "baseline": {
+        "solved": true,
+        "nodes": 45,
+        "ms": 0.454
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 45,
+        "pruned": 0,
+        "ms": 0.872
+      },
+      "walls": [
+        {
+          "cell": 1,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.049
+        },
+        {
+          "cell": 3,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 45,
+          "pruned": 0,
+          "ms": 1.447
+        }
+      ],
+      "gateCandidates": 572,
+      "gates": [
+        {
+          "cell": 7,
+          "key": 36,
+          "firstUse": 5,
+          "affected": 27
+        },
+        {
+          "cell": 8,
+          "key": 36,
+          "firstUse": 5,
+          "affected": 27
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 45,
+        "pruned": 0,
+        "ms": 0.709
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.034
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 13,
+        "impossible": 0,
+        "unknown": 3,
+        "example": {
+          "cell": 1,
+          "slope": "/",
+          "nodes": 48,
+          "ms": 0.882
+        }
+      },
+      "flipTrials": 5,
+      "flipped": {
+        "rope": 4,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 51,
+        "pruned": 0,
+        "ms": 1.213
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "X",
+      "level": 5,
+      "size": "16x22",
+      "ropes": 39,
+      "generationMs": 295.338,
+      "baseline": {
+        "solved": true,
+        "nodes": 44,
+        "ms": 0.51
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 44,
+        "pruned": 0,
+        "ms": 1.294
+      },
+      "walls": [
+        {
+          "cell": 3,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.058
+        },
+        {
+          "cell": 24,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 44,
+          "pruned": 0,
+          "ms": 1.036
+        }
+      ],
+      "gateCandidates": 673,
+      "gates": [
+        {
+          "cell": 308,
+          "key": 38,
+          "firstUse": 1,
+          "affected": 36
+        },
+        {
+          "cell": 324,
+          "key": 38,
+          "firstUse": 1,
+          "affected": 36
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 44,
+        "pruned": 0,
+        "ms": 2.89
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.043
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 10,
+        "impossible": 3,
+        "unknown": 3,
+        "example": {
+          "cell": 17,
+          "slope": "/",
+          "nodes": 45,
+          "ms": 0.97
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 818,
+        "pruned": 616,
+        "ms": 34.68
+      }
+    },
+    {
+      "seed": "BRAVO",
+      "mode": "X",
+      "level": 10,
+      "size": "16x22",
+      "ropes": 59,
+      "generationMs": 295.338,
+      "baseline": {
+        "solved": true,
+        "nodes": 72,
+        "ms": 1.449
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 72,
+        "pruned": 0,
+        "ms": 2.292
+      },
+      "walls": [
+        {
+          "cell": 10,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.076
+        },
+        {
+          "cell": 161,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 72,
+          "pruned": 0,
+          "ms": 2.087
+        }
+      ],
+      "gateCandidates": 928,
+      "gates": [
+        {
+          "cell": 158,
+          "key": 44,
+          "firstUse": 1,
+          "affected": 27
+        },
+        {
+          "cell": 142,
+          "key": 44,
+          "firstUse": 1,
+          "affected": 27
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 72,
+        "pruned": 0,
+        "ms": 2.603
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 48,
+        "pruned": 0,
+        "ms": 0.616
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 7,
+        "impossible": 5,
+        "unknown": 4,
+        "example": {
+          "cell": 10,
+          "slope": "\\",
+          "nodes": 74,
+          "ms": 2.457
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 881,
+        "pruned": 752,
+        "ms": 42.755
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "N",
+      "level": 1,
+      "size": "5x7",
+      "ropes": 8,
+      "generationMs": 31.741,
+      "baseline": {
+        "solved": true,
+        "nodes": 9,
+        "ms": 0.044
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 9,
+        "pruned": 0,
+        "ms": 0.065
+      },
+      "walls": [
+        {
+          "cell": 17,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.011
+        },
+        {
+          "cell": 10,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 9,
+          "pruned": 0,
+          "ms": 0.049
+        }
+      ],
+      "gateCandidates": 9,
+      "gates": [
+        {
+          "cell": 22,
+          "key": 7,
+          "firstUse": 2,
+          "affected": 2
+        },
+        {
+          "cell": 17,
+          "key": 7,
+          "firstUse": 3,
+          "affected": 1
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 9,
+        "pruned": 0,
+        "ms": 0.042
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 117,
+        "pruned": 0,
+        "ms": 0.344
+      },
+      "mirrorProbe": {
+        "tried": 8,
+        "unsupported": 1,
+        "solved": 5,
+        "impossible": 2,
+        "unknown": 0,
+        "example": {
+          "cell": 17,
+          "slope": "/",
+          "nodes": 9,
+          "ms": 0.059
+        }
+      },
+      "flipTrials": 3,
+      "flipped": {
+        "rope": 2,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 13,
+        "pruned": 2,
+        "ms": 0.169
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "N",
+      "level": 5,
+      "size": "7x9",
+      "ropes": 9,
+      "generationMs": 31.741,
+      "baseline": {
+        "solved": true,
+        "nodes": 11,
+        "ms": 0.044
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 11,
+        "pruned": 0,
+        "ms": 0.071
+      },
+      "walls": [
+        {
+          "cell": 5,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.012
+        },
+        {
+          "cell": 19,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 11,
+          "pruned": 0,
+          "ms": 0.061
+        }
+      ],
+      "gateCandidates": 15,
+      "gates": [
+        {
+          "cell": 5,
+          "key": 8,
+          "firstUse": 3,
+          "affected": 5
+        },
+        {
+          "cell": 58,
+          "key": 8,
+          "firstUse": 4,
+          "affected": 4
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 11,
+        "pruned": 0,
+        "ms": 0.056
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 2,
+        "pruned": 0,
+        "ms": 0.012
+      },
+      "mirrorProbe": {
+        "tried": 8,
+        "unsupported": 1,
+        "solved": 5,
+        "impossible": 2,
+        "unknown": 0,
+        "example": {
+          "cell": 5,
+          "slope": "/",
+          "nodes": 11,
+          "ms": 0.067
+        }
+      },
+      "flipTrials": 4,
+      "flipped": {
+        "rope": 3,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 12,
+        "pruned": 1,
+        "ms": 0.176
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "N",
+      "level": 10,
+      "size": "9x12",
+      "ropes": 17,
+      "generationMs": 31.741,
+      "baseline": {
+        "solved": true,
+        "nodes": 21,
+        "ms": 0.148
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 21,
+        "pruned": 0,
+        "ms": 0.566
+      },
+      "walls": [
+        {
+          "cell": 11,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.02
+        },
+        {
+          "cell": 33,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 21,
+          "pruned": 0,
+          "ms": 0.304
+        }
+      ],
+      "gateCandidates": 63,
+      "gates": [
+        {
+          "cell": 102,
+          "key": 16,
+          "firstUse": 1,
+          "affected": 15
+        },
+        {
+          "cell": 15,
+          "key": 16,
+          "firstUse": 3,
+          "affected": 10
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 21,
+        "pruned": 0,
+        "ms": 0.519
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.017
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 2,
+        "solved": 8,
+        "impossible": 5,
+        "unknown": 1,
+        "example": {
+          "cell": 11,
+          "slope": "/",
+          "nodes": 21,
+          "ms": 0.221
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 28,
+        "pruned": 1,
+        "ms": 0.272
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "H",
+      "level": 1,
+      "size": "7x9",
+      "ropes": 10,
+      "generationMs": 33.777,
+      "baseline": {
+        "solved": true,
+        "nodes": 13,
+        "ms": 0.132
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 13,
+        "pruned": 0,
+        "ms": 0.201
+      },
+      "walls": [
+        {
+          "cell": 27,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.02
+        },
+        {
+          "cell": 26,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 13,
+          "pruned": 0,
+          "ms": 0.128
+        }
+      ],
+      "gateCandidates": 17,
+      "gates": [
+        {
+          "cell": 46,
+          "key": 9,
+          "firstUse": 4,
+          "affected": 2
+        },
+        {
+          "cell": 41,
+          "key": 9,
+          "firstUse": 5,
+          "affected": 1
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 13,
+        "pruned": 0,
+        "ms": 0.137
+      },
+      "gateDependency": {
+        "solved": false,
+        "nodes": 329,
+        "pruned": 0,
+        "ms": 1.244
+      },
+      "mirrorProbe": {
+        "tried": 12,
+        "unsupported": 2,
+        "solved": 5,
+        "impossible": 5,
+        "unknown": 0,
+        "example": {
+          "cell": 27,
+          "slope": "/",
+          "nodes": 13,
+          "ms": 0.156
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 17,
+        "pruned": 1,
+        "ms": 0.196
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "H",
+      "level": 5,
+      "size": "7x9",
+      "ropes": 15,
+      "generationMs": 33.777,
+      "baseline": {
+        "solved": true,
+        "nodes": 19,
+        "ms": 0.118
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.241
+      },
+      "walls": [
+        {
+          "cell": 11,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.026
+        },
+        null
+      ],
+      "gateCandidates": 58,
+      "gates": [
+        {
+          "cell": 25,
+          "key": 14,
+          "firstUse": 4,
+          "affected": 9
+        },
+        {
+          "cell": 11,
+          "key": 14,
+          "firstUse": 4,
+          "affected": 9
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 19,
+        "pruned": 0,
+        "ms": 0.217
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 5,
+        "pruned": 0,
+        "ms": 0.086
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 8,
+        "impossible": 5,
+        "unknown": 3,
+        "example": {
+          "cell": 21,
+          "slope": "\\",
+          "nodes": 20,
+          "ms": 0.173
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 24,
+        "pruned": 0,
+        "ms": 0.201
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "H",
+      "level": 10,
+      "size": "9x12",
+      "ropes": 22,
+      "generationMs": 33.777,
+      "baseline": {
+        "solved": true,
+        "nodes": 29,
+        "ms": 0.232
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 29,
+        "pruned": 0,
+        "ms": 0.348
+      },
+      "walls": [
+        {
+          "cell": 0,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.023
+        },
+        {
+          "cell": 14,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 29,
+          "pruned": 0,
+          "ms": 0.363
+        }
+      ],
+      "gateCandidates": 122,
+      "gates": [
+        {
+          "cell": 9,
+          "key": 21,
+          "firstUse": 2,
+          "affected": 16
+        },
+        {
+          "cell": 35,
+          "key": 21,
+          "firstUse": 3,
+          "affected": 15
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 29,
+        "pruned": 0,
+        "ms": 0.368
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.017
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 1,
+        "solved": 14,
+        "impossible": 0,
+        "unknown": 1,
+        "example": {
+          "cell": 0,
+          "slope": "/",
+          "nodes": 30,
+          "ms": 0.343
+        }
+      },
+      "flipTrials": 3,
+      "flipped": {
+        "rope": 2,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 38,
+        "pruned": 1,
+        "ms": 1.242
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "X",
+      "level": 1,
+      "size": "11x15",
+      "ropes": 22,
+      "generationMs": 85.357,
+      "baseline": {
+        "solved": true,
+        "nodes": 28,
+        "ms": 0.145
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 28,
+        "pruned": 0,
+        "ms": 0.74
+      },
+      "walls": [
+        {
+          "cell": 17,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.028
+        },
+        {
+          "cell": 28,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 28,
+          "pruned": 0,
+          "ms": 0.523
+        }
+      ],
+      "gateCandidates": 158,
+      "gates": [
+        {
+          "cell": 162,
+          "key": 12,
+          "firstUse": 7,
+          "affected": 2
+        },
+        {
+          "cell": 119,
+          "key": 12,
+          "firstUse": 9,
+          "affected": 1
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 28,
+        "pruned": 0,
+        "ms": 0.332
+      },
+      "gateDependency": {
+        "solved": null,
+        "nodes": 4001,
+        "pruned": 0,
+        "ms": 13.776
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 3,
+        "solved": 5,
+        "impossible": 6,
+        "unknown": 2,
+        "example": {
+          "cell": 17,
+          "slope": "\\",
+          "nodes": 28,
+          "ms": 0.328
+        }
+      },
+      "flipTrials": 3,
+      "flipped": {
+        "rope": 2,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 42,
+        "pruned": 2,
+        "ms": 0.807
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "X",
+      "level": 5,
+      "size": "14x19",
+      "ropes": 52,
+      "generationMs": 85.357,
+      "baseline": {
+        "solved": true,
+        "nodes": 65,
+        "ms": 0.777
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 65,
+        "pruned": 0,
+        "ms": 1.632
+      },
+      "walls": [
+        {
+          "cell": 12,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.055
+        },
+        {
+          "cell": 123,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 65,
+          "pruned": 0,
+          "ms": 2.204
+        }
+      ],
+      "gateCandidates": 1166,
+      "gates": [
+        {
+          "cell": 242,
+          "key": 43,
+          "firstUse": 1,
+          "affected": 40
+        },
+        {
+          "cell": 256,
+          "key": 43,
+          "firstUse": 1,
+          "affected": 40
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 65,
+        "pruned": 0,
+        "ms": 3.201
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.042
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 1,
+        "solved": 9,
+        "impossible": 4,
+        "unknown": 2,
+        "example": {
+          "cell": 12,
+          "slope": "/",
+          "nodes": 65,
+          "ms": 2.558
+        }
+      },
+      "flipTrials": 1,
+      "flipped": {
+        "rope": 0,
+        "witnessVerified": true,
+        "without": false,
+        "solved": null,
+        "nodes": 4001,
+        "pruned": 2068,
+        "ms": 135.706
+      }
+    },
+    {
+      "seed": "E5DDK",
+      "mode": "X",
+      "level": 10,
+      "size": "16x22",
+      "ropes": 68,
+      "generationMs": 85.357,
+      "baseline": {
+        "solved": true,
+        "nodes": 86,
+        "ms": 4.039
+      },
+      "prototype": {
+        "solved": true,
+        "nodes": 86,
+        "pruned": 0,
+        "ms": 3.718
+      },
+      "walls": [
+        {
+          "cell": 4,
+          "onExitLane": true,
+          "solved": false,
+          "nodes": 1,
+          "pruned": 1,
+          "ms": 0.075
+        },
+        {
+          "cell": 18,
+          "onExitLane": false,
+          "solved": true,
+          "nodes": 86,
+          "pruned": 0,
+          "ms": 3.235
+        }
+      ],
+      "gateCandidates": 2350,
+      "gates": [
+        {
+          "cell": 209,
+          "key": 67,
+          "firstUse": 3,
+          "affected": 47
+        },
+        {
+          "cell": 208,
+          "key": 67,
+          "firstUse": 3,
+          "affected": 47
+        }
+      ],
+      "gated": {
+        "solved": true,
+        "nodes": 86,
+        "pruned": 0,
+        "ms": 3.075
+      },
+      "gateDependency": {
+        "solved": true,
+        "nodes": 1,
+        "pruned": 0,
+        "ms": 0.058
+      },
+      "mirrorProbe": {
+        "tried": 16,
+        "unsupported": 0,
+        "solved": 12,
+        "impossible": 0,
+        "unknown": 4,
+        "example": {
+          "cell": 4,
+          "slope": "/",
+          "nodes": 86,
+          "ms": 3.223
+        }
+      },
+      "flipTrials": 2,
+      "flipped": {
+        "rope": 1,
+        "witnessVerified": true,
+        "without": false,
+        "solved": true,
+        "nodes": 2944,
+        "pruned": 2507,
+        "ms": 153.174
+      }
+    }
+  ]
+}
