@@ -222,6 +222,26 @@ const MFLevels = (() => {
     if (relax(b)) for (let i = 0; i < b.n; i++) if (b.now[i] !== GONE) dead.push(i);
     return dead;
   }
+  // The knot itself: of the ropes that can never leave, those locked together in a ring. Many
+  // ropes may be unable to leave only because they are waiting behind a knot (and some of those
+  // can still move); the knot is the reason. Push every rope as far as it could ever get (relax);
+  // each rope left on the board is then held by one other, the one on the cell in front of it.
+  // Follow "is held by" from any of them and it must come round in a circle. The ropes on those
+  // circles are the knot: each needs the next one gone, all the way round.
+  function knotRopes(paths, W, H) {
+    const b = boardOf(paths, W, H), n = b.n, held = new Int32Array(n).fill(-1), state = new Uint8Array(n), knot = [];
+    if (!relax(b)) return knot;
+    for (let i = 0; i < n; i++) if (b.off[i] >= 0 && b.now[i] !== GONE) held[i] = b.occ[b.seq[i][b.now[i] + b.len[i]]];
+    for (let start = 0; start < n; start++) {
+      if (held[start] < 0 || state[start]) continue;
+      const walk = [];
+      let i = start;
+      while (!state[i]) { state[i] = 1; walk.push(i); i = held[i]; } // 1: on this walk. 2: finished
+      if (state[i] === 1) for (let k = walk.indexOf(i); k < walk.length; k++) knot.push(walk[k]); // came back onto this walk: a ring
+      for (const j of walk) state[j] = 2;
+    }
+    return knot.sort((x, y) => x - y);
+  }
   // ---------- solving ----------
   // Find an order of taps that clears the board. Because a slide cannot be taken back, this is a
   // search: try a tap, and if the board that leaves cannot be finished, take it back and try
@@ -266,6 +286,66 @@ const MFLevels = (() => {
     };
     const solved = search();
     return { solved: solved ? true : gaveUp ? null : false, moves, nodes };
+  }
+  // ---------- the fewest taps ----------
+  // Every rope takes one tap to leave, so a level's solutions differ only in how many slides they
+  // spend. This looks for a solution with as few as possible.
+  //
+  // It is a search that deepens one slide at a time: is there a solution with no slides? with
+  // one? with two? The first that exists is the fewest. Between slides it takes out every rope
+  // that can leave, since a rope leaving costs nothing extra and gets in nothing's way. Boards
+  // with a knot that cannot be undone are dropped at once, and a board already tried with as
+  // many slides in hand is not tried again.
+  //
+  // `known` is a solution already in hand (the builder's): the search need only look for better,
+  // and tries its slides first. `budget` caps the boards looked at. Returns { taps, exact }: the
+  // best solution's taps in order, and whether the search finished (so that nothing shorter
+  // exists) or ran out of budget and fell back on the solution it was given. On every board small
+  // enough to check by trying all possible play, a finished search has matched the true fewest.
+  function fewestTaps(paths, W, H, known, budget) {
+    const b = boardOf(paths, W, H), n = b.n, limit = budget || 20000;
+    // the slides in the known solution, and where each rope first comes in it
+    const sim = boardOf(paths, W, H), rank = new Int32Array(n).fill(1e6);
+    let knownSlides = 0;
+    known.forEach((i, k) => { if (sim.off[i] < 0) return; if (rank[i] === 1e6) rank[i] = k; const to = slideTo(sim, i); if (to >= 0 && to !== sim.off[i]) knownSlides++; place(sim, i, to); });
+    if (sim.left) return null; // not a solution
+    const moves = [], tried = new Map();
+    let nodes = 0, gaveUp = false;
+    // Take out every rope that can leave, and say which went, so that it can be put back.
+    const clear = () => {
+      const gone = [];
+      for (let moved = true; moved;) {
+        moved = false;
+        for (let i = 0; i < n; i++) if (b.off[i] >= 0 && slideTo(b, i) < 0) { gone.push(i, b.off[i]); place(b, i, -1); moves.push(i); moved = true; }
+      }
+      return gone;
+    };
+    const restore = gone => { for (let j = gone.length - 2; j >= 0; j -= 2) { place(b, gone[j], gone[j + 1]); moves.pop(); } };
+    const search = k => { // the board has just been cleared of everything that can leave; k slides may still be spent
+      if (!b.left) return true;
+      if (!k) return false;
+      if (++nodes > limit) { gaveUp = true; return false; }
+      const key = String.fromCharCode.apply(null, b.off.map(o => o + 1));
+      if (tried.get(key) >= k) return false;
+      if (relax(b)) { tried.set(key, 1e6); return false; }
+      const slides = [];
+      for (let i = 0; i < n; i++) { if (b.off[i] < 0) continue; const to = slideTo(b, i); if (to !== b.off[i]) slides.push(i); }
+      slides.sort((x, y) => rank[x] - rank[y] || x - y);
+      for (const i of slides) {
+        const from = b.off[i];
+        place(b, i, slideTo(b, i)); moves.push(i);
+        const gone = clear();
+        if (search(k - 1)) return true;
+        restore(gone); moves.pop(); place(b, i, from);
+        if (gaveUp) return false;
+      }
+      tried.set(key, k);
+      return false;
+    };
+    const first = clear();
+    for (let k = 0; k < knownSlides && !gaveUp; k++) if (search(k)) return { taps: moves.slice(), exact: true, nodes };
+    restore(first);
+    return { taps: known.slice(), exact: !gaveUp, nodes };
   }
   // Play a list of taps and report what is left: the paths still on the board (null where a rope
   // has gone). Used to check a solution, and by the tests.
@@ -1092,8 +1172,15 @@ const MFLevels = (() => {
     const levels = slots.filter(Boolean);
     return { seed, mode, count, big, slide, levels, builds, code: encodeCode({ seed, mode, count, big, slide }) };
   }
-  // Rebuild a level's ropes from its descriptor.
-  function levelFrom(d) { return (d.slide ? weave : construct)(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH })); }
+  // Rebuild a level's ropes from its descriptor. A sliding level also gets `best`, a solution in
+  // the fewest taps that could be found, and `par`, how many taps that is: exactly the fewest
+  // possible if `parExact`, otherwise the best known (the search is capped so that a level opens promptly).
+  const PAR_BUDGET = 6000;
+  function levelFrom(d) {
+    const L = (d.slide ? weave : construct)(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH }));
+    if (L && d.slide) { const f = fewestTaps(L.ropes, L.W, L.H, L.taps, PAR_BUDGET); L.best = f.taps; L.par = f.taps.length; L.parExact = f.exact; }
+    return L;
+  }
 
   // ---------- share codes: mode + count (+ B for bigger boards) (+ S for the sliding game) + seed, e.g. "N20-K7F3Q" or "X30BS-K7F3Q" ----------
   const SEED_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
@@ -1116,7 +1203,7 @@ const MFLevels = (() => {
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: false };
   const CAMPAIGN_SLIDE = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: true };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, blockCosts, solve, play, bendsOf, ropeScores, nothingBlocked, difficulty,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, knotRopes, blockCosts, solve, fewestTaps, play, bendsOf, ropeScores, nothingBlocked, difficulty,
     construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();

@@ -147,7 +147,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 c (all levels unlocked)</div>
+  <div id="ver">build 2026-11-11 d (all levels unlocked)</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -369,7 +369,7 @@ const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodle
   parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
 
 const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.', 'Tangle shows how knotted the board is. Once nothing is blocked, the rest go free.'];
-const TIPS_SLIDE = ['Tap a rope to pull it out, arrow end first.', 'A blocked rope slides until it meets another, and stays there.', 'Ropes never go backwards, so look where one will stop before you tap.', 'Undo takes a move back. You get three a level.'];
+const TIPS_SLIDE = ['Tap a rope to pull it out, arrow end first.', 'A blocked rope slides until it meets another, and stays there.', 'Ropes never go backwards, so look where one will stop before you tap.', 'Undo takes a move back. You get three a level.', 'Every tap counts. Par is the fewest taps the level can be done in.'];
 const KNOT_TIP = 'A loop of ropes is a knot. Slide one of them forward to let the rest out.';
 // Kid mode belongs to the original game: no hearts, a clock, and a pointer after every bump.
 const kidNow = () => save.kid && !G.slide;
@@ -377,8 +377,9 @@ function startLevel(n) {
   const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
   G.gen++;
   Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
-    // the sliding game: moves made (for undo), undos left, a known way to finish from here (rope ids in tapping order), and whether the board is past saving
-    slide: !!SET.slide, history: [], undos: MAX_UNDOS, plan: L.taps.slice(), lost: false, warned: false, dead: [], pulse: 0, knots: 0 });
+    // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
+    // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes locked together that make it so
+    slide: !!SET.slide, history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, dead: [] });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
@@ -398,7 +399,7 @@ function startLevel(n) {
 const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
-  $('tangle').textContent = !G.slide ? 'Tangle ' + G.tangle : G.knots ? G.knots + ' knotted' : 'No knots';
+  $('tangle').textContent = !G.slide ? 'Tangle ' + G.tangle : 'Taps ' + G.taps + ' · par ' + G.par;
   $('undoBtn').style.display = G.slide ? '' : 'none'; $('hearts').style.display = G.slide ? 'none' : '';
   if (G.slide) { $('undoN').textContent = G.undos; $('undoBtn').classList.toggle('off', !G.undos || !G.history.length); return; } // the sliding game has undos, not hearts
   if (kidNow()) { $('hearts').innerHTML = '<span class="timer">' + fmtTime(G.time) + '</span>'; return; } // kid mode has no hearts: show the clock instead
@@ -419,12 +420,11 @@ function burst(px, py, color, n, speed) {
 const onBoard = () => G.noodles.filter(n => n.state === 'idle' || n.state === 'bump' || n.state === 'slide' || n.state === 'back');
 // The live tangle score: block cost plus bends, summed over the ropes still on the board. It starts at
 // the level's difficulty and falls to 0 as the board empties. Also notes whether anything is still blocked.
-// In the sliding game, where a loop of ropes has no block cost, it counts the ropes tied in loops instead.
+// (The sliding game shows taps against par instead, so there it only notes whether anything is blocked.)
 function tangleNow() {
   const paths = onBoard().map(n => n.cur);
   G.clear = !paths.length || MFLevels.nothingBlocked(paths, G.W, G.H);
-  if (G.slide) { G.knots = paths.length ? MFLevels.loopsOf(paths, G.W, G.H).reduce((a, loop) => a + loop.length, 0) : 0; return 0; }
-  return paths.length ? MFLevels.difficulty(paths, G.W, G.H) : 0;
+  return G.slide || !paths.length ? 0 : MFLevels.difficulty(paths, G.W, G.H);
 }
 // Sliding game: can the board still be solved? Keeps a way to finish in G.plan (used for hints), or
 // sets G.lost when there is certainly none. If the search runs out of budget the board is given the
@@ -435,24 +435,32 @@ function judge(budget) {
   if (!ns.length) { G.plan = []; return; }
   const paths = ns.map(n => n.cur), s = MFLevels.solve(paths, G.W, G.H, budget || SOLVE_BUDGET, G.plan.filter(id => at.has(id)).map(id => at.get(id)));
   G.plan = s.solved ? s.moves.map(j => ns[j].id) : [];
-  if (s.solved === false) { G.lost = true; G.dead = MFLevels.deadRopes(paths, G.W, G.H).map(j => ns[j].id); }
+  if (s.solved === false) { G.lost = true; G.dead = MFLevels.knotRopes(paths, G.W, G.H).map(j => ns[j].id); } // the ropes locked together, which is why
 }
-// The move just made tied a knot that cannot be undone. Say so; with no undos left, that is the level lost.
+// The move just made left a board that can no longer be cleared, though ropes may still be able to
+// move. Say so, and show why: the ropes now locked together for good are drawn dimmed for as long as
+// that lasts (see draw). Nothing is locked: any rope that can still move can still be tapped. The
+// level is only lost once nothing can move and there are no undos left to get out of it (see stuck).
 function warn() {
-  G.warned = true; G.shake = 1; G.pulse = 1.1; sfx.bump(); toast('Knotted!');
+  G.warned = true; G.shake = 1; sfx.bump(); toast('Knotted!');
   for (const id of G.dead) G.noodles[id].flash = 1;
-  if (G.undos > 0) $('tip').textContent = 'That knot cannot be undone. Take the move back, or start again.';
-  else finish(false);
+  $('tip').textContent = (G.dead.length ? 'The dimmed ropes are locked together for good.' : 'The board can no longer be cleared.') + (G.undos > 0 ? ' Undo, or start again.' : ' No undos left: start again.');
+  stuck();
+}
+// Sliding game: the level is lost when the board cannot be cleared, nothing on it can move, and there is no undo left.
+function stuck() {
+  if (!G.lost || G.ended || G.undos > 0) return;
+  if (!onBoard().some(n => { const r = ray(n.cur, G.occ, G.W, G.H); return r.clear || r.dist > 0; })) finish(false);
 }
 function tap(n, auto) {
   if (!G.active || G.ended || n.state !== 'idle' || (!G.slide && G.hearts <= 0)) return;
-  if (G.lost) { toast('Knotted!'); return; } // nothing more can be done until the move is taken back
   G.hint = -1;
   if (!auto) G.timing = true; // the clock starts on the player's first tap
   const r = ray(n.cur, G.occ, G.W, G.H);
   if (r.clear || (G.slide && r.dist > 0)) {
     for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
     if (G.slide) G.history.push({ id: n.id, from: n.off, out: r.clear });
+    G.taps++;
     if (r.clear) { n.state = 'out'; n.v = 7; n.exitAt = n.off + r.dist + 0.5; G.left--; G.streak++; }
     else { // sliding game: it goes as far as it can and stays there
       n.cur = MFLevels.advance(n.cur, r.dist); n.off += r.dist;
@@ -462,7 +470,8 @@ function tap(n, auto) {
     G.tangle = tangleNow();
     if (G.slide && !auto) { if (G.plan[0] === n.id) G.plan.shift(); else judge(); } // still on the known way out, or look for a new one
     sfx.slide(); hud();
-    if (G.lost && r.clear) warn(); // (a slide says so when it comes to rest)
+    if (G.lost && !G.warned && r.clear) warn(); // (a slide says so when it comes to rest)
+    stuck();
     // Nothing left is blocked: the puzzle is solved, so the rest let themselves out.
     if (!auto && !G.auto && !G.lost && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
   } else {
@@ -470,7 +479,7 @@ function tap(n, auto) {
     G.streak = 0;
   }
 }
-// Sliding game: take the last move back. Each level allows only a few.
+// Sliding game: take the last move back. Each level allows only a few, and the tap still counts.
 function undo() {
   if (!G.slide || !G.active || G.ended || G.auto || !G.history.length) return;
   if (G.undos <= 0) { toast('No undos left'); return; }
@@ -503,7 +512,7 @@ function finish(win) {
   G.ended = true;
   // Kid mode has no hearts, so stars would mean nothing there: its score is the time taken.
   const kid = kidNow(), slide = G.slide, gen = G.gen, took = Math.round(G.time * 10) / 10;
-  const stars = !win || kid ? 0 : slide ? Math.max(1, G.undos) : G.hearts; // sliding game: a star lost for each move taken back
+  const over = G.taps - G.par, stars = !win || kid ? 0 : slide ? (over <= 0 ? 3 : over <= 2 ? 2 : 1) : G.hearts; // sliding game: three stars for par, two for up to two taps over
   let prevBest = 0;
   if (win) {
     const P = progress();
@@ -521,8 +530,9 @@ function finish(win) {
     $('stars').style.display = timed ? 'none' : ''; $('timeScore').style.display = timed ? '' : 'none'; $('timeScore').textContent = fmtTime(took);
     const kidText = !prevBest ? 'Level ' + G.level + ' untangled.' : took < prevBest ? 'New best time! It was ' + fmtTime(prevBest) + '.' : 'Best time: ' + fmtTime(prevBest) + '.';
     const lastOne = G.level >= SET.levels.length;
-    $('resText').textContent = !win ? (slide ? 'Tied in a knot, with no undos left. Give it another go.' : 'Too many bumps. Give it another go.') : lastOne ? 'That was the last level of this set!' : kid ? kidText
-      : stars === 3 ? (slide ? 'Perfect — not one move taken back.' : 'Perfect — not a single bump.') : 'Level ' + G.level + ' cleared.';
+    const tapText = G.taps + ' taps' + (over < 0 ? ', ' + -over + ' under par!' : over ? '. Par is ' + G.par + '.' : G.parExact ? ', the fewest possible.' : ': par.');
+    $('resText').textContent = !win ? (slide ? 'Knotted, with nothing left to move and no undos. Give it another go.' : 'Too many bumps. Give it another go.') : slide ? tapText + (lastOne ? ' That was the last level of this set!' : '')
+      : lastOne ? 'That was the last level of this set!' : kid ? kidText : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
     $('nextBtn').style.display = win && !lastOne ? '' : 'none';
     $('retryBtn').textContent = win ? 'Play Again' : 'Try Again';
     show('result');
@@ -622,7 +632,6 @@ function update(dt) {
   G.shake = Math.max(0, G.shake - dt * 3.5);
   if (G.grace > 0) G.grace -= dt;
   if (G.timing && !G.ended && G.left > 0) { const sec = Math.floor(G.time); G.time += dt; if (kidNow() && Math.floor(G.time) !== sec) hud(); }
-  if (G.lost && G.warned && !G.ended) { G.pulse -= dt; if (G.pulse <= 0) { G.pulse = 1.1; for (const id of G.dead) G.noodles[id].flash = 0.7; } } // keep pointing at the knot
   if (G.auto && !G.ended) { // release the remaining ropes one after another
     G.autoT -= dt;
     if (G.autoT <= 0) { const n = G.noodles.find(m => m.state === 'idle'); if (n) tap(n, true); G.autoT = 0.09; }
@@ -635,7 +644,7 @@ function shade(hex, k) {
   const v = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)));
   return 'rgb(' + f(v >> 16) + ',' + f(v >> 8 & 255) + ',' + f(v & 255) + ')';
 }
-function drawNoodle(c, n, time, cs, ox, oy, hinted) {
+function drawNoodle(c, n, time, cs, ox, oy, hinted, doomed) {
   const X = x => ox + (x + 0.5) * cs, Y = y => oy + (y + 0.5) * cs;
   const pts = shape(n), a = Math.max(0, n.appear), ease = a < 1 ? 1 - Math.pow(1 - a, 3) : 1;
   if (ease <= 0) return;
@@ -655,16 +664,17 @@ function drawNoodle(c, n, time, cs, ox, oy, hinted) {
     c.closePath(); c.fillStyle = col; c.fill();
   };
   c.lineCap = 'round'; c.lineJoin = 'round';
-  const dark = shade(n.color, -0.55);
+  const col = doomed ? shade(n.color, -0.6) : n.color; // a rope locked in a knot for good is drawn dark
+  const dark = shade(col, -0.55);
   if (hinted) { c.shadowColor = '#fff'; c.shadowBlur = cs * (0.3 + 0.4 * pulse); }
   c.lineWidth = w + cs * 0.12; body(dark); arrow(cs * 0.07, dark);
   c.shadowBlur = 0;
-  c.lineWidth = w; body(n.color); arrow(0, n.color);
+  c.lineWidth = w; body(col); arrow(0, col);
   // rope twist: short dark dashes along the body
   c.lineCap = 'butt'; c.setLineDash([cs * 0.07, cs * 0.13]); c.lineDashOffset = n.s * cs;
   c.lineWidth = w * 0.92; c.globalAlpha = 0.22; body(dark); c.globalAlpha = 1;
   c.setLineDash([]); c.lineCap = 'round';
-  c.lineWidth = w * 0.26; c.globalAlpha = 0.3; body(shade(n.color, 0.7)); c.globalAlpha = 1;
+  c.lineWidth = w * 0.26; c.globalAlpha = 0.3; body(shade(col, 0.7)); c.globalAlpha = 1;
   if (n.flash > 0) {
     c.globalAlpha = n.flash * 0.75; c.lineWidth = w; body('#fff'); arrow(0, '#fff'); c.globalAlpha = 1;
   }
@@ -682,8 +692,9 @@ function draw(time) {
   c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.08)'; c.stroke();
   c.fillStyle = 'rgba(255,255,255,.1)';
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
-  for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint);
-  for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false);
+  const doomed = n => G.lost && G.warned && G.dead.includes(n.id);
+  for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint, doomed(n));
+  for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false, doomed(n));
   c.globalCompositeOperation = 'lighter';
   for (const q of G.parts) { c.globalAlpha = Math.max(0, q.life); c.fillStyle = q.color; c.beginPath(); c.arc(q.x, q.y, q.r * (0.4 + q.life), 0, TAU); c.fill(); }
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';

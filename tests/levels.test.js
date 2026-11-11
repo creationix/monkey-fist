@@ -387,6 +387,27 @@
     eq(L.solve(after, 4, 4).solved, false);
     eq(L.deadRopes(TRAP, 4, 4), []);
   });
+  test('the knot is the ring of ropes locked together, not every rope stuck behind it', () => {
+    eq(L.knotRopes(TRAP, 4, 4), []);                                  // nothing is lost yet
+    eq(L.knotRopes(L.play(TRAP, 4, 4, [0]), 4, 4), [0, 1, 2]);       // Y against B, B waiting on J, J waiting on Y: all three are the ring
+    const free = rope([0, 3], [1, 3]), withFree = L.play(TRAP, 4, 4, [0]).concat([free]);   // a fourth rope along the bottom row, clear of them all
+    eq(L.deadRopes(withFree, 4, 4), [0, 1, 2]); eq(L.knotRopes(withFree, 4, 4), [0, 1, 2]);
+    const behind = rope([0, 0], [1, 0]), withBehind = L.play(TRAP, 4, 4, [0]).concat([behind]); // or along the top row, pointing at J: it can never leave either, but it is not in the ring
+    eq(L.deadRopes(withBehind, 4, 4), [0, 1, 2, 3]); eq(L.knotRopes(withBehind, 4, 4), [0, 1, 2]);
+    eq(L.knotRopes([rope([2, 0], [2, 1], [1, 1], [0, 1], [0, 0], [1, 0])], 3, 2), [0]); // a rope pointing at itself is a ring of one
+  });
+  test('a player\'s report, built-in sliding level 16: one slide ties three ropes for good, though two others can still move', () => {
+    const lv = L.generateSet(L.CAMPAIGN_SLIDE).levels[15], b = L.levelFrom(lv), W = b.W, H = b.H;
+    eq([W, H, b.ropes.length, b.par, b.parExact], [6, 8, 8, 10, true]);
+    const after = b.ropes.slice(); after[2] = L.advance(after[2], 3);          // the long rope down the right-hand side slides three cells
+    eq(L.play(b.ropes, W, H, [2]), after);
+    eq(L.solve(after, W, H).solved, false); eq(trueFewest(after, W, H, 1e5), -1); // no sequence of taps at all clears it
+    eq(L.deadRopes(after, W, H).length, 7);                                    // seven of the eight can never leave...
+    eq(L.knotRopes(after, W, H), [0, 1, 2]);                                   // ...because of these three, each waiting on the next
+    const occ = L.occupancy(after, W, H), canMove = after.map((p, i) => { const r = L.ray(p, occ, W, H); return r.clear || r.dist > 0 ? i : -1; }).filter(i => i >= 0);
+    eq(canMove, [6, 7]);                                                       // and two ropes can still move, one of which can never leave
+    ok(L.deadRopes(after, W, H).includes(6) && !L.deadRopes(after, W, H).includes(7));
+  });
   test('ropes facing each other can never leave, however much room there is between them', () => {
     const A = rope([0, 0], [1, 0]), B = rope([7, 0], [6, 0]);
     eq(L.solve([A, B], 8, 1).solved, false);
@@ -537,6 +558,64 @@
     Object.assign(window.__slide, { wandering: { asked: calls, wayFound: found, lostForGood: lost, gaveUp, gamesFinished: finished + '/' + games } });
     eq(finished, games); ok(lost > 0, 'no careless move ever lost a board'); ok(gaveUp < calls * 0.05, 'the solver gave up on ' + gaveUp + ' of ' + calls + ' boards');
   });
+  // ---------- the sliding game: the fewest taps ----------
+  // The true fewest taps, by breadth-first search over every possible sequence of taps: no shortcuts. -1 if the board is too big for that.
+  function trueFewest(ropes, W, H, cap) {
+    const key = cur => cur.map(p => (p ? p[p.length - 1].x + ',' + p[p.length - 1].y : '-')).join('|');
+    let frontier = [ropes.slice()], depth = 0, count = 0;
+    const seen = new Set([key(ropes)]);
+    while (frontier.length) {
+      const next = [];
+      for (const cur of frontier) {
+        const idx = cur.map((p, i) => (p ? i : -1)).filter(i => i >= 0);
+        if (!idx.length) return depth;
+        const occ = L.occupancy(idx.map(i => cur[i]), W, H);
+        for (const i of idx) {
+          const r = L.ray(cur[i], occ, W, H);
+          if (!r.clear && !r.dist) continue;
+          const nx = cur.slice(); nx[i] = r.clear ? null : L.advance(cur[i], r.dist);
+          const k = key(nx);
+          if (!seen.has(k)) { seen.add(k); next.push(nx); if (++count > cap) return -1; }
+        }
+      }
+      frontier = next; depth++;
+    }
+    return -1;
+  }
+  test('the fewest taps on boards built by hand, and a wasteful solution improved on', () => {
+    eq(L.fewestTaps(KNOT, 7, 3, [0, 2, 1, 0]).taps.length, 4);           // three ropes and the one slide the knot needs
+    const f = L.fewestTaps(KNOT, 7, 3, [2, 0, 1, 0, 2]);                  // a solution that slides two ropes where one would do
+    eq([f.taps.length, f.exact], [4, true]); ok(cleared(L.play(KNOT, 7, 3, f.taps)));
+    eq(L.fewestTaps(TRAP, 4, 4, [2, 1, 0]).taps, [2, 1, 0]);             // no slide needed: nothing to improve
+    eq(L.fewestTaps(KNOT, 7, 3, [0, 1]), null);                          // not given a solution
+    eq([trueFewest(KNOT, 7, 3, 1e5), trueFewest(TRAP, 4, 4, 1e5)], [4, 3]);
+  });
+  test('every sliding level has a par: a solution in no more taps than the builder\'s, exact on all but the hardest levels', () => {
+    let levels = 0, exact = 0, shorter = 0, saved = 0; const inexact = { E: 0, N: 0, H: 0, X: 0 };
+    eachSlide((lv, k, b) => {
+      levels++;
+      ok(cleared(L.play(b.ropes, b.W, b.H, b.best)), k + ': the par solution does not clear the board');
+      eq(b.par, b.best.length, k); ok(b.par >= b.ropes.length && b.par <= b.taps.length, k + ': par ' + b.par + ' with ' + b.ropes.length + ' ropes and a known solution of ' + b.taps.length);
+      if (b.parExact) exact++; else inexact[slideSets[k].mode]++;
+      if (b.par < b.taps.length) { shorter++; saved += b.taps.length - b.par; }
+    });
+    Object.assign(window.__slide, { parExact: exact + '/' + levels, parBeatsBuilder: shorter + ' levels, ' + saved + ' taps', parNotExactByMode: inexact });
+    eq([inexact.E, inexact.N], [0, 0], 'levels whose par search did not finish, Easy/Normal');
+    ok(inexact.H <= 9, 'the par search did not finish on ' + inexact.H + ' Hard levels');
+    ok(exact > levels * 0.8, 'par is exact on only ' + exact + ' of ' + levels);
+  });
+  test('par is the true fewest taps: checked against every possible sequence of taps on the smaller levels', () => {
+    let checked = 0;
+    eachSlide((lv, k, b) => {
+      if (b.ropes.length > 9 || !b.parExact) return;
+      const t = trueFewest(b.ropes, b.W, b.H, 60000);
+      if (t < 0) return;
+      checked++; eq(b.par, t, k + ': a level of difficulty ' + lv.difficulty);
+    });
+    Object.assign(window.__slide, { parCheckedExhaustively: checked });
+    ok(checked > 80, 'only ' + checked + ' levels were small enough to check');
+  });
+
   test('sliding boards: at least 72% rope past the smallest sizes, within the size limits, never wider than tall', () => {
     eachSlide((lv, k, b) => {
       const q = L.quality(b.ropes, b.W, b.H, b.costs), big = slideSets[k].big;

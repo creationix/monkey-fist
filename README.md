@@ -11,10 +11,11 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 **Sliding ropes** (the default). A rope whose way is clear leaves. A rope that is blocked slides forward until it meets another rope, and stays there. Ropes never go backwards, so every slide is for keeps.
 
 - Some ropes start tied in a **knot**: a loop in which each rope is waiting on the next, so none of them can leave. Sliding the right one forward draws its tail out of another's way and undoes it.
-- Some slides are **traps**: they tie a knot that can never be undone. The game says "Knotted!" as soon as that happens.
-- There are no hearts. Instead each level allows **three undos**, each taking back one move. A knot with no undos left loses the level. Stars are 3 for no undos used, 2 for one, 1 otherwise.
-- The top of the screen shows how many ropes are tied in knots. Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
-- The lightbulb highlights the next tap of a way out that is known to work.
+- Some slides are **traps**: they leave ropes that can never get out. The game says "Knotted!" as soon as that happens and dims the ropes that are locked together for good, which is why. Nothing is locked, and any rope that can still move can still be tapped, but the board can no longer be cleared.
+- There are no hearts. Instead each level allows **three undos**, each taking back one move. The level is lost only when the board is knotted, nothing on it can move and no undos are left.
+- **Every tap counts**, including ones you take back. The top of the screen shows your taps against **par**, the fewest taps the level can be done in. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
+- Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
+- The lightbulb highlights the next tap of a solution in par.
 
 **The original game** (turn Sliding ropes off, or turn Kid mode on). A blocked rope bumps and springs back, and costs a heart: three hearts per level, and hearts left at the end are your stars. Nothing you tap can make the board worse, so the puzzle is purely finding the order.
 
@@ -144,7 +145,18 @@ A level is built with about `0.6 * sqrt(difficulty)` knots and as many traps, or
 The game needs to answer this after every move, to say "Knotted!" the moment a board is lost and to keep a hint ready.
 
 - **The quick check** is a *delete relaxation*, the idea behind the heuristics of the HSP and FF planners [8, 9]: solve an easier problem in which nothing a move achieves is ever undone. Here, every rope is allowed to move as freely as it ever could. In rounds, each rope pushes forward through empty cells, and through a cell another rope sits on once that rope has slid clear of it or left; nothing a rope does ever gets in another's way. A rope that cannot get out even so can never leave, and the board is lost. Because the relaxation only ever makes things easier, it never condemns a board that could be solved. It is not complete the other way: two ropes facing each other with room between them pass the check, and are caught only when they meet. `O(W*H + R * (max(W, H) + rounds))`.
-- **The solver** is a depth-first search over boards. It gives up at once on any board the quick check condemns, remembers every board it has found hopeless so that none is explored twice, and tries the taps of a known solution first (the level's own, then the last one it found). Following a known solution it looks at one board per tap. After a careless move it typically looks at a few dozen; it is capped at 4000, and on the rare board where that runs out the player is given the benefit of the doubt.
+- **The knot** shown to the player is not every rope that can never leave, which is usually most of the board, but the ring of ropes that is the reason. After the quick check each stranded rope is held by one other, the rope on the cell in front of it. Following "is held by" from any of them must come round in a circle, and the ropes on those circles are the knot: each needs the next one gone, all the way round.
+- **The solver** is a depth-first search over boards. It gives up at once on any board the quick check condemns, remembers every board it has found hopeless so that none is explored twice, and tries the taps of a known solution first (the level's par solution, then the last one it found). Following a known solution it looks at one board per tap. After a careless move it typically looks at a few dozen; it is capped at 4000, and on the rare board where that runs out the player is given the benefit of the doubt.
+
+### The fewest taps
+
+Every rope takes exactly one tap to leave, so solutions differ only in how many slides they spend, and par is the number of ropes plus the fewest slides that will do. The builder's own solution is often not the shortest (on Hard it wastes about one slide a level), so par is searched for separately when a level is opened.
+
+The search is depth-first iterative deepening [13]: is there a solution with no slides? with one? with two? The first that exists is the fewest. Between slides it takes out every rope that can leave, since leaving costs nothing extra; it drops any board the quick check condemns, and does not retry a board it has already tried with as many slides in hand.
+
+Taking ropes out as soon as they can leave is a shortcut, and shortcuts can miss things, so the result is checked against a breadth-first search over every possible sequence of taps on the generated levels small enough for that: about 200 in the tests. It matches on all of them.
+
+The search is capped (6000 boards) so that a level opens promptly: at most a few tens of milliseconds. In the tests' 720 levels it finishes, making par exact, on every Easy and Normal level, on all but 3 of the 180 Hard ones, and on about four in ten Extreme ones; it finishes on 55 of the 60 built-in sliding levels. Where it runs out, par is the builder's solution: the best known, which a player may beat. The result screen says "the fewest possible" only when par is exact.
 
 ### How hard is the problem?
 
@@ -176,6 +188,7 @@ On generated sets:
 10. G. W. Flake, E. B. Baum, "Rush Hour is PSPACE-complete, or 'Why you should generously tip parking lot attendants'", *Theoretical Computer Science* 270(1–2), 2002, pp. 895–911. [doi:10.1016/S0304-3975(01)00173-6](https://doi.org/10.1016/S0304-3975(01)00173-6)
 11. R. A. Hearn, E. D. Demaine, *Games, Puzzles, and Computation*, A K Peters, 2009.
 12. S. Collette, J.-F. Raskin, F. Servais, "On the symbolic computation of the hardest configurations of the Rush Hour game", *Computers and Games (CG 2006)*, LNCS 4630, Springer, 2007, pp. 220–233. [doi:10.1007/978-3-540-75538-8_20](https://doi.org/10.1007/978-3-540-75538-8_20)
+13. R. E. Korf, "Depth-first iterative-deepening: an optimal admissible tree search", *Artificial Intelligence* 27(1), 1985, pp. 97–109. [doi:10.1016/0004-3702(85)90084-0](https://doi.org/10.1016/0004-3702(85)90084-0)
 
 ## Tests
 
@@ -183,7 +196,7 @@ Open [`tests/index.html`](tests/index.html) in a browser (served from the projec
 
 For the original game the tests cover block-cost and bend scoring on hand-built boards, 300 built boards cross-checked against actually playing them (solvable, costs correct, never over their slot), that every setting fills its range evenly with unique difficulties, the depth floor, how full the boards are, how hard the hardest Extreme level is, rope-style variety, board-size limits, share codes, and the board-quality rules. A fingerprint test pins its 60 built-in levels, so that progress already made in them stays valid.
 
-For the sliding game they cover the slide rule, a knot and a trap built by hand, the quick check and the solver, and then 720 generated levels: each is cleared by its own solution, has the difficulty that solution's layers give it, meets the knot floor, cannot be cleared by ropes simply leaving, and has exactly the traps it counts. They also check that slides and exits really are woven together, and run the solver after every move of a simulated careless player.
+For the sliding game they cover the slide rule, a knot and a trap built by hand, the quick check and the solver, and then 720 generated levels: each is cleared by its own solution, has the difficulty that solution's layers give it, meets the knot floor, cannot be cleared by ropes simply leaving, and has exactly the traps it counts. They also check that slides and exits really are woven together, run the solver after every move of a simulated careless player, and check par against a search of every possible sequence of taps on the levels small enough for that.
 
 ## Install
 
