@@ -169,7 +169,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 h</div>
+  <div id="ver">build 2026-11-11 i</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -583,7 +583,9 @@ function update(dt) {
         if (G.streak > 0 && G.streak % 5 === 0) toast(G.streak + ' in a row!');
       }
       const t = pointAt(n, n.s), tx = px(t[0]), ty = py(t[1]), m = G.cs;
-      if (tx < -m || ty < -m || tx > cw + m || ty > ch + m) n.state = 'gone';
+      // Tail coordinates are in the board's view space, before the canvas rotation.
+      const width = G.rotated ? ch : cw, height = G.rotated ? cw : ch;
+      if (tx < -m || ty < -m || tx > width + m || ty > height + m) n.state = 'gone';
     } else if (n.state === 'slide') { // sliding game: on its way to where it will stay
       moving = true;
       n.v = Math.min(46, n.v + 70 * dt); n.s += n.v * dt;

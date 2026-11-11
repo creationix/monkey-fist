@@ -4,6 +4,43 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
+test('the top-left tan rope in X10BS-E5DDK level 4 animates fully before disappearing', async () => {
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true });
+  try {
+    for (const [width, height] of [[1978, 1248], [900, 1440]]) {
+      const page = await browser.newPage({ viewport: { width, height } });
+      // Step the animation ourselves to check its very first frame, not just its final state.
+      await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
+      await page.goto(process.env.MF_TEST_URL || 'http://127.0.0.1:4173/');
+      const result = await page.evaluate(() => {
+        __mf.useSet('X10BS-E5DDK'); __mf.startLevel(4);
+        const g = __mf.G, tan = g.noodles[23];
+        // The screenshot has one prior tap: slide the purple rope out of the tan rope's way.
+        __mf.tap(g.noodles[8]);
+        for (let i = 0; i < 120; i++) __mf.update(1 / 60);
+        const original = tan.cur.map(p => ({ ...p }));
+        __mf.tap(tan);
+        const start = tan.state;
+        __mf.update(1 / 60);
+        const firstFrame = { state: tan.state, distance: tan.s };
+        for (let i = 0; i < 300; i++) __mf.update(1 / 60);
+        const end = { state: tan.state, popped: tan.popped };
+        __mf.undo();
+        for (let i = 0; i < 300; i++) __mf.update(1 / 60);
+        return { rotated: g.rotated, start, firstFrame, end, original, restored: tan.cur, restoredState: tan.state };
+      });
+      assert.equal(result.rotated, width > height);
+      assert.equal(result.start, 'out');
+      assert.equal(result.firstFrame.state, 'out', `${width}x${height}: rope must remain visible while leaving`);
+      assert.ok(result.firstFrame.distance > 0, 'rope should move on the first frame');
+      assert.deepEqual(result.end, { state: 'gone', popped: true }, 'complete the exit and play its effect');
+      assert.equal(result.restoredState, 'idle');
+      assert.deepEqual(result.restored, result.original, 'undo must restore the exited rope');
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
 test('resizing fits the board, preserves moves, and maps taps through either orientation', async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true });
   try {

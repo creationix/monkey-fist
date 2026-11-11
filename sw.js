@@ -1,6 +1,6 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v20';
+const CACHE = 'monkey-fist-v21';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js', './music.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
