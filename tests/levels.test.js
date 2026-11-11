@@ -667,7 +667,7 @@
     eq(L.parseCode(' n20 s - abc12'), { mode: 'N', count: 20, big: false, slide: true, seed: 'ABC12' });
   });
   test('bad share codes are rejected', () => {
-    for (const bad of ['', 'hello', 'Z20-ABCDE', 'C60-MONKEYFIST', 'N20T-ABCDE', 'N20SB-ABCDE', 'N20SS-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
+    for (const bad of ['', 'hello', 'Z20-ABCDE', 'T12-MONKEYFIST', 'T12BS-ABCDE', 'N20T-ABCDE', 'N20SB-ABCDE', 'N20SS-ABCDE', 'N15-ABCDE', 'N20-', 'N20ABCDE', 'N20-AB CD', 'N20-ABCDEFGHIJK']) eq(L.parseCode(bad), null, JSON.stringify(bad));
   });
   test('random seeds are five unambiguous characters', () => {
     for (let i = 0; i < 200; i++) ok(/^[A-HJ-NP-Z2-9]{5}$/.test(L.randomSeed()), 'bad seed');

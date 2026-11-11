@@ -25,8 +25,10 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 
 Both games:
 
-- **Levels**: 60 built-in levels for each game, from tangle 1 up to 300, starting gently. The sliding game's first few have no knots.
-- **Custom**: generate your own set of 10, 20 or 30 levels at Easy, Normal, Hard or Extreme, for either game. Each set has a share code such as `N20S-K7F3Q`; anyone who enters the same code gets exactly the same levels. The `S` marks a sliding set.
+- **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Progressive, Easy, Normal, Hard, and Extreme support 10, 20, 30, or 60 levels. The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
+- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Its boards are unchanged, and old stars, unlocked levels, and Kid-mode times are migrated to the canonical set code.
+- **Share codes**: every set has a code such as `N20S-K7F3Q`; paste the whole code into the Seed field to select that same set. The `S` marks sliding rules. Switching sets keeps their progress; recent sets are quick shortcuts, not a separate interface.
+- **Twists**: choose Twists in the same Style selector for a 12-level introduction to mirrors, key gates, and springs. Its code is `T12S-MONKEYFIST`. Other seeds deterministically turn or reflect the curated layouts; they do not generate wholly new Twists puzzles yet.
 - **Responsive layout**: wide screens put the controls beside the puzzle. Boards automatically turn to whichever orientation gives the largest cells, including when resizing or rotating a device mid-level. The puzzle, progress, hints, and undo stay the same.
 
 ## Music
@@ -35,9 +37,32 @@ The soundtrack has six original synthesised songs: **Canopy Hop**, **Vine Swing*
 
 Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the harmony of the current song. Music remains independent of sound effects, and turning Music off stops its synthesised voices instead of merely silencing them.
 
+## Twists mechanics
+
+All gameplay is still ordinary rope taps, with three undos per level. Mirrors are thin,
+two-sided diagonal reflectors that turn the head 90 degrees; the body follows the turn.
+Lettered gates open after the matching key rope has fully left. Springs stop an approaching
+rope, swap head and tail automatically, and end that move. Once all remaining ropes have
+clear exits, auto-release completes the board without adding player taps.
+
+The first two levels teach mirrors, the next two gates, and the next two springs. Levels
+7–9 introduce pairs; levels 10–12 combine all three, ending with a generated tangle adapted
+and curated for the pack. Every level has a replay-verified full solution and exact
+player-tap par. The fixed pack and all eight orientation transforms are tested.
+
+`mechanics.js` is the shared transition kernel for main-game Twists and the playground.
+It computes the actual route, gate state, reversal, and exit geometry; main-game animation,
+hints, undo, auto-release, and deadlock checks use that same result. Its bounded solver
+uses full rope geometry because springs can revisit earlier states; budget exhaustion
+remains unknown rather than a false loss. Existing straight-track sets continue to use
+their optimized solver in `levels.js`.
+
+All production scripts use matching versioned asset URLs and are cached for offline play.
+The experimental playground remains a separate subpage, but shares the movement kernel.
+
 ## How levels are made
 
-All level logic is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after.
+Procedural straight-track generation is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Curated Twists definitions live in [`twists.js`](twists.js), with routed movement in [`mechanics.js`](mechanics.js).
 
 **Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
 
@@ -93,7 +118,7 @@ That one rule lets the builder do two useful things on purpose. It can lay a rop
 
 Board size follows from difficulty: Easy sets are small boards, and the top of Extreme is 12x16.
 
-**Bigger boards** (a Custom option, `B` in the share code) allows boards up to 16x22 and doubles the top of each range, at the cost of small cells on a phone. The built-in levels never use it.
+**Bigger boards** (a Levels option, `B` in the share code) allows boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off; Twists uses fixed curated board sizes.
 
 **Cost.** For `R` ropes on a `W x H` board:
 

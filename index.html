@@ -51,6 +51,7 @@
   #undoN { position: absolute; right: -5px; top: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: #2a1c00; font: 800 12px/20px system-ui, sans-serif; text-align: center; pointer-events: none; }
   .lvBtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .iconBtn:active { transform: scale(.94); }
+  .iconBtn:disabled { opacity: .35; cursor: default; }
   #tip { min-height: 18px; font-size: 14px; color: var(--muted); text-align: center; max-width: 560px; }
   #boardWrap { flex: 1; width: 100%; min-height: 0; position: relative; }
   #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
@@ -119,8 +120,20 @@
   .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .seg button { border: 0; border-radius: 12px; padding: 13px 0; background: var(--panel2); color: var(--text); font-weight: 800; font-size: 15px; cursor: pointer; }
   .seg button.on { background: var(--accent); color: #2a1c00; }
-  #segMode { grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  #segMode button { font-size: 13px; }
+  .set-layout { display: grid; gap: 20px; width: 100%; text-align: left; }
+  .set-controls, .set-boards { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .set-controls label { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .set-controls select { display: block; width: 100%; height: 44px; margin-top: 4px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--panel2); color: var(--text); font: 700 15px system-ui, sans-serif; }
+  .set-controls select:focus { outline: 2px solid var(--accent); }
+  .set-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #scrLevels .card { max-width: 1000px; }
+  #setNote { margin: 0; font-size: 13px; text-align: center; }
+  #rangeNote { font-size: 12px; color: var(--muted); text-align: center; }
+  #lvGrid { margin: 0; max-height: 42vh; }
+  @media (min-width: 800px) {
+    .set-layout { grid-template-columns: 280px minmax(0, 1fr); align-items: start; gap: 28px; }
+    #lvGrid { grid-template-columns: repeat(6, 1fr); max-height: calc(100dvh - 220px); }
+  }
   .toggle:disabled { opacity: .35; cursor: default; }
   .seedRow { gap: 10px; padding: 8px 8px 8px 16px; }
   #seedIn { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 10px; padding: 0 12px; background: #0c2531; color: var(--text); text-align: center;
@@ -136,9 +149,7 @@
   @media (max-height: 660px) { #ver { position: static; } } /* the menu may scroll here: keep the label under the card, not over it */
   .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; }
   @media (min-width: 900px) and (min-height: 500px) {
-    #scrLevels .card { max-width: 760px; }
-    #lvGrid { grid-template-columns: repeat(10, 1fr); max-height: 65vh; }
-    #scrCustom .card { max-width: 520px; }
+    #scrLevels .card { max-width: 1000px; }
   }
 </style>
 </head>
@@ -162,37 +173,37 @@
   <h1>Monkey Fist</h1>
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
   <button class="big" id="playBtn">Play</button>
-  <div class="row2"><button class="big alt" id="levelsBtn">Levels</button><button class="big alt" id="customBtn">Custom</button></div>
+  <button class="big alt" id="levelsBtn">Levels</button>
   <div class="row2">
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 j</div>
+  <div id="ver">build 2026-11-11 l</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
-  <h2 id="lvTitle">Levels</h2>
-  <p class="sub" id="setNote"></p>
-  <div id="lvGrid"></div>
-  <button class="big alt" id="backBtn">Back</button>
-  <button class="link" id="resetBtn">Hold to reset progress</button>
-</div></div>
-
-<div class="screen" id="scrCustom"><div class="card">
-  <h2>Custom levels</h2>
-  <div class="seg" id="segMode"><button data-v="E">Easy</button><button data-v="N">Normal</button><button data-v="H">Hard</button><button data-v="X">Extreme</button></div>
-  <div class="seg" id="segCount"><button data-v="10">10 levels</button><button data-v="20">20 levels</button><button data-v="30">30 levels</button></div>
+  <div class="set-header"><h2 id="lvTitle">Levels</h2><button class="big alt" id="backBtn">Back</button></div>
+  <div class="set-layout"><div class="set-controls">
+  <div class="row2">
+    <label>Style<select id="setMode" aria-label="Level style"><option value="C">Progressive</option><option value="E">Easy</option><option value="N">Normal</option><option value="H">Hard</option><option value="X">Extreme</option><option value="T">Twists</option></select></label>
+    <label>Levels<select id="setCount" aria-label="Number of levels"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="12" hidden>12</option></select></label>
+  </div>
   <div class="row"><span>Bigger boards<small>Up to 16×22, twice the tangle</small></span> <button class="toggle" id="tBig" aria-label="Bigger boards"></button></div>
-  <div class="row"><span>Sliding ropes<small>Off for the original game</small></span> <button class="toggle" id="tCSlide" aria-label="Sliding ropes"></button></div>
-  <div class="row seedRow"><span>Seed</span><input id="seedIn" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
-    <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button></div>
-  <p class="sub">Share code <button class="code" id="codeOut" title="Copy"></button><br><small id="rangeNote"></small></p>
-  <button class="big" id="genBtn">Play these levels</button>
+  <label>Seed</label>
+  <div class="row seedRow"><input id="seedIn" type="text" maxlength="24" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Seed">
+    <button class="iconBtn" id="diceBtn" title="New random seed" aria-label="New random seed"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button>
+    <button class="iconBtn" id="defaultSeedBtn" title="Restore default seed" aria-label="Restore default seed"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg></button></div>
+  <div style="text-align:center"><button class="code" id="codeOut" title="Copy share code"></button></div>
+  <div id="rangeNote"></div>
+  <button class="big" id="genBtn">Continue</button>
   <div id="recentLbl" class="sub">Recent</div>
   <div id="recent"></div>
-  <button class="big alt" id="customBack">Back</button>
+  </div><div class="set-boards">
+    <p class="sub" id="setNote"></p><div id="lvGrid"></div>
+    <button class="link" id="resetBtn">Hold to reset progress</button>
+  </div></div>
 </div></div>
 
 <div class="screen dim" id="scrResult"><div class="card">
@@ -205,8 +216,12 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js"></script>
-<script src="music.js"></script>
+<script src="levels.js?v=24"></script>
+<script src="sets.js?v=24"></script>
+<script src="mechanics.js?v=24"></script>
+<script src="twists.js?v=24"></script>
+<script src="mechanics-render.js?v=24"></script>
+<script src="music.js?v=24"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -219,7 +234,7 @@ const SOLVE_BUDGET = 4000; // how hard to look for a way out after each move in 
 // ---------- persistence ----------
 let save = { sound: true, music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
-// Progress is kept per level set: the built-in "campaign" set and the most recent custom sets.
+// Progress is kept per seeded set. Legacy campaign keys are migrated below without losing progress.
 const GEN = 8; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
   const far = Math.max(1, Math.min(((save.sets && save.sets.campaign) || save).max | 0, MFLevels.CAMPAIGN.count));
@@ -227,7 +242,7 @@ if (save.gen !== GEN) { // keep how far the player got in the built-in levels; s
 }
 delete save.stars; delete save.max;
 if (!Array.isArray(save.recent)) save.recent = [];
-if (!save.custom || !MFLevels.PLAYER_MODES.includes(save.custom.mode) || !MFLevels.COUNTS.includes(save.custom.count)) save.custom = { mode: 'N', count: 20, big: false, seed: MFLevels.randomSeed() };
+if (!save.custom || (!(save.custom.mode === 'T' && save.custom.count === 12) && (!MFLevels.SET_MODES.includes(save.custom.mode) || !MFLevels.SET_COUNTS.includes(save.custom.count)))) save.custom = MFSets.defaults(save.slide !== false && !save.kid);
 delete save.custom.twisty; save.custom.big = !!save.custom.big;
 save.slide = save.slide !== false;
 // The sliding game's levels have a generation number of their own, so that changing how they are
@@ -243,6 +258,7 @@ if (save.sgen !== SLIDE_GEN) {
 const sliding = () => save.slide && !save.kid;
 save.custom.slide = save.custom.slide === undefined ? sliding() : !!save.custom.slide;
 save.custom.seed = MFLevels.cleanSeed(save.custom.seed) || MFLevels.randomSeed();
+MFSets.migrate(save);
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- audio (synthesised) ----------
@@ -346,7 +362,7 @@ for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) w
 // Don't keep playing when the app is in the background.
 document.addEventListener('visibilitychange', () => { if (AC) { if (document.hidden) AC.suspend(); else AC.resume().catch(() => {}); } });
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx.click(); });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
 
 // ---------- levels ----------
 // Level generation and difficulty scoring live in levels.js, which is unit tested in tests/.
@@ -364,13 +380,14 @@ const KNOT_TIP = 'A loop of ropes is a knot. Slide one of them forward to let th
 // Kid mode belongs to the original game: no hearts, a clock, and a pointer after every bump.
 const kidNow = () => save.kid && !G.slide;
 function startLevel(n) {
-  const d = SET.levels[n - 1], L = MFLevels.levelFrom(d), rng = mulberry32(d.seed ^ 0x5bd1e995);
+  const d = SET.levels[n - 1], L = d.twist ? MFTwists.levelFrom(d) : MFLevels.levelFrom(d), rng = mulberry32((typeof d.seed === 'string' ? MFLevels.hashString(d.seed) : d.seed) ^ 0x5bd1e995);
   G.gen++;
   if (musicPlayer) musicPlayer.setLevel(n);
   Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
     // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
     // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes that can never move again
-    slide: !!SET.slide, history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, fixed: [] });
+    slide: !!SET.slide, twist: !!L.twist, features: L.definition || null, paths: L.twist ? L.ropes.slice() : null,
+    history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, fixed: [] });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
   G.noodles = L.ropes.map((path, id) => {
@@ -379,11 +396,11 @@ function startLevel(n) {
     lastColor = c;
     // path is where the rope starts and never changes: it is what the rope is drawn along. off is how many
     // cells it has slid, and cur the cells it is on now. In the original game off stays 0 and cur is path.
-    return { id, path, cur: path, off: 0, d: headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
+    return { id, path, cur: path, off: 0, d: L.twist ? MFMechanics.direction(L.definition, path) : headDir(path), color: PALETTE[c], state: 'idle', s: 0, v: 0, phase: 0, bumpMax: 0, flash: 0, popped: false, exitAt: 0, appear: -id * 0.03 };
   });
   if (G.slide) tangleNow();
-  $('lvName').textContent = 'Level ' + n + (SET.custom ? '/' + SET.levels.length : '');
-  G.tip = SET.custom ? '' : G.slide ? TIPS_SLIDE[n - 1] || (d.knots && n <= 8 ? KNOT_TIP : '') : TIPS[n - 1] || '';
+  $('lvName').textContent = (G.twist ? 'Twist ' : 'Level ') + n + '/' + SET.levels.length;
+  G.tip = G.twist ? L.definition.note : SET.mode === 'C' ? (G.slide ? TIPS_SLIDE[n - 1] || (d.knots && n <= 8 ? KNOT_TIP : '') : TIPS[n - 1] || '') : '';
   $('tip').textContent = G.tip;
   show(null); resize(); hud();
 }
@@ -413,6 +430,7 @@ const onBoard = () => G.noodles.filter(n => n.state === 'idle' || n.state === 'b
 // the level's difficulty and falls to 0 as the board empties. Also notes whether anything is still blocked.
 // (The sliding game shows taps against par instead, so there it only notes whether anything is blocked.)
 function tangleNow() {
+  if (G.twist) { G.clear = MFMechanics.allFree(G.features, G.paths); return 0; }
   const paths = onBoard().map(n => n.cur);
   G.clear = !paths.length || MFLevels.nothingBlocked(paths, G.W, G.H);
   return G.slide || !paths.length ? 0 : MFLevels.difficulty(paths, G.W, G.H);
@@ -421,6 +439,12 @@ function tangleNow() {
 // sets G.lost when there is certainly none. If the search runs out of budget the board is given the
 // benefit of the doubt.
 function judge(budget) {
+  if (G.twist) {
+    const s = MFMechanics.solve(G.features, G.paths, budget || SOLVE_BUDGET);
+    G.lost = s.solved === false; G.fixed = [];
+    G.plan = s.solved ? s.moves : [];
+    return;
+  }
   const ns = onBoard(), at = new Map(ns.map((n, j) => [n.id, j]));
   G.lost = false; G.fixed = [];
   if (!ns.length) { G.plan = []; return; }
@@ -441,10 +465,12 @@ function warn() {
 // Sliding game: the level is lost when the board cannot be cleared, nothing on it can move, and there is no undo left.
 function stuck() {
   if (!G.lost || G.ended || G.undos > 0) return;
+  if (G.twist) { if (!G.paths.some((p, i) => p && MFMechanics.tap(G.features, G.paths, i))) finish(false); return; }
   if (!onBoard().some(n => { const r = ray(n.cur, G.occ, G.W, G.H); return r.clear || r.dist > 0; })) finish(false);
 }
 function tap(n, auto) {
   if (!G.active || G.ended || n.state !== 'idle' || (G.auto && !auto) || (!G.slide && G.hearts <= 0)) return;
+  if (G.twist) { tapTwist(n, auto); return; }
   G.hint = -1;
   if (!auto) { G.timing = true; G.taps++; } // Count actual player taps, including bumps, never automatic releases.
   const r = ray(n.cur, G.occ, G.W, G.H);
@@ -469,10 +495,58 @@ function tap(n, auto) {
     G.streak = 0; hud();
   }
 }
+function tapTwist(n, auto) {
+  // One routed move settles before another starts, so gate and spring transitions are unambiguous.
+  if (G.noodles.some(m => m.state === 'twist')) return;
+  G.hint = -1;
+  if (!auto) { G.taps++; G.timing = true; }
+  const next = MFMechanics.tap(G.features, G.paths, n.id);
+  if (!next) { n.flash = .7; G.shake = .3; sfx.thud(); hud(); return; }
+  if (!auto) G.history.push({ twist: true, paths: G.paths.slice(), plan: G.plan.slice(), lost: G.lost });
+  n.path = n.cur; n.route = next.route; n.s = 0; n.v = 7; n.state = 'twist'; n.move = next; n.automatic = !!auto;
+  n.bounceWait = next.event === 'bounce' ? .18 : 0;
+  n.d = headDir(next.route); // extrapolation beyond the compiled exit route
+  sfx.slide(); hud();
+}
+function settleTwist(n) {
+  const move = n.move;
+  G.paths = move.paths;
+  syncTwistOccupancy();
+  n.cur = move.paths[n.id]; n.route = null; n.move = null; n.s = 0;
+  if (n.cur) {
+    n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.state = 'idle';
+    if (move.event === 'bounce') { n.flash = .65; toast('Boing!'); sfx.undo(); } else sfx.thud();
+  } else { n.state = 'gone'; G.left--; G.streak++; sfx.pop(G.streak); }
+  G.tangle = tangleNow();
+  if (!n.automatic) {
+    if (G.plan[0] === n.id) G.plan.shift(); else judge();
+    if (G.lost && !G.warned) warn();
+    if (!G.lost && G.clear && G.left) { G.auto = true; G.autoT = .35; toast('All clear!'); }
+  }
+  hud();
+}
+function undoTwist() {
+  const move = G.history.pop(); if (!move) return;
+  G.paths = move.paths; G.plan = move.plan; G.left = G.paths.filter(Boolean).length;
+  syncTwistOccupancy();
+  for (const n of G.noodles) {
+    n.cur = G.paths[n.id]; n.route = null; n.move = null; n.s = 0; n.off = 0;
+    n.state = n.cur ? 'idle' : 'gone';
+    if (n.cur) { n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.flash = .4; }
+  }
+  G.undos--; G.warned = false; G.lost = !!move.lost; G.hint = -1; G.tangle = tangleNow();
+  $('tip').textContent = G.tip; sfx.undo(); hud();
+  if (G.lost) warn();
+}
+function syncTwistOccupancy() {
+  G.occ.fill(-1);
+  G.paths.forEach((path, id) => { for (const p of path || []) G.occ[p.y * G.W + p.x] = id; });
+}
 // Sliding game: take the last move back. Each level allows only a few, and the tap still counts.
 function undo() {
   if (!G.slide || !G.active || G.ended || G.auto || !G.history.length) return;
   if (G.undos <= 0) { toast('No undos left'); return; }
+  if (G.twist) { undoTwist(); return; }
   const m = G.history.pop(), n = G.noodles[m.id];
   if (m.out) { G.left++; n.popped = false; n.s = Math.min(n.s, n.exitAt + 1); }
   else for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
@@ -532,14 +606,14 @@ function finish(win) {
 // ---------- geometry ----------
 // A noodle slides along its own body, then straight on in its head's direction.
 function pointAt(n, t) {
-  const p = n.path, last = p.length - 1;
+  const p = n.route || n.path, last = p.length - 1;
   if (t >= last) return [p[last].x + n.d[0] * (t - last), p[last].y + n.d[1] * (t - last)];
   const i = Math.floor(t), f = t - i;
   return [p[i].x + (p[i + 1].x - p[i].x) * f, p[i].y + (p[i + 1].y - p[i].y) * f];
 }
 function shape(n) {
   const last = n.path.length - 1, a = n.s, b = n.s + last, pts = [pointAt(n, a)];
-  for (let k = Math.floor(a) + 1; k < b && k <= last; k++) pts.push(pointAt(n, k));
+  for (let k = Math.floor(a) + 1; k < b && k < (n.route || n.path).length; k++) pts.push(pointAt(n, k));
   pts.push(pointAt(n, b));
   return pts;
 }
@@ -571,7 +645,14 @@ function update(dt) {
   for (const n of G.noodles) {
     if (n.appear < 1) n.appear = Math.min(1, n.appear + dt * 3.5);
     if (n.flash > 0) n.flash = Math.max(0, n.flash - dt * 3);
-    if (n.state === 'out') {
+    if (n.state === 'twist') {
+      moving = true;
+      n.v = Math.min(30, n.v + 55 * dt); n.s = Math.min(n.move.distance, n.s + n.v * dt);
+      if (n.s >= n.move.distance) {
+        n.bounceWait -= dt;
+        if (n.bounceWait <= 0) settleTwist(n);
+      }
+    } else if (n.state === 'out') {
       moving = true;
       n.v = Math.min(46, n.v + 70 * dt); n.s += n.v * dt;
       if (!n.popped && n.s >= n.exitAt) {
@@ -649,7 +730,12 @@ function drawNoodle(c, n, time, cs, ox, oy, hinted, fixed) {
   const pts = shape(n), a = Math.max(0, n.appear), ease = a < 1 ? 1 - Math.pow(1 - a, 3) : 1;
   if (ease <= 0) return;
   const pulse = hinted ? 0.5 + 0.5 * Math.sin(time * 9) : 0;
-  const w = cs * (0.4 + 0.07 * pulse) * ease, head = pts[pts.length - 1], hx = X(head[0]), hy = Y(head[1]), dx = n.d[0], dy = n.d[1];
+  const w = cs * (0.4 + 0.07 * pulse) * ease, head = pts[pts.length - 1], hx = X(head[0]), hy = Y(head[1]);
+  let dx = n.d[0], dy = n.d[1];
+  if (n.route) {
+    const ahead = pointAt(n, n.s + n.path.length - 1 + .001), length = Math.hypot(ahead[0] - head[0], ahead[1] - head[1]);
+    if (length) { dx = (ahead[0] - head[0]) / length; dy = (ahead[1] - head[1]) / length; }
+  }
   const body = col => {
     c.beginPath(); c.moveTo(X(pts[0][0]), Y(pts[0][1]));
     for (let i = 1; i < pts.length; i++) c.lineTo(X(pts[i][0]), Y(pts[i][1]));
@@ -678,6 +764,13 @@ function drawNoodle(c, n, time, cs, ox, oy, hinted, fixed) {
   if (n.flash > 0) {
     c.globalAlpha = n.flash * 0.75; c.lineWidth = w; body('#fff'); arrow(0, '#fff'); c.globalAlpha = 1;
   }
+  if (G.twist) {
+    const keys = [...new Set((G.features.gates || []).map(g => g.key))], key = keys.indexOf(n.id);
+    if (key >= 0) {
+      const x = X(pts[0][0]), y = Y(pts[0][1]); c.fillStyle = '#081822'; c.beginPath(); c.arc(x, y, cs * .16, 0, TAU); c.fill();
+      c.fillStyle = '#fff'; c.font = '900 ' + cs * .22 + 'px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String.fromCharCode(65 + key), x, y);
+    }
+  }
 }
 function draw(time) {
   const c = ctx, cs = G.cs;
@@ -693,6 +786,7 @@ function draw(time) {
   c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.08)'; c.stroke();
   c.fillStyle = 'rgba(255,255,255,.1)';
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
+  if (G.twist) MFMechanicsRender.draw(c, G.features, G.paths, px, py, cs, id => G.noodles[id].color);
   const fixed = n => G.lost && G.warned && G.fixed.includes(n.id);
   for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint, fixed(n));
   for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false, fixed(n));
@@ -722,114 +816,128 @@ function noodleAt(e) {
 }
 cv.addEventListener('pointerdown', e => { const n = noodleAt(e); if (n) tap(n); });
 
-// ---------- level sets ----------
-// The built-in levels and every custom set come from the same generator (levels.js):
-// the built-in ones are just a fixed seed, one set for each game ('campaign' is the original
-// game's, 'slide' the sliding game's). A set is generated when first opened (well under a second)
-// and kept for the rest of the session. Which game a set is for is part of the set.
-const setCache = {}, BUILT_IN = { campaign: MFLevels.CAMPAIGN, slide: MFLevels.CAMPAIGN_SLIDE };
-const builtIn = () => (sliding() ? 'slide' : 'campaign');
+// ---------- seeded level sets ----------
+const setCache = {};
 function getSet(id) {
-  if (!setCache[id]) {
-    const opts = BUILT_IN[id] || MFLevels.parseCode(id);
-    if (!opts) return null;
-    const s = MFLevels.generateSet(opts);
-    setCache[id] = { id, custom: !BUILT_IN[id], slide: s.slide, code: s.code, levels: s.levels, asked: s.count };
+  const opts = MFSets.options(id); if (!opts) return null;
+  const canonical = MFSets.code(opts);
+  if (!setCache[canonical]) {
+    const s = opts.mode === 'T' ? MFTwists.generateSet(opts) : MFLevels.generateSet(opts);
+    setCache[canonical] = { id: canonical, custom: true, slide: s.slide, code: s.code, levels: s.levels, asked: s.count, mode: s.mode };
   }
-  return setCache[id];
+  return setCache[canonical];
 }
 let SET = null;
 function useSet(id) { const s = getSet(id); if (s) SET = s; return s; }
 const progress = () => save.sets[SET.id] || (save.sets[SET.id] = { stars: {}, max: 1 });
+const customCode = () => MFSets.code(save.custom);
+function activateCurrent() {
+  save.custom = MFSets.normalize(save.custom);
+  const code = customCode(); useSet(code);
+  save.recent = [code, ...save.recent.filter(c => c !== code)].slice(0, 6);
+  persist(); return SET;
+}
 
-// ---------- screens ----------
-const SCREENS = { menu: 'scrMenu', levels: 'scrLevels', custom: 'scrCustom', result: 'scrResult' };
+// ---------- one level-set screen ----------
+const SCREENS = { menu: 'scrMenu', levels: 'scrLevels', result: 'scrResult' };
 function show(name) {
+  if (name === 'custom') name = 'levels'; // old entry points resolve to the same screen
   for (const k in SCREENS) $(SCREENS[k]).classList.toggle('show', k === name);
-  if (name === 'levels') buildLevels();
-  if (name === 'custom') buildCustom();
+  if (name === 'levels') { activateCurrent(); buildCustom(); buildLevels(); }
   if (name === 'menu') {
-    const m = Math.min((save.sets[builtIn()] || { max: 1 }).max, MFLevels.CAMPAIGN.count);
+    activateCurrent();
+    const m = Math.min(progress().max, SET.levels.length);
     $('playBtn').textContent = m > 1 ? 'Play · Level ' + m : 'Play';
   }
 }
 const LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
-  $('lvTitle').textContent = SET.custom ? 'Custom levels' : 'Levels';
-  $('setNote').textContent = !SET.custom ? '' :
-    'Code ' + SET.code + ' · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty +
-    (n < SET.asked ? ' · only ' + n + ' levels of different difficulty were possible' : '');
+  $('lvTitle').textContent = 'Levels';
+  $('setNote').textContent = SET.mode === 'T' ? '12 Twists · mirrors, key gates, and springs' :
+    n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty;
+  $('genBtn').textContent = P.max > 1 ? 'Continue · Level ' + Math.min(P.max, n) : 'Play · Level 1';
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
     const b = document.createElement('button'), st = P.stars[i] || 0, open = i <= P.max;
     b.className = 'lvBtn'; b.disabled = !open;
-    const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st); // kid mode shows best time, not stars
+    const badge = save.kid && !SET.slide ? (P.times && P.times[i] ? fmtTime(P.times[i]) : '') : '★'.repeat(st);
     b.innerHTML = open ? i + '<small>' + badge + '</small>' : LOCK;
+    if (SET.mode === 'T') b.title = MFTwists.PACK[i - 1].title;
     b.onclick = () => startLevel(i);
     grid.appendChild(b);
   }
-  const cur = grid.children[Math.min(n, P.max) - 1]; if (cur) cur.scrollIntoView({ block: 'center' });
+  // Scroll only the grid, not the settings panel or the whole short-screen document.
+  const cur = grid.children[Math.min(n, P.max) - 1];
+  if (cur) grid.scrollTop = Math.max(0, cur.offsetTop - grid.offsetTop - grid.clientHeight / 2);
 }
-
-// ---------- custom level sets ----------
-// A set is fully described by its share code: difficulty, number of levels, board size limit and seed.
-const customCode = () => MFLevels.encodeCode(save.custom);
 function buildCustom() {
-  const c = save.custom;
-  for (const b of $('segMode').children) b.classList.toggle('on', b.dataset.v === c.mode);
-  for (const b of $('segCount').children) b.classList.toggle('on', +b.dataset.v === c.count);
-  const range = MFLevels.rangeFor(c.mode, c.big);
-  $('tBig').classList.toggle('on', !!c.big); $('tCSlide').classList.toggle('on', !!c.slide);
-  const d0 = MFLevels.floorFor(range[0]), d1 = MFLevels.floorFor(range[1]), depth = d0 === d1 ? d1 + '+' : (d0 || 'any') + ' to ' + d1 + '+';
-  const k0 = MFLevels.knotFloorFor(range[0]), k1 = MFLevels.knotFloorFor(range[1]);
-  $('rangeNote').textContent = 'Tangle ' + range[0] + ' to ' + range[1] + (c.slide ? ' · ' + (k0 === k1 ? k1 : k0 + ' to ' + k1) + ' knots or more a level' : ' · ropes blocked ' + depth + ' deep on average');
+  const c = save.custom, twist = c.mode === 'T';
+  $('setMode').value = c.mode; $('setCount').value = c.count;
+  $('setCount').disabled = twist;
+  $('setCount').querySelector('[value="12"]').hidden = !twist;
+  $('tBig').classList.toggle('on', !!c.big); $('tBig').disabled = twist;
   if (document.activeElement !== $('seedIn')) $('seedIn').value = c.seed;
+  $('defaultSeedBtn').disabled = c.seed === MFSets.DEFAULT_SEED;
   $('codeOut').textContent = customCode();
+  $('rangeNote').textContent = twist ? '12 curated puzzles. Other seeds turn and reflect their layouts. Sliding rules apply.' :
+    c.mode === 'C' ? 'A gentle start, growing into deeper tangles.' : 'Every seed makes a repeatable set at this difficulty.';
   const box = $('recent'); box.innerHTML = '';
-  for (const code of save.recent) {
-    const o = MFLevels.parseCode(code); if (!o) continue;
+  for (const code of save.recent.filter(code => code !== customCode())) {
+    const opts = MFSets.options(code); if (!opts) continue;
     const b = document.createElement('button'); b.className = 'chip'; b.textContent = code;
-    b.onclick = () => { Object.assign(save.custom, o); persist(); playCustom(); };
+    b.onclick = () => { save.custom = MFSets.normalize(opts); syncSetGame(); scheduleSet(); };
     box.appendChild(b);
   }
   $('recentLbl').style.display = box.children.length ? '' : 'none';
 }
-function playCustom() {
-  const code = customCode();
-  if (!useSet(code)) return;
-  save.recent = [code, ...save.recent.filter(c => c !== code)].slice(0, 6);
-  for (const k of Object.keys(save.sets)) if (!BUILT_IN[k] && !save.recent.includes(k)) delete save.sets[k]; // progress is kept for recent sets only
-  persist(); show('levels');
+function syncSetGame() {
+  if (save.custom.mode === 'T') { save.slide = true; save.kid = false; }
+  else { save.slide = !!save.custom.slide; if (save.slide) save.kid = false; }
+  persist(); syncSound();
 }
-const segPick = (id, apply) => { $(id).onclick = e => { const b = e.target.closest('button'); if (b) { apply(b.dataset.v); persist(); buildCustom(); } }; };
-segPick('segMode', v => { save.custom.mode = v; });
-segPick('segCount', v => { save.custom.count = +v; });
-$('tBig').onclick = () => { save.custom.big = !save.custom.big; persist(); buildCustom(); };
-$('tCSlide').onclick = () => { save.custom.slide = !save.custom.slide; persist(); buildCustom(); };
-$('diceBtn').onclick = () => { save.custom.seed = MFLevels.randomSeed(); $('seedIn').blur(); persist(); buildCustom(); };
+let setTimer = 0;
+function scheduleSet(delay = 30) {
+  clearTimeout(setTimer); buildCustom(); persist();
+  $('genBtn').disabled = true; $('lvGrid').textContent = 'Generating…';
+  setTimer = setTimeout(() => {
+    setTimer = 0;
+    try { activateCurrent(); buildCustom(); buildLevels(); }
+    finally { $('genBtn').disabled = false; }
+  }, delay);
+}
+function playCustom() { activateCurrent(); show('levels'); }
+$('setMode').onchange = () => {
+  const previous = save.custom.mode; save.custom.mode = $('setMode').value;
+  if (save.custom.mode === 'T') Object.assign(save.custom, { count: 12, big: false, slide: true });
+  else if (previous === 'T') save.custom.count = save.custom.mode === 'C' ? 60 : 20;
+  syncSetGame(); scheduleSet();
+};
+$('setCount').onchange = () => { save.custom.count = +$('setCount').value; scheduleSet(); };
+$('tBig').onclick = () => { save.custom.big = !save.custom.big; scheduleSet(); };
+$('diceBtn').onclick = () => { save.custom.seed = MFLevels.randomSeed(); $('seedIn').blur(); scheduleSet(); };
+$('defaultSeedBtn').onclick = () => { save.custom.seed = MFSets.DEFAULT_SEED; $('seedIn').blur(); scheduleSet(); };
 $('seedIn').addEventListener('input', () => {
-  const full = MFLevels.parseCode($('seedIn').value); // pasting a whole share code sets everything at once
-  if (full) { Object.assign(save.custom, full); $('seedIn').value = full.seed; }
-  else { const s = MFLevels.cleanSeed($('seedIn').value); if (s) save.custom.seed = s; }
-  persist(); buildCustom();
+  const full = MFLevels.parseCode($('seedIn').value);
+  if (full) { save.custom = MFSets.normalize(full); $('seedIn').value = full.seed; syncSetGame(); }
+  else { const seed = MFLevels.cleanSeed($('seedIn').value); if (seed) save.custom.seed = seed; }
+  scheduleSet(250);
 });
 $('seedIn').addEventListener('blur', () => { $('seedIn').value = save.custom.seed; });
 $('seedIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('seedIn').blur(); });
 $('codeOut').onclick = () => {
   const code = customCode(), el = $('codeOut');
-  const done = () => { el.textContent = 'Copied'; setTimeout(() => { el.textContent = customCode(); }, 900); };
-  try { navigator.clipboard.writeText(code).then(done, () => {}); } catch (e) {}
+  try { navigator.clipboard.writeText(code).then(() => { el.textContent = 'Copied'; setTimeout(() => { el.textContent = customCode(); }, 900); }, () => {}); } catch (e) {}
 };
-
 function quit() { G.gen++; G.active = false; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); }
-$('playBtn').onclick = () => { useSet(builtIn()); startLevel(Math.min(progress().max, SET.levels.length)); };
-$('levelsBtn').onclick = () => { useSet(builtIn()); show('levels'); };
-$('customBtn').onclick = () => show('custom');
-// Big sets take a moment to generate, so say so and let the screen repaint first.
-$('genBtn').onclick = () => { const b = $('genBtn'); if (b.disabled) return; b.disabled = true; b.textContent = 'Generating…'; setTimeout(() => { try { playCustom(); } finally { b.disabled = false; b.textContent = 'Play these levels'; } }, 30); };
-$('customBack').onclick = () => show('menu');
-$('backBtn').onclick = () => show(SET && SET.custom ? 'custom' : 'menu');
+function continueSet() {
+  clearTimeout(setTimer); setTimer = 0; $('genBtn').disabled = false;
+  activateCurrent(); startLevel(Math.min(progress().max, SET.levels.length));
+}
+$('playBtn').onclick = continueSet;
+$('levelsBtn').onclick = () => show('levels');
+$('genBtn').onclick = continueSet;
+$('backBtn').onclick = () => show('menu');
 $('menuBtn').onclick = () => { quit(); show('levels'); };
 $('restartBtn').onclick = () => startLevel(G.level);
 $('hintBtn').onclick = showHint;
@@ -866,8 +974,11 @@ const syncSound = () => {
   $('tSlide').classList.toggle('on', sliding()); $('tSlide').disabled = save.kid; // kid mode always plays the original game
   if (musicPlayer) musicPlayer.setEnabled(save.music);
 };
-// Changing game also changes what the Custom screen offers to make, and which built-in levels Play continues.
-const setGame = () => { save.custom.slide = sliding(); persist(); syncSound(); show('menu'); };
+// Changing rules applies to the selected seeded style; Twists always uses sliding rules.
+const setGame = () => {
+  if (save.custom.mode === 'T') { save.custom.mode = 'C'; save.custom.count = 60; }
+  save.custom.slide = sliding(); persist(); syncSound(); show('menu');
+};
 $('tMusic').onclick = () => { save.music = !save.music; persist(); syncSound(); };
 $('tKid').onclick = () => { save.kid = !save.kid; setGame(); };
 $('tSlide').onclick = () => { save.slide = !save.slide; setGame(); };
