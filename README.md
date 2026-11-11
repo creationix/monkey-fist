@@ -13,7 +13,7 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 - Some ropes start tied in a **knot**: a loop in which each rope is waiting on the next, so none of them can leave. Sliding the right one forward draws its tail out of another's way and undoes it.
 - Some slides are **traps**: they leave ropes that can never get out. The game says "Knotted!" as soon as that happens, and dims any rope that can never move again. Nothing is locked, and any rope that can still move can still be tapped, but the board can no longer be cleared.
 - There are no hearts. Instead each level allows **three undos**, each taking back one move. The level is lost only when the board is knotted, nothing on it can move and no undos are left.
-- **Every tap counts**, including ones you take back. The top of the screen shows your taps against **par**, the fewest taps the level can be done in. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
+- **Every player tap counts**, including blocked taps and moves you take back. Automatic releases do not count. Free the blockers efficiently and let the remaining ropes go by themselves; tapping those free ropes early costs extra. The top of the screen shows your taps against **par**, the fewest player taps known to solve the level. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
 - Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
 - The lightbulb highlights the next tap of a solution in par.
 
@@ -157,13 +157,13 @@ The game needs to answer this after every move, to say "Knotted!" the moment a b
 
 ### The fewest taps
 
-Every rope takes exactly one tap to leave, so solutions differ only in how many slides they spend, and par is the number of ropes plus the fewest slides that will do. The builder's own solution is often not the shortest (on Hard it wastes about one slide a level), so par is searched for separately when a level is opened.
+Par counts player taps only. Once no rope is blocked, the rest auto-release for free. An already-free board still needs one initiating tap; a harder board rewards freeing its blockers before tapping ropes that would eventually leave automatically. Blocked taps count too, and undo does not refund a tap.
 
-The search is depth-first iterative deepening [13]: is there a solution with no slides? with one? with two? The first that exists is the fewest. Between slides it takes out every rope that can leave, since leaving costs nothing extra; it drops any board the quick check condemns, and does not retry a board it has already tried with as many slides in hand.
+The par search uses depth-first iterative deepening [13], starting with the builder's complete solution as a fallback but scoring only its prefix before auto-release. It searches for a shorter player-tap prefix, ending as soon as every remaining rope has a clear exit. It cannot greedily remove free ropes: unnecessary early taps now cost points. A lower bound counts distinct ropes blocking exit rays, each of which must move before the board becomes fully free. Search also rejects proved deadlocks and remembers failed states with their remaining tap budget.
 
-Taking ropes out as soon as they can leave is a shortcut, and shortcuts can miss things, so the result is checked against a breadth-first search over every possible sequence of taps on the generated levels small enough for that: about 200 in the tests. It matches on all of them.
+Exact results are checked against breadth-first search over every possible move on small generated levels and seeded small boards. Returned hint plans still include the automatic suffix, so they can be replayed all the way to an empty board.
 
-The search is capped (6000 boards) so that a level opens promptly: at most a few tens of milliseconds. In the tests' 720 levels it finishes, making par exact, on every Easy and Normal level, on all but 3 of the 180 Hard ones, and on about four in ten Extreme ones; it finishes on 55 of the 60 built-in sliding levels. Where it runs out, par is the builder's solution: the best known, which a player may beat. The result screen says "the fewest possible" only when par is exact.
+The search is capped at 6000 states so a level opens promptly. Where it runs out, par uses the player-tap prefix of the known solution, which a player may beat. The result screen says "the fewest possible" only when par is proved exact. Existing boards, share codes, unlocked levels, and earned stars are preserved.
 
 ### How hard is the problem?
 

@@ -169,7 +169,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 i</div>
+  <div id="ver">build 2026-11-11 j</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -444,14 +444,13 @@ function stuck() {
   if (!onBoard().some(n => { const r = ray(n.cur, G.occ, G.W, G.H); return r.clear || r.dist > 0; })) finish(false);
 }
 function tap(n, auto) {
-  if (!G.active || G.ended || n.state !== 'idle' || (!G.slide && G.hearts <= 0)) return;
+  if (!G.active || G.ended || n.state !== 'idle' || (G.auto && !auto) || (!G.slide && G.hearts <= 0)) return;
   G.hint = -1;
-  if (!auto) G.timing = true; // the clock starts on the player's first tap
+  if (!auto) { G.timing = true; G.taps++; } // Count actual player taps, including bumps, never automatic releases.
   const r = ray(n.cur, G.occ, G.W, G.H);
   if (r.clear || (G.slide && r.dist > 0)) {
     for (const p of n.cur) G.occ[p.y * G.W + p.x] = -1;
-    if (G.slide) G.history.push({ id: n.id, from: n.off, out: r.clear });
-    G.taps++;
+    if (G.slide && !auto) G.history.push({ id: n.id, from: n.off, out: r.clear });
     if (r.clear) { n.state = 'out'; n.v = 7; n.exitAt = n.off + r.dist + 0.5; G.left--; G.streak++; }
     else { // sliding game: it goes as far as it can and stays there
       n.cur = MFLevels.advance(n.cur, r.dist); n.off += r.dist;
@@ -467,7 +466,7 @@ function tap(n, auto) {
     if (!auto && !G.auto && !G.lost && G.clear && G.left > 0) { G.auto = true; G.autoT = 0.35; toast('All clear!'); }
   } else {
     n.state = 'bump'; n.phase = 0; n.bumpMax = n.off + r.dist + 0.28; n.blocker = r.blocker;
-    G.streak = 0;
+    G.streak = 0; hud();
   }
 }
 // Sliding game: take the last move back. Each level allows only a few, and the tap still counts.
@@ -521,7 +520,7 @@ function finish(win) {
     $('stars').style.display = timed ? 'none' : ''; $('timeScore').style.display = timed ? '' : 'none'; $('timeScore').textContent = fmtTime(took);
     const kidText = !prevBest ? 'Level ' + G.level + ' untangled.' : took < prevBest ? 'New best time! It was ' + fmtTime(prevBest) + '.' : 'Best time: ' + fmtTime(prevBest) + '.';
     const lastOne = G.level >= SET.levels.length;
-    const tapText = G.taps + ' taps' + (over < 0 ? ', ' + -over + ' under par!' : over ? '. Par is ' + G.par + '.' : G.parExact ? ', the fewest possible.' : ': par.');
+    const tapText = G.taps + (G.taps === 1 ? ' tap' : ' taps') + (over < 0 ? ', ' + -over + ' under par!' : over ? '. Par is ' + G.par + '.' : G.parExact ? ', the fewest possible.' : ': par.');
     $('resText').textContent = !win ? (slide ? 'Knotted, with nothing left to move and no undos. Give it another go.' : 'Too many bumps. Give it another go.') : slide ? tapText + (lastOne ? ' That was the last level of this set!' : '')
       : lastOne ? 'That was the last level of this set!' : kid ? kidText : stars === 3 ? 'Perfect — not a single bump.' : 'Level ' + G.level + ' cleared.';
     $('nextBtn').style.display = win && !lastOne ? '' : 'none';

@@ -339,6 +339,76 @@ const MFLevels = (() => {
     restore(first);
     return { taps: known.slice(), exact: !gaveUp, nodes };
   }
+
+  // Only player taps count: once no rope blocks another, the game releases the remainder.
+  // Keep a complete solution for hints/replay, but score only its prefix before auto-release.
+  function playerTapCount(paths, W, H, taps) {
+    const b = boardOf(paths, W, H);
+    let count = 0, auto = false;
+    for (const i of taps) {
+      if (b.off[i] < 0) continue;
+      const to = slideTo(b, i);
+      if (to === b.off[i]) return null;
+      if (!auto) count++;
+      place(b, i, to);
+      if (!auto && allFree(b)) auto = true;
+    }
+    return b.left ? null : count;
+  }
+  function allFree(b) {
+    for (let i = 0; i < b.n; i++) if (b.off[i] >= 0 && slideTo(b, i) >= 0) return false;
+    return true;
+  }
+  function fewestPlayerTaps(paths, W, H, known, budget) {
+    const count = playerTapCount(paths, W, H, known);
+    if (count === null) return null;
+    const b = boardOf(paths, W, H), limit = budget || 6000, moves = [], tried = new Map();
+    const rank = new Int32Array(b.n).fill(1e6), later = new Int32Array(b.n).fill(1e6);
+    known.forEach((i, k) => { if (rank[i] === 1e6) rank[i] = k; later[i] = k; });
+    let nodes = 0, gaveUp = false;
+    // Every distinct rope occupying another rope's exit ray must be moved before all-free.
+    // This is a lower bound only: some ropes need more than one tap, and helpers may also move.
+    const bound = () => {
+      const blockers = new Uint8Array(b.n); let total = 0;
+      for (let i = 0; i < b.n; i++) if (b.off[i] >= 0) {
+        const seq = b.seq[i];
+        for (let p = b.off[i] + b.len[i]; p < seq.length; p++) {
+          const z = b.occ[seq[p]];
+          if (z >= 0 && !blockers[z]) { blockers[z] = 1; total++; }
+        }
+      }
+      return total;
+    };
+    const lower = Math.max(b.left ? 1 : 0, bound());
+    const search = remaining => {
+      if (allFree(b)) return true;
+      if (!remaining || bound() > remaining) return false;
+      if (++nodes > limit) { gaveUp = true; return false; }
+      const key = String.fromCharCode.apply(null, b.off.map(o => o + 1));
+      if (tried.get(key) >= remaining) return false;
+      if (relax(b)) { tried.set(key, 1e6); return false; }
+      const choices = [];
+      for (let i = 0; i < b.n; i++) if (b.off[i] >= 0) {
+        const to = slideTo(b, i);
+        if (to !== b.off[i]) choices.push({ i, to, order: b.off[i] ? later[i] : rank[i] });
+      }
+      choices.sort((a, z) => a.order - z.order || a.i - z.i);
+      for (const t of choices) {
+        const from = b.off[t.i]; place(b, t.i, t.to); moves.push(t.i);
+        if (search(remaining - 1)) return true;
+        moves.pop(); place(b, t.i, from);
+        if (gaveUp) return false;
+      }
+      tried.set(key, remaining); return false;
+    };
+    for (let k = lower; k < count && !gaveUp; k++) if (search(k)) {
+      const manual = moves.length;
+      // Each remaining rope is independently free; these taps are the automatic suffix.
+      for (let i = 0; i < b.n; i++) if (b.off[i] >= 0) moves.push(i);
+      return { taps: moves.slice(), count: manual, exact: true, nodes };
+    }
+    return { taps: known.slice(), count, exact: !gaveUp, nodes };
+  }
   // Play a list of taps and report what is left: the paths still on the board (null where a rope
   // has gone). Used to check a solution, and by the tests.
   function play(paths, W, H, taps) {
@@ -1170,7 +1240,7 @@ const MFLevels = (() => {
   const PAR_BUDGET = 6000;
   function levelFrom(d) {
     const L = (d.slide ? weave : construct)(mulberry32(d.seed), Object.assign({}, d, { W: d.boardW, H: d.boardH }));
-    if (L && d.slide) { const f = fewestTaps(L.ropes, L.W, L.H, L.taps, PAR_BUDGET); L.best = f.taps; L.par = f.taps.length; L.parExact = f.exact; }
+    if (L && d.slide) { const f = fewestPlayerTaps(L.ropes, L.W, L.H, L.taps, PAR_BUDGET); L.best = f.taps; L.par = f.count; L.parExact = f.exact; }
     return L;
   }
 
@@ -1195,7 +1265,7 @@ const MFLevels = (() => {
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: false };
   const CAMPAIGN_SLIDE = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: true };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, play, bendsOf, ropeScores, nothingBlocked, difficulty,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, fewestPlayerTaps, playerTapCount, play, bendsOf, ropeScores, nothingBlocked, difficulty,
     construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
     MODES, PLAYER_MODES, COUNTS, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();
