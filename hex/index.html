@@ -7,7 +7,7 @@
 <meta name="description" content="Six directions. One tangled knot. A hexagonal Monkey Fist with sliding ropes and locks.">
 <title>Monkey Fist · Hex</title>
 <link rel="icon" href="../icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <main id="game">
@@ -23,7 +23,11 @@
     <p id="tip">Tap a rope. Follow its arrow.</p>
     <div id="audioControls" aria-label="Audio settings"><button id="sound" class="quiet" aria-pressed="true">Sound on</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button></div>
   </aside>
-  <div id="boardWrap"><canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Arrow keys select ropes; Enter slides the selected rope."></canvas></div>
+  <div id="boardWrap">
+    <canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Zoom then drag to explore. Arrow keys select ropes; Enter slides the selected rope."></canvas>
+    <div id="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Weaving your tangle…</div>
+    <nav id="zoomControls" aria-label="Board view" hidden><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomFit" title="Fit the whole board">Fit</button><button id="zoomIn" aria-label="Zoom in">+</button><span>Zoom · drag to explore</span></nav>
+  </div>
   <div id="notice" role="status" aria-live="polite"></div>
 </main>
 <dialog id="chooser">
@@ -31,11 +35,12 @@
   <div class="settings">
     <label>Seed<div class="seed-row"><input id="seed" maxlength="24" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
     <label>Levels<select id="count"><option>10</option><option>30</option><option selected>60</option><option>120</option></select></label>
-    <label class="check"><input id="big" type="checkbox"> Bigger boards</label>
+    <label class="check"><input id="big" type="checkbox"> Colossal boards</label>
   </div>
   <div class="set-line"><button id="share" class="quiet" title="Copy a link to this set"></button><span>All levels open for this preview</span></div>
   <div id="grid" aria-label="Levels"></div>
   <p class="rules"><strong>Six directions, simple taps.</strong> Ropes slide until blocked. Free a lettered key rope to open its matching lock. The last clear ropes release themselves for free.</p>
+  <p class="rules">Start small and grow to 24 × 32 cells, or 40 × 54 with Colossal boards. Longer winding ropes, sliding knots, and lock chains build up along the way. Zoom with +, the wheel, or a pinch; drag to explore.</p>
   <p class="rules">Rope tap +1 · Undo +1, three per level · Hint +2<br>No tap limit. Fewer taps earn more stars.</p>
   <a class="back" href="../">← Square Monkey Fist</a>
 </dialog>
@@ -43,9 +48,9 @@
   <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p>
   <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
 </dialog>
-<script src="engine.js?v=1"></script>
+<script src="engine.js?v=2"></script>
 <script src="../music.js?v=30"></script>
 <script src="../sounds.js?v=1"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

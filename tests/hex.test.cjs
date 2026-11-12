@@ -30,7 +30,7 @@ test('matching key exit opens a lock, partial key slides keep it shut, and resto
   assert.equal(H.tap(level, level.ropes, 0).event, 'slide');
 });
 
-test('generated sets are deterministic, woven, solvable, and locks create real dependencies', { timeout: 60000 }, () => {
+test('generated sets are deterministic, woven, solvable, and locks create real dependencies', { timeout: 120000 }, () => {
   const directions = new Set(), signatures = new Set();
   for (let seed = 0; seed < 20; seed++) for (const index of [0, 2, 4, 25, 59]) {
     const opts = { seed: 'HEXTEST' + seed, index, big: !!(seed % 2) }, b = H.generate(opts);
@@ -48,7 +48,14 @@ test('generated sets are deterministic, woven, solvable, and locks create real d
     if (index >= 4) assert.ok(b.locks.length >= 1, 'locks introduced');
     if (index === 59) {
       assert.ok(replay.events.filter(e => e === 'slide').length >= 3);
-      assert.equal(b.locks.length, 6); assert.ok(b.W * b.H >= 100);
+      assert.ok(b.locks.length >= 10); assert.ok(b.W * b.H >= 768);
+      assert.ok(b.stats.averageLength >= 8, 'longer ropes throughout the board');
+      assert.ok(b.stats.longest >= 30 && b.stats.longestBends >= 12, 'long winding strands');
+      assert.ok(b.stats.averageDepth >= 8 && b.stats.depth >= 20, 'deep connected dependencies: ' + JSON.stringify(b.stats));
+      assert.ok(b.stats.lockDepth >= 3, 'chains of locks');
+      let paths = b.ropes;
+      for (const i of b.plan) { const move = H.tap(b, paths, i); assert.ok(move, 'certificate matches reference geometry'); paths = move.paths; }
+      assert.ok(paths.every(p => !p));
     }
     for (const lock of b.locks) {
       assert.ok(!b.ropes.flat().some(p => H.key(p) === H.key(lock.cell)));
@@ -82,4 +89,35 @@ test('hex share codes round trip and larger/count settings change the determinis
   }
   assert.equal(H.parseCode('C60S-MONKEYFIST'), null);
   assert.ok(H.generate({ index: 59, big: true }).ropes.flat().length > H.generate({ index: 59 }).ropes.flat().length);
+});
+
+test('compact transitions, rollback, and deadlock pruning agree with the geometry kernel', () => {
+  const rng = H.random('COMPACT-CROSSCHECK');
+  for (let seed = 0; seed < 20; seed++) {
+    const b = H.generate({ seed: 'SMALL' + seed, index: 4 }), compact = H.compile(b);
+    let paths = b.ropes;
+    for (let step = 0; step < 20; step++) {
+      const available = [];
+      for (let i = 0; i < paths.length; i++) {
+        const move = H.tap(b, paths, i), target = compact.to(i), from = compact.offsets[i];
+        assert.equal(!!move, target !== -2 && target !== from);
+        if (!move) continue;
+        compact.place(i, target); assert.deepEqual(compact.pathsNow(), move.paths);
+        compact.place(i, from); assert.deepEqual(compact.pathsNow(), paths);
+        available.push({ i, target, move });
+      }
+      // Exhaust this small state space independently, without compact deadlock pruning.
+      const seen = new Set();
+      function reference(state) {
+        if (state.every(p => !p)) return true;
+        const key = JSON.stringify(state); if (seen.has(key)) return false; seen.add(key);
+        return state.some((p, i) => { const m = p && H.tap(b, state, i); return m && reference(m.paths); });
+      }
+      const possible = reference(paths), answer = H.solve(b, paths, 100000);
+      assert.equal(answer.solved, possible);
+      if (compact.dead()) assert.equal(possible, false, 'optimistic deadlock check never rejects a solution');
+      if (!available.length) break;
+      const choice = available[Math.floor(rng() * available.length)]; paths = choice.move.paths; compact.place(choice.i, choice.target);
+    }
+  }
 });

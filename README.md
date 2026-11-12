@@ -14,19 +14,30 @@ original-rule toggle, or Kid mode in this version. The woven rope art, responsiv
 rotation, overlapping rope taps, six-song soundtrack, automatic free releases, and tap scoring carry over.
 Rope taps and undo cost one, hints cost two, and each level has three undos with no tap limit.
 
-Hex has its own seeded set screen, 10/30/60/120 levels, Bigger boards, dice, default-seed
+Hex has its own seeded set screen, 10/30/60/120 levels, Colossal boards, dice, default-seed
 reset, and share links such as `hex/?set=H60B-MONKEYFIST&level=60`. All levels are open
 for the initial preview. Saves use `monkey-fist-hex-v1`, separate from square-game progress.
-The opening levels teach six directions, then sliding knots, then locks; late boards have
-multiple knots and up to six independently lettered locks. Every seed generates geometry.
+The opening levels teach six directions, then sliding knots, then locks. Boards grow to
+24×32 cells normally, or 40×54 (2,160 cells) with Colossal boards. Late boards weave long,
+winding strands through many mutually blocking knots and up to 26 lettered locks, including
+chains where one key frees the next. Every seed generates geometry. Zoom with the buttons,
+wheel, or pinch, then drag to explore; Fit restores the whole board. View gestures never cost taps.
+Hints and keyboard selection bring an offscreen rope into view when zoomed in.
 
 `hex/engine.js` uses axial coordinates with six equally spaced neighbours. It constructs
 random mutually blocking ropes with required slides, then weaves in further ropes and
-locks, accepting additions only when a complete solution still replays. Locks are tested
+locks, accepting additions only when a complete solution still replays. Candidate selection
+rewards longer ropes and deeper dependencies rather than accepting the first fitting strand.
+Locks are tested
 to add a dependency even without unrelated ropes. Small-board par uses bounded breadth-first
 search; larger boards use a verified solution score, which can be beaten. A bounded solver
 supports off-plan play and hints; budget exhaustion is never treated as a proven loss.
-Rendering, hit testing, animation, undo, and the solver use the same pure transition kernel.
+The solver represents each rope as an offset along its body and exit ray; numeric occupancy
+and optimistic deadlock pruning avoid copying whole boards at every search node. Regression
+tests cross-check its transitions and certificates against the pure geometry kernel used by play.
+Generation runs in a cancellable background worker, also cached for offline use. Generation 2
+archives previous Hex scores under `archives['gen-1']` and starts fresh scores for the new
+boards, retaining seed, size, count, and audio settings. Square-game saves are untouched.
 
 Run `node --test tests/hex.test.cjs` for geometry, generation, locks, solving, and scoring.
 Serve the repo and run `MF_TEST_URL=http://127.0.0.1:PORT/ node --test tests/hex-game.test.cjs`

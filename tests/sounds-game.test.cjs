@@ -20,6 +20,7 @@ test('Hex and square play the same swish with music off; Hex sound and music mut
         if (!localStorage.getItem('monkey-fist')) localStorage.setItem('monkey-fist', JSON.stringify({ music: false, sound: true }));
       });
       await page.goto(base + (hex ? 'hex/?level=60' : '?set=C60S-MONKEYFIST'));
+      if (hex) await page.waitForFunction(() => window.__hex?.G.level && !__hex.G.loading);
       if (!hex) await page.locator('#lvGrid button').nth(59).click();
       const point = await page.evaluate(hex => {
         const g = (hex ? __hex : __mf).G, i = g.plan[0], p = g.paths[i].at(-1), b = document.querySelector('#board').getBoundingClientRect();
@@ -38,14 +39,14 @@ test('Hex and square play the same swish with music off; Hex sound and music mut
         assert.equal(await page.evaluate(() => __hex.music.state.enabled), true);
         assert.equal(await page.evaluate(() => __hex.sound.state.enabled), false);
         const before = await page.evaluate(() => __noise.length);
-        await page.locator('#restart').click(); await page.mouse.click(point.x, point.y);
+        await page.locator('#restart').click(); await page.waitForFunction(() => __hex.G.level && !__hex.G.loading); await page.mouse.click(point.x, point.y);
         assert.equal(await page.evaluate(() => __noise.length), before, 'music does not turn sound effects back on');
         await page.locator('#sound').click(); await page.locator('#music').click();
         assert.equal(await page.evaluate(() => __hex.sound.state.enabled), true);
         assert.equal(await page.evaluate(() => __hex.music.state.enabled), false);
         await page.locator('#sound').click();
         await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller);
-        await context.setOffline(true); await page.reload();
+        await context.setOffline(true); await page.reload(); await page.waitForFunction(() => __hex.G.level && !__hex.G.loading);
         assert.equal(await page.locator('#sound').getAttribute('aria-pressed'), 'false');
         await page.locator('#sound').click(); await page.mouse.click(point.x, point.y);
         assert.ok(await page.evaluate(() => __noise.some(n => Math.abs(n.duration - .3) < .001)), 'shared sounds load offline');

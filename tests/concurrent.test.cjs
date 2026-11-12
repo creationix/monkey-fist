@@ -12,6 +12,7 @@ test('square locks and Hex accept overlapping taps, settle out of order, and und
       // Freeze animation time, not pointer input. Both clicks precede completion.
       await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
       await page.goto(base + (hex ? 'hex/' : ''));
+      if (hex) await page.waitForFunction(() => window.__hex?.G.level && !__hex.G.loading);
       await page.evaluate(hex => {
         const coordinates = [[[0, 0], [1, 0]], [[0, 2], [1, 2]], [[0, 4], [1, 4]], [[0, 6], [1, 6]], [[4, 5], [4, 6]]];
         const paths = coordinates.map(rope => rope.map(([a, b]) => hex ? { q: a, r: b } : { x: a, y: b }));

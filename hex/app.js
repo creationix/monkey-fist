@@ -8,8 +8,12 @@ const persist = () => { try { localStorage.setItem(STORAGE, JSON.stringify(save)
 const params = new URLSearchParams(location.search);
 let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { seed: 'MONKEYFIST', count: 60, big: false };
 save.sets ||= {};
+if (save.gen !== H.VERSION) {
+  if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
+  save.sets = {}; save.gen = H.VERSION;
+}
 save.sound = save.sound !== false;
-const G = { level: null, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, lockOpen: [], view: {}, bump: null };
+const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, lockOpen: [], view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 let noticeTimer, musicPlayer = null, soundPlayer = null, audioContext = null, audioUnlocked = false, lastTime = 0, width = 1, height = 1;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const color = i => PALETTE[i % PALETTE.length];
@@ -45,16 +49,51 @@ function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
 }
-function start(index) {
+let generation = 0, pendingGeneration = null;
+const levelCache = new Map();
+function weave(options) {
+  const key = H.code(options) + '/' + options.index;
+  if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
+  return new Promise((resolve, reject) => {
+    if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
+    const worker = new Worker('generator-worker.js?v=1');
+    pendingGeneration = () => { worker.terminate(); resolve(null); };
+    worker.onmessage = ({ data }) => {
+      worker.terminate(); pendingGeneration = null;
+      if (data.error) { reject(Error(data.error)); return; }
+      levelCache.set(key, data.level); if (levelCache.size > 8) levelCache.delete(levelCache.keys().next().value);
+      resolve(data.level);
+    };
+    worker.onerror = e => { worker.terminate(); pendingGeneration = null; reject(Error(e.message)); };
+    worker.postMessage(options);
+  });
+}
+async function start(index) {
+  const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
+  pointers.clear(); gesture = null;
   G.index = Math.max(0, Math.min(opts.count - 1, Number(index) || 0));
-  G.level = H.generate({ ...opts, index: G.index }); G.paths = G.level.ropes; G.plan = G.level.plan.slice();
+  G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
   G.moves.clear();
-  Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, lockOpen: G.level.locks.map(() => 0) });
-  $('chooser').close(); $('result').close(); updateURL(); resize(); hud(); syncMusic(); musicPlayer?.setLevel(G.index + 1); draw(0);
+  $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); musicPlayer?.setLevel(G.index + 1); draw(0);
+  try {
+    const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
+    G.level = level; G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
+    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, lockOpen: level.locks.map(() => 0), camera: { zoom: 1, x: 0, y: 0 } });
+    resize(); hud(); draw(0);
+  } catch {
+    if (request !== generation) return;
+    G.loading = false; hud(); notice('Couldn’t weave this board. Restart or try another seed.');
+  }
 }
 function hud() {
   const l = G.level, left = G.paths.filter(Boolean).length;
   $('levelName').innerHTML = 'Level ' + (G.index + 1) + ' <span>/ ' + opts.count + '</span>';
+  $('loading').hidden = !G.loading; $('boardWrap').setAttribute('aria-busy', G.loading);
+  $('zoomControls').hidden = !l;
+  if (!l) {
+    $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Growing long ropes and locking in a solution…' : 'Try another seed or restart.';
+    $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; $('tip').textContent = 'Every seed weaves a different puzzle.'; return;
+  }
   $('chapter').textContent = l.locks.length ? 'UNDER LOCK & KEY' : l.slides ? 'SLIDE TO UNTANGLE' : 'SIX DIRECTIONS';
   const locks = l.locks.filter(g => G.paths[g.key]).length;
   $('remaining').textContent = left + ' ropes' + (locks ? ' · ' + locks + (locks === 1 ? ' lock' : ' locks') : ' left');
@@ -66,7 +105,7 @@ function hud() {
   $('tip').textContent = G.lost ? 'Knotted. Undo or restart to try another route.' : G.auto ? 'All clear! These ropes release for free.' : l.locks.length ? 'Free a lettered rope to open its matching lock.' : l.slides ? 'A slide can pull a tail out of another rope’s way.' : 'Tap a rope. Follow its arrow in one of six directions.';
 }
 function tap(i, automatic = false) {
-  if (!G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
+  if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
   const m = H.tap(G.level, G.paths, i);
   if (!m) { G.bump = { i, time: .25 }; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
@@ -90,23 +129,24 @@ function commit(m) {
     }
     G.auto = H.allFree(G.level, G.paths);
   }
-  if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
+  const board = H.compile(G.level, G.paths);
+  if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
   if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
-  if (!G.undos || !G.history.length || G.auto || G.ended) return;
+  if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
   const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1;
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
 function hint() {
-  if (G.auto || G.ended || G.lost || G.moves.has(G.plan[0])) return;
+  if (G.loading || !G.level || G.auto || G.ended || G.lost || G.moves.has(G.plan[0])) return;
   if (!G.plan.length) {
     const answer = H.solve(G.level, G.paths, 5000); G.plan = answer.moves;
     if (!G.plan.length) { if (answer.solved === false) G.lost = true; notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.'); hud(); return; }
   }
   if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; return; }
-  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; sfx.hint(); notice('Hint · +2 taps'); hud();
+  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
 }
 function finish() {
   G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
@@ -134,17 +174,41 @@ function update(dt) {
 function raw(p, rotated) { const v = H.project(p); return rotated ? { x: -v.y, y: v.x } : v; }
 function screen(p) { const v = raw(p, G.view.rotated); return { x: G.view.ox + v.x * G.view.scale, y: G.view.oy + v.y * G.view.scale }; }
 function resize() {
-  const rect = $('boardWrap').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
+  const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (!G.level) return;
   const points = H.cells(G.level).map(H.project), minX = Math.min(...points.map(p => p.x)) - .5, maxX = Math.max(...points.map(p => p.x)) + .5;
   const minY = -1 / Math.sqrt(3), maxY = Math.max(...points.map(p => p.y)) + 1 / Math.sqrt(3), w = maxX - minX, h = maxY - minY;
   const normal = Math.min((width - 24) / w, (height - 24) / h), rotated = Math.min((width - 24) / h, (height - 24) / w);
   const rot = rotated > normal, scale = Math.max(1, Math.min(90, rot ? rotated : normal));
-  G.view = { rotated: rot, scale, ox: width / 2 - (rot ? -(maxY + minY) : maxX + minX) * scale / 2, oy: height / 2 - (rot ? maxX + minX : maxY + minY) * scale / 2 };
-  const bw = (rot ? h : w) * scale, bh = (rot ? w : h) * scale, pad = Math.max(0, Math.min(8, (width - bw) / 2 - 2, (height - bh) / 2 - 2));
-  G.view.panel = { x: (width - bw) / 2 - pad, y: (height - bh) / 2 - pad, w: bw + pad * 2, h: bh + pad * 2 };
+  G.view = { rotated: rot, fit: scale, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
+  applyCamera();
   draw(0);
+}
+function applyCamera() {
+  if (!G.level) return;
+  const c = G.camera, v = G.view, bw = v.bw * c.zoom, bh = v.bh * c.zoom;
+  const limitX = Math.max(0, (bw - width) / 2 + 12), limitY = Math.max(0, (bh - height) / 2 + 12);
+  c.x = Math.max(-limitX, Math.min(limitX, c.x)); c.y = Math.max(-limitY, Math.min(limitY, c.y));
+  v.scale = v.fit * c.zoom; v.ox = width / 2 + c.x - v.cx * v.scale; v.oy = height / 2 + c.y - v.cy * v.scale;
+  v.panel = { x: (width - bw) / 2 + c.x - 8, y: (height - bh) / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
+  $('zoomFit').textContent = c.zoom === 1 ? 'Fit' : Math.round(c.zoom * 100) + '% · Fit';
+  $('zoomOut').disabled = c.zoom <= 1; $('zoomIn').disabled = c.zoom >= 8;
+  canvas.classList.toggle('zoomed', c.zoom > 1);
+}
+function zoomTo(zoom, p = { x: width / 2, y: height / 2 }) {
+  if (!G.level) return;
+  const c = G.camera, next = Math.max(1, Math.min(8, zoom)), ratio = next / c.zoom;
+  c.x = p.x - width / 2 - (p.x - width / 2 - c.x) * ratio;
+  c.y = p.y - height / 2 - (p.y - height / 2 - c.y) * ratio; c.zoom = next;
+  applyCamera(); draw(0);
+}
+function focusRope(i) {
+  if (G.camera.zoom <= 1 || !G.paths[i]) return;
+  const p = screen(G.paths[i].at(-1)), pad = Math.min(48, width / 4, height / 4);
+  if (p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
+    G.camera.x += width / 2 - p.x; G.camera.y += height / 2 - p.y; applyCamera();
+  }
 }
 function path(ctx, points, close = false) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (close) ctx.closePath(); }
 function shade(hex, amount) {
@@ -251,17 +315,58 @@ function draw(time) {
   ctx.restore();
 }
 function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))); return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t); }
-canvas.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || G.auto) return;
-  const rect = canvas.getBoundingClientRect(), p = { x: e.clientX - rect.left, y: e.clientY - rect.top }; let best = -1, distance = G.view.scale * .43;
+function tapAt(p) {
+  if (!G.level || G.auto) return;
+  let best = -1, distance = G.view.scale * .43;
   G.paths.forEach((rope, i) => { if (!rope || G.moves.has(i)) return; const points = rope.map(screen), d = H.direction(rope); points.push(screen(H.add(rope.at(-1), d, .35)));
     for (let j = 1; j < points.length; j++) { const v = distanceTo(p, points[j - 1], points[j]); if (v < distance) { distance = v; best = i; } }
   });
-  if (best >= 0) { e.preventDefault(); G.selected = -1; tap(best); }
+  if (best >= 0) { G.selected = -1; tap(best); }
+}
+const pointers = new Map(); let gesture = null;
+const pointerPosition = e => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+function beginGesture(dragged = false) {
+  const points = [...pointers.values()], c = G.camera;
+  if (points.length === 2) {
+    const [a, b] = points; gesture = { pinch: true, distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, ...c };
+  } else gesture = points.length ? { start: points[0], ...c, dragged } : null;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !G.level) return;
+  e.preventDefault(); canvas.focus({ preventScroll: true }); canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, pointerPosition(e)); beginGesture(pointers.size > 1);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId) || !gesture) return;
+  const p = pointerPosition(e); pointers.set(e.pointerId, p);
+  if (gesture.pinch && pointers.size >= 2) {
+    const [a, b] = [...pointers.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const zoom = Math.max(1, Math.min(8, gesture.zoom * Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance)), ratio = zoom / gesture.zoom;
+    G.camera = { zoom, x: mid.x - width / 2 - (gesture.mid.x - width / 2 - gesture.x) * ratio, y: mid.y - height / 2 - (gesture.mid.y - height / 2 - gesture.y) * ratio };
+  } else {
+    const dx = p.x - gesture.start.x, dy = p.y - gesture.start.y;
+    gesture.dragged ||= Math.hypot(dx, dy) > 6;
+    if (gesture.dragged) { G.camera.x = gesture.x + dx; G.camera.y = gesture.y + dy; }
+  }
+  applyCamera(); draw(0);
+});
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  const shouldTap = e.type === 'pointerup' && gesture && !gesture.pinch && !gesture.dragged;
+  pointers.delete(e.pointerId); beginGesture(true);
+  if (shouldTap) tapAt(pointerPosition(e));
+}
+canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
+$('zoomIn').onclick = () => zoomTo(G.camera.zoom * 1.5);
+$('zoomOut').onclick = () => zoomTo(G.camera.zoom / 1.5);
+$('zoomFit').onclick = () => zoomTo(1);
+canvas.addEventListener('keydown', e => {
+  if (['+', '=', '-', '0'].includes(e.key)) { e.preventDefault(); zoomTo(e.key === '0' ? 1 : G.camera.zoom * (e.key === '-' ? 1 / 1.5 : 1.5)); }
 });
 canvas.addEventListener('keydown', e => {
   const ropes = G.paths.flatMap((p, i) => p ? [i] : []); if (!ropes.length) return;
-  if (e.key.startsWith('Arrow')) { e.preventDefault(); const step = ['ArrowLeft', 'ArrowUp'].includes(e.key) ? -1 : 1; G.selected = ropes[(ropes.indexOf(G.selected) + step + ropes.length) % ropes.length]; }
+  if (e.key.startsWith('Arrow')) { e.preventDefault(); const step = ['ArrowLeft', 'ArrowUp'].includes(e.key) ? -1 : 1; G.selected = ropes[(ropes.indexOf(G.selected) + step + ropes.length) % ropes.length]; focusRope(G.selected); }
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (G.selected >= 0) tap(G.selected); }
 });
 function renderChooser() {
