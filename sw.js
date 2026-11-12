@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v31';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js?v=30', './sets.js?v=30', './mechanics.js?v=30', './twist-circuits.js?v=30', './twists.js?v=30', './mechanics-render.js?v=30', './music.js?v=30', './hex/', './hex/index.html', './hex/engine.js?v=1', './hex/app.js?v=2', './hex/style.css?v=1', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v32';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js?v=30', './sets.js?v=30', './mechanics.js?v=30', './twist-circuits.js?v=30', './twists.js?v=30', './mechanics-render.js?v=30', './music.js?v=30', './sounds.js?v=1', './hex/', './hex/index.html', './hex/engine.js?v=1', './hex/app.js?v=3', './hex/style.css?v=2', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));

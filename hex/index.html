@@ -7,7 +7,7 @@
 <meta name="description" content="Six directions. One tangled knot. A hexagonal Monkey Fist with sliding ropes and locks.">
 <title>Monkey Fist · Hex</title>
 <link rel="icon" href="../icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <main id="game">
@@ -21,7 +21,7 @@
       <button id="undo" title="Undo costs one tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></svg><small>Undo <b id="undos">3</b></small></button>
     </nav>
     <p id="tip">Tap a rope. Follow its arrow.</p>
-    <button id="music" class="quiet" aria-pressed="false">♫ Music off</button>
+    <div id="audioControls" aria-label="Audio settings"><button id="sound" class="quiet" aria-pressed="true">Sound on</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button></div>
   </aside>
   <div id="boardWrap"><canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Arrow keys select ropes; Enter slides the selected rope."></canvas></div>
   <div id="notice" role="status" aria-live="polite"></div>
@@ -45,6 +45,7 @@
 </dialog>
 <script src="engine.js?v=1"></script>
 <script src="../music.js?v=30"></script>
-<script src="app.js?v=2"></script>
+<script src="../sounds.js?v=1"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* global MFHex, MFMusic */
+/* global MFHex, MFMusic, MFSound */
 'use strict';
 const H = MFHex, $ = id => document.getElementById(id), canvas = $('board'), ctx = canvas.getContext('2d');
 const PALETTE = ['#37d5ac', '#f9bd4a', '#a987f5', '#f785ac', '#58b7ef', '#f7a251', '#e8dca1', '#f46f73', '#73d677'];
@@ -8,26 +8,39 @@ const persist = () => { try { localStorage.setItem(STORAGE, JSON.stringify(save)
 const params = new URLSearchParams(location.search);
 let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { seed: 'MONKEYFIST', count: 60, big: false };
 save.sets ||= {};
+save.sound = save.sound !== false;
 const G = { level: null, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, lockOpen: [], view: {}, bump: null };
-let noticeTimer, musicPlayer = null, audioContext = null, lastTime = 0, width = 1, height = 1;
+let noticeTimer, musicPlayer = null, soundPlayer = null, audioContext = null, audioUnlocked = false, lastTime = 0, width = 1, height = 1;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const color = i => PALETTE[i % PALETTE.length];
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
-function syncMusic() { $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music); musicPlayer?.setEnabled(!!save.music && !document.hidden && !$('chooser').open && !$('result').open); }
+function syncMusic() {
+  $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music);
+  $('sound').textContent = save.sound ? 'Sound on' : 'Sound off'; $('sound').setAttribute('aria-pressed', save.sound);
+  soundPlayer?.setEnabled(save.sound && !document.hidden);
+  musicPlayer?.setEnabled(!!save.music && !document.hidden && !$('chooser').open && !$('result').open);
+}
 function audio() {
   if (!audioContext) {
     const Audio = window.AudioContext || window.webkitAudioContext; if (!Audio) return;
-    audioContext = new Audio(); const gain = audioContext.createGain(); gain.gain.value = .7; gain.connect(audioContext.destination);
-    musicPlayer = MFMusic.createMusicPlayer(audioContext, gain); musicPlayer.setLevel(G.index + 1);
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* Optional on iOS. */ }
+    audioContext = new Audio(); const limiter = audioContext.createDynamicsCompressor();
+    limiter.threshold.value = -10; limiter.knee.value = 8; limiter.ratio.value = 8; limiter.attack.value = .003; limiter.release.value = .2; limiter.connect(audioContext.destination);
+    const musicBus = audioContext.createGain(), soundBus = audioContext.createGain();
+    musicBus.gain.value = .55; musicBus.connect(limiter); soundBus.gain.value = .6; soundBus.connect(limiter);
+    musicPlayer = MFMusic.createMusicPlayer(audioContext, musicBus); musicPlayer.setLevel(G.index + 1);
+    soundPlayer = MFSound.createSoundPlayer(audioContext, soundBus, { getChord: () => musicPlayer.getChord() });
   }
-  audioContext.resume().catch(() => {}); syncMusic();
+  if (audioContext.state !== 'running') audioContext.resume().catch(() => {});
+  if (!audioUnlocked) {
+    audioUnlocked = true;
+    try { const source = audioContext.createBufferSource(); source.buffer = audioContext.createBuffer(1, 1, 22050); source.connect(audioContext.destination); source.onended = () => source.disconnect(); source.start(0); } catch { /* Some browsers need this silent unlock blip. */ }
+  }
+  syncMusic();
 }
-function tone(exit) {
-  if (!audioContext || !save.music) return;
-  const o = audioContext.createOscillator(), g = audioContext.createGain(), t = audioContext.currentTime;
-  o.type = 'sine'; o.frequency.value = exit ? 660 : 190; g.gain.setValueAtTime(.03, t); g.gain.exponentialRampToValueAtTime(.0001, t + .14);
-  o.connect(g); g.connect(audioContext.destination); o.start(); o.stop(t + .15); o.onended = () => { o.disconnect(); g.disconnect(); };
-}
+const sfx = Object.fromEntries(MFSound.EFFECTS.map(name => [name, (...args) => soundPlayer?.[name](...args)]));
+for (const event of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(event, audio, true);
+document.addEventListener('click', event => { if (event.target.closest('button')) sfx.click(); });
 function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
@@ -36,7 +49,7 @@ function start(index) {
   G.index = Math.max(0, Math.min(opts.count - 1, Number(index) || 0));
   G.level = H.generate({ ...opts, index: G.index }); G.paths = G.level.ropes; G.plan = G.level.plan.slice();
   G.moves.clear();
-  Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, lockOpen: G.level.locks.map(() => 0) });
+  Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, lockOpen: G.level.locks.map(() => 0) });
   $('chooser').close(); $('result').close(); updateURL(); resize(); hud(); syncMusic(); musicPlayer?.setLevel(G.index + 1); draw(0);
 }
 function hud() {
@@ -56,14 +69,16 @@ function tap(i, automatic = false) {
   if (!G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
   const m = H.tap(G.level, G.paths, i);
-  if (!m) { G.bump = { i, time: .25 }; tone(false); if (!automatic) notice('Blocked'); hud(); return; }
+  if (!m) { G.bump = { i, time: .25 }; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
   if (!automatic) G.history.push({ paths: G.paths, plan: G.plan.slice(), lost: G.lost });
   if (G.bump?.i === i) G.bump = null;
-  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0 });
+  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, popNote: m.event === 'exit' ? ++G.clearNo : 0 });
   commit(G.moves.get(i));
+  sfx.slide();
   hud();
 }
 function commit(m) {
+  const wasLost = G.lost;
   G.paths = m.paths;
   if (!m.automatic) {
     if (G.plan[0] === m.i) G.plan.shift();
@@ -76,12 +91,13 @@ function commit(m) {
     G.auto = H.allFree(G.level, G.paths);
   }
   if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
+  if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
   if (!G.undos || !G.history.length || G.auto || G.ended) return;
   const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1;
-  notice('Undo · +1 tap'); hud(); draw(0);
+  sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
 function hint() {
   if (G.auto || G.ended || G.lost || G.moves.has(G.plan[0])) return;
@@ -90,7 +106,7 @@ function hint() {
     if (!G.plan.length) { if (answer.solved === false) G.lost = true; notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.'); hud(); return; }
   }
   if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; return; }
-  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; notice('Hint · +2 taps'); hud();
+  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; sfx.hint(); notice('Hint · +2 taps'); hud();
 }
 function finish() {
   G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
@@ -98,7 +114,7 @@ function finish() {
   if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars }; persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
   $('resultText').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par + '. Automatic releases are free.';
-  $('next').hidden = G.index + 1 >= opts.count; $('result').showModal(); syncMusic();
+  $('next').hidden = G.index + 1 >= opts.count; $('result').showModal(); syncMusic(); sfx.win();
 }
 function update(dt) {
   if (!G.level || $('chooser').open) return;
@@ -109,7 +125,7 @@ function update(dt) {
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
     m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
-    if (m.progress >= m.distance - .001) { G.moves.delete(id); settled = true; tone(m.event === 'exit'); }
+    if (m.progress >= m.distance - .001) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); }
   }
   if (!G.ended && G.paths.every(p => !p) && !G.moving) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
@@ -269,10 +285,11 @@ $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues
 $('defaultSeed').onclick = () => { opts.seed = 'MONKEYFIST'; renderChooser(); };
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(opts)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
-document.addEventListener('visibilitychange', syncMusic);
+$('sound').onclick = () => { save.sound = !save.sound; persist(); syncMusic(); };
+document.addEventListener('visibilitychange', () => { syncMusic(); if (audioContext) { if (document.hidden) audioContext.suspend(); else audioContext.resume().catch(() => {}); } });
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
 function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); draw(time / 1000); musicPlayer?.tick(); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
-window.__hex = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save };
+window.__hex = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return soundPlayer; }, get music() { return musicPlayer; } };

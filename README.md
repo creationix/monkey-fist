@@ -69,6 +69,11 @@ The soundtrack has six original synthesised songs: **Canopy Hop**, **Vine Swing*
 
 Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the harmony of the current song. Music remains independent of sound effects, and turning Music off stops its synthesised voices instead of merely silencing them.
 
+Square and Hex share `sounds.js`: the same airy rope swish, chord-following exit plucks,
+thuds, clicks, undo, hint, and completion effects. Hex has separate Sound and Music
+buttons, with effects enabled by default even when music is off. Muting stops active
+effects immediately; rate limits and a shared voice cap keep overlapping taps smooth.
+
 ## Twists mechanics
 
 All gameplay is still ordinary rope taps, with three undos per level. Mirrors are thin,
