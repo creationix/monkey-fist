@@ -183,7 +183,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-12 b</div>
+  <div id="ver">build 2026-11-12 c</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -220,14 +220,16 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=30"></script>
-<script src="sets.js?v=30"></script>
+<script src="random.js?v=1"></script>
+<script src="levels.js?v=31"></script>
+<script src="sets.js?v=31"></script>
 <script src="mechanics.js?v=30"></script>
-<script src="twist-circuits.js?v=30"></script>
-<script src="twists.js?v=30"></script>
+<script src="twist-circuits.js?v=31"></script>
+<script src="twists.js?v=31"></script>
 <script src="mechanics-render.js?v=30"></script>
 <script src="music.js?v=32"></script>
 <script src="sounds.js?v=1"></script>
+<script src="audio.js?v=1"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -277,45 +279,8 @@ if (sharedSet) {
 function persist() { try { localStorage.setItem('monkey-fist', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- audio (synthesised) ----------
-let AC = null, out = null, sfxBus = null, musicBus = null, musicPlayer = null, soundPlayer = null, unlocked = false;
-function initAudio() {
-  if (!AC) {
-    const C = window.AudioContext || window.webkitAudioContext;
-    if (!C) return;
-    // On iPhone, ask for the "playback" audio session so the ring/silent switch doesn't mute the game.
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-    AC = new C();
-    // Everything goes through a limiter so loud moments never clip.
-    const comp = AC.createDynamicsCompressor();
-    comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.2;
-    out = AC.createGain(); out.gain.value = 1; out.connect(comp); comp.connect(AC.destination);
-    sfxBus = AC.createGain(); sfxBus.gain.value = 0.6; sfxBus.connect(out);
-    musicBus = AC.createGain(); musicBus.gain.value = 0.55; musicBus.connect(out);
-    musicPlayer = MFMusic.createMusicPlayer(AC, musicBus);
-    soundPlayer = MFSound.createSoundPlayer(AC, sfxBus, { getChord: () => musicPlayer.getChord() });
-    soundPlayer.setEnabled(save.sound);
-    musicPlayer.setLevel(G.active ? G.level : 1);
-    musicPlayer.setEnabled(save.music);
-    setInterval(() => musicPlayer.tick(), 80);
-  }
-  if (AC.state !== 'running') AC.resume().catch(() => {});
-  if (!unlocked) {
-    // A silent blip inside the tap handler is what actually unlocks audio on some phones.
-    unlocked = true;
-    try { const s = AC.createBufferSource(); s.buffer = AC.createBuffer(1, 1, 22050); s.connect(AC.destination); s.start(0); } catch (e) {}
-  }
-}
-const sfx = Object.fromEntries(MFSound.EFFECTS.map(name => [name, (...args) => {
-  if (save.sound) soundPlayer?.[name](...args);
-}]));
-
-for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, initAudio, true);
-// Don't keep playing when the app is in the background.
-document.addEventListener('visibilitychange', () => {
-  soundPlayer?.setEnabled(save.sound && !document.hidden);
-  if (AC) { if (document.hidden) AC.suspend(); else AC.resume().catch(() => {}); }
-});
-document.addEventListener('click', e => { if (e.target.closest('button')) sfx.click(); });
+const gameAudio = MFAudio.createAudio(() => ({ sound: save.sound, music: save.music, level: G.active ? G.level : 1 }));
+const { init: initAudio, sfx } = gameAudio;
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
 
 // ---------- levels ----------
@@ -336,7 +301,7 @@ const kidNow = () => save.kid && !G.slide;
 function startLevel(n) {
   const d = SET.levels[n - 1], L = d.twist ? MFTwists.levelFrom(d) : MFLevels.levelFrom(d), rng = mulberry32((typeof d.seed === 'string' ? MFLevels.hashString(d.seed) : d.seed) ^ 0x5bd1e995);
   G.gen++;
-  if (musicPlayer) musicPlayer.setLevel(n);
+  gameAudio.music?.setLevel(n);
   Object.assign(G, { active: true, ended: false, level: n, W: L.W, H: L.H, left: L.ropes.length, hearts: MAX_HEARTS, streak: 0, clearNo: 0,
     hintedRopes: new Set(), hintsUsed: 0,
     parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
@@ -980,8 +945,7 @@ document.addEventListener('touchmove', e => {
 const syncSound = () => {
   $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid);
   $('tSlide').classList.toggle('on', sliding()); $('tSlide').disabled = save.kid; // kid mode always plays the original game
-  if (musicPlayer) musicPlayer.setEnabled(save.music);
-  if (soundPlayer) soundPlayer.setEnabled(save.sound);
+  gameAudio.sync();
 };
 // Changing rules applies to the selected seeded style; Twists always uses sliding rules.
 const setGame = () => {
@@ -1042,7 +1006,7 @@ function iconPNG(size) {
 show(sharedSet ? 'levels' : 'menu');
 resize();
 requestAnimationFrame(frame);
-window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET, get music() { return musicPlayer; } };
+window.__mf = { iconPNG, monkeyFistSVG, G, save, getSet, useSet, progress, playCustom, buildCustom, startLevel, tap, undo, judge, update, draw, ray, show, quit, showHint, current: () => SET, get music() { return gameAudio.music; } };
 </script>
 </body>
 </html>

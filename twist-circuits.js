@@ -3,14 +3,11 @@
 (function (root) {
   'use strict';
   const M = typeof module !== 'undefined' && module.exports ? require('./mechanics.js') : root.MFMechanics;
+  const { shuffle } = typeof module !== 'undefined' && module.exports ? require('./random.js') : root.MFRandom;
   const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
   const cell = (p, W) => p.y * W + p.x;
   const inside = (p, b) => p.x >= 0 && p.y >= 0 && p.x < b.W && p.y < b.H;
   const pick = (a, r) => a[Math.floor(r() * a.length)];
-  function shuffled(a, r) {
-    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  }
   function trace(b, moves) {
     let paths = b.ropes;
     const states = [paths], firstUse = new Map(), steps = [];
@@ -54,7 +51,7 @@
       if (seen.has(c) || solids.has(c)) return null;
       seen.add(c);
       const old = mirrors.get(c);
-      let choices = old ? [old] : !turns || bends >= turns + 1 ? [''] : shuffled(['', '', '/', '\\'], rng);
+      let choices = old ? [old] : !turns || bends >= turns + 1 ? [''] : shuffle(['', '', '/', '\\'], rng);
       if (reserved.has(c) && !old) choices = [''];
       for (const slope of choices) {
         const nx = slope === '/' ? -dy : slope === '\\' ? dy : dx, ny = slope === '/' ? -dx : slope === '\\' ? dx : dy;

@@ -5,15 +5,10 @@
   const L = node ? require('./levels.js') : MFLevels;
   const M = node ? require('./mechanics.js') : root.MFMechanics;
   const C = node ? require('./twist-circuits.js') : root.MFTwistCircuits;
+  const { shuffle } = node ? require('./random.js') : root.MFRandom;
   const VERSION = 3, cache = new Map();
   const id = (p, W) => p.y * W + p.x;
   const inside = (p, b) => p.x >= 0 && p.y >= 0 && p.x < b.W && p.y < b.H;
-  function shuffle(a, rng) {
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
   function featuresFor(index) {
     if (index < 2) return ['mirrors'];
     if (index < 4) return ['gates'];

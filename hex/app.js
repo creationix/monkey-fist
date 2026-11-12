@@ -1,4 +1,4 @@
-/* global MFHex, MFMusic, MFSound */
+/* global MFHex, MFAudio */
 'use strict';
 const H = MFHex, $ = id => document.getElementById(id), canvas = $('board'), ctx = canvas.getContext('2d');
 const PALETTE = ['#37d5ac', '#f9bd4a', '#a987f5', '#f785ac', '#58b7ef', '#f7a251', '#e8dca1', '#f46f73', '#73d677'];
@@ -14,37 +14,19 @@ if (save.gen !== H.VERSION) {
 }
 save.sound = save.sound !== false;
 const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
-let noticeTimer, musicPlayer = null, soundPlayer = null, audioContext = null, audioUnlocked = false, lastTime = 0, width = 1, height = 1;
+let noticeTimer, lastTime = 0, width = 1, height = 1;
+const gameAudio = MFAudio.createAudio(() => ({
+  sound: save.sound, music: !!save.music && !document.hidden && !$('chooser').open && !$('result').open, level: G.index + 1,
+}));
+const { init: audio, sfx } = gameAudio;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const color = i => PALETTE[i % PALETTE.length];
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
 function syncMusic() {
   $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music);
   $('sound').textContent = save.sound ? 'Sound on' : 'Sound off'; $('sound').setAttribute('aria-pressed', save.sound);
-  soundPlayer?.setEnabled(save.sound && !document.hidden);
-  musicPlayer?.setEnabled(!!save.music && !document.hidden && !$('chooser').open && !$('result').open);
+  gameAudio.sync();
 }
-function audio() {
-  if (!audioContext) {
-    const Audio = window.AudioContext || window.webkitAudioContext; if (!Audio) return;
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* Optional on iOS. */ }
-    audioContext = new Audio(); const limiter = audioContext.createDynamicsCompressor();
-    limiter.threshold.value = -10; limiter.knee.value = 8; limiter.ratio.value = 8; limiter.attack.value = .003; limiter.release.value = .2; limiter.connect(audioContext.destination);
-    const musicBus = audioContext.createGain(), soundBus = audioContext.createGain();
-    musicBus.gain.value = .55; musicBus.connect(limiter); soundBus.gain.value = .6; soundBus.connect(limiter);
-    musicPlayer = MFMusic.createMusicPlayer(audioContext, musicBus); musicPlayer.setLevel(G.index + 1);
-    soundPlayer = MFSound.createSoundPlayer(audioContext, soundBus, { getChord: () => musicPlayer.getChord() });
-  }
-  if (audioContext.state !== 'running') audioContext.resume().catch(() => {});
-  if (!audioUnlocked) {
-    audioUnlocked = true;
-    try { const source = audioContext.createBufferSource(); source.buffer = audioContext.createBuffer(1, 1, 22050); source.connect(audioContext.destination); source.onended = () => source.disconnect(); source.start(0); } catch { /* Some browsers need this silent unlock blip. */ }
-  }
-  syncMusic();
-}
-const sfx = Object.fromEntries(MFSound.EFFECTS.map(name => [name, (...args) => soundPlayer?.[name](...args)]));
-for (const event of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(event, audio, true);
-document.addEventListener('click', event => { if (event.target.closest('button')) sfx.click(); });
 function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
@@ -56,7 +38,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=2');
+    const worker = new Worker('generator-worker.js?v=3');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -74,7 +56,7 @@ async function start(index) {
   G.index = Math.max(0, Math.min(opts.count - 1, Number(index) || 0));
   G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
   G.moves.clear();
-  $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); musicPlayer?.setLevel(G.index + 1); draw(0);
+  $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); gameAudio.music?.setLevel(G.index + 1); draw(0);
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
@@ -364,10 +346,9 @@ $('defaultSeed').onclick = () => { opts.seed = 'MONKEYFIST'; renderChooser(); };
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(opts)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
 $('sound').onclick = () => { save.sound = !save.sound; persist(); syncMusic(); };
-document.addEventListener('visibilitychange', () => { syncMusic(); if (audioContext) { if (document.hidden) audioContext.suspend(); else audioContext.resume().catch(() => {}); } });
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
-function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); draw(time / 1000); musicPlayer?.tick(); requestAnimationFrame(frame); }
+function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); draw(time / 1000); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
-window.__hex = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return soundPlayer; }, get music() { return musicPlayer; } };
+window.__hex = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };

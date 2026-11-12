@@ -15,6 +15,19 @@
     if (id === 'campaign' || id === 'slide') return defaults(id === 'slide');
     return L.parseCode(id);
   }
+  function archiveLaterStars(save, version, modes, countFor = opts => opts.count) {
+    for (const [code, progress] of Object.entries(save.sets)) {
+      const opts = L.parseCode(code);
+      if (!opts || !opts.slide || !modes.includes(opts.mode)) continue;
+      save.levelArchives ||= {};
+      const archive = save.levelArchives[version] ||= {};
+      archive[code] = { ...progress, stars: { ...progress.stars } };
+      // Keep unlocks and stars on unchanged opening boards; retain the old scores
+      // in an archive rather than applying them to replacement puzzles.
+      const count = countFor(opts);
+      progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, count) < 8));
+    }
+  }
   function migrate(save) {
     save.sets = save.sets || {};
     // The former curated Twists stars do not describe the new procedural boards.
@@ -42,42 +55,17 @@
       delete save.sets[legacy]; // Migrate once; a later explicit reset must not resurrect the old alias.
     }
     if (save.progressiveGen !== 2) {
-      for (const [code, progress] of Object.entries(save.sets)) {
-        const opts = L.parseCode(code);
-        if (!opts || opts.mode !== 'C' || !opts.slide) continue;
-        save.levelArchives = save.levelArchives || {};
-        const version = 'progressive-' + (save.progressiveGen || 0);
-        const archive = save.levelArchives[version] || (save.levelArchives[version] = {});
-        archive[code] = { ...progress, stars: { ...progress.stars } };
-        // Keep unlocks and stars on unchanged opening boards. Archive scores on
-        // boards replaced with mechanics, rather than applying them to new puzzles.
-        progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, opts.count) < 8));
-      }
+      archiveLaterStars(save, 'progressive-' + (save.progressiveGen || 0), ['C']);
       save.progressiveGen = 2;
     }
     if (save.extremeGen !== 1) {
-      for (const [code, progress] of Object.entries(save.sets)) {
-        const opts = L.parseCode(code);
-        if (!opts || opts.mode !== 'X' || !opts.slide) continue;
-        save.levelArchives = save.levelArchives || {};
-        const archive = save.levelArchives['extreme-0'] || (save.levelArchives['extreme-0'] = {});
-        archive[code] = { ...progress, stars: { ...progress.stars } };
-        progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, opts.count) < 8));
-      }
+      archiveLaterStars(save, 'extreme-0', ['X']);
       save.extremeGen = 1;
     }
     if (save.locksGen !== 1) {
-      for (const [code, progress] of Object.entries(save.sets)) {
-        const opts = L.parseCode(code);
-        if (!opts || !opts.slide || !['C', 'E', 'N', 'H', 'X'].includes(opts.mode)) continue;
-        save.levelArchives ||= {};
-        const archive = save.levelArchives['locks-0'] ||= {};
-        archive[code] = { ...progress, stars: { ...progress.stars } };
-        // Difficulty styles can fill fewer slots than requested. Use the actual
-        // set length, just as the lock introduction schedule does.
-        const count = L.generateSet(opts).levels.length;
-        progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, count) < 8));
-      }
+      // Difficulty styles can fill fewer slots than requested. Use the actual
+      // set length, just as the lock introduction schedule does.
+      archiveLaterStars(save, 'locks-0', ['C', 'E', 'N', 'H', 'X'], opts => L.generateSet(opts).levels.length);
       save.locksGen = 1;
     }
     if (!save.setUI) {

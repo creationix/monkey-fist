@@ -1,6 +1,7 @@
 // Six-neighbour sliding ropes. Axial coordinates are independent of the view.
 (function (root) {
   'use strict';
+  const { mulberry32 } = typeof module !== 'undefined' && module.exports ? require('../random.js') : root.MFRandom;
   const VERSION = 3, DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
   const key = p => p.q + ',' + p.r;
   const add = (p, d, n = 1) => ({ q: p.q + d[0] * n, r: p.r + d[1] * n });
@@ -8,8 +9,12 @@
   const inside = (level, p) => p.r >= 0 && p.r < level.H && p.q + Math.floor(p.r / 2) >= 0 && p.q + Math.floor(p.r / 2) < level.W;
   const project = p => ({ x: p.q + p.r / 2, y: p.r * Math.sqrt(3) / 2 });
   const cells = level => Array.from({ length: level.W * level.H }, (_, i) => ({ q: i % level.W - Math.floor(Math.floor(i / level.W) / 2), r: Math.floor(i / level.W) }));
-  function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
-  function random(seed) { let a = hash(seed); return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function random(seed) {
+    // Retain Hex's original code-point iteration, including for callers passing
+    // non-ASCII text. Generated board identities themselves are normalized ASCII.
+    let h = 2166136261; for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+    return mulberry32(h >>> 0);
+  }
   const pick = (rng, list) => list[Math.floor(rng() * list.length)];
   const cell = (p, W) => p.r * W + p.q + Math.floor(p.r / 2);
   const point = (c, W) => ({ q: c % W - Math.floor(Math.floor(c / W) / 2), r: Math.floor(c / W) });

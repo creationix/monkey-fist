@@ -95,6 +95,15 @@ thuds, clicks, undo, hint, and completion effects. Hex has separate Sound and Mu
 buttons, with effects enabled by default even when music is off. Muting stops active
 effects immediately; rate limits and a shared voice cap keep overlapping taps smooth.
 
+`audio.js` owns the shared browser session: lazy audio startup, mobile unlocking,
+the limiter and music/effects mix, scheduling, and background suspension. Each game
+supplies its saved settings and when its menus should silence the music.
+
+The generators share `random.js` for Mulberry32 and in-place shuffling. Square's
+existing hash and random exports remain available through `MFLevels`; Hex retains
+its original seed hashing. These sequences are part of level identity, so refactors
+must preserve generated boards and solution certificates.
+
 ## Twists mechanics
 
 All gameplay is still ordinary rope taps, with three undos per level. Mirrors are thin,
