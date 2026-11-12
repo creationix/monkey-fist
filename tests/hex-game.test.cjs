@@ -83,7 +83,7 @@ test('colossal boards generate without blocking, cancel safely, archive old scor
     assert.equal(await page.evaluate(() => __hex.G.level.index), 0);
     assert.deepEqual(await page.evaluate(() => __hex.save.sets), {});
     assert.equal(await page.evaluate(() => __hex.save.archives['gen-2']['H60B-MONKEYFIST'][59].stars), 3);
-    assert.equal(await page.evaluate(() => __hex.save.sound), false);
+    assert.equal(await page.evaluate(() => __hex.save.sound), 'off');
     const frames = await page.evaluate(async () => {
       let frames = 0, done = false; const frame = () => { frames++; if (!done) requestAnimationFrame(frame); }; requestAnimationFrame(frame);
       await __hex.start(59); done = true; return frames;

@@ -117,6 +117,9 @@
   .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .15s; }
   .toggle.on { background: #51cf66; }
   .toggle.on::after { left: 29px; }
+  .soundToggle { flex: none; width: 72px; min-height: 36px; border-radius: 18px; border: 1px solid #62899a; background: #3b6577; color: var(--text); font: inherit; cursor: pointer; }
+  .soundToggle[data-mode="low"] { background: #24634e; border-color: #62b98d; }
+  .soundToggle[data-mode="full"] { background: #51cf66; border-color: #51cf66; color: #0b2921; }
   #stars { font-size: 46px; letter-spacing: 6px; color: #2c5567; }
   #stars .on { color: var(--accent); text-shadow: 0 0 16px rgba(255,154,46,.7); }
   .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -178,12 +181,12 @@
   <button class="big alt" id="levelsBtn">Levels</button>
   <a href="hex/" style="display:block;text-align:center;color:var(--accent);font-size:14px;padding:9px;text-decoration:none">Try Hex · six directions, sliding ropes →</a>
   <div class="row2">
-    <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
+    <div class="row">Sound <button class="soundToggle" id="tSound" aria-label="Sound effects: Low" aria-pressed="true" data-mode="low">Low</button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-12 c</div>
+  <div id="ver">build 2026-11-12 d</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -229,7 +232,7 @@
 <script src="mechanics-render.js?v=30"></script>
 <script src="music.js?v=32"></script>
 <script src="sounds.js?v=1"></script>
-<script src="audio.js?v=1"></script>
+<script src="audio.js?v=2"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -244,8 +247,9 @@ const TEST_UNLOCK_ALL = true;
 let previewUnlocked = TEST_UNLOCK_ALL;
 
 // ---------- persistence ----------
-let save = { sound: true, music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
+let save = { sound: 'low', music: true, kid: false, slide: true, gen: 0, sets: null, recent: [], custom: null };
 try { Object.assign(save, JSON.parse(localStorage.getItem('monkey-fist') || '{}')); } catch (e) {}
+save.sound = MFAudio.soundSetting(save.sound).id;
 // Progress is kept per seeded set. Legacy campaign keys are migrated below without losing progress.
 const GEN = 8; // bump whenever the level generator changes: every set's levels change with it
 if (save.gen !== GEN) { // keep how far the player got in the built-in levels; stars and custom sets no longer match
@@ -943,7 +947,10 @@ document.addEventListener('touchmove', e => {
   if (e.touches.length > 1 || !t || !(overflows(t.closest('#lvGrid')) || overflows(t.closest('.screen')))) e.preventDefault();
 }, { passive: false });
 const syncSound = () => {
-  $('tSound').classList.toggle('on', save.sound); $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid);
+  const sound = MFAudio.soundSetting(save.sound), button = $('tSound');
+  button.textContent = sound.label; button.dataset.mode = sound.id;
+  button.setAttribute('aria-label', 'Sound effects: ' + sound.label); button.setAttribute('aria-pressed', sound.id !== 'off');
+  $('tMusic').classList.toggle('on', save.music); $('tKid').classList.toggle('on', save.kid);
   $('tSlide').classList.toggle('on', sliding()); $('tSlide').disabled = save.kid; // kid mode always plays the original game
   gameAudio.sync();
 };
@@ -955,7 +962,7 @@ const setGame = () => {
 $('tMusic').onclick = () => { save.music = !save.music; persist(); syncSound(); };
 $('tKid').onclick = () => { save.kid = !save.kid; setGame(); };
 $('tSlide').onclick = () => { save.slide = !save.slide; setGame(); };
-$('tSound').onclick = () => { save.sound = !save.sound; persist(); syncSound(); sfx.pop(1); };
+$('tSound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncSound(); sfx.pop(1); };
 syncSound();
 
 // Logo: an orange monkey's fist knot, three visible faces with three rope strands each.

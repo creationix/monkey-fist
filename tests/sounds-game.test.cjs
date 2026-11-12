@@ -17,7 +17,7 @@ test('Hex and square play the same swish with music off; Hex sound and music mut
           source.start = (...args) => { if (source.buffer?.length > 1) __noise.push({ duration: source.buffer.duration, energy: source.buffer.getChannelData(0).reduce((sum, v) => sum + v * v, 0) }); start(...args); };
           return source;
         };
-        if (!localStorage.getItem('monkey-fist')) localStorage.setItem('monkey-fist', JSON.stringify({ music: false, sound: true }));
+        for (const key of ['monkey-fist', 'monkey-fist-hex-v1']) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ music: false, sound: true }));
       });
       await page.goto(base + (hex ? 'hex/?level=60' : '?set=C60S-MONKEYFIST'));
       if (hex) await page.waitForFunction(() => window.__hex?.G.level && !__hex.G.loading);
@@ -44,6 +44,8 @@ test('Hex and square play the same swish with music off; Hex sound and music mut
         await page.locator('#sound').click(); await page.locator('#music').click();
         assert.equal(await page.evaluate(() => __hex.sound.state.enabled), true);
         assert.equal(await page.evaluate(() => __hex.music.state.enabled), false);
+        await page.locator('#sound').click();
+        assert.equal(await page.evaluate(() => __hex.save.sound), 'full');
         await page.locator('#sound').click();
         await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller);
         await context.setOffline(true); await page.reload(); await page.waitForFunction(() => __hex.G.level && !__hex.G.loading);

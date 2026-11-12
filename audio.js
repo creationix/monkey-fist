@@ -2,11 +2,23 @@
 // and menu rules; the synth, mix, mobile unlock, and scheduling live here.
 (function (root) {
   'use strict';
+  const SOUND_LEVELS = [
+    { id: 'off', label: 'Off', gain: 0 },
+    { id: 'low', label: 'Low', gain: .15 },
+    { id: 'full', label: 'Full', gain: .6 },
+  ];
+  // Keep previous on/off preferences; new players start with the gentler mix.
+  const soundSetting = value => SOUND_LEVELS.find(level => level.id === value) || SOUND_LEVELS[value === false ? 0 : value === true ? 2 : 1];
+  const nextSound = value => SOUND_LEVELS[(SOUND_LEVELS.indexOf(soundSetting(value)) + 1) % SOUND_LEVELS.length].id;
   function createAudio(readState) {
-    let context = null, music = null, sound = null;
+    let context = null, music = null, sound = null, soundBus = null, soundGain = null;
     function sync() {
-      const state = readState();
-      sound?.setEnabled(!!state.sound && !document.hidden);
+      const state = readState(), setting = soundSetting(state.sound);
+      if (soundBus && setting.gain !== soundGain) {
+        soundGain = setting.gain;
+        soundBus.gain.setTargetAtTime(soundGain, context.currentTime, .015);
+      }
+      sound?.setEnabled(setting.id !== 'off' && !document.hidden);
       music?.setEnabled(!!state.music);
     }
     function init() {
@@ -18,8 +30,9 @@
         const limiter = context.createDynamicsCompressor();
         limiter.threshold.value = -10; limiter.knee.value = 8; limiter.ratio.value = 8;
         limiter.attack.value = .003; limiter.release.value = .2; limiter.connect(context.destination);
-        const musicBus = context.createGain(), soundBus = context.createGain();
-        musicBus.gain.value = .55; soundBus.gain.value = .6;
+        const musicBus = context.createGain(); soundBus = context.createGain();
+        soundGain = soundSetting(readState().sound).gain;
+        musicBus.gain.value = .55; soundBus.gain.value = soundGain;
         musicBus.connect(limiter); soundBus.connect(limiter);
         music = MFMusic.createMusicPlayer(context, musicBus);
         sound = MFSound.createSoundPlayer(context, soundBus, { getChord: () => music.getChord() });
@@ -44,5 +57,5 @@
     });
     return { init, sync, sfx, get music() { return music; }, get sound() { return sound; } };
   }
-  root.MFAudio = { createAudio };
+  root.MFAudio = { createAudio, soundSetting, nextSound };
 })(globalThis);

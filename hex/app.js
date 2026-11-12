@@ -12,7 +12,7 @@ if (save.gen !== H.VERSION) {
   if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
   save.sets = {}; save.gen = H.VERSION;
 }
-save.sound = save.sound !== false;
+save.sound = MFAudio.soundSetting(save.sound).id;
 const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 let noticeTimer, lastTime = 0, width = 1, height = 1;
 const gameAudio = MFAudio.createAudio(() => ({
@@ -24,7 +24,9 @@ const color = i => PALETTE[i % PALETTE.length];
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
 function syncMusic() {
   $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music);
-  $('sound').textContent = save.sound ? 'Sound on' : 'Sound off'; $('sound').setAttribute('aria-pressed', save.sound);
+  const sound = MFAudio.soundSetting(save.sound);
+  $('sound').textContent = 'Sound: ' + sound.label; $('sound').setAttribute('aria-pressed', sound.id !== 'off');
+  $('sound').setAttribute('aria-label', 'Sound effects: ' + sound.label);
   gameAudio.sync();
 }
 function updateURL() {
@@ -345,7 +347,7 @@ $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues
 $('defaultSeed').onclick = () => { opts.seed = 'MONKEYFIST'; renderChooser(); };
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(opts)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
-$('sound').onclick = () => { save.sound = !save.sound; persist(); syncMusic(); };
+$('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
 function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); draw(time / 1000); requestAnimationFrame(frame); }

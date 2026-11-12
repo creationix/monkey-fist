@@ -91,8 +91,11 @@ original compositions, not recordings of traditional music.
 Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the currently audible harmony. Music remains independent of sound effects; turning Music off stops its tone and noise sources and disconnects the echo. A shared noise buffer, bounded voices, and a short scheduling lookahead keep playback light during large puzzles.
 
 Square and Hex share `sounds.js`: the same airy rope swish, chord-following exit plucks,
-thuds, clicks, undo, hint, and completion effects. Hex has separate Sound and Music
-buttons, with effects enabled by default even when music is off. Muting stops active
+thuds, clicks, undo, hint, and completion effects. Both games cycle Sound through
+**Off → Low → Full** independently of Music. Low uses one quarter of the original
+effects gain (about 12 dB quieter) to sit alongside the soundtrack; Full keeps the
+original volume. New players start on Low, while previous on/off preferences carry
+over as Full/Off. The selected level is saved in each game. Muting stops active
 effects immediately; rate limits and a shared voice cap keep overlapping taps smooth.
 
 `audio.js` owns the shared browser session: lazy audio startup, mobile unlocking,

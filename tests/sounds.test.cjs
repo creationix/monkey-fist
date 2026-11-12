@@ -20,7 +20,7 @@ test('the first gesture queues the square-game swish with its noise envelope and
   const { context, sources, filters } = device(), player = createSoundPlayer(context, {});
   assert.equal(player.slide(), true, 'schedule even while the device resumes');
   const noise = sources.find(s => s.buffer), pitch = sources.find(s => s.frequency), data = noise.buffer.getChannelData(0);
-  assert.equal(noise.buffer.length, 13230); assert.equal(data[0], 0); assert.ok(data.some(v => Math.abs(v) > .5));
+  assert.equal(noise.buffer.length, 13230); assert.equal(Math.abs(data[0]), 0); assert.ok(data.some(v => Math.abs(v) > .5));
   assert.equal(filters[0].type, 'bandpass'); assert.deepEqual(filters[0].frequency.events, [[500, 0], [2400, .3]]);
   assert.deepEqual(pitch.frequency.events, [[260, 0], [520, .2]]);
   assert.equal(player.slide(), false, 'rapid duplicate swishes are throttled');
