@@ -63,3 +63,17 @@ test('mechanics upgrades archive only changed scores, keep genuine unlocks, and 
   save.sets['C60S-MONKEYFIST'].stars[9] = 3; S.migrate(save);
   assert.equal(save.sets['C60S-MONKEYFIST'].stars[9], 3, 'migration must run only once');
 });
+test('route-first upgrade retains older archives and genuine unlocks, and runs once', () => {
+  const save = { setUI: 1, twistsGen: 2, progressiveGen: 1, custom: S.defaults(true),
+    twistsArchive: { legacy: { max: 5 } }, levelArchives: { 'progressive-0': { legacy: true } },
+    sets: { 'C60S-MONKEYFIST': { max: 51, stars: { 1: 3, 8: 3, 60: 2 } }, 'T60BS-ALPHA': { max: 40, stars: { 4: 3 } } } };
+  S.migrate(save);
+  assert.equal(save.levelArchives['progressive-0'].legacy, true);
+  assert.equal(save.twistsArchive.legacy.max, 5);
+  assert.equal(save.levelArchives['progressive-1']['C60S-MONKEYFIST'].stars[60], 2);
+  assert.equal(save.levelArchives['twists-2']['T60BS-ALPHA'].stars[4], 3);
+  assert.equal(save.sets['C60S-MONKEYFIST'].max, 51);
+  assert.deepEqual(save.sets['C60S-MONKEYFIST'].stars, { 1: 3, 8: 3 });
+  save.sets['C60S-MONKEYFIST'].stars[60] = 3; S.migrate(save);
+  assert.equal(save.sets['C60S-MONKEYFIST'].stars[60], 3);
+});

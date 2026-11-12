@@ -56,26 +56,47 @@ Only this teaching sequence is fixed: the puzzles themselves are generated for e
 In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes.
 Mirrors arrive at level 9, gates at 17, springs at 25, and mixed-mechanic tangles follow.
 The teaching pace scales with set length (e.g. 120 levels introduces them at 17/33/49).
-`MFTwists.integrate` decorates Progressive descriptors; the ordinary generator and its
-original/Kid-mode sets retain their identities. Mechanic boards use those same growing
-weave layouts as their starting points, rather than a separate small-board difficulty cap.
+`MFTwists.integrate` attaches routed descriptors to Progressive; the ordinary generator and
+its original/Kid-mode sets retain their identities. Board sizes still follow Progressive's
+size/difficulty plan, but advanced puzzles are built around their mechanic routes.
 
-`twists.js` constructs a seeded sliding-rope board using the existing weaving generator,
-then searches empty cells for playable mechanic placements. A bounded full-geometry
-solver verifies each candidate. The final solution must actually encounter every mirror,
-spring, and opened gate; a closed gate must change an available move. Every published
-board has a replay-verified solution. Breadth-first search calculates player-tap par;
-when its budget is exhausted, par is the verified best known score, not falsely marked
-as an exact minimum. Auto-release moves never count towards par.
+Introductory puzzles in `twists.js` use small verified overlays. Advanced boards use
+`twist-circuits.js`: randomized key-rope shapes and multi-turn reflection routes are
+constructed first, with springs and a chain of gates connecting the keys. The keys are
+themselves tangled, not free exit buttons. Spring-dependent hook shapes cannot escape
+even in isolation without the mechanic; bounded complete searches test that claim.
+Each gate is tested with its key held and all unrelated ropes removed: its linked rope
+can exit with that gate open but cannot exit with it closed.
+
+Ordinary ropes are inserted **between** the circuit's moves. The generator finds when a
+rope's exit opens and proves its body cannot obstruct an earlier move. This makes springs,
+reflections, keys, and ordinary blockers share a solution rather than making the player
+clear an ordinary tangle before using a few separate features. Advanced sizes grow from
+three routed ropes (6–9 mirrors, three springs, two linked gates) to five (10–15 mirrors,
+five springs, four linked gates), plus dozens of dependent ordinary ropes. All shapes,
+routes, and placements are seeded; no stored circuit boards are selected.
+
+Every board has a replay-verified certificate. Tests require every circuit tile to be
+used, key ropes to bounce and cross multiple mirrors, and ordinary ropes to leave between
+mechanic moves. Large circuit par is the certificate's verified best known player-tap
+score, not an exhaustive minimum. Small introductory puzzles use breadth-first search.
+Auto-release moves never count towards either par.
 
 Generation is lazy (one board when opened), cached, deterministic, and bounded by attempt
-and search-node limits. If placement search exhausts its budget, a separate constructive
+and search-node limits. Advanced circuit construction retries routes or increases available
+room; it does not fall back to one tile of each kind. If introductory placement search exhausts its budget, a separate constructive
 algorithm grows a randomly bent rope with a guaranteed reverse exit, then adds the requested
 mechanics and key and fills the board backwards with exit-certified ropes. These additions
 create dependency chains and a full-size puzzle with a certificate by construction; the
 fallback never collapses a late large board into a tiny teaching scene. It never selects a premade
 puzzle. Tests cover hundreds of generated boards, seed diversity beyond reflections and
 rotations, certificates, feature use, teaching order, and constructive fallback orientations.
+
+Fixtures are drawn as game-world objects, with the rope art's outlined forms, weave, and
+highlights: two-sided polished mirror beams with bound wooden ends, visible metal coils
+with padded contact faces, and braided gate bars on wooden posts. Gates and key ropes
+share brass letter tags. Open gates retract their bars and springs compress on contact.
+Canvas geometry keeps these crisp at phone and laptop sizes, including rotated layouts.
 
 Changed Twists results are archived in the save's `levelArchives` by generation; older
 `twistsArchive` data is retained. Changed Sliding Progressive scores are also archived;
@@ -97,7 +118,7 @@ The experimental playground remains a separate subpage, but shares the movement 
 
 ## How levels are made
 
-Procedural straight-track generation is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Curated Twists definitions live in [`twists.js`](twists.js), with routed movement in [`mechanics.js`](mechanics.js).
+Procedural straight-track generation is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Twists orchestration lives in [`twists.js`](twists.js), route-first construction in [`twist-circuits.js`](twist-circuits.js), and routed movement in [`mechanics.js`](mechanics.js).
 
 **Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
 

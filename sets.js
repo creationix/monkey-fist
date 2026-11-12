@@ -19,14 +19,14 @@
     save.sets = save.sets || {};
     // The former curated Twists stars do not describe the new procedural boards.
     // Archive only those results, leaving every other style's progress untouched.
-    if (save.twistsGen !== 2) {
+    if (save.twistsGen !== 3) {
       for (const code of Object.keys(save.sets)) if ((L.parseCode(code) || {}).mode === 'T') {
         save.levelArchives = save.levelArchives || {};
         const archive = 'twists-' + (save.twistsGen || 'curated');
         save.levelArchives[archive] = save.levelArchives[archive] || {};
         save.levelArchives[archive][code] = save.sets[code]; delete save.sets[code];
       }
-      save.twistsGen = 2;
+      save.twistsGen = 3;
     }
     for (const legacy of ['campaign', 'slide']) {
       const old = save.sets[legacy]; if (!old) continue;
@@ -41,18 +41,19 @@
       save.sets[id] = target;
       delete save.sets[legacy]; // Migrate once; a later explicit reset must not resurrect the old alias.
     }
-    if (save.progressiveGen !== 1) {
+    if (save.progressiveGen !== 2) {
       for (const [code, progress] of Object.entries(save.sets)) {
         const opts = L.parseCode(code);
         if (!opts || opts.mode !== 'C' || !opts.slide) continue;
         save.levelArchives = save.levelArchives || {};
-        const archive = save.levelArchives['progressive-0'] || (save.levelArchives['progressive-0'] = {});
+        const version = 'progressive-' + (save.progressiveGen || 0);
+        const archive = save.levelArchives[version] || (save.levelArchives[version] = {});
         archive[code] = { ...progress, stars: { ...progress.stars } };
         // Keep unlocks and stars on unchanged opening boards. Archive scores on
         // boards replaced with mechanics, rather than applying them to new puzzles.
         progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, opts.count) < 8));
       }
-      save.progressiveGen = 1;
+      save.progressiveGen = 2;
     }
     if (!save.setUI) {
       // The previous Custom screen held draft options, not the set selected by the Play button.

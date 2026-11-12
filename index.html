@@ -182,7 +182,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 o</div>
+  <div id="ver">build 2026-11-11 p</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -219,12 +219,13 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=27"></script>
-<script src="sets.js?v=27"></script>
-<script src="mechanics.js?v=27"></script>
-<script src="twists.js?v=27"></script>
-<script src="mechanics-render.js?v=27"></script>
-<script src="music.js?v=27"></script>
+<script src="levels.js?v=28"></script>
+<script src="sets.js?v=28"></script>
+<script src="mechanics.js?v=28"></script>
+<script src="twist-circuits.js?v=28"></script>
+<script src="twists.js?v=28"></script>
+<script src="mechanics-render.js?v=28"></script>
+<script src="music.js?v=28"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -811,8 +812,7 @@ function drawNoodle(c, n, time, cs, ox, oy, hinted, fixed) {
   if (G.twist) {
     const keys = [...new Set((G.features.gates || []).map(g => g.key))], key = keys.indexOf(n.id);
     if (key >= 0) {
-      const x = X(pts[0][0]), y = Y(pts[0][1]); c.fillStyle = '#081822'; c.beginPath(); c.arc(x, y, cs * .16, 0, TAU); c.fill();
-      c.fillStyle = '#fff'; c.font = '900 ' + cs * .22 + 'px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String.fromCharCode(65 + key), x, y);
+      MFMechanicsRender.badge(c, X(pts[0][0]), Y(pts[0][1]), cs, n.color, String.fromCharCode(65 + key), G.rotated ? -Math.PI / 2 : 0);
     }
   }
 }
@@ -830,7 +830,14 @@ function draw(time) {
   c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.08)'; c.stroke();
   c.fillStyle = 'rgba(255,255,255,.1)';
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { c.beginPath(); c.arc(px(x), py(y), Math.max(1.2, cs * 0.045), 0, TAU); c.fill(); }
-  if (G.twist) MFMechanicsRender.draw(c, G.features, G.paths, px, py, cs, id => G.noodles[id].color);
+  if (G.twist) {
+    const pressed = new Set();
+    for (const n of G.noodles) if (n.move && n.move.event === 'bounce' && n.s >= n.move.distance) {
+      const p = n.route.at(-1), [dx, dy] = MFMechanics.direction(G.features, n.route);
+      pressed.add((p.y + dy) * G.W + p.x + dx);
+    }
+    MFMechanicsRender.draw(c, G.features, G.paths, px, py, cs, id => G.noodles[id].color, { pressed, angle: G.rotated ? -Math.PI / 2 : 0 });
+  }
   const fixed = n => G.lost && G.warned && G.fixed.includes(n.id);
   for (const n of G.noodles) if (n.state === 'idle') drawNoodle(c, n, time, cs, G.ox, G.oy, n.id === G.hint, fixed(n));
   for (const n of G.noodles) if (n.state !== 'idle' && n.state !== 'gone') drawNoodle(c, n, time, cs, G.ox, G.oy, false, fixed(n));

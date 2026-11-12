@@ -4,7 +4,8 @@
   const node = typeof module !== 'undefined' && module.exports;
   const L = node ? require('./levels.js') : MFLevels;
   const M = node ? require('./mechanics.js') : root.MFMechanics;
-  const VERSION = 2, cache = new Map();
+  const C = node ? require('./twist-circuits.js') : root.MFTwistCircuits;
+  const VERSION = 3, cache = new Map();
   const id = (p, W) => p.y * W + p.x;
   const inside = (p, b) => p.x >= 0 && p.y >= 0 && p.x < b.W && p.y < b.H;
   function shuffle(a, rng) {
@@ -165,6 +166,16 @@
     // Standalone Twists climbs into the same board sizes as the main campaign.
     const target = Math.min(d.big ? 600 : 300, 10 + d.index * (d.big ? 10 : 5));
     let size = d.base ? { W: d.base.W, H: d.base.H } : L.plan(rng, target, target + 12, d.big, 0, true);
+    // Advanced boards are built around connected mechanic routes, not decorated
+    // after the ordinary weaving generator has already decided their solution.
+    if (size.W * size.H >= 70 && (kinds.length >= 2 || kinds.includes('springs'))) {
+      let circuit = C.generate(rng, size.W, size.H, kinds);
+      if (!circuit) circuit = C.generate(rng, Math.max(size.W, 10), Math.max(size.H, 14), kinds);
+      if (!circuit) throw Error('Could not construct a connected Twists circuit');
+      const par = M.score(circuit, circuit.solution);
+      if (par === null || !M.replay(circuit, circuit.solution).solved) throw Error('Unverified Twists circuit');
+      return { ...circuit, par, parExact: false };
+    }
     let searches = 0;
     for (let attempt = 0; attempt < 12 && searches < 45; attempt++) {
       const cfg = d.base && attempt === 0 ? { ...d.base, W: d.base.boardW, H: d.base.boardH } :
@@ -225,6 +236,7 @@
         kinds.length === 1 && kinds[0] === 'gates' ? 'Free a lettered key rope to open its matching gate.' : kinds.length === 1 && kinds[0] === 'springs' ?
         'A spring swaps head and tail on contact. Once all ropes have clear exits, they leave automatically.' :
         'Plan your exits around the mirrors, key gates, and springs. Every move is still a simple tap.';
+      if (definition.circuit && kinds.includes('gates')) definition.note = 'The keys are tangled too. Open their routes, then free the ropes waiting behind them.';
       if (cache.size >= 64) cache.delete(cache.keys().next().value);
       cache.set(key, definition);
     }

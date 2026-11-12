@@ -114,7 +114,7 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
     });
     assert.equal(spring.before, spring.after); assert.equal(spring.taps, 2); assert.equal(spring.undos, 2); assert.equal(spring.state, 'idle');
     const gate = await page.evaluate(() => {
-      __mf.startLevel(3);
+      __mf.startLevel(60); // A linked key opens one route while later keys are still spring-locked.
       const g = __mf.G, key = g.features.gates[0].key;
       for (let k = 0; k < 60; k++) {
         const i = g.plan[0], next = MFMechanics.tap(g.features, g.paths, i), taps = g.taps;
@@ -150,7 +150,8 @@ test('Progressive preview opens large mixed boards on desktop and mobile without
       await page.locator('#lvGrid button').nth(119).click();
       const before = await page.evaluate(() => ({ W: __mf.G.W, H: __mf.G.H, n: __mf.G.left,
         features: ['mirrors', 'gates', 'springs'].map(k => __mf.G.features[k].length) }));
-      assert.ok(before.W * before.H >= 200); assert.ok(before.n >= 30); assert.deepEqual(before.features, [1, 1, 1]);
+      assert.ok(before.W * before.H >= 200); assert.ok(before.n >= 30);
+      assert.ok(before.features[0] >= 6 && before.features[1] >= 2 && before.features[2] >= 3);
       for (let move = 0; move < 180; move++) {
         if (await page.evaluate(() => __mf.G.ended)) break;
         if (!await page.evaluate(() => __mf.G.auto)) {
