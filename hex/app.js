@@ -117,12 +117,6 @@ function update(dt) {
 }
 function raw(p, rotated) { const v = H.project(p); return rotated ? { x: -v.y, y: v.x } : v; }
 function screen(p) { const v = raw(p, G.view.rotated); return { x: G.view.ox + v.x * G.view.scale, y: G.view.oy + v.y * G.view.scale }; }
-function polygon(p, radius = 1 / Math.sqrt(3)) {
-  const center = H.project(p), points = [];
-  for (let k = 0; k < 6; k++) { const a = (30 + k * 60) * Math.PI / 180, x = center.x + Math.cos(a) * radius, y = center.y + Math.sin(a) * radius;
-    const v = G.view.rotated ? { x: -y, y: x } : { x, y }; points.push({ x: G.view.ox + v.x * G.view.scale, y: G.view.oy + v.y * G.view.scale }); }
-  return points;
-}
 function resize() {
   const rect = $('boardWrap').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -132,9 +126,27 @@ function resize() {
   const normal = Math.min((width - 24) / w, (height - 24) / h), rotated = Math.min((width - 24) / h, (height - 24) / w);
   const rot = rotated > normal, scale = Math.max(1, Math.min(90, rot ? rotated : normal));
   G.view = { rotated: rot, scale, ox: width / 2 - (rot ? -(maxY + minY) : maxX + minX) * scale / 2, oy: height / 2 - (rot ? maxX + minX : maxY + minY) * scale / 2 };
+  const bw = (rot ? h : w) * scale, bh = (rot ? w : h) * scale, pad = Math.max(0, Math.min(8, (width - bw) / 2 - 2, (height - bh) / 2 - 2));
+  G.view.panel = { x: (width - bw) / 2 - pad, y: (height - bh) / 2 - pad, w: bw + pad * 2, h: bh + pad * 2 };
   draw(0);
 }
 function path(ctx, points, close = false) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (close) ctx.closePath(); }
+function shade(hex, amount) {
+  const n = parseInt(hex.slice(1), 16), channel = x => Math.round(amount < 0 ? x * (1 + amount) : x + (255 - x) * amount);
+  return `rgb(${channel(n >> 16)},${channel(n >> 8 & 255)},${channel(n & 255)})`;
+}
+// One continuous strand treatment for ropes and lock bindings. Dash phase follows
+// the material as a rope slides, rather than restarting at every hex-grid segment.
+function cord(points, width, col, phase = 0) {
+  const dark = shade(col, -.55), opacity = ctx.globalAlpha;
+  ctx.lineCap = ctx.lineJoin = 'round'; ctx.setLineDash([]);
+  path(ctx, points); ctx.strokeStyle = dark; ctx.lineWidth = width * 1.3; ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = width; ctx.stroke();
+  ctx.lineCap = 'butt'; ctx.setLineDash([width * .175, width * .325]); ctx.lineDashOffset = phase;
+  ctx.lineWidth = width * .92; ctx.strokeStyle = dark; ctx.globalAlpha = opacity * .24; ctx.stroke();
+  ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.lineCap = 'round';
+  ctx.lineWidth = width * .26; ctx.strokeStyle = shade(col, .7); ctx.globalAlpha = opacity * .35; ctx.stroke(); ctx.globalAlpha = opacity;
+}
 function pointAt(route, t) {
   const i = Math.min(route.length - 2, Math.floor(t)), f = t - i, a = route[i], b = route[i + 1];
   return { q: a.q + (b.q - a.q) * f, r: a.r + (b.r - a.r) * f };
@@ -146,54 +158,77 @@ function visiblePath(i) {
   points.push(pointAt(m.route, end)); return points;
 }
 function badge(p, letter, size, col) {
-  ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = '#c58e45'; ctx.strokeStyle = '#5a422a'; ctx.lineWidth = size * .12;
-  ctx.beginPath(); ctx.arc(0, 0, size * .5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#f6dba0'; ctx.lineWidth = size * .06; ctx.stroke(); ctx.fillStyle = col || '#283339'; ctx.font = '800 ' + size * .64 + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(letter, 0, size * .025); ctx.restore();
+  ctx.save(); ctx.translate(p.x, p.y);
+  const r = size * .5, gold = ctx.createLinearGradient(-r, -r, r, r);
+  gold.addColorStop(0, '#fff1bc'); gold.addColorStop(.48, '#ddb867'); gold.addColorStop(1, '#a57337');
+  ctx.fillStyle = '#503b28'; ctx.beginPath(); ctx.arc(0, size * .055, r * 1.12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = gold; ctx.strokeStyle = '#72502e'; ctx.lineWidth = size * .07;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = shade(col, -.5); ctx.beginPath(); ctx.arc(0, 0, r * .74, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff3cc'; ctx.font = '900 ' + size * .65 + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(letter, 0, size * .025); ctx.restore();
 }
 function drawRope(i, time) {
-  const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), c = color(i);
+  const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i), dark = shade(col, -.55);
   ctx.save();
   if (G.bump?.i === i) { const d = H.direction(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
-  if (G.hint === i || G.selected === i) { path(ctx, points); ctx.strokeStyle = '#fff1b4'; ctx.globalAlpha = .4 + .25 * Math.sin(time * 7); ctx.lineWidth = s * .57; ctx.stroke(); ctx.globalAlpha = 1; }
-  path(ctx, points); ctx.strokeStyle = '#03151dc0'; ctx.lineWidth = s * .46; ctx.stroke();
-  ctx.strokeStyle = c; ctx.lineWidth = s * .36; ctx.stroke();
-  ctx.strokeStyle = '#ffffff30'; ctx.lineWidth = s * .12; ctx.stroke();
-  // Cross-strands follow all six directions, so the diagonal ropes keep their weave.
-  for (let k = 1; k < points.length; k++) {
-    const a = points[k - 1], b = points[k], length = Math.hypot(b.x - a.x, b.y - a.y); if (!length) continue;
-    const dx = (b.x - a.x) / length, dy = (b.y - a.y) / length;
-    ctx.lineWidth = s * .055; ctx.lineCap = 'butt';
-    for (let at = s * .07; at < length; at += s * .14) {
-      const x = a.x + dx * at, y = a.y + dy * at;
-      ctx.strokeStyle = '#061c2933'; path(ctx, [{ x: x - dy * s * .16, y: y + dx * s * .16 }, { x: x + dy * s * .16, y: y - dx * s * .16 }]); ctx.stroke();
-    }
-  }
   const tip = points.at(-1), prev = points.at(-2), len = Math.hypot(tip.x - prev.x, tip.y - prev.y), dx = (tip.x - prev.x) / len, dy = (tip.y - prev.y) / len;
-  path(ctx, [{ x: tip.x + dx * s * .39, y: tip.y + dy * s * .39 }, { x: tip.x - dx * s * .16 - dy * s * .29, y: tip.y - dy * s * .16 + dx * s * .29 }, { x: tip.x - dx * s * .16 + dy * s * .29, y: tip.y - dy * s * .16 - dx * s * .29 }], true);
-  ctx.fillStyle = c; ctx.strokeStyle = '#061c2955'; ctx.lineWidth = s * .055; ctx.lineJoin = 'miter'; ctx.fill(); ctx.stroke();
-  const lock = G.level.locks.findIndex(g => g.key === i); if (lock >= 0) badge(points[0], String.fromCharCode(65 + lock), s * .42);
+  const arrow = (grow, fill) => {
+    const reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
+    path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
+    ctx.fillStyle = fill; ctx.fill();
+  };
+  if (G.hint === i || G.selected === i) {
+    const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
+    path(ctx, points); ctx.strokeStyle = '#fff1b4'; ctx.lineWidth = s * .56; ctx.stroke(); arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
+  }
+  // Match the square game's colored contour, woven ribs, and soft central light.
+  cord(points, s * .4, col, (G.moves.get(i)?.progress || 0) * s);
+  arrow(s * .065, dark); arrow(0, col);
+  // Carry the central highlight into the arrow so its head and body read as one rope.
+  ctx.strokeStyle = shade(col, .7); ctx.lineWidth = s * .10; ctx.globalAlpha = .35;
+  path(ctx, [{ x: tip.x - dx * s * .16, y: tip.y - dy * s * .16 }, { x: tip.x + dx * s * .22, y: tip.y + dy * s * .22 }]); ctx.stroke(); ctx.globalAlpha = 1;
+  const lock = G.level.locks.findIndex(g => g.key === i); if (lock >= 0) badge(points[0], String.fromCharCode(65 + lock), s * .4, col);
   ctx.restore();
 }
 function drawLock(g, i) {
-  const s = G.view.scale, p = screen(g.cell), open = G.lockOpen[i] || 0, letter = String.fromCharCode(65 + i);
-  ctx.save(); path(ctx, polygon(g.cell, .44)); ctx.fillStyle = '#233e43'; ctx.strokeStyle = '#9c8053'; ctx.lineWidth = s * .05; ctx.globalAlpha = 1 - open * .8; ctx.fill(); ctx.stroke();
-  if (open < .98) {
-    ctx.translate(p.x, p.y); ctx.scale(1 - open * .55, 1 - open * .55); ctx.strokeStyle = '#f3d294'; ctx.lineWidth = s * .075;
-    ctx.beginPath(); ctx.arc(0, -s * .09, s * .13, Math.PI, 0); ctx.lineTo(s * .13, s * .09); ctx.moveTo(-s * .13, -s * .09); ctx.lineTo(-s * .13, s * .09); ctx.stroke();
-    ctx.fillStyle = color(g.key); ctx.strokeStyle = '#5f543c'; ctx.lineWidth = s * .04; ctx.beginPath(); ctx.roundRect(-s * .23, -s * .025, s * .46, s * .31, s * .07); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#122b34'; ctx.font = '800 ' + s * .23 + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(letter, 0, s * .13);
-  }
+  const s = G.view.scale, p = screen(g.cell), open = G.lockOpen[i] || 0, letter = String.fromCharCode(65 + i), col = color(g.key);
+  if (open > .995) return; // An open lane should look empty, not like a faded obstacle.
+  ctx.save(); ctx.translate(p.x, p.y - open * s * .12); ctx.scale(1 - open * .25, 1 - open * .25);
+  ctx.globalAlpha = 1 - open;
+  const round = (x, y, w, h, radius, fill, stroke, lineWidth) => {
+    ctx.beginPath(); ctx.roundRect(x * s, y * s, w * s, h * s, radius * s); ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth * s; ctx.stroke(); }
+  };
+  // Rounded brass shackle, with separate dark edge, metal and reflected light.
+  const shackle = () => { ctx.beginPath(); ctx.moveTo(-s * .16, s * .02); ctx.lineTo(-s * .16, -s * .16); ctx.arc(0, -s * .16, s * .16, Math.PI, 0); ctx.lineTo(s * .16, s * (.02 - open * .15)); };
+  ctx.save(); ctx.translate(-s * .16, 0); ctx.rotate(-open * .5); ctx.translate(s * .16, 0);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  shackle(); ctx.strokeStyle = '#6c5838'; ctx.lineWidth = s * .14; ctx.stroke();
+  const metal = ctx.createLinearGradient(-s * .2, -s * .3, s * .2, s * .1);
+  metal.addColorStop(0, '#fff2bf'); metal.addColorStop(.45, '#daba77'); metal.addColorStop(1, '#9c713b');
+  ctx.strokeStyle = metal; ctx.lineWidth = s * .09; ctx.stroke(); ctx.restore();
+  // Wood grain and rope bindings echo the square game's lashed gate posts.
+  round(-.32, -.035, .64, .42, .09, '#081b2470');
+  const wood = ctx.createLinearGradient(-s * .3, -s * .1, s * .3, s * .3);
+  wood.addColorStop(0, '#e9bf7c'); wood.addColorStop(.35, '#c49153'); wood.addColorStop(1, '#93623a');
+  round(-.31, -.075, .62, .42, .085, wood, '#705035', .035);
+  ctx.strokeStyle = '#ffdfa060'; ctx.lineWidth = s * .017;
+  for (const row of [.01, .105, .24]) { path(ctx, [{ x: -s * .25, y: s * row }, { x: s * .25, y: s * (row + .025) }]); ctx.stroke(); }
+  for (const side of [-1, 1]) cord([{ x: side * s * .21, y: -s * .07 }, { x: side * s * .21, y: s * .34 }], s * .065, col);
+  badge({ x: 0, y: s * .13 }, letter, s * .38, col);
   ctx.restore();
 }
 function draw(time) {
   ctx.clearRect(0, 0, width, height); if (!G.level) return;
-  const board = new Path2D();
-  for (const p of H.cells(G.level)) {
-    const vertices = polygon(p); vertices.forEach((v, i) => i ? board.lineTo(v.x, v.y) : board.moveTo(v.x, v.y)); board.closePath();
-  }
-  ctx.fillStyle = '#8bbdb909'; ctx.fill(board); ctx.strokeStyle = '#86b6b218'; ctx.lineWidth = 1; ctx.stroke(board);
+  const board = new Path2D(), b = G.view.panel, s = G.view.scale;
+  board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
+  const surface = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+  surface.addColorStop(0, '#ffffff0c'); surface.addColorStop(1, '#ffffff06');
+  ctx.fillStyle = surface; ctx.fill(board); ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1.5; ctx.stroke(board);
   ctx.save(); ctx.clip(board);
+  ctx.fillStyle = '#b3d7d91c';
+  for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
   G.level.locks.forEach(drawLock);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   for (const i of G.moves.keys()) drawRope(i, time);
