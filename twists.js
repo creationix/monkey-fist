@@ -24,22 +24,16 @@
     return ['springs', 'mirrors', 'gates'];
   }
   function progressiveFeatures(index, count) {
-    const stage = L.progressiveStage(index, count);
-    if (stage < 8) return [];
-    if (stage < 16) return ['mirrors'];
-    if (stage < 20) return ['gates'];
-    if (stage < 24) return ['mirrors', 'gates'];
-    if (stage < 28) return ['springs'];
-    if (stage < 32) return ['springs', 'mirrors'];
-    if (stage < 40) return stage % 2 ? ['springs', 'gates'] : ['mirrors', 'gates'];
-    return ['springs', 'mirrors', 'gates'];
+    return L.progressiveStage(index, count) < 8 ? [] : ['gates'];
   }
   function integrate(set) {
-    if (!['C', 'X'].includes(set.mode) || !set.slide) return set;
+    if (!['C', 'E', 'N', 'H', 'X'].includes(set.mode) || !set.slide) return set;
     return { ...set, levels: set.levels.map((base, index) => {
       const kinds = progressiveFeatures(index, set.levels.length);
-      return kinds.length ? { twist: true, base, kinds, index, seed: set.seed, big: set.big,
-        difficulty: base.difficulty, title: label(kinds) } : base;
+      const limit = { E: 2, N: 4, C: 6, H: 6, X: 8 }[set.mode];
+      return kinds.length ? { twist: true, locks: true, base, kinds, index, seed: set.seed, big: set.big,
+        lockCount: Math.min(limit, Math.floor(L.progressiveStage(index, set.levels.length) / 8)),
+        difficulty: base.difficulty, title: 'Ropes & locks' } : base;
     }) };
   }
   const label = kinds => kinds.map(k => ({ mirrors: 'Mirrors', gates: 'Key gates', springs: 'Springs' })[k]).join(' + ');
@@ -85,7 +79,8 @@
       paths = next.paths;
     }
     for (const gate of shuffle(candidates, rng)) {
-      const variant = { ...level, gates: [gate] };
+      if (level.gates.some(g => g.cell === gate.cell || g.key === gate.key)) continue;
+      const variant = { ...level, gates: [...level.gates, gate] };
       // Reject a gate crossed earlier in the replay by another rope.
       if (!M.replay(variant, moves).solved) continue;
       const relevant = states.some(state => state[gate.key] && state.some((p, i) => {
@@ -162,6 +157,7 @@
     return { ...level, ropes, solution: moves };
   }
   function generate(d) {
+    if (d.locks) return generateLocks(d);
     const kinds = d.kinds || featuresFor(d.index), rng = L.mulberry32(L.hashString('twists/' + VERSION + '|' + d.seed + '|' + d.index + '|' + !!d.big));
     // Standalone Twists climbs into the same board sizes as the main campaign.
     const target = Math.min(d.big ? 600 : 300, 10 + d.index * (d.big ? 10 : 5));
@@ -220,6 +216,48 @@
     if (verified.par === null || !M.replay(verified, verified.solution).solved) throw new Error('Invalid grown Twists certificate');
     return { ...verified, construction: 'grown' };
   }
+  // Retain the ordinary woven puzzle, including its sliding knots and traps.
+  // Gates add certified dependencies without changing any rope's direction.
+  function generateLocks(d) {
+    const base = L.weave(L.mulberry32(d.base.seed), { ...d.base, W: d.base.boardW, H: d.base.boardH });
+    const rng = L.mulberry32(L.hashString('locks/1|' + d.seed + '|' + d.index + '|' + !!d.big));
+    function decorate(level) {
+      const occupied = new Set(level.ropes.flat().map(p => id(p, level.W)));
+      const empty = Array.from({ length: level.W * level.H }, (_, c) => c).filter(c => !occupied.has(c));
+      for (let n = 0; n < d.lockCount; n++) {
+        const next = addGate(level, base.taps, empty, rng); if (!next) break;
+        level = next;
+      }
+      return level;
+    }
+    let level = decorate({ W: base.W, H: base.H, ropes: base.ropes, mirrors: [], springs: [], gates: [] });
+    // Tiny, almost-full introductions may have no spare lane cell. Add an empty
+    // border rather than replace their woven puzzle with a different mechanic.
+    if (!level.gates.length) level = decorate({ W: base.W + 2, H: base.H + 2, offset: 1,
+      ropes: base.ropes.map(path => path.map(p => ({ x: p.x + 1, y: p.y + 1 }))), mirrors: [], springs: [], gates: [] });
+    let certificate = base.taps;
+    // A fully ordered introductory tangle can have no useful extra dependency
+    // between its existing ropes. Give it a new key in the empty border instead.
+    if (!level.gates.length) {
+      const corners = [
+        [{ x: 0, y: 1 }, { x: 0, y: 0 }],
+        [{ x: level.W - 1, y: 1 }, { x: level.W - 1, y: 0 }],
+        [{ x: 0, y: level.H - 2 }, { x: 0, y: level.H - 1 }],
+        [{ x: level.W - 1, y: level.H - 2 }, { x: level.W - 1, y: level.H - 1 }]
+      ];
+      for (const path of shuffle(corners, rng)) {
+        const key = level.ropes.length, candidate = { ...level, ropes: level.ropes.concat([path]) };
+        const occupied = new Set(candidate.ropes.flat().map(p => id(p, candidate.W)));
+        const empty = Array.from({ length: candidate.W * candidate.H }, (_, c) => c).filter(c => !occupied.has(c));
+        const moves = [key, ...base.taps], gated = addGate(candidate, moves, empty, rng);
+        if (gated) { level = gated; certificate = moves; break; }
+      }
+    }
+    const best = M.minimum(level, level.ropes.length <= 10 ? 1800 : 80, certificate);
+    if (best.par === null || !M.replay(level, best.moves).solved) throw Error('Unverified lock puzzle');
+    return { ...level, solution: best.moves, par: best.par, parExact: best.exact, construction: 'locks',
+      note: 'Free a lettered rope to open its matching lock. You can tap other ropes while it moves.' };
+  }
   function generateSet(opts) {
     const seed = L.cleanSeed(opts.seed) || 'MONKEYFIST', count = [...L.SET_COUNTS, 12].includes(opts.count) ? opts.count : 20, big = !!opts.big;
     const config = { seed, mode: 'T', count, big, slide: true };
@@ -227,7 +265,7 @@
       ({ twist: true, index, seed, big, difficulty: index + 1, title: label(featuresFor(index)) })) };
   }
   function levelFrom(d) {
-    const key = JSON.stringify([d.seed, d.index, !!d.big, d.base || null, d.kinds || null]);
+    const key = JSON.stringify([d.seed, d.index, !!d.big, d.base || null, d.kinds || null, d.lockCount || 0]);
     if (!cache.has(key)) {
       const definition = generate(d);
       const kinds = d.kinds || featuresFor(d.index);
@@ -237,6 +275,7 @@
         'A spring swaps head and tail on contact. Once all ropes have clear exits, they leave automatically.' :
         'Plan your exits around the mirrors, key gates, and springs. Every move is still a simple tap.';
       if (definition.circuit && kinds.includes('gates')) definition.note = 'The keys are tangled too. Open their routes, then free the ropes waiting behind them.';
+      if (d.locks) definition.note = 'Free a lettered rope to open its matching lock. You can tap other ropes while it moves.';
       if (cache.size >= 64) cache.delete(cache.keys().next().value);
       cache.set(key, definition);
     }

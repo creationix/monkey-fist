@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v29';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js?v=29', './sets.js?v=29', './mechanics.js?v=29', './twist-circuits.js?v=29', './twists.js?v=29', './mechanics-render.js?v=29', './music.js?v=29', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v30';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './levels.js?v=30', './sets.js?v=30', './mechanics.js?v=30', './twist-circuits.js?v=30', './twists.js?v=30', './mechanics-render.js?v=30', './music.js?v=30', './hex/', './hex/index.html', './hex/engine.js?v=1', './hex/app.js?v=1', './hex/style.css?v=1', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
@@ -23,6 +23,6 @@ self.addEventListener('fetch', e => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
         return res;
       })
-      .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
+      .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || (req.mode === 'navigate' ? caches.match(new URL(req.url).pathname.startsWith(new URL('./hex/', self.location).pathname) ? './hex/index.html' : './index.html') : Response.error())))
   );
 });

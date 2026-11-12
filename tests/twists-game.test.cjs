@@ -136,7 +136,7 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
   } finally { await browser.close(); }
 });
 
-test('Progressive and Extreme previews open large mixed boards without granting permanent unlocks', { timeout: 120000 }, async () => {
+test('Progressive and Extreme previews open large lock boards without granting permanent unlocks', { timeout: 120000 }, async () => {
   const browser = await launch();
   try {
     for (const mode of ['C', 'X']) for (const [width, height] of [[1366, 900], [390, 844]]) {
@@ -151,7 +151,7 @@ test('Progressive and Extreme previews open large mixed boards without granting 
       const before = await page.evaluate(() => ({ W: __mf.G.W, H: __mf.G.H, n: __mf.G.left,
         features: ['mirrors', 'gates', 'springs'].map(k => __mf.G.features[k].length) }));
       assert.ok(before.W * before.H >= 200); assert.ok(before.n >= 30);
-      assert.ok(before.features[0] >= 6 && before.features[1] >= 2 && before.features[2] >= 3);
+      assert.equal(before.features[0], 0); assert.equal(before.features[2], 0); assert.ok(before.features[1] >= 2);
       for (let move = 0; move < 180; move++) {
         if (await page.evaluate(() => __mf.G.ended)) break;
         if (!await page.evaluate(() => __mf.G.auto)) {

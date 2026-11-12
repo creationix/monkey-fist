@@ -66,6 +66,20 @@
       }
       save.extremeGen = 1;
     }
+    if (save.locksGen !== 1) {
+      for (const [code, progress] of Object.entries(save.sets)) {
+        const opts = L.parseCode(code);
+        if (!opts || !opts.slide || !['C', 'E', 'N', 'H', 'X'].includes(opts.mode)) continue;
+        save.levelArchives ||= {};
+        const archive = save.levelArchives['locks-0'] ||= {};
+        archive[code] = { ...progress, stars: { ...progress.stars } };
+        // Difficulty styles can fill fewer slots than requested. Use the actual
+        // set length, just as the lock introduction schedule does.
+        const count = L.generateSet(opts).levels.length;
+        progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, count) < 8));
+      }
+      save.locksGen = 1;
+    }
     if (!save.setUI) {
       // The previous Custom screen held draft options, not the set selected by the Play button.
       // Preserve that draft as a recent set while continuing the existing default campaign.

@@ -4,6 +4,34 @@ A rope-untangling puzzle game for the browser and phone.
 
 **Play it:** https://creationix.github.io/monkey-fist/
 
+## Hex variant
+
+**Play Hex:** https://creationix.github.io/monkey-fist/hex/
+
+A separate, simpler variant with six hex-grid directions, sliding ropes, and lettered
+locks. Free the matching lettered rope to open a lock. There are no mirrors, springs,
+original-rule toggle, or Kid mode in this version. The woven rope art, responsive board
+rotation, overlapping rope taps, six-song soundtrack, automatic free releases, and tap scoring carry over.
+Rope taps and undo cost one, hints cost two, and each level has three undos with no tap limit.
+
+Hex has its own seeded set screen, 10/30/60/120 levels, Bigger boards, dice, default-seed
+reset, and share links such as `hex/?set=H60B-MONKEYFIST&level=60`. All levels are open
+for the initial preview. Saves use `monkey-fist-hex-v1`, separate from square-game progress.
+The opening levels teach six directions, then sliding knots, then locks; late boards have
+multiple knots and up to six independently lettered locks. Every seed generates geometry.
+
+`hex/engine.js` uses axial coordinates with six equally spaced neighbours. It constructs
+random mutually blocking ropes with required slides, then weaves in further ropes and
+locks, accepting additions only when a complete solution still replays. Locks are tested
+to add a dependency even without unrelated ropes. Small-board par uses bounded breadth-first
+search; larger boards use a verified solution score, which can be beaten. A bounded solver
+supports off-plan play and hints; budget exhaustion is never treated as a proven loss.
+Rendering, hit testing, animation, undo, and the solver use the same pure transition kernel.
+
+Run `node --test tests/hex.test.cjs` for geometry, generation, locks, solving, and scoring.
+Serve the repo and run `MF_TEST_URL=http://127.0.0.1:PORT/ node --test tests/hex-game.test.cjs`
+for real pointer play on phone/laptop, scoring, undo, lock restoration, seeds, and offline use.
+
 ## How to play
 
 The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it slides out of the board arrow-first, following its own bends. There are two games on the same boards.
@@ -28,7 +56,7 @@ The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it
 Both games:
 
 - **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Counts are 10, 20, 30, 60, or 120 (difficulty styles may fill fewer slots if their range is narrower). The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
-- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Sliding Progressive gradually introduces mirrors, gates, and springs; the opening eight boards and the original/Kid-mode campaign are unchanged.
+- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Sliding Progressive gradually introduces locks; the opening eight boards and the original/Kid-mode campaign are unchanged. Easy, Normal, Hard, and Extreme likewise use only ropes and locks. Reflectors and springs are exclusive to Twists.
 - **Share codes**: every set has a code such as `N20S-K7F3Q`; paste the whole code into the Seed field to select that same set. The `S` marks sliding rules. Switching sets keeps their progress; recent sets are quick shortcuts, not a separate interface.
 - **Twists**: choose Twists in the same Style selector to start with mechanics immediately. Choose up to 120 levels and optionally Bigger boards, e.g. `T120BS-ALPHA`. Later boards grow to the campaign's full sizes (up to 12×16, or 16×22 with Bigger boards), with dozens of ropes. Changing the seed changes rope geometry and mechanic placements, not just orientation.
 - **Temporary playtest unlock**: Unlock all levels defaults on in this build. It can be switched off on Levels to see genuine progress. It never writes fake stars or unlocks; clearing a skipped level records its earned stars but does not permanently unlock the intervening levels. Set `TEST_UNLOCK_ALL` false to end the default-on preview.
@@ -45,7 +73,7 @@ Everything is generated locally with the Web Audio API, works offline, and uses 
 
 All gameplay is still ordinary rope taps, with three undos per level. Mirrors are thin,
 two-sided diagonal reflectors that turn the head 90 degrees; the body follows the turn.
-Lettered gates open after the matching key rope has fully left. Springs stop an approaching
+Lettered gates open when the matching key rope is released. Springs stop an approaching
 rope, swap head and tail automatically, and end that move. Once all remaining ropes have
 clear exits, auto-release completes the board without adding player taps.
 
@@ -53,18 +81,26 @@ In the standalone Twists style, the first two levels teach mirrors, the next two
 7–9 introduce pairs; level 10 onward combines all three in increasingly tangled boards.
 Only this teaching sequence is fixed: the puzzles themselves are generated for every seed.
 
-In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes.
-Mirrors arrive at level 9, gates at 17, springs at 25, and mixed-mechanic tangles follow.
-The teaching pace scales with set length (e.g. 120 levels introduces them at 17/33/49).
-**Sliding Extreme** uses the same introduction schedule and connected late-game Twists,
-while retaining Extreme's own board-size and difficulty plan. Original/Kid-mode Extreme
-remains straight-track. Extreme unlocks and unchanged opening stars are preserved; scores
-for replaced boards are archived once under `levelArchives['extreme-0']`.
-`MFTwists.integrate` attaches routed descriptors to Progressive; the ordinary generator and
-its original/Kid-mode sets retain their identities. Board sizes still follow Progressive's
-size/difficulty plan, but advanced puzzles are built around their mechanic routes.
+In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes;
+locks arrive at level 9 and increase as the boards grow. The teaching pace scales with
+set length. **Easy, Normal, Hard, and Extreme** also introduce locks after their opening
+levels. Their woven knots, traps, difficulty ranges, and rope paths are retained. The
+generator adds several replay-verified locks to empty exit lanes, each of which changes
+an available move while closed. No direction-changing blocks appear in these styles.
+Tightly packed introductions can gain an empty border and a new key rope when there is
+no useful lock placement among their existing ropes; their original rope shapes stay intact.
 
-Introductory puzzles in `twists.js` use small verified overlays. Advanced boards use
+Lock-only square boards and Hex commit their logical move immediately, just like the
+ordinary sliding game. You can tap another rope while an earlier one animates, including
+a rope behind a lock whose key is being released. Out-of-order animation completion
+cannot overwrite newer moves. Undo restores the most recent logical move and settles
+earlier animations at their committed positions. Only boards with reflectors or springs
+wait for a routed animation to settle before accepting another rope tap.
+
+`MFTwists.integrate` attaches lock descriptors to the regular sliding styles. Original
+and Kid-mode boards retain their identities. The Twists-only generation below is unchanged.
+
+Introductory Twists puzzles in `twists.js` use small verified overlays. Advanced Twists boards use
 `twist-circuits.js`: randomized key-rope shapes and multi-turn reflection routes are
 constructed first, with springs and a chain of gates connecting the keys. The keys are
 themselves tangled, not free exit buttons. Spring-dependent hook shapes cannot escape
@@ -104,9 +140,10 @@ Canvas geometry keeps these crisp at phone and laptop sizes, including rotated l
 
 Changed Twists results are archived in the save's `levelArchives` by generation; older
 `twistsArchive` data is retained. Changed Sliding Progressive scores are also archived;
-genuine unlocks and stars on unchanged opening boards are retained. Original/Kid-mode and
-Easy/Normal/Hard progress is untouched. Extreme's upgrade likewise preserves unlocks and
-archives only scores on replaced boards. Upgrades run once, not on every reload.
+genuine unlocks and stars on unchanged opening boards are retained. The lock-only upgrade
+archives replaced scores for all regular sliding styles under `levelArchives['locks-0']`,
+preserving unlocks and opening stars. Original/Kid-mode and current Twists progress are
+untouched by that upgrade. Upgrades run once, not on every reload.
 Legacy `T12S-…` codes still open a deterministic twelve-level procedural set.
 
 `mechanics.js` is the shared transition kernel for main-game Twists and the playground.

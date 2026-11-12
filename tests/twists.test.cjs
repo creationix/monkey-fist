@@ -79,15 +79,18 @@ test('counts are configurable, big boards expand the generated geometry, and end
   assert.equal(M.solve(level).solved, false);
   assert.equal(M.solve(level, level.ropes, 1).solved, null);
 });
-test('Progressive keeps its opening, introduces mechanics gradually, and scales into full-size mixed boards', () => {
+test('Progressive keeps its opening and woven geometry, then adds locks without direction-changing blocks', () => {
   for (const seed of ['MONKEYFIST', 'BRAVO']) for (const big of [false, true]) {
     const plain = L.generateSet({ ...L.CAMPAIGN_SLIDE, seed, big }), set = T.integrate(plain);
     assert.deepEqual(set.levels.slice(0, 8), plain.levels.slice(0, 8));
-    assert.deepEqual(set.levels[8].kinds, ['mirrors']);
+    assert.deepEqual(set.levels[8].kinds, ['gates']);
     assert.deepEqual(set.levels[16].kinds, ['gates']);
-    assert.deepEqual(set.levels[24].kinds, ['springs']);
+    assert.deepEqual(set.levels[24].kinds, ['gates']);
     for (const i of [8, 16, 20, 24, 28, 32, 40, 50, 59]) {
       const d = set.levels[i], b = T.levelFrom(d); check(b, i, d.kinds);
+      const original = L.weave(L.mulberry32(d.base.seed), { ...d.base, W: d.base.boardW, H: d.base.boardH });
+      const offset = b.definition.offset || 0;
+      assert.deepEqual(b.ropes.slice(0, original.ropes.length).map(path => path.map(p => ({ x: p.x - offset, y: p.y - offset }))), original.ropes, 'locks preserve the ordinary knots, traps, and geometry');
       if (i >= 50) { assert.ok(b.ropes.length >= 20); assert.ok(b.W * b.H >= 120); }
     }
     assert.equal(T.integrate(L.generateSet({ ...L.CAMPAIGN, seed, big })).levels.some(d => d.twist), false);
@@ -108,7 +111,7 @@ test('bounded fallback fills large boards with certified dependency chains, rath
     for (const kind of kinds) assert.ok(T.uses(b, b.solution, kind));
   }
 });
-test('Sliding Extreme uses the Progressive mechanic ramp on its own harder boards', () => {
+test('Sliding Extreme uses the lock ramp on its own harder boards', () => {
   for (const seed of ['MONKEYFIST', 'E5DDK']) for (const big of [false, true]) for (const count of [10, 30, 60]) {
     const opts = { mode: 'X', seed, big, count, slide: true }, plain = L.generateSet(opts), set = T.integrate(plain);
     assert.equal(set.code, plain.code); assert.equal(set.levels.length, plain.levels.length);
@@ -121,13 +124,23 @@ test('Sliding Extreme uses the Progressive mechanic ramp on its own harder board
       const d = set.levels[index], b = T.levelFrom(d); check(b, index, d.kinds);
       assert.ok(b.W * b.H >= d.base.W * d.base.H);
       if (index === set.levels.length - 1) {
-        assert.equal(b.definition.construction, 'circuits');
-        assert.ok(b.definition.mirrors.length >= 6 && b.definition.springs.length >= 3 && b.definition.gates.length >= 2);
+        assert.equal(b.definition.construction, 'locks');
+        assert.ok(!b.definition.mirrors.length && !b.definition.springs.length && b.definition.gates.length >= 2);
       }
     }
   }
   for (const mode of ['X', 'E', 'N', 'H']) {
     const set = L.generateSet({ mode, count: 10, big: false, seed: 'CONTROL', slide: false });
     assert.equal(T.integrate(set), set, 'original rules remain unchanged');
+  }
+});
+test('Easy, Normal, and Hard also add locks while all reflectors remain exclusive to Twists', () => {
+  for (const mode of ['E', 'N', 'H']) for (const seed of ['MONKEYFIST', 'ALPHA']) {
+    const plain = L.generateSet({ mode, seed, count: 30, big: true, slide: true }), set = T.integrate(plain);
+    assert.deepEqual(set.levels[0], plain.levels[0]);
+    for (const index of [Math.floor(set.levels.length / 2), set.levels.length - 1]) {
+      const b = T.levelFrom(set.levels[index]); check(b, index, ['gates']);
+      assert.equal(b.definition.construction, 'locks');
+    }
   }
 });

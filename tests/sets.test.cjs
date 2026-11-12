@@ -50,7 +50,7 @@ test('only former curated Twists progress is archived, once', () => {
 });
 test('mechanics upgrades archive only changed scores, keep genuine unlocks, and do not touch other modes', () => {
   const ordinary = { max: 12, stars: { 9: 3 } }, oldTwists = { max: 20, stars: { 1: 3 } };
-  const save = { setUI: 1, twistsGen: 1, custom: S.defaults(true), sets: {
+  const save = { setUI: 1, locksGen: 1, twistsGen: 1, custom: S.defaults(true), sets: {
     'C60S-MONKEYFIST': { max: 40, stars: { 1: 3, 8: 2, 9: 3, 40: 3 } },
     'C60-MONKEYFIST': ordinary, 'N20S-ALPHA': ordinary, 'T60S-ALPHA': oldTwists
   } };
@@ -79,7 +79,7 @@ test('route-first upgrade retains older archives and genuine unlocks, and runs o
 });
 test('Extreme upgrade preserves unlocks and opening stars, archives changed scores once, and leaves other modes alone', () => {
   const original = { max: 60, stars: { 60: 3 } }, progressive = { max: 60, stars: { 60: 3 } };
-  const save = { setUI: 1, twistsGen: 3, progressiveGen: 2, custom: S.defaults(true), sets: {
+  const save = { setUI: 1, locksGen: 1, twistsGen: 3, progressiveGen: 2, custom: S.defaults(true), sets: {
     'X60BS-E5DDK': { max: 50, stars: { 1: 3, 8: 2, 9: 3, 50: 3 } },
     'X60B-E5DDK': original, 'C60S-MONKEYFIST': progressive
   } };
@@ -90,4 +90,26 @@ test('Extreme upgrade preserves unlocks and opening stars, archives changed scor
   assert.equal(save.sets['X60B-E5DDK'], original); assert.equal(save.sets['C60S-MONKEYFIST'], progressive);
   save.sets['X60BS-E5DDK'].stars[50] = 3; S.migrate(save);
   assert.equal(save.sets['X60BS-E5DDK'].stars[50], 3);
+});
+test('lock-only upgrade archives replaced scores in all regular sliding styles, preserving unlocks and Twists', () => {
+  const save = { setUI: 1, twistsGen: 3, progressiveGen: 2, extremeGen: 1, custom: S.defaults(true), sets: {
+    'C60S-MONKEYFIST': { max: 60, stars: { 8: 3, 9: 2 } },
+    'E30S-ALPHA': { max: 20, stars: { 1: 3, 30: 2 } },
+    'N30S-ALPHA': { max: 20, stars: { 30: 2 } },
+    'H30S-ALPHA': { max: 20, stars: { 30: 2 } },
+    'X30S-ALPHA': { max: 20, stars: { 30: 2 } },
+    'T60S-ALPHA': { max: 40, stars: { 30: 3 } },
+    'C60-MONKEYFIST': { max: 50, stars: { 30: 3 }, times: { 30: 55 } }
+  } };
+  S.migrate(save);
+  assert.deepEqual(save.sets['C60S-MONKEYFIST'], { max: 60, stars: { 8: 3 } });
+  for (const mode of ['E', 'N', 'H', 'X']) {
+    assert.equal(save.sets[mode + '30S-ALPHA'].max, 20);
+    assert.equal(save.sets[mode + '30S-ALPHA'].stars[30], undefined);
+    assert.equal(save.levelArchives['locks-0'][mode + '30S-ALPHA'].stars[30], 2);
+  }
+  assert.deepEqual(save.sets['T60S-ALPHA'], { max: 40, stars: { 30: 3 } });
+  assert.deepEqual(save.sets['C60-MONKEYFIST'], { max: 50, stars: { 30: 3 }, times: { 30: 55 } });
+  save.sets['C60S-MONKEYFIST'].stars[9] = 3; S.migrate(save);
+  assert.equal(save.sets['C60S-MONKEYFIST'].stars[9], 3);
 });

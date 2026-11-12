@@ -176,13 +176,14 @@
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
   <button class="big" id="playBtn">Play</button>
   <button class="big alt" id="levelsBtn">Levels</button>
+  <a href="hex/" style="display:block;text-align:center;color:var(--accent);font-size:14px;padding:9px;text-decoration:none">Try Hex · six directions, ropes &amp; locks →</a>
   <div class="row2">
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 q</div>
+  <div id="ver">build 2026-11-11 r</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -219,13 +220,13 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=29"></script>
-<script src="sets.js?v=29"></script>
-<script src="mechanics.js?v=29"></script>
-<script src="twist-circuits.js?v=29"></script>
-<script src="twists.js?v=29"></script>
-<script src="mechanics-render.js?v=29"></script>
-<script src="music.js?v=29"></script>
+<script src="levels.js?v=30"></script>
+<script src="sets.js?v=30"></script>
+<script src="mechanics.js?v=30"></script>
+<script src="twist-circuits.js?v=30"></script>
+<script src="twists.js?v=30"></script>
+<script src="mechanics-render.js?v=30"></script>
+<script src="music.js?v=30"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -401,7 +402,8 @@ function startLevel(n) {
     parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, tangle: d.difficulty, clear: false, auto: false, autoT: 0, time: 0, timing: false,
     // the sliding game: moves made (for undo), undos left, taps made and the fewest the level can be done in, a known way to
     // finish from here (rope ids in tapping order), whether the board is past saving, and if so the ropes that can never move again
-    slide: !!SET.slide, twist: !!L.twist, features: L.definition || null, paths: L.twist ? L.ropes.slice() : null,
+    slide: !!SET.slide, twist: !!L.twist, concurrent: !!L.twist && !L.definition.mirrors.length && !L.definition.springs.length,
+    features: L.definition || null, paths: L.twist ? L.ropes.slice() : null,
     history: [], undos: MAX_UNDOS, taps: 0, par: L.par || 0, parExact: !!L.parExact, plan: (L.best || L.taps).slice(), lost: false, warned: false, fixed: [] });
   G.occ = new Int16Array(L.W * L.H).fill(-1);
   let lastColor = -1;
@@ -528,8 +530,9 @@ function countClear(n, auto) {
   if (G.streak % 5 === 0) { n.comboAwarded = true; toast(G.streak + ' in a row!'); }
 }
 function tapTwist(n, auto) {
-  // One routed move settles before another starts, so gate and spring transitions are unambiguous.
-  if (G.noodles.some(m => m.state === 'twist')) return;
+  // Direction-changing boards remain serial. Straight tracks commit on tap, as
+  // in the ordinary sliding game, so their animations can overlap freely.
+  if (!G.concurrent && G.noodles.some(m => m.state === 'twist')) return;
   n.comboAwarded = false;
   G.hint = -1;
   if (!auto) { G.taps++; G.timing = true; }
@@ -540,17 +543,14 @@ function tapTwist(n, auto) {
   n.path = n.cur; n.route = next.route; n.s = 0; n.v = 7; n.state = 'twist'; n.move = next; n.automatic = !!auto;
   n.bounceWait = next.event === 'bounce' ? .18 : 0;
   n.d = headDir(next.route); // extrapolation beyond the compiled exit route
+  if (G.concurrent) commitTwist(n);
   sfx.slide(); hud();
 }
-function settleTwist(n) {
+function commitTwist(n) {
   const move = n.move;
   G.paths = move.paths;
   syncTwistOccupancy();
-  n.cur = move.paths[n.id]; n.route = null; n.move = null; n.s = 0;
-  if (n.cur) {
-    n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.state = 'idle';
-    if (move.event === 'bounce') { n.flash = .65; toast('Boing!'); sfx.undo(); } else sfx.thud();
-  } else { n.state = 'gone'; G.left--; countClear(n, n.automatic); sfx.pop(n.popNote); }
+  if (move.event === 'exit') { G.left--; countClear(n, n.automatic); }
   G.tangle = tangleNow();
   if (!n.automatic) {
     if (G.plan[0] === n.id) G.plan.shift(); else judge();
@@ -558,6 +558,17 @@ function settleTwist(n) {
     if (!G.lost && G.clear && G.left) { G.auto = true; G.autoT = .35; if (!n.comboAwarded) toast('All clear!'); }
   }
   hud();
+}
+function settleTwist(n) {
+  const move = n.move;
+  if (!G.concurrent) commitTwist(n);
+  // Never restore a move's whole snapshot here: another concurrent tap may have
+  // already changed other ropes while this animation was running.
+  n.cur = G.paths[n.id]; n.route = null; n.move = null; n.s = 0;
+  if (n.cur) {
+    n.path = n.cur; n.d = MFMechanics.direction(G.features, n.cur); n.state = 'idle';
+    if (move.event === 'bounce') { n.flash = .65; toast('Boing!'); sfx.undo(); } else sfx.thud();
+  } else { n.state = 'gone'; sfx.pop(n.popNote); }
 }
 function undoTwist() {
   const move = G.history.pop(); if (!move) return;
@@ -593,7 +604,7 @@ function undo() {
   if (G.lost) warn(); // the board was already past saving before that move
 }
 function showHint() {
-  if (!G.active || G.ended || G.auto || (G.twist && G.noodles.some(n => n.state === 'twist'))) return;
+  if (!G.active || G.ended || G.auto || (G.twist && !G.concurrent && G.noodles.some(n => n.state === 'twist'))) return;
   if (G.slide) { // the next tap of a known way out
     if (G.lost) { toast('Knotted!'); return; }
     if (!G.plan.length) { judge(SOLVE_BUDGET * 5); if (G.lost) { warn(); return; } }
@@ -906,7 +917,7 @@ function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
   $('lvTitle').textContent = 'Levels';
   $('setNote').textContent = (previewUnlocked ? 'Playtest: all levels unlocked · ' : '') + (SET.mode === 'T' ? n + ' generated Twists · mirrors, key gates, and springs' :
-    ['C', 'X'].includes(SET.mode) && SET.slide ? n + ' levels · mirrors → gates → springs → mixed tangles' :
+    SET.slide ? n + ' levels · sliding ropes & locks' :
     n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty);
   $('genBtn').textContent = P.max > 1 ? 'Continue · Level ' + Math.min(P.max, n) : 'Play · Level 1';
   grid.innerHTML = '';
@@ -935,8 +946,8 @@ function buildCustom() {
   $('defaultSeedBtn').disabled = c.seed === MFSets.DEFAULT_SEED;
   $('codeOut').textContent = customCode();
   $('rangeNote').textContent = twist ? 'Every seed generates new rope layouts and mechanic placements, with verified solutions. Sliding rules apply.' :
-    c.mode === 'X' && c.slide ? 'Extreme tangles with mirrors, key gates, and springs introduced gradually.' :
-    c.mode === 'C' && c.slide ? 'A gentle start. Mirrors, key gates, and springs arrive gradually as the boards grow.' :
+    c.mode === 'C' && c.slide ? 'A gentle start. Sliding knots and locks grow with the boards. Tap several ropes without waiting.' :
+    c.slide ? 'Sliding ropes and locks, with overlapping taps. Direction-changing blocks are in Twists.' :
     c.mode === 'C' ? 'A gentle start, growing into deeper tangles.' : 'Every seed makes a repeatable set at this difficulty.';
   const box = $('recent'); box.innerHTML = '';
   for (const code of save.recent.filter(code => code !== customCode())) {

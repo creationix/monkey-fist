@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2029">
+<meta name="description" content="Six directions. One tangled knot. A hexagonal Monkey Fist with sliding ropes and locks.">
+<title>Monkey Fist · Hex</title>
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<main id="game">
+  <aside class="hud">
+    <a class="brand" href="../" title="Back to square Monkey Fist"><span class="mark">⬡</span><span>MONKEY FIST<small>HEX</small></span></a>
+    <div class="readout"><div class="eyebrow" id="chapter">SIX DIRECTIONS</div><h1 id="levelName">Level 1 <span>/ 60</span></h1><p id="remaining"></p><p id="score"></p></div>
+    <nav class="actions" aria-label="Game controls">
+      <button id="levels" title="Choose a level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><small>Levels</small></button>
+      <button id="restart" title="Restart this level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg><small>Restart</small></button>
+      <button id="hint" title="Hint costs two taps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20h6M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8Z"/></svg><small>Hint +2</small></button>
+      <button id="undo" title="Undo costs one tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></svg><small>Undo <b id="undos">3</b></small></button>
+    </nav>
+    <p id="tip">Tap a rope. Follow its arrow.</p>
+    <button id="music" class="quiet" aria-pressed="false">♫ Music off</button>
+  </aside>
+  <div id="boardWrap"><canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Arrow keys select ropes; Enter slides the selected rope."></canvas></div>
+  <div id="notice" role="status" aria-live="polite"></div>
+</main>
+<dialog id="chooser">
+  <div class="dialog-head"><div><div class="eyebrow">MONKEY FIST · HEX</div><h2>Your next tangle</h2></div><button class="close" id="closeLevels" aria-label="Close level chooser">×</button></div>
+  <div class="settings">
+    <label>Seed<div class="seed-row"><input id="seed" maxlength="24" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
+    <label>Levels<select id="count"><option>10</option><option>30</option><option selected>60</option><option>120</option></select></label>
+    <label class="check"><input id="big" type="checkbox"> Bigger boards</label>
+  </div>
+  <div class="set-line"><button id="share" class="quiet" title="Copy a link to this set"></button><span>All levels open for this preview</span></div>
+  <div id="grid" aria-label="Levels"></div>
+  <p class="rules"><strong>Six directions, simple taps.</strong> Ropes slide until blocked. Free a lettered key rope to open its matching lock. The last clear ropes release themselves for free.</p>
+  <p class="rules">Rope tap +1 · Undo +1, three per level · Hint +2<br>No tap limit. Fewer taps earn more stars.</p>
+  <a class="back" href="../">← Square Monkey Fist</a>
+</dialog>
+<dialog id="result">
+  <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p>
+  <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
+</dialog>
+<script src="engine.js?v=1"></script>
+<script src="../music.js?v=30"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
