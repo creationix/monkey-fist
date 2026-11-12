@@ -47,7 +47,7 @@
   ];
 
 
-  // Original rainforest-inspired grooves, not recordings of traditional music.
+  // Original rainforest-inspired grooves.
   // Four groups of four sixteenths: digits are accents; bass digits select chord tones.
   const rhythm = text => [...text.replace(/\s/g, '')].map(c => c === '-' ? null : Number(c));
   const grooves = [
@@ -60,7 +60,7 @@
   ];
   SONGS.forEach((s, i) => {
     const [low, hand, wood, shaker, bass, swing, register] = grooves[i];
-    s.groove = { low: rhythm(low), hand: rhythm(hand), wood: rhythm(wood), shaker: rhythm(shaker), bass: rhythm(bass), swing, register };
+    s.groove = { low: rhythm(low), hand: rhythm(hand), wood: rhythm(wood), shaker: rhythm(shaker), bass: rhythm(bass), swing, register: register - 12 };
   });
   const SECTIONS = ['canopy', 'groove', 'river break', 'celebration'];
 
@@ -74,12 +74,13 @@
     }
     function makeBus(time) {
       const gain = context.createGain(), delay = context.createDelay(2), filter = context.createBiquadFilter();
-      const feedback = context.createGain(), echo = context.createGain();
-      gain.connect(destination); gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(1, time + .18);
-      delay.delayTime.value = 45 / selected.bpm; filter.type = 'lowpass'; filter.frequency.value = 2200;
-      feedback.gain.value = .2; echo.gain.value = .18;
+      const feedback = context.createGain(), echo = context.createGain(), warmth = context.createBiquadFilter();
+      warmth.type = 'lowpass'; warmth.frequency.value = 2000; warmth.Q.value = .5;
+      gain.connect(warmth); warmth.connect(destination); gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(1, time + .18);
+      delay.delayTime.value = 45 / selected.bpm; filter.type = 'lowpass'; filter.frequency.value = 1100;
+      feedback.gain.value = .12; echo.gain.value = .08;
       delay.connect(filter); filter.connect(echo); echo.connect(gain); filter.connect(feedback); feedback.connect(delay);
-      return { gain, delay, voices: new Set(), nodes: [gain, delay, filter, feedback, echo], retired: false };
+      return { gain, delay, voices: new Set(), nodes: [gain, delay, filter, feedback, echo, warmth], retired: false };
     }
     function retire(time, fade = .18) {
       if (!bus) return;
@@ -100,11 +101,11 @@
       gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), time + Math.min(attack, duration / 4));
       gain.gain.exponentialRampToValueAtTime(.0001, time + duration);
     }
-    function tone(frequency, duration, volume, time, { type = 'sine', to, attack = .004, echo = false } = {}) {
+    function tone(frequency, duration, volume, time, { type = 'sine', to, glide = .12, attack = .004, echo = false } = {}) {
       if (!bus || bus.voices.size >= MAX_VOICES) return;
       const target = bus, source = context.createOscillator(), gain = context.createGain();
       source.type = type; source.frequency.setValueAtTime(frequency, time);
-      if (to) source.frequency.exponentialRampToValueAtTime(to, time + Math.min(duration, .12));
+      if (to) source.frequency.exponentialRampToValueAtTime(to, time + Math.min(duration, glide));
       envelope(gain, volume, time, duration, attack);
       source.connect(gain); gain.connect(target.gain); if (echo) gain.connect(target.delay);
       source.start(time); track(target, source, [gain], time + duration + .02);
@@ -125,33 +126,33 @@
     }
     function drum(kind, velocity, time) {
       if (kind === 'low') {
-        tone(112, .31, .115 * velocity, time, { to: 52 });
-        tone(178, .06, .018 * velocity, time);
-        noise(.025, .012 * velocity, 1200, time);
+        tone(105, .36, .135 * velocity, time, { to: 52, glide: .09 });
+        tone(178, .06, .014 * velocity, time);
+        noise(.025, .008 * velocity, 1000, time);
       } else if (kind === 'hand') {
-        const pitch = step % 3 ? 205 : 162;
-        tone(pitch * 1.35, .18, .057 * velocity, time, { to: pitch });
-        tone(pitch * 2.65, .055, .016 * velocity, time);
-        noise(.035, .028 * velocity, 2600, time);
+        const pitch = step % 3 ? 174 : 142;
+        tone(pitch * 1.35, .2, .06 * velocity, time, { to: pitch, glide: .025 });
+        tone(pitch * 2, .055, .008 * velocity, time);
+        noise(.035, .012 * velocity, 1800, time);
       } else if (kind === 'wood') {
-        tone(780, .045, .035 * velocity, time);
-        tone(1180, .025, .018 * velocity, time + .002);
-      } else noise(.06, .055 * velocity, 5600, time);
+        tone(520, .055, .018 * velocity, time, { attack: .008 });
+        tone(760, .03, .006 * velocity, time + .002);
+      } else noise(.06, .02 * velocity, 2800, time);
     }
     function lead(note, time, duration, velocity = 1, answering = false) {
-      const frequency = hz(note), volume = .044 * velocity, voice = answering ? 'marimba' : selected.voice;
+      const frequency = hz(note), volume = .028 * velocity, voice = answering ? 'marimba' : selected.voice;
       if (voice === 'bell' || voice === 'glass') {
         // Breathy flute voices take the place of the old bright, ringing bells.
         const length = duration * (voice === 'glass' ? 1.6 : 1.3);
         tone(frequency, length, volume * .8, time, { attack: .035, echo: true });
-        tone(frequency * 2.002, length * .75, volume * .12, time, { attack: .025, echo: true });
-        noise(length * .7, volume * .16, frequency * 2.2, time, true);
+        tone(frequency * 2, length * .75, volume * .06, time, { attack: .025, echo: true });
+        noise(length * .7, volume * .05, Math.min(1800, frequency * 2), time, true);
       } else {
         const length = duration * (voice === 'warm' ? 1.5 : .8);
-        tone(frequency, length, volume, time, { echo: true });
-        tone(frequency * (voice === 'marimba' ? 4 : 2.76), length * .25, volume * .23, time, { echo: true });
-        if (voice === 'pulse') tone(frequency * 2, length * .6, volume * .18, time, { type: 'triangle', echo: true });
-        if (voice === 'warm') tone(frequency * 3, length * .5, volume * .09, time, { echo: true });
+        tone(frequency, length, volume, time, { attack: .012, echo: true });
+        tone(frequency * 2, length * .3, volume * .07, time, { attack: .008, echo: true });
+        if (voice === 'pulse') tone(frequency * 2, length * .6, volume * .06, time, { echo: true });
+        if (voice === 'warm') tone(frequency * 3, length * .5, volume * .035, time, { echo: true });
       }
     }
     function schedule(time) {
@@ -163,6 +164,7 @@
       const energy = [.8, 1, .62, 1.05][section];
       for (const kind of ['low', 'hand', 'wood', 'shaker']) {
         let accent = groove[kind][i]; if (accent === null) continue;
+        if (kind === 'shaker' && accent <= 3) continue;
         if (section === 2 && ((kind === 'low' && i !== 0 && i !== 8) || (kind === 'shaker' && i % 4) || kind === 'wood')) continue;
         if (section === 0 && kind === 'wood' && !(barNo & 1)) continue;
         if (cycle && kind === 'hand' && i === 7) accent *= .6;
@@ -177,14 +179,14 @@
       if (bass !== null && (section !== 2 || i === 0 || i === 8)) {
         const anticipation = i >= 14 && (barNo & 1), nextChord = selected.chords[(barNo + 1) % selected.chords.length];
         const note = anticipation ? nextChord[0] - 12 : chord[bass] - 12, frequency = hz(note);
-        tone(frequency, sixteenth * (i === 0 ? 2.8 : 1.7), .063 * energy, time, { type: 'triangle', attack: .012 });
-        tone(frequency, sixteenth * 2, .025 * energy, time + .002);
+        tone(frequency, sixteenth * (i === 0 ? 3.5 : 2.2), .1 * energy, time, { type: 'triangle', attack: .016 });
+        tone(frequency, sixteenth * 3, .065 * energy, time + .002, { attack: .016 });
       }
       if (!(i & 1)) {
         const note = selected.bars[barNo][i / 2], melodicTime = time + ((barNo & 1) ? .006 : 0);
         if (note !== null) lead(note + groove.register, melodicTime, sixteenth * 2, human * (section === 2 ? .8 : 1));
         else if (section !== 0 && (barNo & 1) && (i === 6 || i === 10 || i === 14)) {
-          lead(chord[(i / 2 + cycle) % 3] + 12, melodicTime + sixteenth * .2, sixteenth * 1.5, .5, true);
+          lead(chord[(i / 2 + cycle) % 3], melodicTime + sixteenth * .2, sixteenth * 1.5, .4, true);
         }
       }
       if (i === 0 && (section === 1 || section === 3)) {

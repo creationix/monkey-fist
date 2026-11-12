@@ -11,8 +11,13 @@ test('all six arrangements render real audio with percussion, breathing room, an
       const results = [];
       for (let level = 1; level <= 6; level++) {
         const song = MFMusic.SONGS[level - 1], bar = 240 / song.bpm, duration = bar * 32 + 1, rate = 22050;
-        const audio = new OfflineAudioContext(1, Math.ceil(duration * rate), rate), destination = audio.createGain();
-        destination.gain.value = .55; destination.connect(audio.destination);
+        const audio = new OfflineAudioContext(3, Math.ceil(duration * rate), rate), destination = audio.createGain();
+        const channels = audio.createChannelMerger(3), bassBand = audio.createBiquadFilter(), trebleBand = audio.createBiquadFilter();
+        bassBand.type = 'lowpass'; bassBand.frequency.value = 250; bassBand.Q.value = Math.SQRT1_2;
+        trebleBand.type = 'highpass'; trebleBand.frequency.value = 2000; trebleBand.Q.value = Math.SQRT1_2;
+        destination.gain.value = .55; destination.connect(channels, 0, 0);
+        destination.connect(bassBand); bassBand.connect(channels, 0, 1);
+        destination.connect(trebleBand); trebleBand.connect(channels, 0, 2); channels.connect(audio.destination);
         // Offline rendering pauses in short blocks; let the ordinary scheduler fill
         // its lookahead while the render thread is paused, then continue rendering.
         const clock = new Proxy(audio, { get(target, key) { if (key === 'state') return 'running'; const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value; } });
@@ -28,7 +33,8 @@ test('all six arrangements render real audio with percussion, breathing room, an
           if (sections[section]) { sections[section].sum += sample * sample; sections[section].count++; }
         }
         const rms = sections.map(s => Math.sqrt(s.sum / s.count));
-        results.push({ title: song.title, peak, rms, finite, peakVoices, energy }); player.dispose();
+        const bandRms = channel => Math.sqrt(rendered.getChannelData(channel).reduce((sum, value) => sum + value * value, 0) / data.length);
+        results.push({ title: song.title, peak, rms, finite, peakVoices, energy, bass: bandRms(1), treble: bandRms(2) }); player.dispose();
       }
       return results;
     });
@@ -40,7 +46,8 @@ test('all six arrangements render real audio with percussion, breathing room, an
       assert.ok(r.rms[2] < r.rms[1] * .94, r.title + ' river break is audibly lighter');
       assert.ok(r.rms[3] > r.rms[2] * 1.1, r.title + ' returns with a fuller groove');
       assert.notEqual(r.rms[0], r.rms[4], r.title + ' second pass varies');
-      console.log(r.title, JSON.stringify({ peak: +r.peak.toFixed(3), rms: r.rms.map(v => +v.toFixed(4)), voices: r.peakVoices }));
+      assert.ok(r.bass > r.treble * 10, r.title + ' keeps bass clearly ahead of bright overtones');
+      console.log(r.title, JSON.stringify({ peak: +r.peak.toFixed(3), rms: r.rms.map(v => +v.toFixed(4)), bass: +r.bass.toFixed(5), treble: +r.treble.toFixed(5), voices: r.peakVoices }));
     }
   } finally { await browser.close(); }
 });

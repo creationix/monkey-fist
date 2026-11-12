@@ -79,8 +79,10 @@ Both games:
 
 The soundtrack has six original rainforest-inspired synthesised songs: **Canopy Hop**, **Vine Swing**, **Temple Steps**, **River Riddle**, **Bamboo Dash**, and **Moonlit Knot**. Levels rotate through them in order, so moving to the next level always changes the music while retrying a level keeps its song. Each has a different percussion groove, tempo, melody, and instrumental character, with clean fades between songs.
 
-Low skin drums, answering hand drums, wood clicks, and shakers sit over syncopated bass.
-Woody plucks and breathy flute-like leads answer each other through a soft rhythmic echo.
+Full, rounded bass leads the mix, with low skin drums, answering hand drums, soft wood
+clicks, and quiet shakers. Lower-register plucks and breathy flute-like leads answer each
+other through a short, dark rhythmic echo. Gentle attacks, restrained overtones, and a
+warm filter keep the melody from becoming bright or tiring during long puzzles.
 Sixteenth-note swing and varied accents keep the beat loose. Each arrangement moves from
 a light opening into the full groove, a quieter river break, and a fuller return with drum
 fills; the second pass changes the answers before the 32-bar cycle repeats. These are
