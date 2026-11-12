@@ -108,3 +108,26 @@ test('bounded fallback fills large boards with certified dependency chains, rath
     for (const kind of kinds) assert.ok(T.uses(b, b.solution, kind));
   }
 });
+test('Sliding Extreme uses the Progressive mechanic ramp on its own harder boards', () => {
+  for (const seed of ['MONKEYFIST', 'E5DDK']) for (const big of [false, true]) for (const count of [10, 30, 60]) {
+    const opts = { mode: 'X', seed, big, count, slide: true }, plain = L.generateSet(opts), set = T.integrate(plain);
+    assert.equal(set.code, plain.code); assert.equal(set.levels.length, plain.levels.length);
+    set.levels.forEach((d, index) => {
+      const kinds = T.progressiveFeatures(index, set.levels.length);
+      if (!kinds.length) assert.deepEqual(d, plain.levels[index]);
+      else { assert.deepEqual(d.kinds, kinds); assert.deepEqual(d.base, plain.levels[index]); assert.equal(d.difficulty, plain.levels[index].difficulty); }
+    });
+    for (const index of [Math.floor(set.levels.length / 2), set.levels.length - 1]) {
+      const d = set.levels[index], b = T.levelFrom(d); check(b, index, d.kinds);
+      assert.ok(b.W * b.H >= d.base.W * d.base.H);
+      if (index === set.levels.length - 1) {
+        assert.equal(b.definition.construction, 'circuits');
+        assert.ok(b.definition.mirrors.length >= 6 && b.definition.springs.length >= 3 && b.definition.gates.length >= 2);
+      }
+    }
+  }
+  for (const mode of ['X', 'E', 'N', 'H']) {
+    const set = L.generateSet({ mode, count: 10, big: false, seed: 'CONTROL', slide: false });
+    assert.equal(T.integrate(set), set, 'original rules remain unchanged');
+  }
+});

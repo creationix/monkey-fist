@@ -136,15 +136,15 @@ test('spring undo, key-gate restoration, and offline Twists use the main game', 
   } finally { await browser.close(); }
 });
 
-test('Progressive preview opens large mixed boards on desktop and mobile without granting permanent unlocks', { timeout: 120000 }, async () => {
+test('Progressive and Extreme previews open large mixed boards without granting permanent unlocks', { timeout: 120000 }, async () => {
   const browser = await launch();
   try {
-    for (const [width, height] of [[1366, 900], [390, 844]]) {
+    for (const mode of ['C', 'X']) for (const [width, height] of [[1366, 900], [390, 844]]) {
       const page = await browser.newPage({ viewport: { width, height } }), errors = [];
       page.on('pageerror', e => errors.push(String(e)));
-      await page.goto(base + '?set=C120BS-MONKEYFIST');
+      await page.goto(base + '?set=' + mode + '120BS-MONKEYFIST');
       assert.equal(await page.locator('#scrLevels').evaluate(el => el.classList.contains('show')), true);
-      assert.equal(await page.inputValue('#setMode'), 'C'); assert.equal(await page.inputValue('#setCount'), '120');
+      assert.equal(await page.inputValue('#setMode'), mode); assert.equal(await page.inputValue('#setCount'), '120');
       assert.equal(await page.locator('#lvGrid button:enabled').count(), 120);
       assert.equal(await page.evaluate(() => __mf.progress().max), 1);
       await page.locator('#lvGrid button').nth(119).click();

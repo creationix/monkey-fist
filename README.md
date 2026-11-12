@@ -56,6 +56,10 @@ Only this teaching sequence is fixed: the puzzles themselves are generated for e
 In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes.
 Mirrors arrive at level 9, gates at 17, springs at 25, and mixed-mechanic tangles follow.
 The teaching pace scales with set length (e.g. 120 levels introduces them at 17/33/49).
+**Sliding Extreme** uses the same introduction schedule and connected late-game Twists,
+while retaining Extreme's own board-size and difficulty plan. Original/Kid-mode Extreme
+remains straight-track. Extreme unlocks and unchanged opening stars are preserved; scores
+for replaced boards are archived once under `levelArchives['extreme-0']`.
 `MFTwists.integrate` attaches routed descriptors to Progressive; the ordinary generator and
 its original/Kid-mode sets retain their identities. Board sizes still follow Progressive's
 size/difficulty plan, but advanced puzzles are built around their mechanic routes.
@@ -101,7 +105,8 @@ Canvas geometry keeps these crisp at phone and laptop sizes, including rotated l
 Changed Twists results are archived in the save's `levelArchives` by generation; older
 `twistsArchive` data is retained. Changed Sliding Progressive scores are also archived;
 genuine unlocks and stars on unchanged opening boards are retained. Original/Kid-mode and
-Easy/Normal/Hard/Extreme progress is untouched. Upgrades run once, not on every reload.
+Easy/Normal/Hard progress is untouched. Extreme's upgrade likewise preserves unlocks and
+archives only scores on replaced boards. Upgrades run once, not on every reload.
 Legacy `T12S-…` codes still open a deterministic twelve-level procedural set.
 
 `mechanics.js` is the shared transition kernel for main-game Twists and the playground.

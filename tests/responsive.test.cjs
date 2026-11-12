@@ -13,7 +13,12 @@ test('the top-left tan rope in X10BS-E5DDK level 4 animates fully before disappe
       await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
       await page.goto(process.env.MF_TEST_URL || 'http://127.0.0.1:4173/');
       const result = await page.evaluate(() => {
-        __mf.useSet('X10BS-E5DDK'); __mf.startLevel(4);
+        __mf.useSet('X10BS-E5DDK');
+        // Keep the original reported board as a regression fixture. Extreme now
+        // routes its later boards through Twists, but the straight-track exit
+        // animation must still handle this historical rotated geometry.
+        const set = __mf.current(); set.levels[3] = set.levels[3].base || set.levels[3];
+        __mf.startLevel(4);
         const g = __mf.G, tan = g.noodles[23];
         // The screenshot has one prior tap: slide the purple rope out of the tan rope's way.
         __mf.tap(g.noodles[8]);

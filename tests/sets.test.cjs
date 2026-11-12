@@ -77,3 +77,17 @@ test('route-first upgrade retains older archives and genuine unlocks, and runs o
   save.sets['C60S-MONKEYFIST'].stars[60] = 3; S.migrate(save);
   assert.equal(save.sets['C60S-MONKEYFIST'].stars[60], 3);
 });
+test('Extreme upgrade preserves unlocks and opening stars, archives changed scores once, and leaves other modes alone', () => {
+  const original = { max: 60, stars: { 60: 3 } }, progressive = { max: 60, stars: { 60: 3 } };
+  const save = { setUI: 1, twistsGen: 3, progressiveGen: 2, custom: S.defaults(true), sets: {
+    'X60BS-E5DDK': { max: 50, stars: { 1: 3, 8: 2, 9: 3, 50: 3 } },
+    'X60B-E5DDK': original, 'C60S-MONKEYFIST': progressive
+  } };
+  S.migrate(save);
+  assert.equal(save.sets['X60BS-E5DDK'].max, 50);
+  assert.deepEqual(save.sets['X60BS-E5DDK'].stars, { 1: 3, 8: 2 });
+  assert.equal(save.levelArchives['extreme-0']['X60BS-E5DDK'].stars[50], 3);
+  assert.equal(save.sets['X60B-E5DDK'], original); assert.equal(save.sets['C60S-MONKEYFIST'], progressive);
+  save.sets['X60BS-E5DDK'].stars[50] = 3; S.migrate(save);
+  assert.equal(save.sets['X60BS-E5DDK'].stars[50], 3);
+});

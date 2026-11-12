@@ -182,7 +182,7 @@
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 p</div>
+  <div id="ver">build 2026-11-11 q</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -219,13 +219,13 @@
   <button class="big alt" id="resMenuBtn">Levels</button>
 </div></div>
 
-<script src="levels.js?v=28"></script>
-<script src="sets.js?v=28"></script>
-<script src="mechanics.js?v=28"></script>
-<script src="twist-circuits.js?v=28"></script>
-<script src="twists.js?v=28"></script>
-<script src="mechanics-render.js?v=28"></script>
-<script src="music.js?v=28"></script>
+<script src="levels.js?v=29"></script>
+<script src="sets.js?v=29"></script>
+<script src="mechanics.js?v=29"></script>
+<script src="twist-circuits.js?v=29"></script>
+<script src="twists.js?v=29"></script>
+<script src="mechanics-render.js?v=29"></script>
+<script src="music.js?v=29"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -906,7 +906,7 @@ function buildLevels() {
   const grid = $('lvGrid'), P = progress(), n = SET.levels.length;
   $('lvTitle').textContent = 'Levels';
   $('setNote').textContent = (previewUnlocked ? 'Playtest: all levels unlocked · ' : '') + (SET.mode === 'T' ? n + ' generated Twists · mirrors, key gates, and springs' :
-    SET.mode === 'C' && SET.slide ? n + ' levels · mirrors → gates → springs → mixed tangles' :
+    ['C', 'X'].includes(SET.mode) && SET.slide ? n + ' levels · mirrors → gates → springs → mixed tangles' :
     n + ' levels · tangle ' + SET.levels[0].difficulty + ' to ' + SET.levels[n - 1].difficulty);
   $('genBtn').textContent = P.max > 1 ? 'Continue · Level ' + Math.min(P.max, n) : 'Play · Level 1';
   grid.innerHTML = '';
@@ -935,6 +935,7 @@ function buildCustom() {
   $('defaultSeedBtn').disabled = c.seed === MFSets.DEFAULT_SEED;
   $('codeOut').textContent = customCode();
   $('rangeNote').textContent = twist ? 'Every seed generates new rope layouts and mechanic placements, with verified solutions. Sliding rules apply.' :
+    c.mode === 'X' && c.slide ? 'Extreme tangles with mirrors, key gates, and springs introduced gradually.' :
     c.mode === 'C' && c.slide ? 'A gentle start. Mirrors, key gates, and springs arrive gradually as the boards grow.' :
     c.mode === 'C' ? 'A gentle start, growing into deeper tangles.' : 'Every seed makes a repeatable set at this difficulty.';
   const box = $('recent'); box.innerHTML = '';

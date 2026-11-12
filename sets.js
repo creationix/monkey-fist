@@ -55,6 +55,17 @@
       }
       save.progressiveGen = 2;
     }
+    if (save.extremeGen !== 1) {
+      for (const [code, progress] of Object.entries(save.sets)) {
+        const opts = L.parseCode(code);
+        if (!opts || opts.mode !== 'X' || !opts.slide) continue;
+        save.levelArchives = save.levelArchives || {};
+        const archive = save.levelArchives['extreme-0'] || (save.levelArchives['extreme-0'] = {});
+        archive[code] = { ...progress, stars: { ...progress.stars } };
+        progress.stars = Object.fromEntries(Object.entries(progress.stars || {}).filter(([i]) => L.progressiveStage(+i - 1, opts.count) < 8));
+      }
+      save.extremeGen = 1;
+    }
     if (!save.setUI) {
       // The previous Custom screen held draft options, not the set selected by the Play button.
       // Preserve that draft as a recent set while continuing the existing default campaign.

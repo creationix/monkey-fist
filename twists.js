@@ -35,7 +35,7 @@
     return ['springs', 'mirrors', 'gates'];
   }
   function integrate(set) {
-    if (set.mode !== 'C' || !set.slide) return set;
+    if (!['C', 'X'].includes(set.mode) || !set.slide) return set;
     return { ...set, levels: set.levels.map((base, index) => {
       const kinds = progressiveFeatures(index, set.levels.length);
       return kinds.length ? { twist: true, base, kinds, index, seed: set.seed, big: set.big,
