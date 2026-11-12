@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b2029">
-<meta name="description" content="Six directions. One tangled knot. A hexagonal Monkey Fist with sliding ropes and locks.">
+<meta name="description" content="Six directions. One tangled knot. Explore a whole screen of long, winding sliding ropes.">
 <title>Monkey Fist · Hex</title>
 <link rel="icon" href="../icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <main id="game">
@@ -24,9 +24,9 @@
     <div id="audioControls" aria-label="Audio settings"><button id="sound" class="quiet" aria-pressed="true">Sound on</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button></div>
   </aside>
   <div id="boardWrap">
-    <canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Zoom then drag to explore. Arrow keys select ropes; Enter slides the selected rope."></canvas>
+    <canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Drag to explore; pinch or scroll to zoom. Arrow keys select ropes; Enter slides the selected rope."></canvas>
     <div id="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Weaving your tangle…</div>
-    <nav id="zoomControls" aria-label="Board view" hidden><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomFit" title="Fit the whole board">Fit</button><button id="zoomIn" aria-label="Zoom in">+</button><span>Zoom · drag to explore</span></nav>
+    <nav id="zoomControls" aria-label="Board view" hidden><span>Drag to explore · pinch to zoom</span><div><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomFit" title="Fit and center the board">Fit</button><button id="zoomIn" aria-label="Zoom in">+</button><button id="fullscreen" title="Enter fullscreen" aria-label="Fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div></nav>
   </div>
   <div id="notice" role="status" aria-live="polite"></div>
 </main>
@@ -39,8 +39,8 @@
   </div>
   <div class="set-line"><button id="share" class="quiet" title="Copy a link to this set"></button><span>All levels open for this preview</span></div>
   <div id="grid" aria-label="Levels"></div>
-  <p class="rules"><strong>Six directions, simple taps.</strong> Ropes slide until blocked. Free a lettered key rope to open its matching lock. The last clear ropes release themselves for free.</p>
-  <p class="rules">Start small and grow to 24 × 32 cells, or 40 × 54 with Colossal boards. Longer winding ropes, sliding knots, and lock chains build up along the way. Zoom with +, the wheel, or a pinch; drag to explore.</p>
+  <p class="rules"><strong>Six directions, simple taps.</strong> Ropes slide until another rope blocks them. Pull a tail out of the way to untangle a knot. The last clear ropes release themselves for free.</p>
+  <p class="rules">Start small and grow to 24 × 32 cells, or 40 × 54 with Colossal boards. Longer winding ropes and deeper sliding knots build up along the way. The whole screen is your board: drag to explore, zoom with +, the wheel, or a pinch, and press Fit to return to the whole puzzle.</p>
   <p class="rules">Rope tap +1 · Undo +1, three per level · Hint +2<br>No tap limit. Fewer taps earn more stars.</p>
   <a class="back" href="../">← Square Monkey Fist</a>
 </dialog>
@@ -48,9 +48,9 @@
   <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p>
   <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
 </dialog>
-<script src="engine.js?v=2"></script>
+<script src="engine.js?v=3"></script>
 <script src="../music.js?v=30"></script>
 <script src="../sounds.js?v=1"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

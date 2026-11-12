@@ -13,7 +13,7 @@ if (save.gen !== H.VERSION) {
   save.sets = {}; save.gen = H.VERSION;
 }
 save.sound = save.sound !== false;
-const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, lockOpen: [], view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
+const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 let noticeTimer, musicPlayer = null, soundPlayer = null, audioContext = null, audioUnlocked = false, lastTime = 0, width = 1, height = 1;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const color = i => PALETTE[i % PALETTE.length];
@@ -56,7 +56,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=1');
+    const worker = new Worker('generator-worker.js?v=2');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -78,7 +78,7 @@ async function start(index) {
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
-    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, lockOpen: level.locks.map(() => 0), camera: { zoom: 1, x: 0, y: 0 } });
+    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, camera: { zoom: 1, x: 0, y: 0 } });
     resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
@@ -91,18 +91,17 @@ function hud() {
   $('loading').hidden = !G.loading; $('boardWrap').setAttribute('aria-busy', G.loading);
   $('zoomControls').hidden = !l;
   if (!l) {
-    $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Growing long ropes and locking in a solution…' : 'Try another seed or restart.';
+    $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Weaving long ropes…' : 'Try another seed or restart.';
     $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; $('tip').textContent = 'Every seed weaves a different puzzle.'; return;
   }
-  $('chapter').textContent = l.locks.length ? 'UNDER LOCK & KEY' : l.slides ? 'SLIDE TO UNTANGLE' : 'SIX DIRECTIONS';
-  const locks = l.locks.filter(g => G.paths[g.key]).length;
-  $('remaining').textContent = left + ' ropes' + (locks ? ' · ' + locks + (locks === 1 ? ' lock' : ' locks') : ' left');
+  $('chapter').textContent = l.slides ? 'SLIDE TO UNTANGLE' : 'SIX DIRECTIONS';
+  $('remaining').textContent = left + ' ropes left';
   $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + l.par;
   $('score').title = l.exact ? 'Fewest possible player taps' : 'Verified solution score; fewer taps may be possible';
   $('undos').textContent = G.undos;
   $('undo').disabled = !G.undos || !G.history.length || G.auto || G.ended;
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
-  $('tip').textContent = G.lost ? 'Knotted. Undo or restart to try another route.' : G.auto ? 'All clear! These ropes release for free.' : l.locks.length ? 'Free a lettered rope to open its matching lock.' : l.slides ? 'A slide can pull a tail out of another rope’s way.' : 'Tap a rope. Follow its arrow in one of six directions.';
+  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear! Free releases.' : l.slides ? 'Slide a tail to open a path.' : 'Tap a rope. Follow its arrow.';
 }
 function tap(i, automatic = false) {
   if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
@@ -145,7 +144,7 @@ function hint() {
     const answer = H.solve(G.level, G.paths, 5000); G.plan = answer.moves;
     if (!G.plan.length) { if (answer.solved === false) G.lost = true; notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.'); hud(); return; }
   }
-  if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; return; }
+  if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; focusRope(G.hint); return; }
   G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
 }
 function finish() {
@@ -160,7 +159,6 @@ function update(dt) {
   if (!G.level || $('chooser').open) return;
   if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) G.hint = -1; }
   if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) G.bump = null; }
-  G.level.locks.forEach((g, i) => { const target = G.paths[g.key] ? 0 : 1; G.lockOpen[i] += (target - G.lockOpen[i]) * Math.min(1, dt * 12); });
   let settled = false;
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
@@ -188,11 +186,13 @@ function resize() {
 function applyCamera() {
   if (!G.level) return;
   const c = G.camera, v = G.view, bw = v.bw * c.zoom, bh = v.bh * c.zoom;
-  const limitX = Math.max(0, (bw - width) / 2 + 12), limitY = Math.max(0, (bh - height) / 2 + 12);
+  // Allow every part of the board to move clear of the fixed corner controls,
+  // even at Fit. Clamp only when the entire board would leave the viewport.
+  const limitX = (bw + width) / 2 - Math.min(bw, width) * .25, limitY = (bh + height) / 2 - Math.min(bh, height) * .25;
   c.x = Math.max(-limitX, Math.min(limitX, c.x)); c.y = Math.max(-limitY, Math.min(limitY, c.y));
   v.scale = v.fit * c.zoom; v.ox = width / 2 + c.x - v.cx * v.scale; v.oy = height / 2 + c.y - v.cy * v.scale;
   v.panel = { x: (width - bw) / 2 + c.x - 8, y: (height - bh) / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
-  $('zoomFit').textContent = c.zoom === 1 ? 'Fit' : Math.round(c.zoom * 100) + '% · Fit';
+  $('zoomFit').textContent = 'Fit'; $('zoomFit').title = 'Fit and center the board · ' + Math.round(c.zoom * 100) + '%';
   $('zoomOut').disabled = c.zoom <= 1; $('zoomIn').disabled = c.zoom >= 8;
   canvas.classList.toggle('zoomed', c.zoom > 1);
 }
@@ -204,9 +204,13 @@ function zoomTo(zoom, p = { x: width / 2, y: height / 2 }) {
   applyCamera(); draw(0);
 }
 function focusRope(i) {
-  if (G.camera.zoom <= 1 || !G.paths[i]) return;
+  if (!G.paths[i]) return;
   const p = screen(G.paths[i].at(-1)), pad = Math.min(48, width / 4, height / 4);
-  if (p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
+  const r = canvas.getBoundingClientRect(), x = p.x + r.left, y = p.y + r.top;
+  const covered = [...document.querySelectorAll('.brand, .readout, .actions, #audioControls, #tip, #zoomControls')].some(el => {
+    const box = el.getBoundingClientRect(); return x >= box.left - 8 && x <= box.right + 8 && y >= box.top - 8 && y <= box.bottom + 8;
+  });
+  if (covered || p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
     G.camera.x += width / 2 - p.x; G.camera.y += height / 2 - p.y; applyCamera();
   }
 }
@@ -215,7 +219,7 @@ function shade(hex, amount) {
   const n = parseInt(hex.slice(1), 16), channel = x => Math.round(amount < 0 ? x * (1 + amount) : x + (255 - x) * amount);
   return `rgb(${channel(n >> 16)},${channel(n >> 8 & 255)},${channel(n & 255)})`;
 }
-// One continuous strand treatment for ropes and lock bindings. Dash phase follows
+// One continuous strand treatment. Dash phase follows
 // the material as a rope slides, rather than restarting at every hex-grid segment.
 function cord(points, width, col, phase = 0) {
   const dark = shade(col, -.55), opacity = ctx.globalAlpha;
@@ -236,16 +240,6 @@ function visiblePath(i) {
   const m = G.moves.get(i), start = m.progress, end = start + m.path.length - 1, points = [pointAt(m.route, start)];
   for (let k = Math.floor(start) + 1; k < end; k++) points.push(m.route[k]);
   points.push(pointAt(m.route, end)); return points;
-}
-function badge(p, letter, size, col) {
-  ctx.save(); ctx.translate(p.x, p.y);
-  const r = size * .5, gold = ctx.createLinearGradient(-r, -r, r, r);
-  gold.addColorStop(0, '#fff1bc'); gold.addColorStop(.48, '#ddb867'); gold.addColorStop(1, '#a57337');
-  ctx.fillStyle = '#503b28'; ctx.beginPath(); ctx.arc(0, size * .055, r * 1.12, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = gold; ctx.strokeStyle = '#72502e'; ctx.lineWidth = size * .07;
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = shade(col, -.5); ctx.beginPath(); ctx.arc(0, 0, r * .74, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff3cc'; ctx.font = '900 ' + size * .65 + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(letter, 0, size * .025); ctx.restore();
 }
 function drawRope(i, time) {
   const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i), dark = shade(col, -.55);
@@ -268,35 +262,6 @@ function drawRope(i, time) {
   // Carry the central highlight into the arrow so its head and body read as one rope.
   ctx.strokeStyle = shade(col, .7); ctx.lineWidth = s * .10; ctx.globalAlpha = .35;
   path(ctx, [{ x: tip.x - dx * s * .16, y: tip.y - dy * s * .16 }, { x: tip.x + dx * s * .22, y: tip.y + dy * s * .22 }]); ctx.stroke(); ctx.globalAlpha = 1;
-  const lock = G.level.locks.findIndex(g => g.key === i); if (lock >= 0) badge(points[0], String.fromCharCode(65 + lock), s * .4, col);
-  ctx.restore();
-}
-function drawLock(g, i) {
-  const s = G.view.scale, p = screen(g.cell), open = G.lockOpen[i] || 0, letter = String.fromCharCode(65 + i), col = color(g.key);
-  if (open > .995) return; // An open lane should look empty, not like a faded obstacle.
-  ctx.save(); ctx.translate(p.x, p.y - open * s * .12); ctx.scale(1 - open * .25, 1 - open * .25);
-  ctx.globalAlpha = 1 - open;
-  const round = (x, y, w, h, radius, fill, stroke, lineWidth) => {
-    ctx.beginPath(); ctx.roundRect(x * s, y * s, w * s, h * s, radius * s); ctx.fillStyle = fill; ctx.fill();
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth * s; ctx.stroke(); }
-  };
-  // Rounded brass shackle, with separate dark edge, metal and reflected light.
-  const shackle = () => { ctx.beginPath(); ctx.moveTo(-s * .16, s * .02); ctx.lineTo(-s * .16, -s * .16); ctx.arc(0, -s * .16, s * .16, Math.PI, 0); ctx.lineTo(s * .16, s * (.02 - open * .15)); };
-  ctx.save(); ctx.translate(-s * .16, 0); ctx.rotate(-open * .5); ctx.translate(s * .16, 0);
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  shackle(); ctx.strokeStyle = '#6c5838'; ctx.lineWidth = s * .14; ctx.stroke();
-  const metal = ctx.createLinearGradient(-s * .2, -s * .3, s * .2, s * .1);
-  metal.addColorStop(0, '#fff2bf'); metal.addColorStop(.45, '#daba77'); metal.addColorStop(1, '#9c713b');
-  ctx.strokeStyle = metal; ctx.lineWidth = s * .09; ctx.stroke(); ctx.restore();
-  // Wood grain and rope bindings echo the square game's lashed gate posts.
-  round(-.32, -.035, .64, .42, .09, '#081b2470');
-  const wood = ctx.createLinearGradient(-s * .3, -s * .1, s * .3, s * .3);
-  wood.addColorStop(0, '#e9bf7c'); wood.addColorStop(.35, '#c49153'); wood.addColorStop(1, '#93623a');
-  round(-.31, -.075, .62, .42, .085, wood, '#705035', .035);
-  ctx.strokeStyle = '#ffdfa060'; ctx.lineWidth = s * .017;
-  for (const row of [.01, .105, .24]) { path(ctx, [{ x: -s * .25, y: s * row }, { x: s * .25, y: s * (row + .025) }]); ctx.stroke(); }
-  for (const side of [-1, 1]) cord([{ x: side * s * .21, y: -s * .07 }, { x: side * s * .21, y: s * .34 }], s * .065, col);
-  badge({ x: 0, y: s * .13 }, letter, s * .38, col);
   ctx.restore();
 }
 function draw(time) {
@@ -309,7 +274,6 @@ function draw(time) {
   ctx.save(); ctx.clip(board);
   ctx.fillStyle = '#b3d7d91c';
   for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
-  G.level.locks.forEach(drawLock);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   for (const i of G.moves.keys()) drawRope(i, time);
   ctx.restore();
@@ -360,9 +324,19 @@ canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('point
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
 $('zoomIn').onclick = () => zoomTo(G.camera.zoom * 1.5);
 $('zoomOut').onclick = () => zoomTo(G.camera.zoom / 1.5);
-$('zoomFit').onclick = () => zoomTo(1);
+function fitBoard() { G.camera = { zoom: 1, x: 0, y: 0 }; applyCamera(); draw(0); }
+$('zoomFit').onclick = fitBoard;
+$('fullscreen').hidden = !document.fullscreenEnabled;
+$('fullscreen').onclick = async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
+  catch { notice('Fullscreen is unavailable in this browser.'); }
+};
+document.addEventListener('fullscreenchange', () => {
+  const active = !!document.fullscreenElement; $('fullscreen').setAttribute('aria-pressed', active);
+  $('fullscreen').title = active ? 'Exit fullscreen' : 'Enter fullscreen'; resize();
+});
 canvas.addEventListener('keydown', e => {
-  if (['+', '=', '-', '0'].includes(e.key)) { e.preventDefault(); zoomTo(e.key === '0' ? 1 : G.camera.zoom * (e.key === '-' ? 1 / 1.5 : 1.5)); }
+  if (['+', '=', '-', '0'].includes(e.key)) { e.preventDefault(); if (e.key === '0') fitBoard(); else zoomTo(G.camera.zoom * (e.key === '-' ? 1 / 1.5 : 1.5)); }
 });
 canvas.addEventListener('keydown', e => {
   const ropes = G.paths.flatMap((p, i) => p ? [i] : []); if (!ropes.length) return;

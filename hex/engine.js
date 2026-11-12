@@ -1,7 +1,7 @@
 // Six-neighbour sliding ropes. Axial coordinates are independent of the view.
 (function (root) {
   'use strict';
-  const VERSION = 2, DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
+  const VERSION = 3, DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
   const key = p => p.q + ',' + p.r;
   const add = (p, d, n = 1) => ({ q: p.q + d[0] * n, r: p.r + d[1] * n });
   const direction = path => { const a = path.at(-2), b = path.at(-1); return [b.q - a.q, b.r - a.r]; };
@@ -166,7 +166,7 @@
     const H = Math.max(stage >= 4 ? 7 : stage >= 2 ? 6 : 5, 5 + Math.round((big ? 49 : 27) * growth)), area = W * H;
     return { stage, W, H, length: 6 + Math.round(t * (big ? 58 : 40)),
       knots: stage < 2 ? 0 : Math.max(1, Math.round(area / 65 * (.3 + .7 * t))),
-      locks: stage < 4 ? 0 : Math.min(26, Math.max(1, Math.round(area / 55 * t))), coverage: .79 + .07 * t };
+      coverage: .79 + .07 * t };
   }
   function build(rng, cfg) {
     const { W, H, stage } = cfg, area = W * H, points = cells({ W, H });
@@ -229,38 +229,12 @@
       const id = level.ropes.length; level.ropes.push(best.path); stops.push(null); result = best.trial;
       best.ids.forEach(c => occupied[c] = id); covered += best.ids.length;
     }
-    // A gate is certificate-safe when its key exits before ANY head first crosses
-    // that cell. Build chains of such dependencies; no search per candidate needed.
-    const board = compile(level), firstUse = new Int32Array(area).fill(1e9), exitAt = new Int32Array(level.ropes.length);
-    result.moves.forEach((i, k) => {
-      const from = board.offsets[i], target = board.to(i), track = board.tracks[i];
-      for (let j = from + board.lengths[i]; j < (target < 0 ? track.length : target + board.lengths[i]); j++) firstUse[track[j]] = Math.min(firstUse[track[j]], k);
-      if (target < 0) exitAt[i] = k; board.place(i, target);
-    });
-    const candidates = [];
-    level.ropes.forEach((path, target) => {
-      const dir = DIRS.findIndex(d => { const v = direction(path); return d[0] === v[0] && d[1] === v[1]; });
-      const ahead = ray(cell(path.at(-1), W), dir), blockers = new Set(ahead.map(c => occupied[c]).filter(i => i >= 0));
-      for (const c of ahead) {
-        if (occupied[c] >= 0 || firstUse[c] === 1e9) continue;
-        for (let key = 0; key < level.ropes.length; key++) if (key !== target && exitAt[key] < firstUse[c] && !blockers.has(key)) candidates.push({ c, key, target, rank: exitAt[target] - exitAt[key] + rng() * 12 });
-      }
-    });
-    candidates.sort((a, b) => a.rank - b.rank);
-    const targets = new Set(), keys = new Set(), gateCells = new Set(), depths = new Map(); let tail = -1, lockDepth = 0;
-    for (let n = 0; n < cfg.locks; n++) {
-      const valid = g => !targets.has(g.target) && !keys.has(g.key) && !gateCells.has(g.c);
-      const g = candidates.find(g => g.key === tail && valid(g)) || candidates.find(g => targets.has(g.key) && valid(g)) || candidates.find(valid);
-      if (!g) break;
-      level.locks.push({ cell: points[g.c], key: g.key, target: g.target }); targets.add(g.target); keys.add(g.key); gateCells.add(g.c); tail = g.target;
-      const depth = (depths.get(g.key) || 0) + 1; depths.set(g.target, depth); lockDepth = Math.max(lockDepth, depth);
-    }
     const certified = intentions(level, stops, result.moves);
     if (!certified) throw Error('Hex weaving certificate failed');
     const bends = level.ropes.map(path => path.slice(2).reduce((sum, p, j) => sum + Number(p.q - path[j + 1].q !== path[j + 1].q - path[j].q || p.r - path[j + 1].r !== path[j + 1].r - path[j].r), 0));
-    return { ...level, plan: result.moves, slides: knots, wantedSlides: cfg.knots, wantedLocks: cfg.locks,
+    return { ...level, plan: result.moves, slides: knots, wantedSlides: cfg.knots,
       stats: { cells: area, coverage: covered / area, depth: certified.depth, averageDepth: certified.cost / level.ropes.length,
-        lockDepth, averageLength: covered / level.ropes.length, longest: Math.max(...level.ropes.map(p => p.length)), bends: bends.reduce((a, b) => a + b, 0), longestBends: Math.max(...bends) } };
+        averageLength: covered / level.ropes.length, longest: Math.max(...level.ropes.map(p => p.length)), bends: bends.reduce((a, b) => a + b, 0), longestBends: Math.max(...bends) } };
   }
   const cleanSeed = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'MONKEYFIST';
   function code(opts) { return 'H' + opts.count + (opts.big ? 'B' : '') + '-' + cleanSeed(opts.seed); }
@@ -276,9 +250,9 @@
     let best = null;
     for (let attempt = 0; attempt < (stage < 10 ? 8 : 3); attempt++) {
       const b = build(rng, cfg);
-      const quality = Math.min(b.slides, b.wantedSlides) * 20 + b.locks.length * 20 + b.stats.averageDepth + b.stats.coverage * 20;
+      const quality = Math.min(b.slides, b.wantedSlides) * 20 + b.stats.averageDepth + b.stats.coverage * 20;
       if (!best || quality > best.quality) best = { ...b, quality };
-      if (b.slides >= b.wantedSlides && b.locks.length >= b.wantedLocks * .75 && b.stats.coverage >= .8) break;
+      if (b.slides >= b.wantedSlides && b.stats.coverage >= .8) break;
     }
     const result = { ...best, ...minimum(best, best.plan, best.ropes.length <= 10 ? 1500 : 0), seed, index, stage };
     if (!replay(result, result.plan).solved) throw Error('Hex certificate failed');

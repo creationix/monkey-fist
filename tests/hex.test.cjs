@@ -30,7 +30,7 @@ test('matching key exit opens a lock, partial key slides keep it shut, and resto
   assert.equal(H.tap(level, level.ropes, 0).event, 'slide');
 });
 
-test('generated sets are deterministic, woven, solvable, and locks create real dependencies', { timeout: 120000 }, () => {
+test('generated sets are deterministic, woven, solvable, and use only ropes', { timeout: 120000 }, () => {
   const directions = new Set(), signatures = new Set();
   for (let seed = 0; seed < 20; seed++) for (const index of [0, 2, 4, 25, 59]) {
     const opts = { seed: 'HEXTEST' + seed, index, big: !!(seed % 2) }, b = H.generate(opts);
@@ -43,25 +43,17 @@ test('generated sets are deterministic, woven, solvable, and locks create real d
       for (let i = 1; i < rope.length; i++) assert.ok(H.DIRS.some(d => H.key(H.add(rope[i - 1], d)) === H.key(rope[i])));
     }
     assert.ok(!('mirrors' in b) && !('springs' in b));
-    if (index === 0) assert.equal(b.locks.length, 0);
+    assert.deepEqual(b.locks, [], 'no hidden key/lock dependencies at any size');
     if (index >= 2) assert.ok(b.slides >= 1, 'sliding knots introduced');
-    if (index >= 4) assert.ok(b.locks.length >= 1, 'locks introduced');
     if (index === 59) {
       assert.ok(replay.events.filter(e => e === 'slide').length >= 3);
-      assert.ok(b.locks.length >= 10); assert.ok(b.W * b.H >= 768);
+      assert.ok(b.W * b.H >= 768);
       assert.ok(b.stats.averageLength >= 8, 'longer ropes throughout the board');
       assert.ok(b.stats.longest >= 30 && b.stats.longestBends >= 12, 'long winding strands');
       assert.ok(b.stats.averageDepth >= 8 && b.stats.depth >= 20, 'deep connected dependencies: ' + JSON.stringify(b.stats));
-      assert.ok(b.stats.lockDepth >= 3, 'chains of locks');
       let paths = b.ropes;
       for (const i of b.plan) { const move = H.tap(b, paths, i); assert.ok(move, 'certificate matches reference geometry'); paths = move.paths; }
       assert.ok(paths.every(p => !p));
-    }
-    for (const lock of b.locks) {
-      assert.ok(!b.ropes.flat().some(p => H.key(p) === H.key(lock.cell)));
-      const alone = b.ropes.map((p, i) => i === lock.target || i === lock.key ? p : null);
-      assert.notEqual(H.tap(b, alone, lock.target)?.event, 'exit');
-      assert.equal(H.tap({ ...b, locks: [] }, alone, lock.target)?.event, 'exit');
     }
     if (index === 59) signatures.add(JSON.stringify(b.ropes));
     if (seed === 0) {
@@ -85,7 +77,7 @@ test('solver detects knots without treating exhausted search as a loss; auto rel
 test('hex share codes round trip and larger/count settings change the deterministic board', () => {
   for (const count of [10, 30, 60, 120]) for (const big of [false, true]) {
     const opts = { count, big, seed: 'ALPHA' }; assert.deepEqual(H.parseCode(H.code(opts)), opts);
-    const last = H.generate({ ...opts, index: count - 1 }); assert.equal(H.replay(last, last.plan).solved, true); assert.ok(last.locks.length >= 5);
+    const last = H.generate({ ...opts, index: count - 1 }); assert.equal(H.replay(last, last.plan).solved, true); assert.deepEqual(last.locks, []);
   }
   assert.equal(H.parseCode('C60S-MONKEYFIST'), null);
   assert.ok(H.generate({ index: 59, big: true }).ropes.flat().length > H.generate({ index: 59 }).ropes.flat().length);

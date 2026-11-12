@@ -10,7 +10,7 @@ async function clickRope(page, id) {
 }
 async function settle(page) { await page.evaluate(() => { for (let i = 0; i < 1200 && (__hex.G.moving || __hex.G.auto) && !__hex.G.ended; i++) __hex.update(.05); __hex.draw(0); }); }
 
-test('hex puzzles play at par through real taps on phone and laptop, including large locked boards', { timeout: 120000 }, async () => {
+test('hex puzzles play at par through real taps on phone and laptop, including large rope-only boards', { timeout: 120000 }, async () => {
   const browser = await launch();
   try {
     for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
@@ -32,7 +32,7 @@ test('hex puzzles play at par through real taps on phone and laptop, including l
   } finally { await browser.close(); }
 });
 
-test('hint costs, three undos, key restoration, resize, persistence, seed controls and offline play', { timeout: 90000 }, async () => {
+test('hint costs, three undos, slide restoration, resize, persistence, seed controls and offline play', { timeout: 90000 }, async () => {
   const browser = await launch();
   try {
     const context = await browser.newContext(), page = await context.newPage({ viewport: { width: 1366, height: 900 } });
@@ -45,16 +45,16 @@ test('hint costs, three undos, key restoration, resize, persistence, seed contro
     for (let n = 0; n < 2; n++) { await clickRope(page, first); await page.locator('#undo').click(); }
     assert.equal(await page.evaluate(() => __hex.G.undos), 0); assert.equal(await page.locator('#undo').isDisabled(), true);
     await page.locator('#restart').click(); await ready(page);
-    let checkedKey = false;
+    let checkedSlide = false;
     for (let n = 0; n < 300; n++) {
-      const state = await page.evaluate(() => { const g = __hex.G, id = g.plan[0], m = MFHex.tap(g.level, g.paths, id); return { id, opens: m.event === 'exit' && g.level.locks.some(l => l.key === id), paths: JSON.stringify(g.paths) }; });
+      const state = await page.evaluate(() => { const g = __hex.G, id = g.plan[0], m = MFHex.tap(g.level, g.paths, id); return { id, slides: m.event === 'slide', paths: JSON.stringify(g.paths) }; });
       await clickRope(page, state.id); await settle(page);
-      if (state.opens) {
-        assert.equal(await page.evaluate(i => __hex.G.paths[i], state.id), null);
-        await page.locator('#undo').click(); assert.equal(await page.evaluate(() => JSON.stringify(__hex.G.paths)), state.paths); checkedKey = true; break;
+      if (state.slides) {
+        assert.notEqual(await page.evaluate(() => JSON.stringify(__hex.G.paths)), state.paths);
+        await page.locator('#undo').click(); assert.equal(await page.evaluate(() => JSON.stringify(__hex.G.paths)), state.paths); checkedSlide = true; break;
       }
     }
-    assert.ok(checkedKey);
+    assert.ok(checkedSlide);
     const state = await page.evaluate(() => JSON.stringify(__hex.G.paths)); await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => JSON.stringify(__hex.G.paths)), state); await clickRope(page, await page.evaluate(() => __hex.G.plan[0])); await settle(page);
     await page.locator('#levels').click(); assert.equal(await page.locator('#grid button').count(), 60);
@@ -75,14 +75,14 @@ test('colossal boards generate without blocking, cancel safely, archive old scor
   const browser = await launch();
   try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }), page = await context.newPage();
-    await page.addInitScript(() => localStorage.setItem('monkey-fist-hex-v1', JSON.stringify({ code: 'H60B-MONKEYFIST', level: 60, sound: false, sets: { 'H60B-MONKEYFIST': { 59: { stars: 3, taps: 30 } } } })));
+    await page.addInitScript(() => localStorage.setItem('monkey-fist-hex-v1', JSON.stringify({ gen: 2, code: 'H60B-MONKEYFIST', level: 60, sound: false, sets: { 'H60B-MONKEYFIST': { 59: { stars: 3, taps: 30 } } } })));
     await page.goto(base);
     assert.equal(await page.evaluate(() => __hex.G.loading), true);
     await page.evaluate(async () => { const obsolete = __hex.start(58); await __hex.start(0); await obsolete; });
     assert.equal(await page.evaluate(() => __hex.G.index), 0);
     assert.equal(await page.evaluate(() => __hex.G.level.index), 0);
     assert.deepEqual(await page.evaluate(() => __hex.save.sets), {});
-    assert.equal(await page.evaluate(() => __hex.save.archives['gen-1']['H60B-MONKEYFIST'][59].stars), 3);
+    assert.equal(await page.evaluate(() => __hex.save.archives['gen-2']['H60B-MONKEYFIST'][59].stars), 3);
     assert.equal(await page.evaluate(() => __hex.save.sound), false);
     const frames = await page.evaluate(async () => {
       let frames = 0, done = false; const frame = () => { frames++; if (!done) requestAnimationFrame(frame); }; requestAnimationFrame(frame);
@@ -106,5 +106,43 @@ test('colossal boards generate without blocking, cancel safely, archive old scor
     await clickRope(page, first); assert.equal(await page.evaluate(() => __hex.G.taps), 3);
     await page.locator('#undo').click(); assert.equal(await page.evaluate(() => JSON.stringify(__hex.G.paths)), paths);
     assert.equal(await page.evaluate(() => __hex.G.taps), 4);
+  } finally { await browser.close(); }
+});
+
+test('the canvas fills the viewport while corner controls stay fixed through pan, zoom, and fullscreen', { timeout: 60000 }, async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(base + '?set=H60B-MONKEYFIST&level=60'); await ready(page);
+    const controls = ['.brand', '.readout', '.actions', '#audioControls', '#zoomControls'];
+    for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 844, height: 390 }, { width: 320, height: 568 }]) {
+      await page.setViewportSize(viewport); await page.locator('#zoomFit').click();
+      const canvas = await page.locator('#board').boundingBox();
+      assert.deepEqual(canvas, { x: 0, y: 0, ...viewport });
+      const before = await Promise.all(controls.map(s => page.locator(s).boundingBox()));
+      for (const box of before) { assert.ok(box.x >= 0 && box.y >= 0); assert.ok(box.x + box.width <= viewport.width && box.y + box.height <= viewport.height); }
+      const x = viewport.width / 2, y = viewport.height / 2;
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 45, y + 35, { steps: 5 }); await page.mouse.up();
+      assert.equal(await page.evaluate(() => __hex.G.taps), 0);
+      assert.ok(await page.evaluate(() => __hex.G.camera.x > 0 && __hex.G.camera.y > 0), 'can pan clear of controls without zooming');
+      await page.locator('#zoomIn').click();
+      assert.deepEqual(await Promise.all(controls.map(s => page.locator(s).boundingBox())), before);
+      await page.locator('#zoomFit').click();
+      assert.deepEqual(await page.evaluate(() => __hex.G.camera), { zoom: 1, x: 0, y: 0 });
+    }
+    for (let repeat = 0; repeat < 2; repeat++) {
+      await page.evaluate(() => {
+        const g = __hex.G, p = __hex.screen(g.paths[g.plan[0]].at(-1)), box = document.querySelector('.readout').getBoundingClientRect();
+        g.camera.x += box.x + box.width / 2 - p.x; g.camera.y += box.y + box.height / 2 - p.y; applyCamera();
+      });
+      await page.locator('#hint').click();
+      const head = await page.evaluate(() => __hex.screen(__hex.G.paths[__hex.G.plan[0]].at(-1)));
+      assert.ok(Math.abs(head.x - 160) < 1 && Math.abs(head.y - 284) < 1, 'hint moves a rope out from under the noninteractive readout');
+      assert.equal(await page.evaluate(() => __hex.G.taps), 2, 'refocusing the same active hint costs no additional taps');
+    }
+    await page.locator('#fullscreen').click(); await page.waitForFunction(() => !!document.fullscreenElement);
+    assert.equal(await page.locator('#fullscreen').getAttribute('aria-pressed'), 'true');
+    await page.locator('#fullscreen').click(); await page.waitForFunction(() => !document.fullscreenElement);
+    assert.equal(await page.evaluate(() => __hex.G.taps), 2);
   } finally { await browser.close(); }
 });
