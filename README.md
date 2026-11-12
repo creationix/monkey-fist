@@ -77,9 +77,16 @@ Both games:
 
 ## Music
 
-The soundtrack has six original synthesised songs: **Canopy Hop**, **Vine Swing**, **Temple Steps**, **River Riddle**, **Bamboo Dash**, and **Moonlit Knot**. Levels rotate through them in order, so moving to the next level always changes the music while retrying a level keeps its song. Each track has its own tempo, melody, arrangement, and instrumental character, and transitions fade cleanly between songs.
+The soundtrack has six original rainforest-inspired synthesised songs: **Canopy Hop**, **Vine Swing**, **Temple Steps**, **River Riddle**, **Bamboo Dash**, and **Moonlit Knot**. Levels rotate through them in order, so moving to the next level always changes the music while retrying a level keeps its song. Each has a different percussion groove, tempo, melody, and instrumental character, with clean fades between songs.
 
-Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the harmony of the current song. Music remains independent of sound effects, and turning Music off stops its synthesised voices instead of merely silencing them.
+Low skin drums, answering hand drums, wood clicks, and shakers sit over syncopated bass.
+Woody plucks and breathy flute-like leads answer each other through a soft rhythmic echo.
+Sixteenth-note swing and varied accents keep the beat loose. Each arrangement moves from
+a light opening into the full groove, a quieter river break, and a fuller return with drum
+fills; the second pass changes the answers before the 32-bar cycle repeats. These are
+original compositions, not recordings of traditional music.
+
+Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the currently audible harmony. Music remains independent of sound effects; turning Music off stops its tone and noise sources and disconnects the echo. A shared noise buffer, bounded voices, and a short scheduling lookahead keep playback light during large puzzles.
 
 Square and Hex share `sounds.js`: the same airy rope swish, chord-following exit plucks,
 thuds, clicks, undo, hint, and completion effects. Hex has separate Sound and Music

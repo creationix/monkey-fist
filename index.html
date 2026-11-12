@@ -176,14 +176,14 @@
   <p class="sub">Untangle the knot. Tap a rope to pull it free.</p>
   <button class="big" id="playBtn">Play</button>
   <button class="big alt" id="levelsBtn">Levels</button>
-  <a href="hex/" style="display:block;text-align:center;color:var(--accent);font-size:14px;padding:9px;text-decoration:none">Try Hex · six directions, ropes &amp; locks →</a>
+  <a href="hex/" style="display:block;text-align:center;color:var(--accent);font-size:14px;padding:9px;text-decoration:none">Try Hex · six directions, sliding ropes →</a>
   <div class="row2">
     <div class="row">Sound <button class="toggle" id="tSound" aria-label="Sound effects"></button></div>
     <div class="row">Music <button class="toggle" id="tMusic" aria-label="Music"></button></div>
   </div>
   <div class="row"><span>Sliding ropes<small>A blocked rope slides and stays. Plan ahead</small></span> <button class="toggle" id="tSlide" aria-label="Sliding ropes"></button></div>
   <div class="row"><span>Kid mode<small>The original game, no hearts, just your time</small></span> <button class="toggle" id="tKid" aria-label="Kid mode"></button></div>
-  <div id="ver">build 2026-11-11 s</div>
+  <div id="ver">build 2026-11-12 a</div>
 </div></div>
 
 <div class="screen" id="scrLevels"><div class="card">
@@ -226,7 +226,7 @@
 <script src="twist-circuits.js?v=30"></script>
 <script src="twists.js?v=30"></script>
 <script src="mechanics-render.js?v=30"></script>
-<script src="music.js?v=30"></script>
+<script src="music.js?v=31"></script>
 <script src="sounds.js?v=1"></script>
 <script>
 'use strict';
@@ -329,7 +329,7 @@ const G = { active: false, ended: false, level: 1, W: 0, H: 0, occ: null, noodle
   parts: [], shake: 0, grace: 0, hint: -1, hintT: 0, cs: 40, ox: 0, oy: 0, gen: 0 };
 
 const TIPS = ['Tap a rope to pull it out, arrow end first.', "A rope can't leave if another one is in its way.", 'Stuck? The lightbulb shows one that can go.', 'Tangle shows how knotted the board is. Once nothing is blocked, the rest go free.'];
-const TIPS_SLIDE = ['Tap a rope to pull it out, arrow end first.', 'A blocked rope slides until it meets another, and stays there.', 'Ropes never go backwards, so look where one will stop before you tap.', 'Undo takes a move back. You get three a level.', 'Every tap counts. Par is the fewest taps the level can be done in.'];
+const TIPS_SLIDE = ['Tap a rope to pull it out, arrow end first.', 'A blocked rope slides until it meets another, and stays there.', 'Ropes never go backwards, so look where one will stop before you tap.', 'Undo takes a move back. You get three a level.', 'Free a tail to open a path for another rope.'];
 const KNOT_TIP = 'A loop of ropes is a knot. Slide one of them forward to let the rest out.';
 // Kid mode belongs to the original game: no hearts, a clock, and a pointer after every bump.
 const kidNow = () => save.kid && !G.slide;
@@ -365,7 +365,7 @@ const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padSt
 function hud() {
   $('left').textContent = G.left + (G.left === 1 ? ' rope left' : ' ropes left');
   $('tangle').textContent = !G.slide ? 'Tangle ' + G.tangle : 'Taps ' + G.taps + ' · par ' + G.par;
-  const hintLabel = G.slide ? 'Hint (+2 score taps; breaks combo)' : kidNow() ? 'Hint (+5 seconds; breaks combo)' : 'Hint (costs 1 star; breaks combo)';
+  const hintLabel = G.slide ? 'Hint (+2 taps; breaks combo)' : kidNow() ? 'Hint (+5 seconds; breaks combo)' : 'Hint (costs 1 star; breaks combo)';
   $('hintBtn').title = hintLabel; $('hintBtn').setAttribute('aria-label', hintLabel);
   $('hintCost').textContent = G.slide ? '+2' : kidNow() ? '+5s' : '−★';
   const undoLabel = 'Undo (+1 tap; ' + G.undos + ' remaining)';

@@ -38,9 +38,9 @@ test('Hex and square play the same swish with music off; Hex sound and music mut
         await page.locator('#music').click();
         assert.equal(await page.evaluate(() => __hex.music.state.enabled), true);
         assert.equal(await page.evaluate(() => __hex.sound.state.enabled), false);
-        const before = await page.evaluate(() => __noise.length);
+        const before = await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length);
         await page.locator('#restart').click(); await page.waitForFunction(() => __hex.G.level && !__hex.G.loading); await page.mouse.click(point.x, point.y);
-        assert.equal(await page.evaluate(() => __noise.length), before, 'music does not turn sound effects back on');
+        assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length), before, 'music percussion does not turn sound effects back on');
         await page.locator('#sound').click(); await page.locator('#music').click();
         assert.equal(await page.evaluate(() => __hex.sound.state.enabled), true);
         assert.equal(await page.evaluate(() => __hex.music.state.enabled), false);

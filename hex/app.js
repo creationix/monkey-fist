@@ -97,11 +97,10 @@ function hud() {
   $('chapter').textContent = l.slides ? 'SLIDE TO UNTANGLE' : 'SIX DIRECTIONS';
   $('remaining').textContent = left + ' ropes left';
   $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + l.par;
-  $('score').title = l.exact ? 'Fewest possible player taps' : 'Verified solution score; fewer taps may be possible';
   $('undos').textContent = G.undos;
   $('undo').disabled = !G.undos || !G.history.length || G.auto || G.ended;
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
-  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear! Free releases.' : l.slides ? 'Slide a tail to open a path.' : 'Tap a rope. Follow its arrow.';
+  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.slides ? 'Slide a tail to open a path.' : 'Tap a rope. Follow its arrow.';
 }
 function tap(i, automatic = false) {
   if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
@@ -152,7 +151,7 @@ function finish() {
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
   if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars }; persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
-  $('resultText').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par + '. Automatic releases are free.';
+  $('resultText').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
   $('next').hidden = G.index + 1 >= opts.count; $('result').showModal(); syncMusic(); sfx.win();
 }
 function update(dt) {
