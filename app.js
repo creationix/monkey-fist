@@ -379,29 +379,21 @@ function springDrawing(i, flip) {
   if (flip.turn <= 0) return from;
   if (flip.turn >= 1) return to;
   const move = G.moves.get(i), s = G.view.scale, key = [G.view.ox, G.view.oy, s, G.view.rotated].join(',');
-  if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4), to: MFRopeArt.trace(to.points, s * .4) };
-  const track = move.springTrace.from, target = move.springTrace.to, length = track.length;
+  if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4) };
+  const track = move.springTrace.from, length = track.length;
   const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
-  const t = flip.turn, settle = ease((t - .86) / .14), radius = s * .27 * ease(t / .08) * (1 - settle), loop = Math.PI * radius;
-  const progress = t < .18 ? loop * ease(t / .18) : loop + length * ease((t - .18) / .68);
-  const end = track.at(length), before = track.at(length - .01), d = Math.hypot(end.x - before.x, end.y - before.y), dx = (end.x - before.x) / d, dy = (end.y - before.y) / d;
-  // Slide through a half-circle at the spring, then back along the same rope.
-  // Separate the outgoing and returning strands while folded; they settle
-  // back onto the original cells once the old tail has passed the U-turn.
-  function at(distance) {
-    if (distance <= length) return track.at(distance, -radius);
-    if (distance >= length + loop) return track.at(2 * length + loop - distance, radius);
-    const angle = (distance - length) / radius;
-    return { x: end.x + radius * (dx * Math.sin(angle) + dy * Math.cos(angle)), y: end.y + radius * (dy * Math.sin(angle) - dx * Math.cos(angle)) };
-  }
-  const count = Math.max(2, Math.ceil(length / (s * .12))), points = [];
-  for (let n = 0; n <= count; n++) {
-    const p = at(progress + length * n / count), q = target.at(target.length * n / count);
-    points.push({ x: p.x + (q.x - p.x) * settle, y: p.y + (q.y - p.y) * settle });
-  }
-  const tip = points.at(-1), prior = at(progress + length - .01), targetPrior = target.at(target.length - .01);
-  const bx = prior.x + (targetPrior.x - prior.x) * settle, by = prior.y + (targetPrior.y - prior.y) * settle, size = Math.hypot(tip.x - bx, tip.y - by);
-  return { points, head: size > .0001 ? { x: (tip.x - bx) / size, y: (tip.y - by) / size } : to.head };
+  const t = flip.turn, progress = length * ease(t);
+  // A 180-degree mirror folds the route directly back onto itself. Include
+  // the reflection point exactly; the returning head is painted after the body.
+  const at = distance => track.at(distance <= length ? distance : 2 * length - distance);
+  const count = Math.max(2, Math.ceil(length / (s * .12))), samples = [progress, progress + length];
+  for (let n = 1; n < count; n++) samples.push(progress + length * n / count);
+  if (progress > 0 && progress < length) samples.push(length);
+  samples.sort((a, b) => a - b);
+  const points = samples.map(at), tip = points.at(-1), before = track.at(length - progress + .01);
+  let angle = Math.atan2(tip.y - before.y, tip.x - before.x);
+  if (t < .08) angle = Math.atan2(from.head.y, from.head.x) + Math.PI * ease(t / .08);
+  return { points, head: { x: Math.cos(angle), y: Math.sin(angle) }, foldIndex: samples.indexOf(length) };
 }
 function exitCleared(i) {
   const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
@@ -413,9 +405,9 @@ function exitCleared(i) {
 function drawRope(i, time) {
   const moving = G.moves.get(i), flip = springFlip(moving), drawing = flip ? springDrawing(i, flip) : ropeDrawing(i); if (!drawing) return;
   const { points, head } = drawing, s = G.view.scale, col = color(i);
-  if (moving?.spring && !reduced && !flip?.reversed) {
+  if (moving?.spring && !moving.impacted && !reduced) {
     const tip = points.at(-1), spring = screen(moving.spring);
-    const reach = moving.impacted ? Math.max(0, 1 - flip.t / .1) : Math.max(0, 1 - (moving.distance - moving.progress) / .35);
+    const reach = Math.max(0, 1 - (moving.distance - moving.progress) / .35);
     const gap = ((spring.x - tip.x) * head.x + (spring.y - tip.y) * head.y) / s - .78;
     const stretch = s * Math.max(0, Math.min(.2 * reach, gap));
     tip.x += head.x * stretch; tip.y += head.y * stretch;
@@ -428,14 +420,7 @@ function drawRope(i, time) {
     path(ctx, points); ctx.lineCap = ctx.lineJoin = 'round';
     ctx.strokeStyle = '#fff1b433'; ctx.lineWidth = s * .51; ctx.stroke();
   }
-  if (flip) {
-    if (reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
-    else {
-      ctx.save(); ctx.translate(0, Math.sin(Math.PI * flip.turn) * s * .08);
-      path(ctx, points); ctx.lineCap = ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#00000020'; ctx.lineWidth = s * .5; ctx.stroke(); ctx.restore();
-    }
-  }
+  if (flip && reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
   const tip = points.at(-1);
@@ -451,7 +436,13 @@ function drawRope(i, time) {
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
-  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip && !reduced));
+  const animated = !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip && !reduced);
+  if (drawing.foldIndex > 0 && drawing.foldIndex < points.length - 1) {
+    MFRopeArt.draw(ctx, points.slice(0, drawing.foldIndex + 1), s * .4, col, null, animated);
+    // Paint the entire returning strand over the outgoing strand, including
+    // its opaque cord and texture, then the arrowhead on top of both.
+    MFRopeArt.draw(ctx, points.slice(drawing.foldIndex), s * .4, col, { x: dx, y: dy }, animated);
+  } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated);
   ctx.restore();
 }
 function drawSpring(spring, move) {

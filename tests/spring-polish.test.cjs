@@ -1,7 +1,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { base, launch, ready } = require('./browser-helpers.cjs');
 
-test('spring U-turns keep the arrow visible and preserve solver results, concurrent taps, and cached scenery', { timeout: 60000 }, async () => {
+test('spring 180-degree reflections keep the arrow visible and preserve solver results, concurrent taps, and cached scenery', { timeout: 60000 }, async () => {
   const browser = await launch();
   try {
     for (const reducedMotion of ['no-preference', 'reduce']) for (const grid of ['square', 'hex']) {
@@ -20,7 +20,9 @@ test('spring U-turns keep the arrow visible and preserve solver results, concurr
         const oldEnd = ropeDrawing(0).points.at(-1), newEnd = ropeDrawing(0, true).points.at(-1), travel = [];
         for (let i = 0; i <= 240; i++) {
           const drawing = springDrawing(0, { turn: i / 240, reversed: i >= 120 });
-          travel.push({ head: drawing.points.at(-1), tail: drawing.points[0] });
+          const original = MFRopeArt.trace(ropeDrawing(0).points, G.view.scale * .4);
+          const t = i / 240, progress = original.length * t * t * (3 - 2 * t);
+          travel.push({ head: drawing.points.at(-1), tail: drawing.points[0], expected: original.at(original.length - progress) });
         }
         draw(0); const firstBuilds = rebuilds;
         for (const t of [.2, .4, .58, .8]) {
@@ -48,7 +50,8 @@ test('spring U-turns keep the arrow visible and preserve solver results, concurr
       if (reducedMotion !== 'reduce') {
         assert.ok(distance(result.travel[120].head, result.oldEnd) > result.scale * .3);
         assert.ok(distance(result.travel[120].head, result.newEnd) > result.scale * .3);
-        assert.ok(distance(result.travel[120].head, result.travel[120].tail) > result.scale * .3, 'ends stay visibly separated halfway through');
+        assert.ok(distance(result.travel[120].head, result.travel[120].tail) < .001, 'the returning head overlaps its own tail halfway through');
+        for (const pose of result.travel) assert.ok(distance(pose.head, pose.expected) < .001, 'head retraces the original centerline exactly');
         for (let i = 1; i < result.travel.length; i++) assert.ok(distance(result.travel[i - 1].head, result.travel[i].head) < result.scale * .12, JSON.stringify({ message: 'the arrow travels continuously', grid, frame: i, distance: distance(result.travel[i - 1].head, result.travel[i].head) / result.scale, before: result.travel[i - 1], after: result.travel[i] }));
       }
       assert.deepEqual(errors, []); await page.close();
