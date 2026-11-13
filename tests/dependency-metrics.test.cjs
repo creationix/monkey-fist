@@ -147,7 +147,7 @@ test('advanced generation adds measured challenge at the same moderate grid size
 });
 
 test('the built-in Journey keeps all fixed grids moderate', () => {
-  const levels = require('../grid-journey');
+  const levels = require('../scripts/grid-journey-measurements.json');
   assert.equal(levels.length, 120);
   assert.ok(levels.every(b => b.W <= 12 && b.H <= 16), 'larger boards belong in explicit custom generation');
 });

@@ -71,7 +71,10 @@ ropes cannot clear after one player tap. Mirrors and springs are optional. Every
 starts blocked and has a replayed solution. Par is a verified target; bounded
 searches label an unproved optimum as best known.
 
-`grid-journey.js` stores only seed/settings/score metadata, not maps or solutions.
+`grid-journey.js` stores only each level's specification and map seed, not maps or
+solutions; it is what the game loads. The builder's measurements (par, rope count,
+challenge, casual win rate, slide and mechanic use) go to
+`scripts/grid-journey-measurements.json`, which only tests and docs read.
 Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
 generator. For experiments, `--seed YOURSEED --out /tmp/journey.js` builds a
 different deterministic campaign; `--plan` inspects the seeded schedule. The
@@ -180,7 +183,7 @@ The underlying engines remain specialized:
 
 | Module | Responsibility |
 | --- | --- |
-| `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the sorted Journey metadata |
+| `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the Journey's level specifications |
 | `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
 | `levels.js` | Square woven builder (long ropes, sliding knots and traps, fixed tracks that bend on mirrors) and the compact offset kernels: replay, solver, par search and casual playouts |
 | `mechanics.js` | Square full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |

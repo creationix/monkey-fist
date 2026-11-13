@@ -97,9 +97,10 @@ maps must not leave unrelated scores or chapter unlocks corrupted.
 
 `game-engine.js` turns the set code and level index into a deterministic board
 specification. Custom grid width and height are independent of difficulty.
-`grid-journey.js` stores seeds, settings and measured metadata for 120 levels;
-it stores neither hand-authored maps nor solution paths. Boards are constructed
-when opened.
+`grid-journey.js` stores the specification and map seed of each of the 120 levels,
+which is all the game loads; the builder's measurements go to
+`scripts/grid-journey-measurements.json` for tests and docs. Neither file stores
+hand-authored maps or solution paths; boards are constructed when opened.
 
 Every board, at every size and with any mechanics, comes from the same woven
 construction. `grid-generator.js` chooses a seeded short/medium/twisty style once

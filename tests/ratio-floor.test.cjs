@@ -48,7 +48,7 @@ test('twenty low-difficulty seeds per grid retain the ratio floor and varied den
 });
 
 test('the opening Journey has no below-floor or concealed one-tap fan levels', { timeout: 120000 }, () => {
-  const metadata = require('../grid-journey');
+  const metadata = require('../scripts/grid-journey-measurements.json');
   assert.ok(metadata.every(level => level.par * 3 >= level.ropeCount), 'all Journey targets satisfy the same minimum ratio');
   const intro = metadata.slice(0, 10);
   assert.deepEqual(intro.map(level => level.slot).sort((a,b)=>a-b), [...Array(10).keys()], 'each seeded opening slot is represented once');
@@ -59,7 +59,7 @@ test('the opening Journey has no below-floor or concealed one-tap fan levels', {
   for (let index = 0; index < 10; index++) {
     const board = G.generate({ ...G.DEFAULT, index }), played = verify(board);
     assert.equal(board.seed,intro[index].seed);
-    assert.equal(board.journeySeed,G.DEFAULT.seed);
+    assert.equal(intro[index].journeySeed,G.DEFAULT.seed);
     assert.equal(G.allFree(board,board.ropes),false);
     const rebuilt=require('../grid-generator').generate(intro[index],G);
     assert.deepEqual(rebuilt.ropes,board.ropes,'the stored seeded settings regenerate each opening board');

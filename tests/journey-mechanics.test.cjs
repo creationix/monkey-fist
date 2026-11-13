@@ -28,7 +28,7 @@ function observedUse(b) {
   return { usedMirrors:turned.size, usedSprings:bounced.size, manualMirrors:manualTurns.size, manualSprings:manualBounces.size, bounceActions };
 }
 test('mechanics appear early and remain represented in every later Journey chapter', () => {
-  const levels = require('../grid-journey'); assert.equal(levels.length,120);
+  const levels = require('../scripts/grid-journey-measurements.json'); assert.equal(levels.length,120);
   const firstMirror = levels.findIndex(b => b.mirrors)+1, firstSpring = levels.findIndex(b => b.springs)+1;
   assert.ok(firstMirror >= 11 && firstMirror <= 20, 'mirrors are introduced in the second group');
   assert.ok(firstSpring >= 11 && firstSpring <= 30, 'spinners are introduced by the third group');
@@ -40,7 +40,7 @@ test('mechanics appear early and remain represented in every later Journey chapt
 });
 
 test('later mechanic tiles are used by the final manual solution, not placed as decoration', { timeout: 180000 }, () => {
-  const levels = require('../grid-journey');
+  const levels = require('../scripts/grid-journey-measurements.json');
   for (const [index,b] of levels.entries()) {
     if (b.minParRatio) assert.ok(b.par / b.ropeCount >= b.minParRatio);
     if (b.minPartialSlides) assert.ok(b.slideStats.manualSlides >= b.minPartialSlides);
@@ -76,7 +76,7 @@ test('later mechanic tiles are used by the final manual solution, not placed as 
 });
 
 test('the opening is seeded, varied, compact and nontrivial without pinned layout identities', { timeout: 60000 }, () => {
-  const levels = require('../grid-journey'), opening = levels.slice(0,10);
+  const levels = require('../scripts/grid-journey-measurements.json'), opening = levels.slice(0,10);
   assert.equal(new Set(opening.map(b=>b.grid)).size,2);
   assert.ok(new Set(opening.map(b=>b.W+'x'+b.H)).size>=2);
   assert.equal(new Set(opening.map(b=>b.layoutKey)).size,10);
@@ -109,7 +109,7 @@ test('the master seed deterministically derives every Journey slot, including th
     assert.notEqual(specs[i].seed,other[i].seed,'changing the master seed changes every slot’s initial map seed');
     assert.equal(Object.hasOwn(specs[i],'introSource'),false);
   }
-  const levels=require('../grid-journey');
+  const levels=require('../scripts/grid-journey-measurements.json');
   for(let chapter=1;chapter<=12;chapter++) {
     const cards=levels.filter(b=>b.chapter===chapter);
     assert.equal(cards.length,10);
@@ -120,13 +120,13 @@ test('the master seed deterministically derives every Journey slot, including th
 });
 
 test('every Journey seed is derived from the master seed, its position and an attempt number', () => {
-  const L = require('../levels'), levels = require('../grid-journey');
+  const L = require('../levels'), levels = require('../scripts/grid-journey-measurements.json');
   assert.equal(new Set(levels.map(b => b.seed)).size,120,'each level has its own seed');
   for (const b of levels) assert.equal(b.seed,L.hashString('journey/5/'+b.journeySeed+'/map/'+b.chapter+'/'+b.slot+'/'+b.seedAttempt).toString(36).toUpperCase(),'no hand-picked seed');
 });
 
 test('Journey difficulty is measured by play and rises across chapters', () => {
-  const levels = require('../grid-journey'), mean = list => list.reduce((a,b) => a+b,0)/list.length;
+  const levels = require('../scripts/grid-journey-measurements.json'), mean = list => list.reduce((a,b) => a+b,0)/list.length;
   for (const b of levels) {
     assert.ok(Number.isFinite(b.play.challenge) && b.play.casualWins >= 0 && b.play.casualWins <= 1);
     assert.ok(Math.abs(b.play.challenge - (b.play.work + 6*(1-b.play.casualWins))) < .002,'stored challenge is work plus the casual loss term');
@@ -142,10 +142,21 @@ test('Journey difficulty is measured by play and rises across chapters', () => {
 });
 
 test('later plain-rule interludes still need sliding work and can be lost', () => {
-  const levels = require('../grid-journey');
+  const levels = require('../scripts/grid-journey-measurements.json');
   const plain = levels.filter((b,i) => i >= 40 && !b.mirrors && !b.springs); assert.ok(plain.length >= 4);
   for (const b of plain) {
     assert.ok(b.slideStats.manualSlides >= 1, 'a late plain-rules level needs at least one partial slide');
     assert.ok(b.play.casualWins < 1,'a careless slide can lose a late plain-rules level');
   }
+});
+
+test('the game loads only each level’s specification, and it matches the builder’s measurements', () => {
+  const { RUNTIME_FIELDS, runtimeOf } = require('../scripts/lib/journey-files.cjs');
+  const runtime = require('../grid-journey'), measured = require('../scripts/grid-journey-measurements.json');
+  assert.equal(runtime.length, 120); assert.equal(measured.length, 120);
+  runtime.forEach((level, i) => {
+    assert.deepEqual(level, runtimeOf(measured[i]), 'level ' + (i + 1));
+    assert.ok(Object.keys(level).every(k => RUNTIME_FIELDS.includes(k)));
+    assert.deepEqual(G.spec(G.DEFAULT, i), { ...level, index: i });
+  });
 });
