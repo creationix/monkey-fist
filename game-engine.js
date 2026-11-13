@@ -103,6 +103,27 @@
     if (b.grid === 'hex') return featured(b) ? R.direction(b, path) : H.direction(path);
     return M.direction(native(b), xy([path])[0]);
   }
+  function frozenRopes(b, paths = b.ropes) {
+    if (!featured(b)) {
+      if (b.grid === 'hex') return H.compile(b, paths).frozen();
+      const ids = paths.flatMap((p, i) => p ? [i] : []);
+      return L.frozenRopes(xy(ids.map(i => paths[i])), b.W, b.H).map(i => ids[i]);
+    }
+    // Optimistically erase any rope that has a legal first move, even if that
+    // move would only slide or reverse it. Repeat as blockers disappear. Every
+    // survivor is still unable to move with all those ropes removed: none of
+    // the survivors can make a first move, so this is a permanent knot.
+    // This deliberately misses ambiguous cases rather than guessing from a
+    // solver timeout or using straight-track assumptions around reflectors.
+    const remaining = paths.slice(); let changed;
+    do {
+      changed = false;
+      for (let i = 0; i < remaining.length; i++) if (remaining[i] && tap(b, remaining, i)) {
+        remaining[i] = null; changed = true;
+      }
+    } while (changed);
+    return remaining.flatMap((p, i) => p ? [i] : []);
+  }
   // Breadth-first search counts only player taps. Once every remaining rope
   // has a clear exit, the rest of the certificate is an automatic suffix.
   function minimumTaps(b, fallback = b.plan, budget = 5000) {
@@ -164,6 +185,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

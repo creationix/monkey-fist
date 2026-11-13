@@ -42,7 +42,14 @@ const gameAudio = MFAudio.createAudio(() => ({
 }));
 const { init: audio, sfx } = gameAudio;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const color = i => PALETTE[i % PALETTE.length];
+const color = i => {
+  const base = PALETTE[i % PALETTE.length];
+  if (!G.frozen?.has(i) || G.moves.has(i)) return base;
+  return '#' + base.slice(1).match(/../g).map(c => Math.round(parseInt(c, 16) * .45).toString(16).padStart(2, '0')).join('');
+};
+function refreshFrozen() {
+  G.frozen = new Set(G.level && !G.auto && !G.plan.length ? H.frozenRopes(G.level, G.paths) : []);
+}
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
 function syncMusic() {
   $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music);
@@ -62,7 +69,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=6');
+    const worker = new Worker('generator-worker.js?v=7');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -83,6 +90,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     if (request !== guideVersion || paths !== G.paths) return;
     guideWorker?.terminate(); guideWorker = null; G.solving = false;
     G.plan = answer.moves; G.lost = answer.solved === false;
+    if (answer.solved === true) G.frozen = new Set();
     if (G.lost) sfx.bump(); hud();
     if (G.autoSolveRequested) {
       G.autoSolveRequested = false; hud();
@@ -98,13 +106,14 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=6');
+    guideWorker = new Worker('generator-worker.js?v=7');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
   }
 }
 async function start(index) {
+  document.body.classList.remove('auto-solving');
   const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
   cancelGuide();
   resetInput(); cameraTween = null;
@@ -115,7 +124,7 @@ async function start(index) {
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
-    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
+    Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
@@ -211,12 +220,14 @@ function commit(m) {
     if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
   } else if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
   if (!m.automatic && !G.auto && !G.lost && !G.plan.length) seekPlan(previousPlan.filter(i => G.paths[i]));
+  refreshFrozen();
   if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
   cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); springRotations.delete(G.level); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
+  refreshFrozen();
   if (!G.plan.length && !G.lost) seekPlan();
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
@@ -236,11 +247,12 @@ function autoSolve() {
   if (!plan.length || !H.replay(G.level, plan, G.paths).solved) {
     seekPlan([], 5000); G.autoSolveRequested = true; notice('Finding a route…'); hud(); return;
   }
-  cancelGuide(); audio(); G.usedAutoSolve = true; G.combo = 0; G.hint = -1;
+  cancelGuide(); audio(); document.body.classList.add('auto-solving'); clearTimeout(noticeTimer); $('notice').classList.remove('show'); G.usedAutoSolve = true; G.combo = 0; G.hint = -1;
   for (const i of plan) if (G.paths[i]) tap(i, true, true);
-  G.plan = []; G.auto = true; G.lost = false; notice('Auto-solve · 0 stars'); hud(); draw(0);
+  G.plan = []; G.auto = true; G.lost = false; hud(); draw(0);
 }
 function finish() {
+  document.body.classList.remove('auto-solving');
   cancelGuide(); G.ended = true; const stars = G.usedAutoSolve ? 0 : G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
   if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
@@ -585,7 +597,7 @@ function draw(time) {
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
   const moving = [...G.moves.values()].map(m => m.waiting ? m.serial + '@' + m.progress : m.serial).join(',');
-  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
+  const key = [G.level, G.paths, G.frozen, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }

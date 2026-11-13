@@ -10,10 +10,15 @@ test('auto-solve queues a full plan immediately, finishes with zero stars, and p
       await page.goto(base + `?set=U1-${grid}-60-60-1-MS-AUTOSOLVE`); await ready(page);
       const planned = await page.evaluate(() => G.plan.length);
       await page.click('#autoSolve');
+      assert.equal(await page.locator('.hud').isVisible(), false);
+      assert.equal(await page.locator('#zoomControls').isVisible(), false);
+      assert.equal(await page.locator('#notice').isVisible(), false);
+      assert.equal(await page.locator('#result').isVisible(), false);
       assert.deepEqual(await page.evaluate(() => ({ left: G.paths.filter(Boolean).length, taps: G.taps, motions: allMotions().length, advanced: allMotions().some(m => m.progress > 0) })),
         { left: 0, taps: 0, motions: planned, advanced: false });
       const settle = () => page.evaluate(() => { for (let n = 0; n < 6000 && !G.ended; n++) { update(1 / 60); draw(n / 60); } return G.ended; });
       assert.equal(await settle(), true, 'all queued motions drain without deadlock');
+      assert.equal(await page.locator('.hud').isVisible(), true);
       assert.equal(await page.locator('#stars').getAttribute('aria-label'), '0 out of 3 stars');
       assert.equal(await page.locator('#resultText').textContent(), 'Auto-solved · 0 stars');
       assert.equal(await page.evaluate(() => save.sets[MFGame.code(opts)][G.index].stars), 0);

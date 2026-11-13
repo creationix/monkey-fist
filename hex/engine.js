@@ -48,7 +48,7 @@
     function pathsNow() { return tracks.map((track, i) => offsets[i] < 0 ? null : track.slice(offsets[i], offsets[i] + lengths[i]).map(c => point(c, level.W))); }
     // Optimistically let every rope use cells another could eventually vacate.
     // Anything still trapped under that relaxation is certainly unsolvable.
-    function dead() {
+    function relaxed() {
       const reach = offsets.slice(); let changed = true;
       while (changed) {
         changed = false;
@@ -65,9 +65,11 @@
           if (next !== reach[i]) { reach[i] = next; changed = true; }
         }
       }
-      return reach.some(o => o >= 0);
+      return reach;
     }
-    return { tracks, lengths, offsets, occupied, gates, to, place, free, pathsNow, dead, get left() { return left; } };
+    const dead = () => relaxed().some(o => o >= 0);
+    const frozen = () => Array.from(relaxed()).flatMap((o, i) => offsets[i] >= 0 && o === offsets[i] ? [i] : []);
+    return { tracks, lengths, offsets, occupied, gates, to, place, free, pathsNow, dead, frozen, get left() { return left; } };
   }
   function tap(level, paths, i) {
     const path = paths[i]; if (!path) return null;

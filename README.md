@@ -72,7 +72,8 @@ board’s screen rotation.
 Other ropes remain tappable while animations run, including on mirror and spring
 boards. Movement commits logically at the tap; each rope keeps its own visual
 route. Tap a bouncing rope again to queue its next move before the flip finishes.
-Auto-solve queues the complete solution immediately and awards zero stars;
+Auto-solve queues the complete solution immediately, hides the HUD and notices
+until the animation finishes, and awards zero stars;
 earned scores take precedence over auto-solved clears. Undo restores the previous full board and cancels in-flight animations.
 Queued moves yield at shared paths until the earlier rope's tail clears them;
 independent routes still animate together. Every accepted tap gets an immediate
@@ -82,6 +83,11 @@ speed to keep the clearance readable.
 Boards with up to twelve ropes use a bounded shortest-tap search for par,
 including mirrors and springs. It stops charging taps when automatic release
 becomes available; unfinished searches retain the verified construction target.
+
+Permanently immobile ropes darken while keeping their braid and arrow readable.
+Detection is conservative: temporary blockers and search timeouts never mark a
+rope as frozen. Results are computed when the board changes, cached for drawing,
+and restored on undo. Mirrors and bouncers use the same movement rules as play.
 
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic
