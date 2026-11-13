@@ -55,8 +55,12 @@ dialog{overscroll-behavior:contain;touch-action:pan-y;user-select:none;-webkit-u
 @media(max-width:600px){#grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.settings{padding:13px;gap:12px}.settings .check{padding:0}.feature-options{gap:4px 24px}.brand small{font-size:14px}#zoomControls span{font-size:9px}.set-tabs button{padding:12px}}
 @media(max-width:600px){.grid-setting,.count-setting{grid-column:1/-1}.slider-group{grid-template-columns:1fr;gap:8px}.slider-group legend{margin-bottom:8px}.slider-setting input[type=range]{margin-top:1px}}
 
-.actions #autoSolve{grid-column:1/-1;flex-direction:row;justify-content:center;min-height:36px;gap:5px}.actions #autoSolve svg{width:18px;height:18px}.actions #autoSolve small{font-size:10px}
+
 
 .auto-solving .hud,.auto-solving #zoomControls,.auto-solving #notice{visibility:hidden;pointer-events:none}
 
 #chooser #audioControls{flex-wrap:wrap}
+.actions #autoSolve{grid-column:1/-1;flex-direction:row;justify-content:center;min-height:36px;gap:5px}.actions #autoSolve svg{width:18px;height:18px}.actions #autoSolve small{font-size:10px}
+/* Portrait: one row along the bottom, so the controls take as little height as possible. */
+@media(orientation:portrait){.actions{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:54px}.actions #autoSolve{grid-column:auto;flex-direction:column;min-height:53px;gap:3px}.actions #autoSolve svg{width:25px;height:25px}.actions #autoSolve small{font-size:9px}}
+@media(orientation:portrait) and (max-width:600px){.actions{grid-auto-columns:48px;gap:5px}.actions #autoSolve{min-height:46px}}
