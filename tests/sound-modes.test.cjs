@@ -23,10 +23,11 @@ test('both sound buttons cycle actual mix levels, persist offline, and retain le
           return gain;
         };
       });
-      const ready = () => page.waitForFunction(hex => hex ? window.__hex?.G.level && !__hex.G.loading : !!window.__mf, hex);
-      const button = page.locator(hex ? '#sound' : '#tSound'), storage = hex ? 'monkey-fist-hex-v1' : 'monkey-fist';
+      const ready = () => page.waitForFunction(() => window.__game?.G.level && !__game.G.loading);
+      const button = page.locator('#sound'), storage = 'monkey-fist-unified-v1';
       await page.goto(base + (hex ? 'hex/' : '')); await ready();
       await page.keyboard.press('Shift');
+      await page.click('#levels');
       const verify = async (mode, gain) => {
         assert.equal(await button.getAttribute('aria-label'), 'Sound effects: ' + mode[0].toUpperCase() + mode.slice(1));
         assert.equal(await button.getAttribute('aria-pressed'), String(mode !== 'off'));
@@ -38,7 +39,7 @@ test('both sound buttons cycle actual mix levels, persist offline, and retain le
         } else assert.equal(await page.evaluate(() => gameAudio.sound.state.voices), 0);
         assert.equal(await page.evaluate(() => gameAudio.sound.state.enabled), mode !== 'off');
         assert.ok(Math.abs(await page.evaluate(() => __musicGain.value) - .55) < .0001, 'sound level must not alter the music bus');
-        assert.equal(await page.evaluate(hex => (hex ? __hex : __mf).save.sound, hex), mode);
+        assert.equal(await page.evaluate(() => __game.save.sound), mode);
       };
       await verify('low', .15);
       await page.screenshot({ path: '/tmp/monkey-fist-sound-' + (hex ? 'hex' : 'square') + '.png' });
@@ -47,13 +48,13 @@ test('both sound buttons cycle actual mix levels, persist offline, and retain le
         assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).sound, storage), mode);
       }
       await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller);
-      await context.setOffline(true); await page.reload(); await ready(); await page.keyboard.press('Shift');
+      await context.setOffline(true); await page.reload(); await ready(); await page.keyboard.press('Shift'); await page.click('#levels');
       await verify('low', .15);
       for (const [legacy, mode, gain] of [[true, 'full', .6], [false, 'off', 0]]) {
         await page.evaluate(({ storage, legacy }) => {
           const save = JSON.parse(localStorage.getItem(storage)); save.sound = legacy; localStorage.setItem(storage, JSON.stringify(save));
         }, { storage, legacy });
-        await page.reload(); await ready(); await page.keyboard.press('Shift'); await verify(mode, gain);
+        await page.reload(); await ready(); await page.keyboard.press('Shift'); await page.click('#levels'); await verify(mode, gain);
       }
       assert.deepEqual(errors, []); await context.close();
     }

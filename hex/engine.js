@@ -242,10 +242,10 @@
         averageLength: covered / level.ropes.length, longest: Math.max(...level.ropes.map(p => p.length)), bends: bends.reduce((a, b) => a + b, 0), longestBends: Math.max(...bends) } };
   }
   const cleanSeed = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'MONKEYFIST';
-  function code(opts) { return 'H' + opts.count + (opts.big ? 'B' : '') + '-' + cleanSeed(opts.seed); }
+  function code(opts) { return 'H' + opts.count + (opts.big ? 'B' : '') + (opts.mirrors ? 'M' : '') + '-' + cleanSeed(opts.seed); }
   function parseCode(text) {
-    const m = /^H(10|30|60|120)(B?)-([A-Z0-9]{1,12})$/.exec(String(text).trim().toUpperCase());
-    return m ? { count: +m[1], big: !!m[2], seed: m[3] } : null;
+    const m = /^H(10|30|60|120)(B?)(M?)-([A-Z0-9]{1,12})$/.exec(String(text).trim().toUpperCase());
+    return m ? { count: +m[1], big: !!m[2], ...(m[3] ? { mirrors: true } : {}), seed: m[4] } : null;
   }
   const cache = new Map();
   function generate({ seed = 'MONKEYFIST', index = 0, count = 60, big = false } = {}) {

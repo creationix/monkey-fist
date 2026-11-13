@@ -24,28 +24,28 @@ test('both games lazily share one audio session across gestures, song changes, a
         Object.defineProperty(document, 'hidden', { configurable: true, get: () => !!window.__testHidden });
       });
       await page.goto(base + (hex ? 'hex/' : ''));
-      await page.waitForFunction(hex => hex ? window.__hex?.G.level && !__hex.G.loading : !!window.__mf, hex);
+      await page.waitForFunction(() => window.__game?.G.level && !__game.G.loading);
       assert.equal(await page.evaluate(() => __contexts.length), 0, 'loading a page must not open an audio device');
       await page.keyboard.press('Shift');
       await page.waitForFunction(() => __contexts[0]?.state === 'running' && gameAudio.music.state.voices > 0);
       await page.evaluate(async hex => {
-        if (hex) await __hex.start(4); else __mf.startLevel(5);
+        await __game.start(hex ? 9 : 4);
         window.__selections = 0;
         const select = gameAudio.music.setLevel;
         gameAudio.music.setLevel = n => { __selections++; select(n); };
       }, hex);
       await page.keyboard.press('Shift'); await page.mouse.click(2, 2);
       assert.deepEqual(await page.evaluate(() => ({ contexts: __contexts.length, unlocks: __unlocks, selections: __selections, level: gameAudio.music.state.level })),
-        { contexts: 1, unlocks: 1, selections: 0, level: 5 });
+        { contexts: 1, unlocks: 1, selections: 0, level: hex ? 10 : 5 });
       for (const muted of [false, true]) {
-        if (muted) await page.evaluate(hex => { (hex ? __hex : __mf).save.music = false; gameAudio.sync(); }, hex);
+        if (muted) await page.evaluate(() => { __game.save.music = false; gameAudio.sync(); });
         await page.evaluate(() => { __testHidden = true; document.dispatchEvent(new Event('visibilitychange')); });
         await page.waitForFunction(() => __contexts[0].state === 'suspended');
         assert.equal(await page.evaluate(() => gameAudio.sound.state.enabled), false);
         await page.evaluate(() => { __testHidden = false; document.dispatchEvent(new Event('visibilitychange')); });
         await page.waitForFunction(() => __contexts[0].state === 'running');
         assert.deepEqual(await page.evaluate(() => ({ sound: gameAudio.sound.state.enabled, music: gameAudio.music.state.enabled, level: gameAudio.music.state.level })),
-          { sound: true, music: !muted, level: 5 });
+          { sound: true, music: !muted, level: hex ? 10 : 5 });
       }
       assert.deepEqual(errors, []); await context.close();
     }
@@ -60,13 +60,9 @@ test('both games remain playable without Web Audio', { timeout: 30000 }, async (
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => { window.AudioContext = window.webkitAudioContext = undefined; });
       await page.goto(base + (hex ? 'hex/' : ''));
-      await page.waitForFunction(hex => hex ? window.__hex?.G.level && !__hex.G.loading : !!window.__mf, hex);
+      await page.waitForFunction(() => window.__game?.G.level && !__game.G.loading);
       await page.keyboard.press('Shift');
-      assert.equal(await page.evaluate(hex => {
-        const game = hex ? __hex : __mf;
-        if (!hex) game.startLevel(1);
-        const i = game.G.plan[0]; game.tap(hex ? i : game.G.noodles[i]); return game.G.taps;
-      }, hex), 1);
+      assert.equal(await page.evaluate(() => { __game.tap(__game.G.plan[0]); return __game.G.taps; }), 1);
       assert.deepEqual(errors, []); await context.close();
     }
   } finally { await browser.close(); }

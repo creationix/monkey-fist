@@ -50,7 +50,7 @@ test('same seed reconstructs identical boards after cache eviction; other seeds 
 });
 test('bounded constructive generation is itself procedural, verified, and preserves every orientation', () => {
   const geometries = new Set();
-  for (let seed = 0; seed < 50; seed++) for (const index of [0, 2, 4, 6, 7, 8, 9]) {
+  for (let seed = 0; seed < 150; seed++) for (const index of [0, 2, 4]) {
     const b = T.construct(L.mulberry32(seed), T.featuresFor(index), seed % 2 === 0);
     geometries.add(JSON.stringify(b.ropes));
     for (let bits = 0; bits < 8; bits++) {
@@ -79,28 +79,19 @@ test('counts are configurable, big boards expand the generated geometry, and end
   assert.equal(M.solve(level).solved, false);
   assert.equal(M.solve(level, level.ropes, 1).solved, null);
 });
-test('Progressive keeps its opening and woven geometry, then adds locks without direction-changing blocks', () => {
-  for (const seed of ['MONKEYFIST', 'BRAVO']) for (const big of [false, true]) {
-    const plain = L.generateSet({ ...L.CAMPAIGN_SLIDE, seed, big }), set = T.integrate(plain);
-    assert.deepEqual(set.levels.slice(0, 8), plain.levels.slice(0, 8));
-    assert.deepEqual(set.levels[8].kinds, ['gates']);
-    assert.deepEqual(set.levels[16].kinds, ['gates']);
-    assert.deepEqual(set.levels[24].kinds, ['gates']);
-    for (const i of [8, 16, 20, 24, 28, 32, 40, 50, 59]) {
-      const d = set.levels[i], b = T.levelFrom(d); check(b, i, d.kinds);
-      const original = L.weave(L.mulberry32(d.base.seed), { ...d.base, W: d.base.boardW, H: d.base.boardH });
-      const offset = b.definition.offset || 0;
-      assert.deepEqual(b.ropes.slice(0, original.ropes.length).map(path => path.map(p => ({ x: p.x - offset, y: p.y - offset }))), original.ropes, 'locks preserve the ordinary knots, traps, and geometry');
-      if (i >= 50) { assert.ok(b.ropes.length >= 20); assert.ok(b.W * b.H >= 120); }
-    }
-    assert.equal(T.integrate(L.generateSet({ ...L.CAMPAIGN, seed, big })).levels.some(d => d.twist), false);
+test('all ordinary styles keep their woven ropes at every size, with mechanics only in Twists', () => {
+  for (const mode of ['C', 'E', 'N', 'H', 'X']) for (const slide of [false, true]) for (const big of [false, true]) {
+    const plain = L.generateSet({ mode, slide, big, count: 60, seed: 'MONKEYFIST' }), set = T.integrate(plain);
+    assert.equal(set, plain);
+    assert.ok(set.levels.every(d => !d.twist && !d.locks && !d.kinds));
+    const last = L.levelFrom(set.levels.at(-1));
+    assert.ok(last.ropes.length >= 2);
+    if (big && ['C', 'X'].includes(mode)) assert.ok(last.ropes.length >= 30);
+    if (slide) assert.ok(L.play(last.ropes, last.W, last.H, last.taps).every(p => !p));
   }
-  const huge = T.integrate(L.generateSet({ ...L.CAMPAIGN_SLIDE, count: 120, big: true }));
-  assert.equal(huge.levels.length, 120);
-  for (const i of [80, 100, 119]) {
-    const b = T.levelFrom(huge.levels[i]); check(b, i, huge.levels[i].kinds);
-    assert.ok(b.W * b.H >= 180); assert.ok(b.ropes.length >= 30);
-  }
+  assert.deepEqual(T.featuresFor(0), ['mirrors']);
+  assert.deepEqual(T.featuresFor(2), ['springs']);
+  assert.deepEqual(T.featuresFor(59), ['springs', 'mirrors']);
 });
 test('bounded fallback fills large boards with certified dependency chains, rather than replacing them with a tiny tutorial', () => {
   for (let seed = 0; seed < 5; seed++) {
@@ -109,38 +100,5 @@ test('bounded fallback fills large boards with certified dependency chains, rath
     assert.ok(b.ropes.length >= 30); assert.ok(b.ropes.flat().length / (b.W * b.H) > .65);
     assert.equal(M.replay(b, b.solution).solved, true);
     for (const kind of kinds) assert.ok(T.uses(b, b.solution, kind));
-  }
-});
-test('Sliding Extreme uses the lock ramp on its own harder boards', () => {
-  for (const seed of ['MONKEYFIST', 'E5DDK']) for (const big of [false, true]) for (const count of [10, 30, 60]) {
-    const opts = { mode: 'X', seed, big, count, slide: true }, plain = L.generateSet(opts), set = T.integrate(plain);
-    assert.equal(set.code, plain.code); assert.equal(set.levels.length, plain.levels.length);
-    set.levels.forEach((d, index) => {
-      const kinds = T.progressiveFeatures(index, set.levels.length);
-      if (!kinds.length) assert.deepEqual(d, plain.levels[index]);
-      else { assert.deepEqual(d.kinds, kinds); assert.deepEqual(d.base, plain.levels[index]); assert.equal(d.difficulty, plain.levels[index].difficulty); }
-    });
-    for (const index of [Math.floor(set.levels.length / 2), set.levels.length - 1]) {
-      const d = set.levels[index], b = T.levelFrom(d); check(b, index, d.kinds);
-      assert.ok(b.W * b.H >= d.base.W * d.base.H);
-      if (index === set.levels.length - 1) {
-        assert.equal(b.definition.construction, 'locks');
-        assert.ok(!b.definition.mirrors.length && !b.definition.springs.length && b.definition.gates.length >= 2);
-      }
-    }
-  }
-  for (const mode of ['X', 'E', 'N', 'H']) {
-    const set = L.generateSet({ mode, count: 10, big: false, seed: 'CONTROL', slide: false });
-    assert.equal(T.integrate(set), set, 'original rules remain unchanged');
-  }
-});
-test('Easy, Normal, and Hard also add locks while all reflectors remain exclusive to Twists', () => {
-  for (const mode of ['E', 'N', 'H']) for (const seed of ['MONKEYFIST', 'ALPHA']) {
-    const plain = L.generateSet({ mode, seed, count: 30, big: true, slide: true }), set = T.integrate(plain);
-    assert.deepEqual(set.levels[0], plain.levels[0]);
-    for (const index of [Math.floor(set.levels.length / 2), set.levels.length - 1]) {
-      const b = T.levelFrom(set.levels[index]); check(b, index, ['gates']);
-      assert.equal(b.definition.construction, 'locks');
-    }
   }
 });

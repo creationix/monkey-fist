@@ -1,378 +1,154 @@
 # Monkey Fist
 
-A rope-untangling puzzle game for the browser and phone.
+A tap-to-untangle puzzle with colorful braided ropes on square and hexagonal grids.
+No build step, dependencies, accounts, or network requests during play.
 
-**Play it:** https://creationix.github.io/monkey-fist/
+**Play:** https://creationix.github.io/monkey-fist/
 
-## Hex variant
+## One journey, both grids
 
-**Play Hex:** https://creationix.github.io/monkey-fist/hex/
+The default journey has 120 deterministic, procedurally generated levels:
 
-A separate, simpler variant with six hex-grid directions and sliding ropes. Every
-blocker is another rope you can trace on the board. There are no locks, mirrors, springs,
-original-rule toggle, or Kid mode in this version. The woven rope art, responsive board
-rotation, overlapping rope taps, six-song soundtrack, automatic free releases, and tap scoring carry over.
-Rope taps and undo cost one, hints cost two, and each level has three undos with no tap limit.
+- Levels 1–5 introduce square movement on small boards.
+- Levels 6–10 introduce the six directions of Hex on small boards.
+- After that, square and Hex alternate, with gradually larger, more tangled ropes.
+- Mirrors first appear in the fourth group. Occasional springs join later.
+- The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
+  21–30, and so on. Every level in an open group is immediately playable, so
+  players can jump to the group’s last level to progress faster.
 
-Hex has its own seeded set screen, 10/30/60/120 levels, Colossal boards, dice, default-seed
-reset, and share links such as `hex/?set=H60B-MONKEYFIST&level=60`. All levels are open
-for the initial preview. Saves use `monkey-fist-hex-v1`, separate from square-game progress.
-The opening levels teach six directions, then sliding knots. Boards grow to
-24×32 cells normally, or 40×54 (2,160 cells) with Colossal boards. Late boards weave long,
-winding strands through many mutually blocking knots. Every seed generates geometry.
-The board fills the entire viewport, with fixed controls floating in the corners. Zoom
-with the buttons, wheel, or pinch, and drag even at Fit to move ropes clear of the controls.
-Fit recenters the whole board; the fullscreen button hides browser chrome where supported.
-View gestures never cost taps.
-Hints and keyboard selection bring an offscreen rope into view when zoomed in.
+Both grids share the same full-screen canvas, floating controls, menus, scoring,
+audio, zoom, panning, and responsive orientation. There is no separate Hex app.
+Old `/hex/` bookmarks redirect to the shared app with Hex custom settings.
 
-`hex/engine.js` uses axial coordinates with six equally spaced neighbours. It constructs
-random mutually blocking ropes with required slides, then weaves in further ropes,
-accepting additions only when a complete solution still replays. Candidate selection
-rewards longer ropes and deeper dependencies rather than accepting the first fitting strand.
-Small-board par uses bounded breadth-first
-search; larger boards use a verified solution score, which can be beaten. A bounded solver
-supports off-plan play and hints; budget exhaustion is never treated as a proven loss.
-The solver represents each rope as an offset along its body and exit ray; numeric occupancy
-and optimistic deadlock pruning avoid copying whole boards at every search node. Regression
-tests cross-check its transitions and certificates against the pure geometry kernel used by play.
-Generation runs in a cancellable background worker, also cached for offline use. Generation 3
-archives the previous locked Hex scores under `archives['gen-2']` and starts fresh scores for the new
-boards, retaining seed, size, count, and audio settings. Square-game saves are untouched.
+## Custom sets
 
-Run `node --test tests/hex.test.cjs` for geometry, generation, solving, and scoring.
-Serve the repo and run `MF_TEST_URL=http://127.0.0.1:PORT/ node --test tests/hex-game.test.cjs`
-for real pointer play on phone/laptop, scoring, undo, floating controls, seeds, and offline use.
+Open **Levels → Custom** to choose:
 
-## How to play
+- Square + Hex, square only, or Hex only.
+- Mirrors and springs, independently.
+- A difficulty range from 1 to 100.
+- 1–500 levels.
+- A seed, with dice to randomize it and a reset button for `MONKEYFIST`.
 
-The board is a tangle of ropes, each with an arrow at one end. Tap a rope and it slides out of the board arrow-first, following its own bends. There are two games on the same boards.
+All custom levels are playable immediately. Set links include every setting and
+reproduce the same puzzles on every device. For example:
 
-**Sliding ropes** (the default). A rope whose way is clear leaves. A rope that is blocked slides forward until it meets another rope, and stays there. Ropes never go backwards, so every slide is for keeps.
+`?set=U1-M-1-100-120-MS-MONKEYFIST&level=35`
 
-- Some ropes start tied in a **knot**: a loop in which each rope is waiting on the next, so none of them can leave. Sliding the right one forward draws its tail out of another's way and undoes it.
-- Some slides are **traps**: they leave ropes that can never get out. The game says "Knotted!" as soon as that happens, and dims any rope that can never move again. Nothing is locked, and any rope that can still move can still be tapped, but the board can no longer be cleared.
-- There are no hearts. Instead each level allows **three undos**, each taking back one move. The level is lost only when the board is knotted, nothing on it can move and no undos are left.
-- **One tap score**: a rope tap costs 1, undo costs 1, and a successful hint costs 2. The original move stays spent when undone. Automatic releases cost 0. There are still only three undos, and no hard tap budget. Free the blockers efficiently and let the remaining ropes go by themselves; tapping those free ropes early costs extra. Stars are 3 for par, 2 for up to two taps over, 1 otherwise.
-- Once nothing is blocked the puzzle is solved, so the remaining ropes let themselves out.
-- The lightbulb highlights the next tap of a solution in par.
-- **Combos** count unassisted manual rope exits only. Hints, undo, and bumps break the combo; automatic releases never increase it. A revealed rope remains assisted until the level is restarted, even after its highlight fades or a move is undone. Each five-rope milestone is announced once, rather than once per delayed exit animation.
+The code encodes format version, grid (`S`/`H`/`M`), minimum and maximum
+difficulty, level count, features (`N`/`M`/`S`/`MS`), and seed. The journey is
+`J1-MONKEYFIST`. Older square and Hex set codes import their settings; the new
+generator produces new boards for those settings.
 
-**The original game** (turn Sliding ropes off, or turn Kid mode on). A blocked rope bumps and springs back, and costs a heart: three hearts per level, and hearts left at the end are your stars. Nothing you tap can make the board worse, so the puzzle is purely finding the order.
+Custom sets are free. The single Custom entry point is a natural place for a
+future purchase entitlement; no payment or entitlement code is included yet.
 
-- **Tangle** (top of the screen) is how knotted the board still is, and it falls as you pull ropes out.
-- The lightbulb highlights a rope that can leave right now.
-- **Kid mode**: always the original game, with no hearts. Each bump points out a rope that can go, and the score is your time.
-- Requested hints cost one star in the original game and five seconds in Kid mode; both break combos. Automatic Kid-mode bump guidance remains free, but the indicated rope does not earn combo credit.
+## Play
 
-Both games:
+Tap a rope to slide it in its arrow’s direction. It stops at another rope or
+leaves the board. Two-sided mirrors turn its route; springs reverse the rope
+end-for-end. There are no locks in generated levels. The pale mirror blade is
+symmetric, with no triangle implying a non-reflective side.
 
-- **One Levels screen**: choose a style, level count, board size, and seed above the same level grid. Counts are 10, 20, 30, 60, or 120 (difficulty styles may fill fewer slots if their range is narrower). The dice picks a new seed; the adjacent reset arrow restores `MONKEYFIST` without changing the style, count, or progress.
-- **Default set**: Progressive, 60 levels, seed `MONKEYFIST`, from tangle 1 up to 300. It is an ordinary seeded set (`C60S-MONKEYFIST` for sliding, `C60-MONKEYFIST` for the original game). Sliding Progressive gradually introduces locks; the opening eight boards and the original/Kid-mode campaign are unchanged. Easy, Normal, Hard, and Extreme likewise use only ropes and locks. Reflectors and springs are exclusive to Twists.
-- **Share codes**: every set has a code such as `N20S-K7F3Q`; paste the whole code into the Seed field to select that same set. The `S` marks sliding rules. Switching sets keeps their progress; recent sets are quick shortcuts, not a separate interface.
-- **Twists**: choose Twists in the same Style selector to start with mechanics immediately. Choose up to 120 levels and optionally Bigger boards, e.g. `T120BS-ALPHA`. Later boards grow to the campaign's full sizes (up to 12×16, or 16×22 with Bigger boards), with dozens of ropes. Changing the seed changes rope geometry and mechanic placements, not just orientation.
-- **Temporary playtest unlock**: Unlock all levels defaults on in this build. It can be switched off on Levels to see genuine progress. It never writes fake stars or unlocks; clearing a skipped level records its earned stars but does not permanently unlock the intervening levels. Set `TEST_UNLOCK_ALL` false to end the default-on preview.
-- **Direct set links**: `?set=C120BS-MONKEYFIST` opens that set on the level grid, including style, count, seed, and board-size options.
-- **Responsive layout**: wide screens put the controls beside the puzzle. Boards automatically turn to whichever orientation gives the largest cells, including when resizing or rotating a device mid-level. The puzzle, progress, hints, and undo stay the same.
+On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled
+approach turns 120°; an edge-on approach continues straight. Springs work from
+all six directions. Rules use canonical grid coordinates, independent of the
+board’s screen rotation.
 
-## Music
+Other ropes remain tappable while animations run, including on mirror and spring
+boards. Movement commits logically at the tap; each rope keeps its own visual
+route. Undo restores the previous full board and cancels in-flight animations.
 
-The soundtrack has six original rainforest-inspired synthesised songs: **Canopy Hop**, **Vine Swing**, **Temple Steps**, **River Riddle**, **Bamboo Dash**, and **Moonlit Knot**. Levels rotate through them in order, so moving to the next level always changes the music while retrying a level keeps its song. Each has a different percussion groove, tempo, melody, and instrumental character, with clean fades between songs.
+Scoring counts player taps. Blocked taps and each of the three undos cost one;
+a hint costs two. Once everything can leave, remaining releases are automatic
+and free. Par is a replay-verified target; larger routed boards use a known
+solution rather than claiming a globally optimal proof. Three stars means par
+or better, two means within two taps, and one means completion. There is no hard
+tap budget. Hints, undo, and blocked taps break the combo; a hinted rope stays
+assisted until restart, even after the highlight expires or an undo.
 
-Full, rounded bass leads the mix, with low skin drums, answering hand drums, soft wood
-clicks, and quiet shakers. Lower-register plucks and breathy flute-like leads answer each
-other through a short, dark rhythmic echo. Gentle attacks, restrained overtones, and a
-warm filter keep the melody from becoming bright or tiring during long puzzles.
-Sixteenth-note swing and varied accents keep the beat loose. Each arrangement moves from
-a light opening into the full groove, a quieter river break, and a fuller return with drum
-fills; the second pass changes the answers before the 32-bar cycle repeats. These are
-original compositions, not recordings of traditional music.
+Drag the board, scroll or pinch to zoom, and press **Fit** to recenter. Keyboard:
+arrow keys select ropes, Enter/Space slides, +/− zooms, and 0 fits the board.
+The app respects reduced-motion preferences. Fullscreen is available where the
+browser supports it.
 
-Everything is generated locally with the Web Audio API, works offline, and uses no recorded audio files. The rope-clearing notes follow the currently audible harmony. Music remains independent of sound effects; turning Music off stops its tone and noise sources and disconnects the echo. A shared noise buffer, bounded voices, and a short scheduling lookahead keep playback light during large puzzles.
+## Generation and solving
 
-Square and Hex share `sounds.js`: the same airy rope swish, chord-following exit plucks,
-thuds, clicks, undo, hint, and completion effects. Both games cycle Sound through
-**Off → Low → Full** independently of Music. Low uses one quarter of the original
-effects gain (about 12 dB quieter) to sit alongside the soundtrack; Full keeps the
-original volume. New players start on Low, while previous on/off preferences carry
-over as Full/Off. The selected level is saved in each game. Muting stops active
-effects immediately; rate limits and a shared voice cap keep overlapping taps smooth.
+[`game-engine.js`](game-engine.js) is the common set format, progression schedule,
+and gameplay adapter. Every published board must have at least two ropes, at
+least one blocked rope at startup, and a fully replayable solution certificate.
+Deterministic, bounded retries reject trivial candidates. The main thread loads
+boards through [`generator-worker.js`](generator-worker.js), with a synchronous
+fallback if workers are unavailable.
 
-`audio.js` owns the shared browser session: lazy audio startup, mobile unlocking,
-the limiter and music/effects mix, scheduling, and background suspension. Each game
-supplies its saved settings and when its menus should silence the music.
+The underlying engines remain specialized:
 
-The generators share `random.js` for Mulberry32 and in-place shuffling. Square's
-existing hash and random exports remain available through `MFLevels`; Hex retains
-its original seed hashing. These sequences are part of level identity, so refactors
-must preserve generated boards and solution certificates.
-
-## Twists mechanics
-
-All gameplay is still ordinary rope taps, with three undos per level. Mirrors are thin,
-two-sided diagonal reflectors that turn the head 90 degrees; the body follows the turn.
-Lettered gates open when the matching key rope is released. Springs stop an approaching
-rope, swap head and tail automatically, and end that move. Once all remaining ropes have
-clear exits, auto-release completes the board without adding player taps.
-
-In the standalone Twists style, the first two levels teach mirrors, the next two gates, and the next two springs. Levels
-7–9 introduce pairs; level 10 onward combines all three in increasingly tangled boards.
-Only this teaching sequence is fixed: the puzzles themselves are generated for every seed.
-
-In the default 60-level **Sliding Progressive** set, levels 1–8 remain ordinary ropes;
-locks arrive at level 9 and increase as the boards grow. The teaching pace scales with
-set length. **Easy, Normal, Hard, and Extreme** also introduce locks after their opening
-levels. Their woven knots, traps, difficulty ranges, and rope paths are retained. The
-generator adds several replay-verified locks to empty exit lanes, each of which changes
-an available move while closed. No direction-changing blocks appear in these styles.
-Tightly packed introductions can gain an empty border and a new key rope when there is
-no useful lock placement among their existing ropes; their original rope shapes stay intact.
-
-Lock-only square boards and Hex commit their logical move immediately, just like the
-ordinary sliding game. You can tap another rope while an earlier one animates, including
-a rope behind a lock whose key is being released. Out-of-order animation completion
-cannot overwrite newer moves. Undo restores the most recent logical move and settles
-earlier animations at their committed positions. Only boards with reflectors or springs
-wait for a routed animation to settle before accepting another rope tap.
-
-`MFTwists.integrate` attaches lock descriptors to the regular sliding styles. Original
-and Kid-mode boards retain their identities. The Twists-only generation below is unchanged.
-
-Introductory Twists puzzles in `twists.js` use small verified overlays. Advanced Twists boards use
-`twist-circuits.js`: randomized key-rope shapes and multi-turn reflection routes are
-constructed first, with springs and a chain of gates connecting the keys. The keys are
-themselves tangled, not free exit buttons. Spring-dependent hook shapes cannot escape
-even in isolation without the mechanic; bounded complete searches test that claim.
-Each gate is tested with its key held and all unrelated ropes removed: its linked rope
-can exit with that gate open but cannot exit with it closed.
-
-Ordinary ropes are inserted **between** the circuit's moves. The generator finds when a
-rope's exit opens and proves its body cannot obstruct an earlier move. This makes springs,
-reflections, keys, and ordinary blockers share a solution rather than making the player
-clear an ordinary tangle before using a few separate features. Advanced sizes grow from
-three routed ropes (6–9 mirrors, three springs, two linked gates) to five (10–15 mirrors,
-five springs, four linked gates), plus dozens of dependent ordinary ropes. All shapes,
-routes, and placements are seeded; no stored circuit boards are selected.
-
-Every board has a replay-verified certificate. Tests require every circuit tile to be
-used, key ropes to bounce and cross multiple mirrors, and ordinary ropes to leave between
-mechanic moves. Large circuit par is the certificate's verified best known player-tap
-score, not an exhaustive minimum. Small introductory puzzles use breadth-first search.
-Auto-release moves never count towards either par.
-
-Generation is lazy (one board when opened), cached, deterministic, and bounded by attempt
-and search-node limits. Advanced circuit construction retries routes or increases available
-room; it does not fall back to one tile of each kind. If introductory placement search exhausts its budget, a separate constructive
-algorithm grows a randomly bent rope with a guaranteed reverse exit, then adds the requested
-mechanics and key and fills the board backwards with exit-certified ropes. These additions
-create dependency chains and a full-size puzzle with a certificate by construction; the
-fallback never collapses a late large board into a tiny teaching scene. It never selects a premade
-puzzle. Tests cover hundreds of generated boards, seed diversity beyond reflections and
-rotations, certificates, feature use, teaching order, and constructive fallback orientations.
-
-Fixtures are drawn as game-world objects, with the rope art's outlined forms, weave, and
-highlights: two-sided polished mirror beams with bound wooden ends, visible metal coils
-with padded contact faces, and braided gate bars on wooden posts. Gates and key ropes
-share brass letter tags. Open gates retract their bars and springs compress on contact.
-Canvas geometry keeps these crisp at phone and laptop sizes, including rotated layouts.
-
-Changed Twists results are archived in the save's `levelArchives` by generation; older
-`twistsArchive` data is retained. Changed Sliding Progressive scores are also archived;
-genuine unlocks and stars on unchanged opening boards are retained. The lock-only upgrade
-archives replaced scores for all regular sliding styles under `levelArchives['locks-0']`,
-preserving unlocks and opening stars. Original/Kid-mode and current Twists progress are
-untouched by that upgrade. Upgrades run once, not on every reload.
-Legacy `T12S-…` codes still open a deterministic twelve-level procedural set.
-
-`mechanics.js` is the shared transition kernel for main-game Twists and the playground.
-It computes the actual route, gate state, reversal, and exit geometry; main-game animation,
-hints, undo, auto-release, and deadlock checks use that same result. Its bounded solver
-uses full rope geometry because springs can revisit earlier states, and tries the existing
-certificate's move order first to scale to larger puzzles. Live search budgets scale down
-with rope count; large-board par is explicitly best known, not an exhaustive proof. Budget exhaustion
-remains unknown rather than a false loss. Existing straight-track sets continue to use
-their optimized solver in `levels.js`.
-
-All production scripts use matching versioned asset URLs and are cached for offline play.
-The experimental playground remains a separate subpage, but shares the movement kernel.
-
-## How levels are made
-
-Procedural straight-track generation is in [`levels.js`](levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Twists orchestration lives in [`twists.js`](twists.js), route-first construction in [`twist-circuits.js`](twist-circuits.js), and routed movement in [`mechanics.js`](mechanics.js).
-
-**Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
-
-A rope's *score* is its block cost plus one for each bend in it, whether or not it is blocked: a rope that winds around is harder to follow and to plan around than a straight one. A level's difficulty is the sum of its ropes' scores, and the live tangle score is the same sum over the ropes still on the board, so it falls to 0 as the board empties.
-
-**Each setting is a difficulty range**, and a set fills its range evenly:
-
-| Setting | Difficulty | With Bigger boards |
-| --- | --- | --- |
-| Easy | 2 to 40 | 2 to 80 |
-| Normal | 20 to 80 | 20 to 160 |
-| Hard | 60 to 150 | 60 to 300 |
-| Extreme | 150 to 500 | 150 to 1000 |
-| Built-in levels | 1 to 300, bunched toward the easy end | |
-
-Extreme runs right up to what a packed 12x16 board can reach: its hardest levels are about 45 ropes, chains 20 or more deep, with only a handful of ropes free at the start.
-
-**The depth floor.** Every level's *average block cost per rope* must reach a minimum that rises with its difficulty, so a high score cannot be made from a crowd of ropes that barely block each other.
-
-| Difficulty | Minimum average block cost per rope |
+| Module | Responsibility |
 | --- | --- |
-| under 10 | none |
-| 10 to 19 | 1.5 |
-| 20 to 39 | 2 |
-| 40 to 59 | 2.5 |
-| 60 to 99 | 3 |
-| 100 to 149 | 4 |
-| 150 to 249 | 5 |
-| 250 to 399 | 6.5 |
-| 400 and up | 8 |
+| `levels.js` | Square geometry, long woven ropes, sliding knots, fast straight-track solver and small-board par search |
+| `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
+| `twist-circuits.js`, `twists.js` | Procedural square circuits with multi-turn routes, interleaved blockers, and verified certificates |
+| `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation, compact track solver |
+| `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
+| `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
+| `rope-art.js` | Cached diagonal braid texture, tracer strands, and cylindrical shading |
+| `audio.js`, `music.js`, `sounds.js` | Shared Web Audio session, arrangements, and effects |
 
-**Packed boards.** Past the smallest sizes a board must be at least 78% rope (typically it is 85 to 90%), and at least half its ropes must be blocked by something.
+Straight ropes only advance along fixed tracks, so their solver can store small
+offset states. Mirrors and springs change paths and can revisit states, so
+routed solvers store full rope geometry and enforce search budgets. Exhausting
+a budget means unknown, not a false declaration that a board is lost. A valid
+remaining certificate is reused before attempting another search.
 
-**Building one level.** Ropes are added one at a time under a single rule.
+Hex routed generation constructs core escape paths, then interleaves long
+follower ropes whose removal fits the certificate. Every placed mirror must
+actually turn a route. Square circuits similarly weave blockers through routed
+paths. Difficulty affects dimensions, rope length, dependencies, circuit count,
+and turns. Plain Hex boards can grow to 40 × 54 cells; routed Hex boards reach
+20 × 24 to keep path searches responsive.
 
-> A new rope must never close a loop.
+The historical [`mechanics playground`](https://creationix.github.io/monkey-fist/experiments/mechanics/)
+is still available as a separate sandbox. Its older gate/wall fixtures and pure
+kernel tests remain useful; those features are not part of generated gameplay.
+The [generator background](docs/generation.md) retains the original square
+algorithm notes, difficulty metrics, and research references.
 
-A new rope waits on whatever stands in its way out, and every rope whose way out it lies across now waits on it. Before it is placed, the builder follows the chain down from the ropes it would wait on; if that reaches any rope that would wait on *it*, the placement is refused. So the "waits for" links can never form a loop, and the board is solvable by construction with nothing to untangle afterwards.
+## Sound, saves, and offline play
 
-That one rule lets the builder do two useful things on purpose. It can lay a rope across the path of a rope at the bottom of a long chain, making every rope up that chain one deeper. And it can drop a rope into an enclosed pocket, where it simply waits on the ropes around it, which is what lets a board be packed full.
+Six synthesized arrangements change with the level: bass-led percussion,
+restrained melody, and no downloaded audio. The same swish plays on both grids.
+The sound-effects button cycles **Off → Low → Full**; Low is the default and
+uses one quarter of Full’s gain. Music has a separate toggle. Audio initializes
+on the first gesture, pauses in the background, and music pauses in menus.
 
-1. **Lay ropes.** Each rope's effect on the score is known before it is placed, so the builder steers. It paces the score to arrive in the level's slot about when the board is full, keeps the average block cost per rope up near its target, never adds more than the slot allows, and never adds a rope the depth floor could not afford.
-2. **Pack the gaps.** It goes round the cells still empty and fits a rope into each gap that will take one, under the same rules.
-3. **Turn ropes**, only if the board is still short of its slot. Ropes are turned around one at a time, and a turn is kept when the board stays solvable and the total block cost rises without overshooting the slot.
-4. **Trim** any empty outer rows and columns, and turn the board on its side if that left it wider than tall.
+The shared save key is `monkey-fist-unified-v1`. It stores chapter unlocks,
+best scores by set code, custom preferences, audio, and the current level.
+This new journey starts fresh because its boards differ from the old campaigns.
+Old square and Hex saves remain untouched; their audio preferences are inherited.
+Only scores are persisted, so par always comes from the current generated board.
 
-**Generating a set** from a seed, a setting and a number of levels:
+The service worker caches the complete app, including worker dependencies, for
+offline play. Bump the cache version and changed asset URLs when publishing.
+On iOS, use Share → Add to Home Screen; on Android/desktop use the browser’s
+install action. Installed play supports both portrait and landscape.
 
-1. Cut the range into one slot per level. One level per slot means the set is spread evenly over the range and no two levels can share a difficulty.
-2. Aim at the empty slots in turn. For each, pick a rope style at random (short and straight, medium, or long and twisty) and the smallest board that style can pack full and still reach the slot's difficulty, and build a level to land there.
-3. The level takes whichever empty slot its score falls in, provided it meets the depth floor and the packing rule. About two thirds land in the slot aimed at; one that comes up short can still fill an easier slot.
-4. Stop when every slot is filled. Slots run from easiest to hardest, so the set comes out sorted.
+## Run and test
 
-Board size follows from difficulty: Easy sets are small boards, and the top of Extreme is 12x16.
+```sh
+python -m http.server 4173
+```
 
-**Bigger boards** (a Levels option, `B` in the share code) allows straight-track boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off. Twists also supports this option, targeting larger tangles while keeping rope counts and routed-solver work bounded.
+Open http://localhost:4173/. Tests use Node and Playwright with Chromium:
 
-**Cost.** For `R` ropes on a `W x H` board:
+```sh
+MF_TEST_URL=http://127.0.0.1:4173/ node --test tests/*.test.cjs experiments/mechanics/*.test.cjs
+```
 
-- Checking a board is one topological sort of the "waits for" graph (Kahn's algorithm), which gives every rope's block cost and finds any deadlock in a single pass: `O(W*H + R * max(W, H))`. The game uses this for the live tangle score.
-- Laying and packing ropes tries a bounded number of placements per rope (6 while laying, 3 per empty cell while packing). Trying one walks the rope, a few ways out, the chain below it for the loop check, and the ropes whose cost it would raise: `O(R + max(W, H))` per try, with the links between ropes counted in `R`.
-- Turning ropes makes at most `4R` tries. Turning a rope does not change which cells are occupied, so what each rope would wait on, facing either way, is worked out once; each try is then a topological sort over those lists with no walking of the board.
-- Generating a set stops when every slot is filled, after 60 builds per level asked for, or after 600 builds in a row that fill nothing.
-
-On a laptop a 30-level set takes 10 to 55 ms and the built-in 60 levels about 50 ms.
-
-## How sliding levels are made
-
-In the original game no tap can make the board worse, so any rope that can leave is always safe to take and no arrangement of ropes can demand planning. The sliding game changes one rule: a blocked rope slides until it meets something and stays. Now a move can be wrong, and a board has to be searched to know whether it can still be solved. This section is for readers interested in how such levels are generated; numbers in brackets refer to the list at the end.
-
-### Building backwards
-
-Random sliding boards are almost never good puzzles: most are either impossible or trivial. The standard answer for puzzles whose moves cannot be taken back is to generate them in reverse, starting from the solved position and un-making moves, so that every level comes with a solution by construction. It is the idea behind retrograde analysis of chess endgames [1] and behind several Sokoban generators [2, 3]. The builder here, `weave` in [`levels.js`](levels.js), does the same.
-
-A level under construction is a board together with a way to solve it. The solution is not kept as a list of taps. It is kept as **intentions**: for each rope, the places it is meant to slide to and stop, in order, before it finally leaves. A **replay** plays the intentions out. It goes round the ropes, tapping any rope whose tap would do exactly what is meant for it next (stop on that very cell, or leave the board), until the board is empty or nothing more can be done. A board whose intentions replay to an empty board is solvable, and the taps the replay made are a solution.
-
-Keeping intentions instead of a fixed order is what lets the builder add a rope anywhere, not only at the front of the solution. A new rope re-times everything around it by itself: whatever now has to wait for it simply becomes tappable later in the replay.
-
-Every step of the build is one of three moves made in reverse, and it is kept only if the board still replays:
-
-- **Lay.** A rope appears, meant simply to leave. It may lie across other ropes' ways out, in a pocket where it must wait its turn, or in the gap a knot is going to slide into, in which case it has to leave before that slide can happen.
-- **Knot.** A rope appears already pulled back from the place it is meant to slide to, where its head will be hard against another rope. Its tail lies across the way out of a rope it is itself waiting on, which closes a loop: nothing in it can leave until this rope slides forward and draws its tail clear. Half the time, when there is the chance, the knot is laid against the place *another knot will come to rest*, so that the two must be slid in the right order.
-- **Trap.** A rope appears with a gap in front of it, kept empty, into which it must not be slid: there it would lie across the way out of a rope it is waiting on, hard against its blocker with nowhere left to go. This is checked directly, by sliding it there and finding ropes that can then never leave.
-
-So slides and exits come out woven together. In generated sets about half of all slides cannot be made at the start (a rope in the gap has to leave first, or the rope to stop against has not arrived), and about one in eight comes to rest against a rope that itself slid into place.
-
-Finding where a knot or trap can go uses the "waits for" graph of the board as it stands, as in deadlock detection [7]: rope A waits for rope B if B lies on A's way out. A cell is *tied* for a new rope if lying there would put it on the way out of something it would be waiting on, down any chain. A knot's body avoids tied cells and its tail must reach one; a trap needs one in its gap. Whether a knot really starts in a loop is confirmed afterwards with Tarjan's strongly-connected-components algorithm [6].
-
-### Difficulty
-
-The original game's block cost is the depth of a rope in the "waits for" graph, found by a topological sort (Kahn's algorithm [5]). With loops there is no such order, so the sliding game takes its block cost from the solution instead. During a replay each tap is given a **layer**: one more than the latest layer among the taps it had to wait for (the taps that emptied a cell it passes over, the tap that brought the rope it stops against into place, and the rope's own previous slide), or 0 if it waited for nothing. A rope's block cost is the layer of the tap that takes it off the board: the length of the longest chain of moves that must come before it.
-
-On a board with no slides this is exactly the original block cost. A knot adds a layer to everything waiting behind it, so knotted boards score higher, by what the knots hold up. A level's difficulty is the sum of block costs plus bends, as before, so the same ranges and the same depth floor apply.
-
-Because one replay gives both "is it still solvable" and the new score, every candidate rope's effect on the difficulty is known exactly before it is placed. The builder steers by that just as the original one does: it paces the score to arrive in the level's slot about when the board is full, and never adds more than the slot allows. This is a small instance of search-based content generation [4], with the replay as the test and the slot as the target.
-
-There is also a **knot floor**:
-
-| Difficulty | Fewest knots |
-| --- | --- |
-| under 15 | none |
-| 15 to 39 | 1 |
-| 40 to 79 | 2 |
-| 80 to 149 | 3 |
-| 150 to 249 | 4 |
-| 250 and up | 5 |
-
-A level is built with about `0.6 * sqrt(difficulty)` knots and as many traps, or as many as the board will take. Typical sets come out at about 1 knot per level on Easy, 3 on Normal, 4 on Hard and 9 on Extreme (up to 18), with one or two fatal slides open at the start. Sliding boards are a little less full than the original's (at least 72% rope), because the gaps are part of the puzzle.
-
-### Can a board still be solved?
-
-The game needs to answer this after every move, to say "Knotted!" the moment a board is lost and to keep a hint ready.
-
-- **The quick check** is a *delete relaxation*, the idea behind the heuristics of the HSP and FF planners [8, 9]: solve an easier problem in which nothing a move achieves is ever undone. Here, every rope is allowed to move as freely as it ever could. In rounds, each rope pushes forward through empty cells, and through a cell another rope sits on once that rope has slid clear of it or left; nothing a rope does ever gets in another's way. A rope that cannot get out even so can never leave, and the board is lost. Because the relaxation only ever makes things easier, it never condemns a board that could be solved. It is not complete the other way: two ropes facing each other with room between them pass the check, and are caught only when they meet. `O(W*H + R * (max(W, H) + rounds))`.
-- **What the player is shown.** On a lost board many ropes can never leave, but most of them can still slide, and marking those would both mislead and give away the work of seeing it. The game dims only a rope that can never *move* again whatever is tapped: one that gets nowhere even in the quick check, where every rope gets as far as it ever could. That never names a rope that could still move. Usually it is the rope that just slid into the trap, with perhaps one pinned behind it; sometimes there is none, and nothing is dimmed.
-- **The solver** is a depth-first search over boards. It gives up at once on any board the quick check condemns, remembers every board it has found hopeless so that none is explored twice, and tries the taps of a known solution first (the level's par solution, then the last one it found). Following a known solution it looks at one board per tap. After a careless move it typically looks at a few dozen; it is capped at 4000, and on the rare board where that runs out the player is given the benefit of the doubt.
-
-### The fewest taps
-
-Par is the best unassisted player-tap score. Once no rope is blocked, the rest auto-release for free. An already-free board still needs one initiating tap; a harder board rewards freeing its blockers before tapping ropes that would eventually leave automatically. Blocked taps cost 1, undo adds 1 without refunding the move, and a successful hint adds 2. These action costs share the single tap score; they do not impose a hard failure budget.
-
-The par search uses depth-first iterative deepening [13], starting with the builder's complete solution as a fallback but scoring only its prefix before auto-release. It searches for a shorter player-tap prefix, ending as soon as every remaining rope has a clear exit. It cannot greedily remove free ropes: unnecessary early taps now cost points. A lower bound counts distinct ropes blocking exit rays, each of which must move before the board becomes fully free. Search also rejects proved deadlocks and remembers failed states with their remaining tap budget.
-
-Exact results are checked against breadth-first search over every possible move on small generated levels and seeded small boards. Returned hint plans still include the automatic suffix, so they can be replayed all the way to an empty board.
-
-The search is capped at 6000 states so a level opens promptly. Where it runs out, par uses the player-tap prefix of the known solution, which a player may beat. The result screen says "the fewest possible" only when par is proved exact. Existing boards, share codes, unlocked levels, and earned stars are preserved.
-
-### How hard is the problem?
-
-Deciding whether a sliding board can be cleared is in NP: every tap moves a rope at least one cell forward along a track no longer than its own length plus a board side, so a solution is at most a polynomial number of taps and can be checked by playing it. Whether it is NP-hard is not settled here. The comparison is with Rush Hour, where pieces slide both ways and the question is PSPACE-complete [10]; puzzles whose moves cannot be undone, like this one, usually land in NP, and Hearn and Demaine's bounded constraint logic is the usual tool for proving them NP-complete [11]. Either way, the practical consequence is the one above: no formula rates a board, and checking one takes search.
-
-For small boards the whole space can be searched. The hardest Rush Hour positions were found that way, by analysing all 3.6 × 10^10 configurations [12]. That has not been done here; it would be a way to find the hardest possible small levels rather than merely good ones.
-
-### What is measured
-
-On generated sets:
-
-- A player who only ever taps ropes that can leave (which always wins the original game) finishes no sliding level from Normal up, since every one of them has a knot.
-- One who does that and slides a rope at random whenever stuck finishes about 60% of Normal levels, 40% of Hard and 20% of Extreme.
-- Taking a rope that can leave was never the losing move in 400 simulated games (10 of them ran past what the solver could decide). So the planning in these levels is all about slides: which rope, and in what order. Levels in which a free rope must be left in place for now, because another rope needs it to stop against, would be a step further. An attempt to build them was measured and dropped: the arrangement can be laid, but it almost never turned out to be fatal.
-
-**Cost.** A replay is one or two passes over the ropes: `O(W*H + R * max(W, H))`. A level takes a few hundred of them. A 20-level sliding set takes 45 to 110 ms on a laptop (up to about 450 ms for 30 Extreme levels with Bigger boards), and the 60 built-in sliding levels about 150 ms.
-
-### References
-
-1. K. Thompson, "Retrograde analysis of certain endgames", *ICCA Journal* 9(3), 1986, pp. 131–139.
-2. Y. Murase, H. Matsubara, Y. Hiraga, "Automatic making of Sokoban problems", *PRICAI'96*, LNCS 1114, Springer, 1996. [doi:10.1007/3-540-61532-6_50](https://doi.org/10.1007/3-540-61532-6_50)
-3. J. Taylor, I. Parberry, "Procedural generation of Sokoban levels", *Proc. 6th North American Conference on AI and Simulation in Games (GAMEON-NA)*, EUROSIS, 2011, pp. 5–12. [PDF](https://ianparberry.com/pubs/GAMEON-NA_METH_03.pdf)
-4. J. Togelius, G. N. Yannakakis, K. O. Stanley, C. Browne, "Search-based procedural content generation: a taxonomy and survey", *IEEE Transactions on Computational Intelligence and AI in Games* 3(3), 2011, pp. 172–186. [doi:10.1109/TCIAIG.2011.2148116](https://doi.org/10.1109/TCIAIG.2011.2148116)
-5. A. B. Kahn, "Topological sorting of large networks", *Communications of the ACM* 5(11), 1962, pp. 558–562. [doi:10.1145/368996.369025](https://doi.org/10.1145/368996.369025)
-6. R. Tarjan, "Depth-first search and linear graph algorithms", *SIAM Journal on Computing* 1(2), 1972, pp. 146–160. [doi:10.1137/0201010](https://doi.org/10.1137/0201010)
-7. E. G. Coffman, M. J. Elphick, A. Shoshani, "System deadlocks", *ACM Computing Surveys* 3(2), 1971, pp. 67–78. [doi:10.1145/356586.356588](https://doi.org/10.1145/356586.356588)
-8. B. Bonet, H. Geffner, "Planning as heuristic search", *Artificial Intelligence* 129(1–2), 2001, pp. 5–33. [doi:10.1016/S0004-3702(01)00108-4](https://doi.org/10.1016/S0004-3702(01)00108-4)
-9. J. Hoffmann, B. Nebel, "The FF planning system: fast plan generation through heuristic search", *Journal of Artificial Intelligence Research* 14, 2001, pp. 253–302. [doi:10.1613/jair.855](https://doi.org/10.1613/jair.855)
-10. G. W. Flake, E. B. Baum, "Rush Hour is PSPACE-complete, or 'Why you should generously tip parking lot attendants'", *Theoretical Computer Science* 270(1–2), 2002, pp. 895–911. [doi:10.1016/S0304-3975(01)00173-6](https://doi.org/10.1016/S0304-3975(01)00173-6)
-11. R. A. Hearn, E. D. Demaine, *Games, Puzzles, and Computation*, A K Peters, 2009.
-12. S. Collette, J.-F. Raskin, F. Servais, "On the symbolic computation of the hardest configurations of the Rush Hour game", *Computers and Games (CG 2006)*, LNCS 4630, Springer, 2007, pp. 220–233. [doi:10.1007/978-3-540-75538-8_20](https://doi.org/10.1007/978-3-540-75538-8_20)
-13. R. E. Korf, "Depth-first iterative-deepening: an optimal admissible tree search", *Artificial Intelligence* 27(1), 1985, pp. 97–109. [doi:10.1016/0004-3702(85)90084-0](https://doi.org/10.1016/0004-3702(85)90084-0)
-
-## Tests
-
-Open [`tests/index.html`](tests/index.html) in a browser (served from the project folder), or visit https://creationix.github.io/monkey-fist/tests/. The page title and heading show `PASS n/n` or `FAIL`.
-
-For the original game the tests cover block-cost and bend scoring on hand-built boards, 300 built boards cross-checked against actually playing them (solvable, costs correct, never over their slot), that every setting fills its range evenly with unique difficulties, the depth floor, how full the boards are, how hard the hardest Extreme level is, rope-style variety, board-size limits, share codes, and the board-quality rules. A fingerprint test pins its 60 built-in levels, so that progress already made in them stays valid.
-
-For the sliding game they cover the slide rule, a knot and a trap built by hand, the quick check and the solver, and then 720 generated levels: each is cleared by its own solution, has the difficulty that solution's layers give it, meets the knot floor, cannot be cleared by ropes simply leaving, and has exactly the traps it counts. They also check that slides and exits really are woven together, run the solver after every move of a simulated careless player, and check par against a search of every possible sequence of taps on the levels small enough for that.
-
-## Install
-
-It is an installable web app that works offline after the first visit.
-
-- **Android:** open the link in Chrome, then menu → "Install app".
-- **iPhone / iPad:** open the link in Safari, then Share → "Add to Home Screen".
-
-## Running locally
-
-No dependencies and no build step. Serve the folder with any static web server and open it.
+Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`.
+[`tests/index.html`](tests/index.html) also runs the original square generator’s
+browser suite. The current automated tests replay all 120 journey levels,
+exercise custom grid/feature combinations and tiny random seeds, verify mirror
+geometry and generator certificates, and play real pointer taps on laptop and
+phone layouts. They cover chapter unlocks, concurrent animation, hints, undo,
+audio gains, legacy bookmarks, worker fallback, persistence, and offline reloads.

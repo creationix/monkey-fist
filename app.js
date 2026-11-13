@@ -1,20 +1,31 @@
-/* global MFHex, MFAudio */
+/* global MFGame, MFHex, MFAudio, MFRopeArt */
 'use strict';
-const H = MFHex, $ = id => document.getElementById(id), canvas = $('board'), ctx = canvas.getContext('2d');
+const H = MFGame, $ = id => document.getElementById(id), canvas = $('board'), ctx = canvas.getContext('2d');
 const PALETTE = ['#37d5ac', '#f9bd4a', '#a987f5', '#f785ac', '#58b7ef', '#f7a251', '#e8dca1', '#f46f73', '#73d677'];
-const STORAGE = 'monkey-fist-hex-v1';
+const STORAGE = 'monkey-fist-unified-v1';
 let save; try { save = JSON.parse(localStorage.getItem(STORAGE)) || {}; } catch { save = {}; }
+// Different generated boards get fresh scores. Keep both previous saves intact,
+// and carry over the player's audio preferences.
+if (!save.gen) {
+  for (const key of ['monkey-fist', 'monkey-fist-hex-v1']) {
+    try { const old = JSON.parse(localStorage.getItem(key)); if (old) { save.sound ??= old.sound; save.music ??= old.music; } } catch { /* Optional legacy preferences. */ }
+  }
+}
 const persist = () => { try { localStorage.setItem(STORAGE, JSON.stringify(save)); } catch { /* Play still works without storage. */ } };
 const params = new URLSearchParams(location.search);
-let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { seed: 'MONKEYFIST', count: 60, big: false };
+let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { ...H.DEFAULT };
+let draft = { ...opts };
 save.sets ||= {};
 if (save.gen !== H.VERSION) {
   if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
-  save.sets = {}; save.gen = H.VERSION;
+  save.sets = {}; save.chapters = 1; save.gen = H.VERSION;
 }
+save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
 const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
-let noticeTimer, lastTime = 0, width = 1, height = 1;
+const rules = () => H;
+const headDirection = path => H.direction(G.level, path);
+let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true;
 const gameAudio = MFAudio.createAudio(() => ({
   sound: save.sound, music: !!save.music && !document.hidden && !$('chooser').open && !$('result').open, level: G.index + 1,
 }));
@@ -40,7 +51,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=3');
+    const worker = new Worker('generator-worker.js?v=1');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -55,14 +66,14 @@ function weave(options) {
 async function start(index) {
   const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
   pointers.clear(); gesture = null;
-  G.index = Math.max(0, Math.min(opts.count - 1, Number(index) || 0));
+  G.index = Math.max(0, Math.min(H.available(opts, save.chapters) - 1, Math.floor(Number(index) || 0)));
   G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
   G.moves.clear();
   $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); gameAudio.music?.setLevel(G.index + 1); draw(0);
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
-    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, camera: { zoom: 1, x: 0, y: 0 } });
+    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
@@ -70,6 +81,7 @@ async function start(index) {
   }
 }
 function hud() {
+  drawNext = true;
   const l = G.level, left = G.paths.filter(Boolean).length;
   $('levelName').innerHTML = 'Level ' + (G.index + 1) + ' <span>/ ' + opts.count + '</span>';
   $('loading').hidden = !G.loading; $('boardWrap').setAttribute('aria-busy', G.loading);
@@ -78,24 +90,36 @@ function hud() {
     $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Weaving long ropes…' : 'Try another seed or restart.';
     $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; $('tip').textContent = 'Every seed weaves a different puzzle.'; return;
   }
-  $('chapter').textContent = l.slides ? 'SLIDE TO UNTANGLE' : 'SIX DIRECTIONS';
+  $('chapter').textContent = opts.kind === 'journey' ? 'JOURNEY · ' + (Math.floor(G.index / 10) + 1) + ' / 12' : 'YOUR CUSTOM SET';
+  $('gridType').textContent = l.grid === 'hex' ? 'HEX' : 'SQUARE'; $('gridMark').textContent = l.grid === 'hex' ? '⬡' : '◇';
+  canvas.setAttribute('aria-label', (l.grid === 'hex' ? 'Hexagonal' : 'Square') + ' rope puzzle. Tap a rope to slide it. Drag to explore; pinch or scroll to zoom. Arrow keys select ropes; Enter slides the selected rope.');
   $('remaining').textContent = left + ' ropes left';
   $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + l.par;
   $('undos').textContent = G.undos;
   $('undo').disabled = !G.undos || !G.history.length || G.auto || G.ended;
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
-  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.slides ? 'Slide a tail to open a path.' : 'Tap a rope. Follow its arrow.';
+  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.springs?.length ? 'Springs reverse a rope.' : l.mirrors?.length ? 'Mirrors turn ropes.' : 'Tap a rope. Follow its arrow.';
 }
 function tap(i, automatic = false) {
   if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
-  const m = H.tap(G.level, G.paths, i);
-  if (!m) { G.bump = { i, time: .25 }; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
+  const m = rules().tap(G.level, G.paths, i);
+  if (!m) { G.bump = { i, time: .25 }; G.combo = 0; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
   if (!automatic) G.history.push({ paths: G.paths, plan: G.plan.slice(), lost: G.lost });
   if (G.bump?.i === i) G.bump = null;
-  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, popNote: m.event === 'exit' ? ++G.clearNo : 0 });
+  if (m.event === 'exit') {
+    const last = m.route.at(-1), previous = m.route.at(-2), d = [last.q - previous.q, last.r - previous.r];
+    const extra = Math.ceil(Math.max(width, height) * 2 / G.view.scale) + 4;
+    for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
+    m.distance += extra;
+  }
+  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: m.event === 'bounce' ? .16 : 0, popNote: m.event === 'exit' ? ++G.clearNo : 0 });
   commit(G.moves.get(i));
   sfx.slide();
+  if (!automatic) {
+    if (G.assisted.has(i)) G.combo = 0;
+    else if (m.event === 'exit' && ++G.combo % 5 === 0) notice(G.combo + ' in a row!');
+  }
   hud();
 }
 function commit(m) {
@@ -106,37 +130,43 @@ function commit(m) {
     else {
       // Keep a still-valid certificate; only search after a move changes it.
       const plan = G.plan.filter(i => G.paths[i]);
-      if (H.replay(G.level, plan, G.paths).solved) G.plan = plan;
-      else { const answer = H.solve(G.level, G.paths, 900, plan); G.plan = answer.moves; G.lost = answer.solved === false; }
+      if (rules().replay(G.level, plan, G.paths).solved) G.plan = plan;
+      else { const answer = rules().solve(G.level, G.paths, 900, plan); G.plan = answer.moves; G.lost = answer.solved === false; }
     }
-    G.auto = H.allFree(G.level, G.paths);
+    G.auto = rules().allFree(G.level, G.paths);
   }
-  const board = H.compile(G.level, G.paths);
-  if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
+  if (G.level.grid === 'hex' && !G.level.mirrors.length && !G.level.springs.length) {
+    const board = MFHex.compile(G.level, G.paths);
+    if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
+  } else if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
   if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
-  const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1;
+  const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
 function hint() {
   if (G.loading || !G.level || G.auto || G.ended || G.lost || G.moves.has(G.plan[0])) return;
   if (!G.plan.length) {
-    const answer = H.solve(G.level, G.paths, 5000); G.plan = answer.moves;
+    const answer = rules().solve(G.level, G.paths, G.level.mirrors?.length ? 900 : 5000); G.plan = answer.moves;
     if (!G.plan.length) { if (answer.solved === false) G.lost = true; notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.'); hud(); return; }
   }
   if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; focusRope(G.hint); return; }
-  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
+  G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; G.combo = 0; G.assisted.add(G.hint); focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
 }
 function finish() {
   G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
-  if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars }; persist();
+  if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
+  const previous = save.chapters;
+  if (opts.kind === 'journey') save.chapters = H.unlock(save.chapters, G.index);
+  persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
   $('resultText').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
-  $('next').hidden = G.index + 1 >= opts.count; $('result').showModal(); syncMusic(); sfx.win();
+  $('unlocked').textContent = save.chapters > previous ? 'Levels ' + (previous * 10 + 1) + '–' + (save.chapters * 10) + ' unlocked!' : opts.kind === 'journey' && G.index === 119 ? 'Journey complete. Make a new tangle in Custom.' : '';
+  $('next').hidden = G.index + 1 >= H.available(opts, save.chapters); $('result').showModal(); syncMusic(); sfx.win();
 }
 function update(dt) {
   if (!G.level || $('chooser').open) return;
@@ -146,22 +176,24 @@ function update(dt) {
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
     m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
-    if (m.progress >= m.distance - .001) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); }
+    if (m.progress >= m.distance - .001) { m.hold -= dt; if (m.hold <= 0) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); } }
   }
   if (!G.ended && G.paths.every(p => !p) && !G.moving) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
   if (settled) hud();
 }
-function raw(p, rotated) { const v = H.project(p); return rotated ? { x: -v.y, y: v.x } : v; }
+function raw(p, rotated) { const v = H.project(p, G.level); return rotated ? { x: -v.y, y: v.x } : v; }
 function screen(p) { const v = raw(p, G.view.rotated); return { x: G.view.ox + v.x * G.view.scale, y: G.view.oy + v.y * G.view.scale }; }
 function resize() {
   const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (!G.level) return;
-  const points = H.cells(G.level).map(H.project), minX = Math.min(...points.map(p => p.x)) - .5, maxX = Math.max(...points.map(p => p.x)) + .5;
-  const minY = -1 / Math.sqrt(3), maxY = Math.max(...points.map(p => p.y)) + 1 / Math.sqrt(3), w = maxX - minX, h = maxY - minY;
-  const normal = Math.min((width - 24) / w, (height - 24) / h), rotated = Math.min((width - 24) / h, (height - 24) / w);
-  const rot = rotated > normal, scale = Math.max(1, Math.min(90, rot ? rotated : normal));
+  const points = H.cells(G.level).map(p => H.project(p, G.level)), minX = Math.min(...points.map(p => p.x)) - .6, maxX = Math.max(...points.map(p => p.x)) + .6;
+  const minY = Math.min(...points.map(p => p.y)) - .6, maxY = Math.max(...points.map(p => p.y)) + .6, w = maxX - minX, h = maxY - minY;
+  // Fit leaves the corner controls clear. Zooming/panning still uses the entire screen.
+  const wide = width > height * 1.2, usableW = width - (wide ? 300 : 24), usableH = height - (wide ? 28 : 220);
+  const normal = Math.min(usableW / w, usableH / h), rotated = Math.min(usableW / h, usableH / w);
+  const rot = rotated > normal, scale = Math.max(1, Math.min(110, rot ? rotated : normal));
   G.view = { rotated: rot, fit: scale, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
   applyCamera();
   draw(0);
@@ -204,16 +236,7 @@ function shade(hex, amount) {
 }
 // One continuous strand treatment. Dash phase follows
 // the material as a rope slides, rather than restarting at every hex-grid segment.
-function cord(points, width, col, phase = 0) {
-  const dark = shade(col, -.55), opacity = ctx.globalAlpha;
-  ctx.lineCap = ctx.lineJoin = 'round'; ctx.setLineDash([]);
-  path(ctx, points); ctx.strokeStyle = dark; ctx.lineWidth = width * 1.3; ctx.stroke();
-  ctx.strokeStyle = col; ctx.lineWidth = width; ctx.stroke();
-  ctx.lineCap = 'butt'; ctx.setLineDash([width * .175, width * .325]); ctx.lineDashOffset = phase;
-  ctx.lineWidth = width * .92; ctx.strokeStyle = dark; ctx.globalAlpha = opacity * .24; ctx.stroke();
-  ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.lineCap = 'round';
-  ctx.lineWidth = width * .26; ctx.strokeStyle = shade(col, .7); ctx.globalAlpha = opacity * .35; ctx.stroke(); ctx.globalAlpha = opacity;
-}
+function cord(points, width, col, phase = 0) { MFRopeArt.draw(ctx, points, width, col, phase); }
 function pointAt(route, t) {
   const i = Math.min(route.length - 2, Math.floor(t)), f = t - i, a = route[i], b = route[i + 1];
   return { q: a.q + (b.q - a.q) * f, r: a.r + (b.r - a.r) * f };
@@ -227,9 +250,12 @@ function visiblePath(i) {
 function drawRope(i, time) {
   const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i), dark = shade(col, -.55);
   ctx.save();
-  if (G.bump?.i === i) { const d = H.direction(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
+  if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
-  const tip = points.at(-1), prev = points.at(-2), len = Math.hypot(tip.x - prev.x, tip.y - prev.y), dx = (tip.x - prev.x) / len, dy = (tip.y - prev.y) / len;
+  const tip = points.at(-1), moving = G.moves.get(i);
+  const ahead = screen(moving ? pointAt(moving.route, Math.min(moving.route.length - 1, moving.progress + moving.path.length - 1) - .001) : H.add(rope.at(-1), headDirection(rope)));
+  if (moving) { ahead.x = 2 * tip.x - ahead.x; ahead.y = 2 * tip.y - ahead.y; }
+  const len = Math.hypot(ahead.x - tip.x, ahead.y - tip.y), dx = (ahead.x - tip.x) / len, dy = (ahead.y - tip.y) / len;
   const arrow = (grow, fill) => {
     const reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
     path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
@@ -247,7 +273,30 @@ function drawRope(i, time) {
   path(ctx, [{ x: tip.x - dx * s * .16, y: tip.y - dy * s * .16 }, { x: tip.x + dx * s * .22, y: tip.y + dy * s * .22 }]); ctx.stroke(); ctx.globalAlpha = 1;
   ctx.restore();
 }
+function drawMirrors() {
+  const s = G.view.scale;
+  for (const mirror of G.level.mirrors || []) {
+    const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
+    const a = screen(H.add(mirror.cell, d, -.37)), b = screen(H.add(mirror.cell, d, .37));
+    ctx.save(); ctx.lineCap = 'round';
+    // A thin, symmetric silver/cyan blade: visibly reflective on both sides.
+    path(ctx, [a, b]); ctx.strokeStyle = '#092631'; ctx.lineWidth = s * .22; ctx.stroke();
+    ctx.strokeStyle = '#408c9a'; ctx.lineWidth = s * .15; ctx.stroke();
+    ctx.strokeStyle = '#b5f4f1'; ctx.lineWidth = s * .075; ctx.stroke();
+    for (const p of [a, b]) { ctx.beginPath(); ctx.arc(p.x, p.y, s * .075, 0, Math.PI * 2); ctx.fillStyle = '#e1ffff'; ctx.fill(); }
+    ctx.restore();
+  }
+  for (const spring of G.level.springs || []) {
+    const p = screen(spring); ctx.save(); ctx.translate(p.x, p.y);
+    ctx.beginPath(); ctx.arc(0, 0, s * .34, 0, Math.PI * 2); ctx.fillStyle = '#183741'; ctx.fill();
+    ctx.strokeStyle = '#ffcc7a'; ctx.lineWidth = s * .055; ctx.stroke();
+    ctx.beginPath();
+    for (let t = 0; t < Math.PI * 5.5; t += .12) { const r = s * (.035 + .011 * t); const x = Math.cos(t) * r, y = Math.sin(t) * r; if (!t) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = '#ffb35a'; ctx.lineWidth = s * .052; ctx.stroke(); ctx.restore();
+  }
+}
 function draw(time) {
+  drawNext = false;
   ctx.clearRect(0, 0, width, height); if (!G.level) return;
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
   board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
@@ -257,15 +306,17 @@ function draw(time) {
   ctx.save(); ctx.clip(board);
   ctx.fillStyle = '#b3d7d91c';
   for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
+  drawMirrors();
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i)) drawRope(i, time);
-  for (const i of G.moves.keys()) drawRope(i, time);
   ctx.restore();
+  // Departing ropes stay visible all the way off-screen, including rotated boards.
+  for (const i of G.moves.keys()) drawRope(i, time);
 }
 function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))); return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t); }
 function tapAt(p) {
   if (!G.level || G.auto) return;
   let best = -1, distance = G.view.scale * .43;
-  G.paths.forEach((rope, i) => { if (!rope || G.moves.has(i)) return; const points = rope.map(screen), d = H.direction(rope); points.push(screen(H.add(rope.at(-1), d, .35)));
+  G.paths.forEach((rope, i) => { if (!rope || G.moves.has(i)) return; const points = rope.map(screen), d = headDirection(rope); points.push(screen(H.add(rope.at(-1), d, .35)));
     for (let j = 1; j < points.length; j++) { const v = distanceTo(p, points[j - 1], points[j]); if (v < distance) { distance = v; best = i; } }
   });
   if (best >= 0) { G.selected = -1; tap(best); }
@@ -327,30 +378,51 @@ canvas.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (G.selected >= 0) tap(G.selected); }
 });
 function renderChooser() {
-  $('seed').value = opts.seed; $('count').value = opts.count; $('big').checked = opts.big; $('share').textContent = H.code(opts);
-  const scores = save.sets[H.code(opts)] || {}; $('grid').replaceChildren();
-  for (let i = 0; i < opts.count; i++) {
-    const button = document.createElement('button'); button.className = i === G.index ? 'current' : ''; button.innerHTML = (i + 1) + '<small>' + (scores[i] ? '★'.repeat(scores[i].stars) : '') + '</small>';
-    button.setAttribute('aria-label', 'Level ' + (i + 1) + (scores[i] ? ', ' + scores[i].stars + ' stars' : '')); button.onclick = () => { audio(); start(i); }; $('grid').append(button);
+  const journey = draft.kind === 'journey', code = H.code(draft), available = H.available(draft, save.chapters);
+  $('journey').setAttribute('aria-pressed', journey); $('custom').setAttribute('aria-pressed', !journey); $('customSettings').hidden = journey;
+  $('seed').value = draft.seed; $('count').value = draft.count; $('gridChoice').value = draft.grid;
+  $('minDifficulty').value = draft.min; $('maxDifficulty').value = draft.max;
+  $('mirrors').checked = draft.mirrors; $('springs').checked = draft.springs;
+  $('share').textContent = 'Copy set link'; $('share').title = code;
+  $('setSummary').textContent = journey ? '120 tangles · square + hex' : draft.count + ' tangles · ' + ({ mixed: 'square + hex', square: 'square', hex: 'hex' }[draft.grid]);
+  $('unlockRule').textContent = journey ? 'Clear each group’s last level to open the next ten. Play any open level.' : 'Every level is open. Higher difficulty weaves larger, more tangled boards.';
+  const scores = save.sets[code] || {}; $('grid').replaceChildren();
+  for (let i = 0; i < draft.count; i++) {
+    if (i % 10 === 0) {
+      const heading = document.createElement('h3'); heading.textContent = 'Levels ' + (i + 1) + '–' + Math.min(draft.count, i + 10);
+      if (i >= available) heading.textContent += ' · clear ' + i + ' to open';
+      $('grid').append(heading);
+    }
+    const button = document.createElement('button'), kind = H.spec(draft, i).grid;
+    button.className = i === G.index && code === H.code(opts) ? 'current' : '';
+    button.innerHTML = '<span class="level-icon" aria-hidden="true">' + (kind === 'hex' ? '⬡' : '◇') + '</span>' + (i + 1) + '<small>' + (scores[i] ? '★'.repeat(scores[i].stars) : '') + '</small>';
+    button.dataset.level = i + 1; button.disabled = i >= available;
+    button.setAttribute('aria-label', 'Level ' + (i + 1) + ', ' + kind + (button.disabled ? ', locked' : scores[i] ? ', ' + scores[i].stars + ' stars' : ''));
+    button.onclick = () => { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }; $('grid').append(button);
   }
 }
-function chooser() { $('result').close(); renderChooser(); $('chooser').showModal(); syncMusic(); }
-function settings() { opts = H.parseCode($('seed').value) || { seed: H.cleanSeed($('seed').value), count: +$('count').value, big: $('big').checked }; renderChooser(); }
+function chooser() { $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
+function settings() {
+  draft = H.parseCode($('seed').value) || H.normalize({ seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value, min: $('minDifficulty').value, max: $('maxDifficulty').value, mirrors: $('mirrors').checked, springs: $('springs').checked });
+  if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();
+}
 $('levels').onclick = chooser; $('resultLevels').onclick = chooser;
-$('closeLevels').onclick = () => { if (H.code(opts) !== save.code) start(0); else { $('chooser').close(); syncMusic(); } };
+$('closeLevels').onclick = () => { $('chooser').close(); syncMusic(); };
+$('journey').onclick = () => { draft = { ...H.DEFAULT }; renderChooser(); };
+$('custom').onclick = () => { draft = H.normalize(save.custom || { seed: 'MONKEYFIST', count: 120, grid: 'mixed', min: 1, max: 100 }); renderChooser(); };
 $('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevels').click(); });
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);
 $('undo').onclick = undo; $('hint').onclick = hint;
-$('seed').onchange = settings; $('count').onchange = settings; $('big').onchange = settings;
-$('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); opts.seed = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); renderChooser(); };
-$('defaultSeed').onclick = () => { opts.seed = 'MONKEYFIST'; renderChooser(); };
-$('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(opts)); } };
+for (const id of ['seed', 'count', 'gridChoice', 'minDifficulty', 'maxDifficulty', 'mirrors', 'springs']) $(id).onchange = settings;
+$('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
+$('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };
+$('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
 $('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
-function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); draw(time / 1000); requestAnimationFrame(frame); }
+function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
-window.__hex = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+window.__game = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };

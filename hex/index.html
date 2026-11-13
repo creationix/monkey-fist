@@ -1,57 +1,14 @@
 <!doctype html>
 <html lang="en">
-<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b2029">
-<meta name="description" content="Six directions. One tangled knot. Explore a whole screen of long, winding sliding ropes.">
-<title>Monkey Fist · Hex</title>
-<link rel="icon" href="../icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=4">
-</head>
-<body>
-<main id="game">
-  <aside class="hud">
-    <a class="brand" href="../" title="Back to square Monkey Fist"><span class="mark">⬡</span><span>MONKEY FIST<small>HEX</small></span></a>
-    <div class="readout"><div class="eyebrow" id="chapter">SIX DIRECTIONS</div><h1 id="levelName">Level 1 <span>/ 60</span></h1><p id="remaining"></p><p id="score"></p></div>
-    <nav class="actions" aria-label="Game controls">
-      <button id="levels" title="Choose a level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><small>Levels</small></button>
-      <button id="restart" title="Restart this level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg><small>Restart</small></button>
-      <button id="hint" title="Hint costs two taps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20h6M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8Z"/></svg><small>Hint +2</small></button>
-      <button id="undo" title="Undo costs one tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></svg><small>Undo <b id="undos">3</b></small></button>
-    </nav>
-    <p id="tip">Tap a rope. Follow its arrow.</p>
-    <div id="audioControls" aria-label="Audio settings"><button id="sound" class="quiet" aria-label="Sound effects: Low" aria-pressed="true">Sound: Low</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button></div>
-  </aside>
-  <div id="boardWrap">
-    <canvas id="board" tabindex="0" aria-label="Hexagonal rope puzzle. Tap a rope to slide it. Drag to explore; pinch or scroll to zoom. Arrow keys select ropes; Enter slides the selected rope."></canvas>
-    <div id="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Weaving your tangle…</div>
-    <nav id="zoomControls" aria-label="Board view" hidden><span>Drag to explore · pinch to zoom</span><div><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomFit" title="Fit and center the board">Fit</button><button id="zoomIn" aria-label="Zoom in">+</button><button id="fullscreen" title="Enter fullscreen" aria-label="Fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div></nav>
-  </div>
-  <div id="notice" role="status" aria-live="polite"></div>
-</main>
-<dialog id="chooser">
-  <div class="dialog-head"><div><div class="eyebrow">MONKEY FIST · HEX</div><h2>Your next tangle</h2></div><button class="close" id="closeLevels" aria-label="Close level chooser">×</button></div>
-  <div class="settings">
-    <label>Seed<div class="seed-row"><input id="seed" maxlength="24" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
-    <label>Levels<select id="count"><option>10</option><option>30</option><option selected>60</option><option>120</option></select></label>
-    <label class="check"><input id="big" type="checkbox"> Colossal boards</label>
-  </div>
-  <div class="set-line"><button id="share" class="quiet" title="Copy a link to this set"></button><span>All levels open for this preview</span></div>
-  <div id="grid" aria-label="Levels"></div>
-  <p class="rules"><strong>Six directions, simple taps.</strong> Ropes slide until another rope blocks them. Pull a tail out of the way to untangle a knot.</p>
-  <p class="rules">Start small and grow to 24 × 32 cells, or 40 × 54 with Colossal boards. Longer winding ropes and deeper sliding knots build up along the way. The whole screen is your board: drag to explore, zoom with +, the wheel, or a pinch, and press Fit to return to the whole puzzle.</p>
-  <a class="back" href="../">← Square Monkey Fist</a>
-</dialog>
-<dialog id="result">
-  <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p>
-  <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
-</dialog>
-<script src="../random.js?v=1"></script>
-<script src="engine.js?v=4"></script>
-<script src="../music.js?v=32"></script>
-<script src="../sounds.js?v=1"></script>
-<script src="../audio.js?v=2"></script>
-<script src="app.js?v=8"></script>
-</body>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monkey Fist</title>
+<script>
+// Keep Hex bookmarks working; both grids now share one game and one menu.
+const target = new URL('../', location.href);
+target.search = location.search;
+if (!target.searchParams.has('set')) target.searchParams.set('set', 'U1-H-1-100-60-N-MONKEYFIST');
+location.replace(target);
+</script>
+<p><a href="../">Continue to Monkey Fist</a></p>
 </html>

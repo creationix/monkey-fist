@@ -32,14 +32,15 @@
     save.sets = save.sets || {};
     // The former curated Twists stars do not describe the new procedural boards.
     // Archive only those results, leaving every other style's progress untouched.
-    if (save.twistsGen !== 3) {
+    if (save.twistsGen !== 4) {
       for (const code of Object.keys(save.sets)) if ((L.parseCode(code) || {}).mode === 'T') {
         save.levelArchives = save.levelArchives || {};
         const archive = 'twists-' + (save.twistsGen || 'curated');
         save.levelArchives[archive] = save.levelArchives[archive] || {};
-        save.levelArchives[archive][code] = save.sets[code]; delete save.sets[code];
+        save.levelArchives[archive][code] = save.sets[code];
+        save.sets[code] = { ...save.sets[code], stars: {} }; // Keep earned unlocks on the replacement boards.
       }
-      save.twistsGen = 3;
+      save.twistsGen = 4;
     }
     for (const legacy of ['campaign', 'slide']) {
       const old = save.sets[legacy]; if (!old) continue;
@@ -67,6 +68,12 @@
       // set length, just as the lock introduction schedule does.
       archiveLaterStars(save, 'locks-0', ['C', 'E', 'N', 'H', 'X'], opts => L.generateSet(opts).levels.length);
       save.locksGen = 1;
+    }
+    if (save.noLocksGen !== 1) {
+      // Only the later sliding boards had locks. Their opening boards and all
+      // original-mode scores still describe exactly the same puzzles.
+      archiveLaterStars(save, 'locks-1', ['C', 'E', 'N', 'H', 'X'], opts => L.generateSet(opts).levels.length);
+      save.noLocksGen = 1;
     }
     if (!save.setUI) {
       // The previous Custom screen held draft options, not the set selected by the Play button.

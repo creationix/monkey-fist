@@ -1,0 +1,7 @@
+/* global MFGame */
+'use strict';
+importScripts('random.js?v=1', 'levels.js?v=31', 'mechanics.js?v=30', 'twist-circuits.js?v=31', 'twists.js?v=32', 'hex/engine.js?v=5', 'hex/mirrors.js?v=1', 'game-engine.js?v=1');
+onmessage = ({ data }) => {
+  try { postMessage({ level: MFGame.generate(data) }); }
+  catch (error) { postMessage({ error: error.message }); }
+};
