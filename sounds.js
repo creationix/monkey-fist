@@ -10,13 +10,13 @@
       active.add(source);
       source.onended = () => { active.delete(source); source.disconnect(); nodes.forEach(n => n.disconnect()); };
     }
-    function tone(frequency, duration, type, volume, delay = 0, to) {
+    function tone(frequency, duration, type, volume, delay = 0, to, attack = .008) {
       if (active.size >= 40) return;
       const time = context.currentTime + delay, oscillator = context.createOscillator(), gain = context.createGain();
       oscillator.type = type || 'sine'; oscillator.frequency.setValueAtTime(frequency, time);
       if (Array.isArray(to)) for (const [offset, pitch] of to) oscillator.frequency.exponentialRampToValueAtTime(pitch, time + offset);
       else if (to) oscillator.frequency.exponentialRampToValueAtTime(to, time + duration);
-      gain.gain.setValueAtTime(.0001, time); gain.gain.exponentialRampToValueAtTime(volume, time + .008); gain.gain.exponentialRampToValueAtTime(.0001, time + duration);
+      gain.gain.setValueAtTime(.0001, time); gain.gain.exponentialRampToValueAtTime(volume, time + attack); gain.gain.exponentialRampToValueAtTime(.0001, time + duration);
       oscillator.connect(gain); gain.connect(bus); track(oscillator, [gain]); oscillator.start(time); oscillator.stop(time + duration + .03);
     }
     function noise(duration, volume, from, to, delay = 0) {
@@ -63,7 +63,13 @@
       thud() { tone(170, .14, 'sine', .3, 0, 90); noise(.07, .14, 420, 160); },
       undo() { tone(620, .16, 'sine', .2, 0, 330); },
       hint() { pluck(880, .35, 0, .25); pluck(1318.5, .35, .09, .4); },
-      win() { [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568].forEach((f, i) => { pluck(f, .45, i * .1, .6); tone(f / 2, .4, 'triangle', .2, i * .1); }); },
+      win() {
+        // A quiet bass resolution with a soft onset and a lingering fifth.
+        const bass = Math.max(50, Math.min(85, options.getChord?.().bass || 65.41));
+        tone(bass * 1.08, 1.1, 'sine', .18, 0, bass, .045);
+        tone(bass * 1.5, 1.35, 'sine', .055, .06, undefined, .07);
+        tone(bass * 2, .8, 'sine', .025, .02, undefined, .035);
+      },
       lose() { [392, 349.23, 311.13, 261.63].forEach((f, i) => { tone(f, .45, 'triangle', .4, i * .22); tone(f / 2, .45, 'sine', .3, i * .22); }); }
     };
     const api = {

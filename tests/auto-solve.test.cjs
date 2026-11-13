@@ -33,3 +33,32 @@ test('auto-solve queues a full plan immediately, finishes with zero stars, and p
     }
   } finally { await browser.close(); }
 });
+
+test('auto-solve holds a fading empty grid for 2 / 4 / 1 seconds and plays completion only at the end', { timeout: 60000 }, async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage(); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
+    await page.goto(base); await ready(page);
+    const results = await page.evaluate(() => {
+      const results = [], p = (q, r) => ({ q, r });
+      for (const [speed, factor] of [['normal', 1], ['slow', .5], ['fast', 2]]) {
+        $('result').close(); cancelGuide(); save.moveSpeed = speed; let sounds = 0; sfx.win = () => sounds++;
+        Object.assign(G, { level: { grid: 'square', W: 6, H: 4, locks: [], mirrors: [], springs: [], par: 1 }, paths: [[p(0, 1), p(1, 1)], [p(2, 1), p(3, 1)]], plan: [1, 0],
+          moves: new Map(), history: [], ended: false, loading: false, auto: false, usedAutoSolve: false, clearOutro: null, camera: { zoom: 1, x: 0, y: 0 } });
+        resetFeatures(); resize(); autoSolve(); while (G.moving) update(.001);
+        const start = G.clearOutro, atStart = sounds; update((1 - start) / factor); draw(0);
+        const halfway = { phase: G.clearOutro, sound: sounds, result: $('result').open, hudHidden: document.body.classList.contains('auto-solving') };
+        update(.999 / factor); const beforeEnd = { ended: G.ended, sound: sounds }; update(.002 / factor); draw(0);
+        results.push({ speed, seconds: 2 / factor, atStart, halfway, beforeEnd, ended: G.ended, sounds, finalPhase: G.clearOutro });
+      }
+      return results;
+    });
+    for (const r of results) {
+      assert.equal(r.atStart, 0); assert.ok(Math.abs(r.halfway.phase - 1) < 1e-8);
+      assert.deepEqual({ sound: r.halfway.sound, result: r.halfway.result, hudHidden: r.halfway.hudHidden }, { sound: 0, result: false, hudHidden: true });
+      assert.deepEqual(r.beforeEnd, { ended: false, sound: 0 });
+      assert.equal(r.ended, true); assert.equal(r.sounds, 1); assert.equal(r.finalPhase, 2);
+    }
+    assert.deepEqual(results.map(r => r.seconds), [2, 4, 1]);
+  } finally { await browser.close(); }
+});

@@ -58,3 +58,13 @@ test('exit notes follow the selected song and concurrent sound voices stay bound
   sources.forEach(s => s.onended()); assert.equal(player.state.voices, 0);
   context.currentTime += 1; assert.equal(player.thud(), true); assert.equal(player.state.voices, 2);
 });
+
+test('completion resolves softly in the bass register without the former high arpeggio', () => {
+  const { context, sources } = device(), player = createSoundPlayer(context, {}, { getChord: () => ({ bass: 65 }) });
+  assert.equal(player.win(), true); assert.equal(sources.length, 3);
+  assert.ok(sources.every(s => s.type === 'sine' && s.frequency.value < 150));
+  assert.deepEqual(sources[0].frequency.events, [[70.2, 0], [65, 1.1]]);
+  assert.ok(sources.every(s => s.stopped - s.started >= .8));
+  assert.equal(player.win(), false); player.setEnabled(false);
+  assert.equal(player.state.voices, 0);
+});

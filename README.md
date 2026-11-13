@@ -73,8 +73,10 @@ Other ropes remain tappable while animations run, including on mirror and spring
 boards. Movement commits logically at the tap; each rope keeps its own visual
 route. Tap a bouncing rope again to queue its next move before the flip finishes.
 Auto-solve queues the complete solution immediately, hides the HUD and notices
-until the animation finishes, and awards zero stars;
-earned scores take precedence over auto-solved clears. Undo restores the previous full board and cancels in-flight animations.
+until the animation finishes, and awards zero stars. Its empty grid fades for
+two seconds at Normal speed (four on Slow, one on Fast), then the result appears
+with a soft bass resolution. That tone also replaces the manual victory jingle.
+Earned scores take precedence over auto-solved clears. Undo restores the previous full board and cancels in-flight animations.
 Queued moves yield at shared paths until the earlier rope's tail clears them;
 independent routes still animate together. Every accepted tap gets an immediate
 swish, even while its animation waits. Departures run at half their original

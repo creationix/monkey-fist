@@ -172,7 +172,7 @@ async function start(index) {
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
-    Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
+    Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, clearOutro: null, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resetFeatures(); resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
@@ -295,7 +295,7 @@ function autoSolve() {
   if (!plan.length || !H.replay(G.level, plan, G.paths).solved) {
     seekPlan([], 5000); G.autoSolveRequested = true; notice('Finding a route…'); hud(); return;
   }
-  cancelGuide(); audio(); document.body.classList.add('auto-solving'); clearTimeout(noticeTimer); $('notice').classList.remove('show'); G.usedAutoSolve = true; G.combo = 0; G.hint = -1;
+  cancelGuide(); audio(); document.body.classList.add('auto-solving'); clearTimeout(noticeTimer); $('notice').classList.remove('show'); G.usedAutoSolve = true; G.clearOutro = null; G.combo = 0; G.hint = -1;
   for (const i of plan) if (G.paths[i]) tap(i, true, true);
   G.plan = []; G.auto = true; G.lost = false; hud(); draw(0);
 }
@@ -364,8 +364,10 @@ function update(dt) {
     }
   }
   updateFeatureVisibility(motionDt);
-  if (!G.ended && G.paths.every(p => !p) && !G.moving && !G.featuresFading) finish();
-  else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
+  if (!G.ended && G.paths.every(p => !p) && !G.moving) {
+    if (G.usedAutoSolve) { G.clearOutro = Math.min(2, (G.clearOutro ?? 0) + motionDt); drawNext = true; }
+    if (!G.featuresFading && (!G.usedAutoSolve || G.clearOutro >= 2)) finish();
+  } else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
   if (settled) hud();
 }
 function raw(p, rotated) { const v = H.project(p, G.level); return rotated ? { x: -v.y, y: v.x } : v; }
@@ -624,9 +626,10 @@ function drawGrid() {
     }
     v.grid = { ox: v.ox, oy: v.oy, scale: s, lines, dots };
   }
+  ctx.save(); ctx.globalAlpha *= G.clearOutro == null ? 1 : 1 - G.clearOutro / 2;
   ctx.strokeStyle = save.oled ? '#b3d7d940' : '#b3d7d913';
   ctx.lineWidth = Math.max(.6, Math.min(1, s * .025)); ctx.stroke(v.grid.lines);
-  ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots);
+  ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots); ctx.restore();
 }
 function drawRestingBoard(activeSprings) {
   ctx.clearRect(0, 0, width, height);
@@ -653,7 +656,7 @@ function draw(time) {
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
   const moving = [...G.moves.values()].map(m => m.waiting ? m.serial + '@' + m.progress : m.serial).join(',');
   const features = G.featureLevel === G.level ? [...G.featureStates].map(([key, s]) => key + ':' + (s.alpha === 1 ? 1 : s.alpha === 0 ? 0 : 'fade')).join(';') : '';
-  const key = [G.level, G.paths, G.frozen, features, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
+  const key = [G.level, G.paths, G.frozen, features, G.clearOutro, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }
