@@ -594,29 +594,29 @@ const MFLevels = (() => {
   // candidates (6 ropes, and up to 12 knots and 12 traps while those are wanted), so a level
   // costs a few hundred replays.
   const NO_STOPS = [], KNOT_TRIES = 12; // KNOT_TRIES: tries per step at a knot, and as many again at a trap
-  function weave(rng, cfg) {
-    const W = cfg.W, H = cfg.H, N = W * H, KEPT = -3;
-    const occ = new Int16Array(N).fill(-1); // the board as the level starts; KEPT marks a cell held empty in front of a trap
-    // Fixed mirrors (cfg.mirrors) are passable for moving ropes but no rope may start on one.
-    const MIRROR = -4;
-    const { xy, wayOut, shape, blocked, mirrors } = shaper(occ, W, H, rng, cfg);
-    for (const c of mirrors.keys()) occ[c] = MIRROR;
-    const paths = [], stops = [];           // per rope: where it starts, and the offsets it is meant to slide to before leaving
-    let order = [];                         // the ropes in the order the last replay first tapped them: the order to try them in next time
-    // The board the replay runs on (see boardOf), able to take one more rope at a time.
+  // Marks on the starting board (occ) besides rope ids: a cell being walked, a cell held empty in
+  // front of a trap, and a fixed mirror (passable for moving ropes, but no rope may start on one).
+  const WALKED = -2, KEPT = -3, MIRROR = -4;
+
+  // The board the replay runs on (see boardOf), taking one more rope at a time, each with its
+  // intentions: the offsets it is meant to stop at, in order, before it leaves. replay() plays
+  // them out (see above) and records each rope's block cost, the rope its last wait was for, the
+  // taps made and their total block cost.
+  function intentionBoard(W, H, mirrors) {
+    const N = W * H;
     const b = { n: 0, left: 0, occ: new Int16Array(N), at: new Int16Array(N), seq: [], len: new Int16Array(N), off: new Int16Array(N), was: new Int16Array(N), now: new Int16Array(N) };
-    const add = (path, st) => {
+    const paths = [], stops = [], cost = new Int16Array(N), dep = new Int16Array(N);
+    const cellAt = new Int16Array(N), ropeAt = new Int16Array(N), cellBy = new Int16Array(N), done = new Uint8Array(N);
+    const self = { b, paths, stops, cost, dep, taps: [], costSum: 0 };
+    self.add = (path, st) => {
       const h = path[path.length - 1], d = headDir(path), q = path.map(c => c.y * W + c.x);
       if (mirrors.size) { if (!rayCells(h.x, h.y, d[0], d[1], W, H, mirrors, q)) throw Error('Unchecked looping track'); }
       else for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) q.push(y * W + x);
       b.seq[b.n] = Int16Array.from(q); b.len[b.n] = path.length; paths[b.n] = path; stops[b.n] = st;
       return b.n++;
     };
-    const drop = () => { b.n--; b.seq.length = paths.length = stops.length = b.n; };
-    const setUp = () => { b.occ.fill(-1); b.left = 0; for (let i = 0; i < b.n; i++) { b.off[i] = -1; place(b, i, 0); } };
-    // What the last replay found: each rope's block cost, the rope its last wait was for, the taps, and the total.
-    const cost = new Int16Array(N), dep = new Int16Array(N), cellAt = new Int16Array(N), ropeAt = new Int16Array(N), cellBy = new Int16Array(N), done = new Uint8Array(N);
-    let taps = [], costSum = 0;
+    self.drop = () => { b.n--; b.seq.length = paths.length = stops.length = b.n; };
+    self.setUp = () => { b.occ.fill(-1); b.left = 0; for (let i = 0; i < b.n; i++) { b.off[i] = -1; place(b, i, 0); } };
     // Tap rope i if that does what is meant for it next. True if it moved.
     const tap = i => {
       const q = b.seq[i], L = b.len[i], from = b.off[i];
@@ -628,16 +628,16 @@ const MFLevels = (() => {
       lay++;
       for (let c = from, end = to < 0 ? from + L : Math.min(from + L, to); c < end; c++) { cellAt[q[c]] = lay; cellBy[q[c]] = i; }
       place(b, i, to);
-      ropeAt[i] = lay; taps.push(i);
-      if (to < 0) { cost[i] = lay; dep[i] = by; costSum += lay; } else done[i]++;
+      ropeAt[i] = lay; self.taps.push(i);
+      if (to < 0) { cost[i] = lay; dep[i] = by; self.costSum += lay; } else done[i]++;
       return true;
     };
     // Play the board out. `list` is the order to try the ropes in; `fresh`, if given, is a rope
     // just added, which is tried again after every tap so that it goes as early as it can.
-    const replay = (list, fresh) => {
-      setUp();
+    self.replay = (list, fresh) => {
+      self.setUp();
       cellAt.fill(-1); ropeAt.fill(-1, 0, b.n); done.fill(0, 0, b.n);
-      taps = []; costSum = 0;
+      self.taps = []; self.costSum = 0;
       for (let moved = true; moved && b.left;) {
         moved = false;
         for (const i of list) {
@@ -646,20 +646,67 @@ const MFLevels = (() => {
       }
       return b.left === 0;
     };
-    // The total block cost if this rope were added, or -1 if the board would no longer play out.
-    const trial = (path, st) => {
-      const id = add(path, st), ok = replay([id].concat(order), id), sum = costSum;
-      drop();
+    // The total block cost if this rope were added, tried first and then in `order`, or -1 if the
+    // board would no longer play out.
+    self.trial = (path, st, order) => {
+      const id = self.add(path, st), ok = self.replay([id].concat(order), id), sum = self.costSum;
+      self.drop();
       return ok ? sum : -1;
     };
+    return self;
+  }
+
+  // Where a knot or trap could go on the starting board `occ`: an empty cell for the head and a
+  // direction, with something to stop against directly ahead (and how much straight room there is
+  // behind), or a rope a gap ahead. `tight` spots are against a rope that is there now; `chain`
+  // spots are against the place another knot will come to rest (rest[cell]), so that the two have
+  // to be slid in the right order; `gapped` spots have a rope a short gap ahead.
+  function knotSpots(occ, rest, W, H, mirrors, pull) {
+    const tight = [], chain = [], gapped = [];
+    for (let c = 0; c < W * H; c++) {
+      if (occ[c] !== -1) continue;
+      const x = c % W, y = c / W | 0;
+      for (let di = 0; di < 4; di++) {
+        const d = DIRS[di], ax = x + d[0], ay = y + d[1];
+        if (ax < 0 || ay < 0 || ax >= W || ay >= H) continue;
+        const o = occ[ay * W + ax], against = o === -1 ? rest[ay * W + ax] : -1;
+        if (o >= 0 || against >= 0) {
+          let room = 0, bx = x - d[0], by = y - d[1];
+          while (room <= pull && bx >= 0 && by >= 0 && bx < W && by < H && occ[by * W + bx] === -1) { room++; bx -= d[0]; by -= d[1]; }
+          if (room >= 2) (o >= 0 ? tight : chain).push({ c, di, room, against });
+          continue;
+        }
+        if (mirrors.size) { // the gap follows the bending way out; mirror cells in it stay passable
+          const ahead = rayCells(x, y, d[0], d[1], W, H, mirrors); if (!ahead) continue;
+          let gap = 0; while (gap < ahead.length && gap <= pull && (occ[ahead[gap]] === -1 || occ[ahead[gap]] === MIRROR)) gap++;
+          if (gap && gap <= pull && gap < ahead.length && occ[ahead[gap]] >= 0) gapped.push({ c, di, gap });
+          continue;
+        }
+        let gap = 0, nx = ax, ny = ay;
+        while (gap <= pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) { gap++; nx += d[0]; ny += d[1]; }
+        if (gap && gap <= pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] >= 0) gapped.push({ c, di, gap });
+      }
+    }
+    return { tight, chain, gapped };
+  }
+
+  function weave(rng, cfg) {
+    const W = cfg.W, H = cfg.H, N = W * H;
+    const occ = new Int16Array(N).fill(-1); // the board as the level starts
+    const { xy, wayOut, shape, blocked, mirrors } = shaper(occ, W, H, rng, cfg);
+    for (const c of mirrors.keys()) occ[c] = MIRROR;
+    const ib = intentionBoard(W, H, mirrors), { b, paths, stops, cost, dep } = ib;
+    let order = [];                         // the ropes in the order the last replay first tapped them: the order to try them in next time
+    const trial = (path, st) => ib.trial(path, st, order);
     let total0 = 0, bendSum = 0, covered = 0, knots = 0, traps = 0; // total0: the block cost total of the board as it stands
     const mirrorUsed = new Set();
+    const rest = new Int16Array(N).fill(-1); // rest[cell]: the knot that will come to rest on this cell, which is empty for now
     const commit = c => {
-      const id = add(c.first || c.path, c.first ? [c.pull] : NO_STOPS);
+      const id = ib.add(c.first || c.path, c.first ? [c.pull] : NO_STOPS);
       if (mirrors.size) for (const cell of b.seq[id]) if (mirrors.has(cell)) mirrorUsed.add(cell);
-      replay([id].concat(order), id);
-      total0 = costSum;
-      order = []; for (const i of taps) if (!order.includes(i)) order.push(i);
+      ib.replay([id].concat(order), id);
+      total0 = ib.costSum;
+      order = []; for (const i of ib.taps) if (!order.includes(i)) order.push(i);
       for (const p of paths[id]) occ[p.y * W + p.x] = id;
       covered += paths[id].length; bendSum += c.bends;
       if (c.first) { knots++; for (const cell of c.rest) rest[cell] = id; }
@@ -721,40 +768,6 @@ const MFLevels = (() => {
       return { path: c.path, lane: c.lane, gain: sum - total0, bends: bendsOf(c.path) };
     };
 
-    // Knots and traps. spots() lists where either could go: an empty cell for the head and a
-    // direction, with something to stop against directly ahead (and how much straight room there
-    // is behind), or a rope a gap ahead. `tight` spots are against a rope that is there now;
-    // `chain` spots are against the place another knot will come to rest, so that the two have to
-    // be slid in the right order; `gapped` spots have a rope a short gap ahead.
-    const rest = new Int16Array(N).fill(-1); // rest[cell]: the knot that will come to rest on this cell, which is empty for now
-    const spots = () => {
-      const tight = [], chain = [], gapped = [];
-      for (let c = 0; c < N; c++) {
-        if (occ[c] !== -1) continue;
-        const x = c % W, y = c / W | 0;
-        for (let di = 0; di < 4; di++) {
-          const d = DIRS[di], ax = x + d[0], ay = y + d[1];
-          if (ax < 0 || ay < 0 || ax >= W || ay >= H) continue;
-          const o = occ[ay * W + ax], against = o === -1 ? rest[ay * W + ax] : -1;
-          if (o >= 0 || against >= 0) {
-            let room = 0, bx = x - d[0], by = y - d[1];
-            while (room <= cfg.pull && bx >= 0 && by >= 0 && bx < W && by < H && occ[by * W + bx] === -1) { room++; bx -= d[0]; by -= d[1]; }
-            if (room >= 2) (o >= 0 ? tight : chain).push({ c, di, room, against });
-            continue;
-          }
-          if (mirrors.size) { // the gap follows the bending way out; mirror cells in it stay passable
-            const ahead = rayCells(x, y, d[0], d[1], W, H, mirrors); if (!ahead) continue;
-            let gap = 0; while (gap < ahead.length && gap <= cfg.pull && (occ[ahead[gap]] === -1 || occ[ahead[gap]] === MIRROR)) gap++;
-            if (gap && gap <= cfg.pull && gap < ahead.length && occ[ahead[gap]] >= 0) gapped.push({ c, di, gap });
-            continue;
-          }
-          let gap = 0, nx = ax, ny = ay;
-          while (gap <= cfg.pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] === -1) { gap++; nx += d[0]; ny += d[1]; }
-          if (gap && gap <= cfg.pull && nx >= 0 && ny >= 0 && nx < W && ny < H && occ[ny * W + nx] >= 0) gapped.push({ c, di, gap });
-        }
-      }
-      return { tight, chain, gapped };
-    };
     // Mark every rope the ropes in `blockers` are waiting on, directly or down a chain. A cell is
     // `tied` if one of them has its way out through it: a rope lying there would close a loop.
     const mark = new Int32Array(N + 1); let stamp = 0;
@@ -772,7 +785,7 @@ const MFLevels = (() => {
     const walk = (spot, k) => {
       const back = (spot.di + 2) % 4, want = Math.max(k + 2, cfg.lenLo + Math.floor(rng() * (cfg.lenHi - cfg.lenLo + 1))), cells = [spot.c], tail = [];
       let last = back, got = false;
-      occ[spot.c] = -2;
+      occ[spot.c] = WALKED;
       while (cells.length + tail.length < want + k) {
         const body = cells.length < want, c = body || !tail.length ? cells[cells.length - 1] : tail[tail.length - 1], x = c % W, y = c / W | 0, opts = [];
         for (let di = 0; di < 4; di++) {
@@ -790,7 +803,7 @@ const MFLevels = (() => {
         }
         last = di;
         const nc = (y + DIRS[di][1]) * W + x + DIRS[di][0];
-        occ[nc] = -2;
+        occ[nc] = WALKED;
         if (body) cells.push(nc); else { tail.push(nc); if (tied(nc)) got = true; }
       }
       for (const c of cells) occ[c] = -1;
@@ -823,99 +836,122 @@ const MFLevels = (() => {
       if (!w) return null;
       const path = w.cells.map(xy).reverse(), sum = trial(path, NO_STOPS);
       if (sum < 0) return null;
-      const id = add(path, NO_STOPS);
-      setUp(); place(b, id, spot.gap);
+      const id = ib.add(path, NO_STOPS);
+      ib.setUp(); place(b, id, spot.gap);
       const dead = relax(b);
-      drop();
+      ib.drop();
       return dead ? { path, gap, gain: sum - total0, bends: bendsOf(path) } : null;
     };
+
     const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
     const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
-    // Optional simultaneous core. Unlike the ordinary backwards additions, a
-    // core can prescribe several successive stops for the same strand.
-    if (cfg.initialRopes?.length) {
+    // Optional simultaneous core. Unlike the ordinary backwards additions, a core can prescribe
+    // several successive stops for the same strand. False if the core does not fit or play out.
+    function seedCore() {
       const occupied = new Set();
       for (let i = 0; i < cfg.initialRopes.length; i++) {
         const path = cfg.initialRopes[i];
-        if (path.length < 2 || path.some(p => p.x < 0 || p.y < 0 || p.x >= W || p.y >= H || occupied.has(p.y * W + p.x))) return null;
+        if (path.length < 2 || path.some(p => p.x < 0 || p.y < 0 || p.x >= W || p.y >= H || occupied.has(p.y * W + p.x))) return false;
         for (const p of path) occupied.add(p.y * W + p.x);
-        add(path.map(p => ({ x: p.x, y: p.y })), (cfg.initialStops?.[i] || []).slice());
+        ib.add(path.map(p => ({ x: p.x, y: p.y })), (cfg.initialStops?.[i] || []).slice());
       }
       order = cfg.initialPlan?.slice() || paths.map((_, i) => i);
-      if (!replay(order, -1)) return null;
-      total0 = costSum; bendSum = paths.reduce((sum, path) => sum + bendsOf(path), 0);
+      if (!ib.replay(order, -1)) return false;
+      total0 = ib.costSum; bendSum = paths.reduce((sum, path) => sum + bendsOf(path), 0);
       covered = occupied.size; knots = stops.filter(stop => stop.length).length;
       for (let i = 0; i < paths.length; i++) {
         for (const p of paths[i]) occ[p.y * W + p.x] = i;
         for (const offset of stops[i]) for (let j = b.len[i]; j < b.len[i] + offset; j++) if (occ[b.seq[i][j]] === -1) rest[b.seq[i][j]] = i;
       }
-      order = [...new Set(taps)];
+      order = [...new Set(ib.taps)];
+      return true;
     }
-    // Lay ropes, steering the score: pace it to arrive in its
-    // slot about when the board is full, keep the average block cost up near wantAvg, never add
-    // more than the slot allows, never add a rope the depth floor could not afford.
-    let stuck = 0;
-    for (let guard = 0; guard < 2 * N; guard++) {
-      const n = b.n, score = total0 + bendSum;
-      if (cfg.ropeCount && n >= cfg.ropeCount) break;
-      if (!cfg.ropeCount && score >= sMin && n >= MIN_ROPES && covered >= coverGoal) break;
-      const budget = sMax - score;
-      const room = Math.max(1, (coverGoal - covered) / meanLen);
+    // Lay ropes, steering the score: pace it to arrive in its slot about when the board is full,
+    // keep the average block cost up near wantAvg, never add more than the slot allows, never add
+    // a rope the depth floor could not afford.
+    function layRopes() {
+      for (let guard = 0, stuck = 0; guard < 2 * N; guard++) {
+        const score = total0 + bendSum;
+        if (cfg.ropeCount ? b.n >= cfg.ropeCount : score >= sMin && b.n >= MIN_ROPES && covered >= coverGoal) break;
+        const best = nextAddition(score);
+        if (!best) { if (++stuck > MAX_STUCK) break; continue; }
+        stuck = 0; commit(best);
+      }
+    }
+    // The next rope, knot or trap to add, or null if none fits.
+    function nextAddition(score) {
+      const n = b.n, budget = sMax - score, room = Math.max(1, (coverGoal - covered) / meanLen);
       const pace = ((sMin + sMax) / 2 - score) / room - cfg.bends, depth = cfg.wantAvg * (n + 1) - total0;
       const desire = cfg.tapDepth ?? Math.max(0, Math.min(budget, Math.round(Math.max(pace, depth))));
-      const need = sMin - score;
-      const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
       survey();
       const fits = c => c && c.gain + c.bends <= budget && cfg.floor * (n + 1) + bendSum + c.bends <= sMax;
-      let best = null, bestMiss = Infinity;
-      // While the level still wants knots or traps, try for one first, spreading them over the build.
-      // Places for them are scarce, so one that fits is taken. Whichever kind the level is shorter of
-      // gets the first tries.
+      return knotOrTrap(n, room, fits) || bestRope(n, budget, desire, sMin - score, fits);
+    }
+    // While the level still wants knots or traps, try for one first, spreading them over the build.
+    // Places for them are scarce, so one that fits is taken. Whichever kind the level is shorter of
+    // gets the first tries.
+    function knotOrTrap(n, room, fits) {
       const wantKnots = cfg.tie - knots, wantTraps = cfg.bait - traps;
-      if (n >= 2 && (wantKnots > 0 || wantTraps > 0) && rng() < 2 * (wantKnots + wantTraps) / room) {
-        const sp = spots(), knotFirst = wantKnots > 0 && (wantTraps <= 0 || knots <= traps);
-        for (let k = 0; k < 2 * KNOT_TRIES && !best; k++) {
-          const isKnot = k < KNOT_TRIES ? knotFirst : !knotFirst;
-          if ((isKnot ? wantKnots : wantTraps) <= 0) { k = k < KNOT_TRIES ? KNOT_TRIES - 1 : 2 * KNOT_TRIES; continue; }
-          // A knot goes against another knot's resting place half the time, if there is one.
-          const list = !isKnot ? sp.gapped : sp.chain.length && (rng() < 0.5 || !sp.tight.length) ? sp.chain : sp.tight;
-          if (!list.length) continue;
-          const spot = list[Math.floor(rng() * list.length)], c = isKnot ? knot(spot) : trap(spot);
-          if (fits(c)) best = c;
-        }
+      if (n < 2 || wantKnots <= 0 && wantTraps <= 0 || !(rng() < 2 * (wantKnots + wantTraps) / room)) return null;
+      const sp = knotSpots(occ, rest, W, H, mirrors, cfg.pull), knotFirst = wantKnots > 0 && (wantTraps <= 0 || knots <= traps);
+      for (let k = 0; k < 2 * KNOT_TRIES; k++) {
+        const isKnot = k < KNOT_TRIES ? knotFirst : !knotFirst;
+        if ((isKnot ? wantKnots : wantTraps) <= 0) { k = k < KNOT_TRIES ? KNOT_TRIES - 1 : 2 * KNOT_TRIES; continue; }
+        // A knot goes against another knot's resting place half the time, if there is one.
+        const list = !isKnot ? sp.gapped : sp.chain.length && (rng() < 0.5 || !sp.tight.length) ? sp.chain : sp.tight;
+        if (!list.length) continue;
+        const spot = list[Math.floor(rng() * list.length)], c = isKnot ? knot(spot) : trap(spot);
+        if (fits(c)) return c;
       }
-      // While some mirror lies on no rope's way out, aim one try per step at it.
+      return null;
+    }
+    // The best of a few ropes for this step: closest to the wanted gain, preferring long lanes when
+    // deep ropes are wanted, one that lands the score in its slot, and one that brings an idle
+    // mirror into play (while any lies on no rope's way out, one try per step aims at it).
+    function bestRope(n, budget, desire, need, fits) {
+      const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
       const aim = mirrors.size > mirrorUsed.size && b.n >= 1;
-      for (let k = best ? TRIES_PER_STEP : 0; k < TRIES_PER_STEP; k++) {
+      let best = null, bestMiss = Infinity;
+      for (let k = 0; k < TRIES_PER_STEP; k++) {
         const c = candidate(aim && k === 0 ? 'mirror' : kinds[k % kinds.length], -1);
         if (!fits(c)) continue;
         const lands = need > 0 && c.gain + c.bends >= need && covered + c.path.length >= MIN_COVERAGE_SLIDE * N;
-        const reaches = aim && c.lane.cells.some(cell => mirrors.has(cell) && !mirrorUsed.has(cell)); // brings an idle mirror into play
+        const reaches = aim && c.lane.cells.some(cell => mirrors.has(cell) && !mirrorUsed.has(cell));
         const miss = Math.abs(c.gain - desire) + rng() * 0.6 - (desire >= 2 ? Math.min(c.lane.free, 4) * 0.2 : 0) - (lands ? 100 : 0) - (reaches ? 1.5 : 0);
         if (miss < bestMiss) { best = c; bestMiss = miss; }
       }
-      if (!best) { if (++stuck > MAX_STUCK) break; continue; }
-      stuck = 0; commit(best);
+      return best;
     }
     // Pack the gaps: go round the cells still empty and fit a rope into each that will take one.
-    for (let sweep = 0; sweep < 2; sweep++) {
-      const empty = [];
-      for (let c = 0; c < N; c++) if (occ[c] === -1) empty.push(c);
-      for (let i = empty.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = empty[i]; empty[i] = empty[j]; empty[j] = t; }
-      for (const cell of empty) {
-        if (cfg.ropeCount && b.n >= cfg.ropeCount) break;
-        if (occ[cell] !== -1) continue;
-        const n = b.n, budget = sMax - total0 - bendSum;
-        for (let t = 0; t < 3; t++) {
-          const c = candidate(budget < 1 ? 'plain' : 'any', cell);
-          if (!c || c.gain + c.bends > budget || cfg.floor * (n + 1) + bendSum + c.bends > sMax) continue;
-          commit(c); break;
+    function packGaps() {
+      for (let sweep = 0; sweep < 2; sweep++) {
+        const empty = [];
+        for (let c = 0; c < N; c++) if (occ[c] === -1) empty.push(c);
+        for (let i = empty.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = empty[i]; empty[i] = empty[j]; empty[j] = t; }
+        for (const cell of empty) {
+          if (cfg.ropeCount && b.n >= cfg.ropeCount) break;
+          if (occ[cell] !== -1) continue;
+          const n = b.n, budget = sMax - total0 - bendSum;
+          for (let t = 0; t < 3; t++) {
+            const c = candidate(budget < 1 ? 'plain' : 'any', cell);
+            if (!c || c.gain + c.bends > budget || cfg.floor * (n + 1) + bendSum + c.bends > sMax) continue;
+            commit(c); break;
+          }
         }
       }
     }
+
+    if (cfg.initialRopes?.length && !seedCore()) return null;
+    layRopes();
+    packGaps();
     const n = b.n;
-    if (n < (cfg.ropeCount ? 2 : MIN_ROPES) || cfg.ropeCount && n !== cfg.ropeCount || !replay(order, -1)) return null;
-    const costs = Array.from(cost.subarray(0, n)), solution = taps.slice();
+    if (n < (cfg.ropeCount ? 2 : MIN_ROPES) || cfg.ropeCount && n !== cfg.ropeCount || !ib.replay(order, -1)) return null;
+    return finished(cfg, W, H, mirrors, ib, total0 + bendSum);
+  }
+  // The finished level from a woven board that plays out: trimmed to its ropes (unless its
+  // bounds are kept), checked, and measured. Null if it is too sparse or too loose.
+  function finished(cfg, W, H, mirrors, ib, score) {
+    const n = ib.b.n, paths = ib.paths, stops = ib.stops, costs = Array.from(ib.cost.subarray(0, n)), solution = ib.taps.slice();
     // Trim away empty outer rows and columns, and keep the board portrait.
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
@@ -938,7 +974,7 @@ const MFLevels = (() => {
       const to = slideTo(fin, i);
       if (to > 0) { place(fin, i, to); if (relax(fin)) fatal++; place(fin, i, 0); }
     }
-    return { W: w, H: h, ropes, costs, score: total0 + bendSum, taps: solution, slides: solution.length - n, knots: tiedUp, traps: fatal, ...(cfg.initialRopes?.length ? { seededRopes: cfg.initialRopes.length, seededSlides: cfg.initialStops.reduce((sum, stops) => sum + stops.length, 0) } : {}) };
+    return { W: w, H: h, ropes, costs, score, taps: solution, slides: solution.length - n, knots: tiedUp, traps: fatal, ...(cfg.initialRopes?.length ? { seededRopes: cfg.initialRopes.length, seededSlides: cfg.initialStops.reduce((sum, stops) => sum + stops.length, 0) } : {}) };
   }
 
   // Knots, and as many traps, a level is built with for its difficulty (fewer if the board will
