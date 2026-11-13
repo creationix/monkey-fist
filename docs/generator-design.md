@@ -2,7 +2,7 @@
 
 This document separates the game we want from the methods currently used to
 build it. The implementation described here is the grid-size generator used by
-`J3` Journey and `U3` Custom sets, with generation revision 4. Older shared set
+`J3` Journey and `U3` Custom sets, with generation revision 5. Older shared set
 codes retain their legacy generators. Goals describe intended player experience;
 techniques describe implemented rules and heuristics, including their limits.
 
@@ -217,10 +217,10 @@ cannot move every mechanic level into the middle of the campaign.
 | 4–12 | 9 | 7 | 7 |
 
 A level with both mechanics counts in both columns. Later chapters keep one
-plain-rules interlude and finish on a featured puzzle. For this revision, the opening ten maps keep
-their established geometry and mixed ordering as a temporary regression baseline.
-Freezing those particular layouts is not a product goal; future generators should
-reproduce the same quality of small, dense, varied and nontrivial openings.
+plain-rules interlude and finish on a featured puzzle. Every Journey source slot is derived from the master seed, including the opening
+ten. The seed controls the grid mix, dimensions and candidate retry seeds. A shared
+difficulty curve supplies each source slot’s target. Opening candidates must pass small-board quality checks; their
+particular layouts and seeds are never listed in the source.
 
 From chapter 4, enabled mechanics require at least three actually turning
 mirrors or two distinct actually used spinners. The checks inspect the final

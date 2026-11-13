@@ -50,17 +50,20 @@ test('twenty low-difficulty seeds per grid retain the ratio floor and varied den
 test('the opening Journey has no below-floor or concealed one-tap fan levels', { timeout: 120000 }, () => {
   const metadata = require('../grid-journey');
   assert.ok(metadata.every(level => level.par * 3 >= level.ropeCount), 'all Journey targets satisfy the same minimum ratio');
-  const intro = metadata.slice(0, 10), sources = ['S35S00','2VR5EZ','1P3S0GT','QMYSAQ','G1XW18','1PVNBFB','14016LY','ESMK0X','PV3HC8','1QT5MJ7'];
-  assert.deepEqual(intro.map(level => level.introSource).sort((a,b) => a-b), [...Array(10).keys()], 'reordering retains each original introductory puzzle exactly once');
-  assert.equal(intro.filter(level => level.requireSlide).length, 3, 'the three partial-slide lessons remain in the introductory set');
+  const intro = metadata.slice(0, 10);
+  assert.deepEqual(intro.map(level => level.slot).sort((a,b)=>a-b), [...Array(10).keys()], 'each seeded opening slot is represented once');
+  assert.ok(intro.some(level=>level.requireSlide),'some opening puzzles require a partial slide');
   assert.equal(intro.filter(level => level.grid === 'square').length, 5);
-  if (intro.some(level => level.introChallenge != null)) {
-    assert.ok(intro.every(level => Number.isFinite(level.introChallenge)));
-    for (let i = 1; i < intro.length; i++) assert.ok(intro[i-1].introChallenge <= intro[i].introChallenge, 'changing grid geometry does not restart the difficulty curve');
-  }
+  assert.ok(intro.every(level => Number.isFinite(level.openingChallenge)));
+  for (let i = 1; i < intro.length; i++) assert.ok(intro[i-1].openingChallenge <= intro[i].openingChallenge, 'changing grid geometry does not restart the difficulty curve');
   for (let index = 0; index < 10; index++) {
     const board = G.generate({ ...G.DEFAULT, index }), played = verify(board);
-    assert.equal(board.seed, sources[intro[index].introSource], 'source identity keeps previous level progress attached to the same puzzle');
+    assert.equal(board.seed,intro[index].seed);
+    assert.equal(board.journeySeed,G.DEFAULT.seed);
+    assert.equal(G.allFree(board,board.ropes),false);
+    const rebuilt=require('../grid-generator').generate(intro[index],G);
+    assert.deepEqual(rebuilt.ropes,board.ropes,'the stored seeded settings regenerate each opening board');
+    assert.equal(G.layoutKey(rebuilt),intro[index].layoutKey);
     assert.ok(board.ropes.length <= 5, 'introductory boards keep the number of ropes manageable');
     if (intro[index].requireSlide) assert.ok(played.events.includes('slide'), 'designated introductions demonstrate a partial slide before release');
     assert.equal(board.par, metadata[index].par);

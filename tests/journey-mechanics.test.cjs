@@ -27,11 +27,6 @@ function observedUse(b) {
   assert.ok(paths.every(p => !p));
   return { usedMirrors:turned.size, usedSprings:bounced.size, manualMirrors:manualTurns.size, manualSprings:manualBounces.size, bounceActions };
 }
-const originalIntroKeys = {
-  0:'wc4klj-fsbag5', 1:'7ka4pd-11dvd6j', 2:'17nc4lr-l4lawt', 3:'32i8j9-prmp33', 4:'9jkn6z-pvi8bd',
-  5:'1vd9cy1-rqv90v', 6:'nl7yuv-1y42v1l', 7:'14ezvae-stj7es', 8:'19up6wq-1kscun0', 9:'mznpy2-1688lh0',
-};
-
 test('mechanics appear early and remain represented in every later Journey chapter', () => {
   const levels = require('../grid-journey'); assert.equal(levels.length,120);
   const firstMirror = levels.findIndex(b => b.mirrors)+1, firstSpring = levels.findIndex(b => b.springs)+1;
@@ -83,14 +78,47 @@ test('later mechanic tiles are used by the final manual solution, not placed as 
   }
 });
 
-test('the ten introductory maps keep their layout identities while later mechanics change', { timeout: 60000 }, () => {
-  const levels = require('../grid-journey'), intro = levels.slice(0,10);
-  assert.deepEqual(intro.map(b => b.introSource).sort((a,b) => a-b),[...Array(10).keys()]);
+test('the opening is seeded, varied, compact and nontrivial without pinned layout identities', { timeout: 60000 }, () => {
+  const levels = require('../grid-journey'), opening = levels.slice(0,10);
+  assert.equal(new Set(opening.map(b=>b.grid)).size,2);
+  assert.ok(new Set(opening.map(b=>b.W+'x'+b.H)).size>=2);
+  assert.equal(new Set(opening.map(b=>b.layoutKey)).size,10);
   for (let index = 0; index < 10; index++) {
-    const metadata = intro[index], b = G.generate({ ...G.DEFAULT,index });
-    assert.equal(metadata.layoutKey,originalIntroKeys[metadata.introSource]);
-    assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
+    const metadata = opening[index], b = G.generate({ ...G.DEFAULT,index });
+    assert.equal(metadata.journeySeed,G.DEFAULT.seed);
+    assert.equal(Object.hasOwn(metadata,'introSource'),false);
+    assert.ok(b.ropes.length<=5); assert.ok(b.W*b.H<=48);
     assert.equal(b.mirrors.length,0); assert.equal(b.springs.length,0);
+    assert.equal(G.allFree(b,b.ropes),false,'an opening board starts with an actual blocked rope');
+    assert.ok(b.par*3>=b.ropes.length);
+    assert.equal(G.replay(b,b.plan).solved,true);
+    assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
+    if(metadata.requireSlide) assert.ok(b.slideStats.manualSlides>0);
+  }
+  const again=G.generate({...G.DEFAULT,index:0});
+  assert.equal(again.layoutKey,opening[0].layoutKey);
+});
+
+test('the master seed deterministically derives every Journey slot, including the opening', () => {
+  const {execFileSync}=require('node:child_process'),path=require('node:path');
+  const script=path.join(__dirname,'../scripts/build-grid-journey.cjs');
+  const plan=seed=>JSON.parse(execFileSync(process.execPath,[script,'--seed',seed,'--plan'],{encoding:'utf8'}));
+  const first=plan('MONKEYFIST'),same=plan('MONKEYFIST'),different=plan('ANOTHERSEED');
+  assert.deepEqual(first,same);
+  const specs=first.flatMap(chapter=>chapter.specs),other=different.flatMap(chapter=>chapter.specs);
+  assert.equal(specs.length,120);assert.equal(other.length,120);
+  for(let i=0;i<120;i++) {
+    assert.equal(specs[i].journeySeed,'MONKEYFIST');assert.equal(other[i].journeySeed,'ANOTHERSEED');
+    assert.notEqual(specs[i].seed,other[i].seed,'changing the master seed changes every slot’s initial map seed');
+    assert.equal(Object.hasOwn(specs[i],'introSource'),false);
+  }
+  const levels=require('../grid-journey');
+  for(let chapter=1;chapter<=12;chapter++) {
+    const cards=levels.filter(b=>b.chapter===chapter);
+    assert.equal(cards.length,10);
+    assert.deepEqual(cards.map(b=>b.slot).sort((a,b)=>a-b),Array.from({length:10},(_,i)=>i));
+    assert.ok(cards.every(b=>b.journeySeed==='MONKEYFIST'));
+    assert.ok(cards.every(b=>Number.isInteger(b.seedAttempt)&&b.seedAttempt>=0));
   }
 });
 

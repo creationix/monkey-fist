@@ -12,7 +12,7 @@
   const J = node ? require('./journey.js') : root.MFJourney;
   const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
   const K = node ? require('./grid-journey.js') : root.MFGridJourney;
-  const VERSION = 1, GRID_VERSION = 4;
+  const VERSION = 1, GRID_VERSION = 5;
   const LEGACY_DEFAULT = { kind: 'journey', revision: 1, seed: 'MONKEYFIST', grid: 'mixed', count: 120, min: 1, max: 100, mirrors: true, springs: true };
   const ROPE_DEFAULT = { ...LEGACY_DEFAULT, revision: 2, sizeMin: 4, sizeMax: 60 };
   const DEFAULT = { ...LEGACY_DEFAULT, revision: 3, width: 10, height: 14 };
