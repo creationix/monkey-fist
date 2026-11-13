@@ -450,6 +450,27 @@ function drawMirrors(activeSprings) {
   }
   for (const spring of G.level.springs || []) if (!activeSprings.has(spring.q + ',' + spring.r)) drawSpring(spring);
 }
+function drawGrid() {
+  const v = G.view, s = v.scale;
+  if (!v.grid || v.grid.ox !== v.ox || v.grid.oy !== v.oy || v.grid.scale !== s) {
+    const cells = H.cells(G.level), points = new Map(cells.map(p => [p.q + ',' + p.r, screen(p)]));
+    const directions = G.level.grid === 'hex' ? H.DIRS.slice(0, 3) : [[1, 0], [0, 1]];
+    const lines = new Path2D(), dots = new Path2D(), radius = Math.max(1.2, s * .035);
+    for (const p of cells) {
+      const at = points.get(p.q + ',' + p.r);
+      dots.moveTo(at.x + radius, at.y); dots.arc(at.x, at.y, radius, 0, Math.PI * 2);
+      // One half of the directions draws each valid neighbor link exactly once.
+      for (const [dq, dr] of directions) {
+        const next = points.get((p.q + dq) + ',' + (p.r + dr));
+        if (next) { lines.moveTo(at.x, at.y); lines.lineTo(next.x, next.y); }
+      }
+    }
+    v.grid = { ox: v.ox, oy: v.oy, scale: s, lines, dots };
+  }
+  ctx.strokeStyle = save.oled ? '#b3d7d940' : '#b3d7d913';
+  ctx.lineWidth = Math.max(.6, Math.min(1, s * .025)); ctx.stroke(v.grid.lines);
+  ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots);
+}
 function drawRestingBoard(activeSprings) {
   ctx.clearRect(0, 0, width, height);
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
@@ -458,8 +479,7 @@ function drawRestingBoard(activeSprings) {
   surface.addColorStop(0, save.oled ? '#ffffff04' : '#ffffff0c'); surface.addColorStop(1, save.oled ? '#ffffff02' : '#ffffff06');
   ctx.fillStyle = surface; ctx.fill(board); ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1.5; ctx.stroke(board);
   ctx.save(); ctx.clip(board);
-  ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c';
-  for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
+  drawGrid();
   drawMirrors(activeSprings);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i) && i !== G.hint && i !== G.selected && i !== G.bump?.i) drawRope(i, 0);
   ctx.restore();
