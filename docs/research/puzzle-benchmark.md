@@ -157,3 +157,6 @@ Useful next experiments are separate knot, trap and pull-budget ablations;
 comparison of candidate-selection objectives; and small playtests that record
 completion, excess taps and undo use. An independent reflected-track solver
 prototype can be checked against `rules.tap` before attempting a shared builder.
+
+An [initial comparison with raw results](benchmark-results/README.md) records the
+first fixed-seed pilot across both research baselines and the current generator.
