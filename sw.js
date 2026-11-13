@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v87';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=10', './input.js?v=3', './app.js?v=43', './difficulty.js?v=1', './journey.js?v=1', './dependency-metrics.js?v=1', './grid-generator.js?v=6', './grid-journey.js?v=7', './game-engine.js?v=15', './generator-worker.js?v=18', './rope-art.js?v=9', './random.js?v=1', './levels.js?v=35', './mechanics.js?v=31', './twist-circuits.js?v=39', './twists.js?v=33', './music.js?v=32', './sounds.js?v=9', './audio.js?v=2', './hex/', './hex/index.html', './hex/engine.js?v=11', './hex/mirrors.js?v=9', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v88';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=10', './input.js?v=3', './app.js?v=44', './dependency-metrics.js?v=1', './grid-generator.js?v=6', './grid-journey.js?v=8', './game-engine.js?v=16', './generator-worker.js?v=19', './rope-art.js?v=9', './random.js?v=1', './levels.js?v=35', './mechanics.js?v=31', './twist-circuits.js?v=39', './music.js?v=32', './sounds.js?v=9', './audio.js?v=3', './hex/engine.js?v=11', './hex/mirrors.js?v=9', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
@@ -26,6 +26,6 @@ self.addEventListener('fetch', e => {
         if (res.status >= 500) return caches.match(req, { ignoreSearch: true }).then(hit => hit || res);
         return res;
       })
-      .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || (req.mode === 'navigate' ? caches.match(new URL(req.url).pathname.startsWith(new URL('./hex/', self.location).pathname) ? './hex/index.html' : './index.html') : Response.error())))
+      .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
   );
 });

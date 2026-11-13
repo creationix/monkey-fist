@@ -66,17 +66,3 @@ test('touch-friendly bounds keep difficulty ordered and reserve enough grid spac
   } finally { await browser.close(); }
 });
 
-test('published rope-count custom links upgrade to packed grid dimensions on reload', { timeout: 60000 }, async () => {
-  const browser = await launch();
-  try {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-    await page.goto(base + '?set=U2-H-100-100-2-2-1-MS-PACKED'); await ready(page);
-    assert.match(await page.evaluate(() => location.search), /set=U3-H-100-100-10-14-1-MS-PACKED/);
-    const board = await page.evaluate(() => ({ W: __game.G.level.W, H: __game.G.level.H,
-      density: __game.G.level.ropes.reduce((total, path) => total + path.length, 0) / (__game.G.level.W * __game.G.level.H) }));
-    assert.deepEqual([board.W, board.H], [10, 14]); assert.ok(board.density >= .8);
-    await page.reload(); await ready(page);
-    assert.deepEqual(await page.evaluate(() => [__game.options.revision, __game.options.width, __game.options.height, __game.options.seed]), [3, 10, 14, 'PACKED']);
-  } finally { await browser.close(); }
-});

@@ -13,7 +13,7 @@ test('Rope and Tiles settings persist and both grids animate translucent ropes a
     await page.reload(); await ready(page); await page.click('#levels'); assert.equal(await page.locator('#graphics').textContent(), 'Graphics: Tiles');
     await page.click('#closeLevels');
     for (const grid of ['S', 'H']) {
-      await page.goto(base + `?set=U1-${grid}-50-50-1-MS-TILES`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-50-50-8-8-1-MS-TILES`); await ready(page);
       assert.equal(await page.evaluate(() => save.graphics), 'tiles');
       await page.click('#autoSolve');
       assert.equal(await page.evaluate(() => {

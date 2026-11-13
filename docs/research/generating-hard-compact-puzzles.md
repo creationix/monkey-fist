@@ -417,7 +417,7 @@ parameters only. What changed is the driver.
 | Order | by difficulty setting | re-sorted by interaction score |
 
 The J1 levels in the table above that carry one mirror *and* several forced
-slides came from the weave-then-place path in [`twists.js`](../../twists.js).
+slides came from the weave-then-place path in [`twists.js`](https://github.com/creationix/monkey-fist/blob/92d206d/twists.js) (since removed).
 It is the only construction in either revision that has put a mirror into a
 sliding puzzle.
 

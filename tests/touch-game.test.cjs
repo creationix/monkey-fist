@@ -7,8 +7,8 @@ test('desktop touch on journey level 27 accepts varied contact sizes with live a
     for (const deviceScaleFactor of [1, 2]) {
       const context = await browser.newContext({ viewport: { width: 1366, height: 900 }, hasTouch: true, isMobile: false, deviceScaleFactor });
       const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
-      await page.goto(base + '?set=J1-MONKEYFIST&level=27'); await ready(page);
-      await page.evaluate(() => { __game.save.chapters = 3; });
+      await page.goto(base + '?set=J3-MONKEYFIST'); await ready(page);
+      await page.evaluate(() => { __game.save.chapterSets['J3-MONKEYFIST'] = 3; });
       const cdp = await context.newCDPSession(page);
       for (const radius of [7, 20, 40]) {
         await page.evaluate(() => __game.start(26));
@@ -54,7 +54,7 @@ test('large-board Fit locks panning, zoom transitions smoothly, and game gesture
   const browser = await launch();
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-    await page.goto(base + '?set=U1-H-100-100-1-N-TOUCH'); await ready(page);
+    await page.goto(base + '?set=U3-H-100-100-8-8-1-N-TOUCH'); await ready(page);
     const result = await page.evaluate(() => {
       const g = __game.G; g.camera.x = 300; g.camera.y = -300; applyCamera(); const fit = { ...g.camera };
       zoomTo(2, undefined, true); const immediately = g.camera.zoom; __game.update(.05); const during = g.camera.zoom;
@@ -77,7 +77,7 @@ test('exit sounds fire when the entire rope clears the board and viewport, befor
   try {
     const page = await browser.newPage(); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
     for (const grid of ['S', 'H']) {
-      await page.goto(base + `?set=U1-${grid}-65-65-1-N-EXIT`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-65-65-8-8-1-N-EXIT`); await ready(page);
       const result = await page.evaluate(() => {
         const g = __game.G, id = g.paths.findIndex((p, i) => p && MFGame.tap(g.level, g.paths, i)?.event === 'exit');
         let sounds = 0; sfx.pop = () => sounds++; __game.tap(id); const move = g.moves.get(id); let premature = false;

@@ -1,6 +1,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { createSoundPlayer } = require('../sounds');
-const { base, launch, ready } = require('./browser-helpers.cjs');
+const { base, launch, ready, playFixture } = require('./browser-helpers.cjs');
+const { FLIP } = require('./fixtures.cjs');
 
 test('accepted-tap ticks are brief, low, quiet and obey mute and their own duplicate limit', () => {
   const sources = [], gains = [], parameter = () => ({ events: [], setValueAtTime(value, at) { this.events.push([value, at]); }, exponentialRampToValueAtTime(value, at) { this.events.push([value, at]); } });
@@ -55,7 +56,7 @@ test('queued spring taps tick and flash the current flip; each move swishes only
   const browser = await launch();
   try {
     const page = await browser.newPage({viewport:{width:1100,height:900}});await page.addInitScript(()=>{requestAnimationFrame=()=>0;});
-    await page.goto(base+'?set=U1-H-1-1-1-S-FLIP0');await ready(page);
+    await page.goto(base);await ready(page);await playFixture(page,FLIP);
     const result=await page.evaluate(()=>{
       let ticks=0,swishes=0;sfx.activate=()=>ticks++;sfx.slide=()=>swishes++;
       for(const name of ['reflect','spring','pop','thud','win'])sfx[name]=()=>{};

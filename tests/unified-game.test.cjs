@@ -10,7 +10,7 @@ test('one journey opens ten levels at a time and keeps chapter unlocks after rel
     assert.equal(await page.evaluate(() => __game.G.index), 9, 'a link cannot skip locked groups');
     await page.click('#levels'); assert.equal(await page.locator('#grid button').count(), 120); assert.equal(await page.locator('#grid button:enabled').count(), 10);
     await page.click('[data-level="1"]'); await ready(page); const first = await solve(page); assert.equal(first.ended, true); assert.equal(first.taps, first.par);
-    assert.equal(await page.evaluate(() => __game.save.chapters), 1);
+    assert.equal(await page.evaluate(() => __game.save.chapterSets['J3-MONKEYFIST']), 1);
     await page.click('#resultLevels'); await page.click('[data-level="10"]'); await ready(page);
     const result = await solve(page); assert.equal(result.ended, true); assert.equal(result.taps, result.par);
     assert.match(await page.locator('#unlocked').textContent(), /11–20 unlocked/);
@@ -29,28 +29,27 @@ test('custom square, Hex, mirrors and springs play at par on phone and laptop wi
       const page = await browser.newPage({ viewport }), errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.addInitScript(() => { requestAnimationFrame = () => 0; });
       for (const [grid, features, difficulty] of [['S', 'N', 70], ['H', 'N', 100], ['S', 'MS', 75], ['H', 'MS', 100]]) {
-        await page.goto(base + `?set=U1-${grid}-${difficulty}-${difficulty}-1-${features}-BRAID`); await ready(page);
+        await page.goto(base + `?set=U3-${grid}-${difficulty}-${difficulty}-8-8-1-${features}-BRAID`); await ready(page);
         await page.screenshot({ path: `/tmp/monkey-unified-${grid}-${features}-${viewport.width}.png` });
         await clickNext(page);
         const first = await page.evaluate(() => __game.G.plan[0]);
         if (!await page.evaluate(i => __game.G.moves.has(i), first)) { await clickNext(page); assert.equal(await page.evaluate(() => __game.G.moves.size), 2); }
         await settle(page);
         const result = await solve(page); assert.equal(result.ended, true); assert.equal(result.taps, result.par); assert.equal(await page.locator('#next').isVisible(), false);
-        assert.equal(await page.evaluate(() => __game.save.chapters), 1, 'custom clears do not unlock the journey');
+        assert.equal(await page.evaluate(() => __game.save.chapterSets['J3-MONKEYFIST'] || 1), 1, 'custom clears do not unlock the journey');
       }
       assert.deepEqual(errors, []); await page.close();
     }
   } finally { await browser.close(); }
 });
 
-test('custom controls, old bookmarks, worker fallback, and offline saves use the same game', { timeout: 60000 }, async () => {
+test('custom controls, worker fallback, and offline saves use the same game', { timeout: 60000 }, async () => {
   const browser = await launch();
   try {
     const context = await browser.newContext(), page = await context.newPage({ viewport: { width: 390, height: 844 } });
-    await page.addInitScript(() => { requestAnimationFrame = () => 0; window.Worker = undefined; if (!localStorage.getItem('monkey-fist')) localStorage.setItem('monkey-fist', '{"keep":"old scores","sound":false}'); });
-    await page.goto(base + 'hex/?set=H60M-BRAID&level=6'); await ready(page);
+    await page.addInitScript(() => { requestAnimationFrame = () => 0; window.Worker = undefined; });
+    await page.goto(base + '?set=U3-H-50-50-8-8-1-M-BRAID'); await ready(page);
     assert.equal(await page.evaluate(() => __game.G.level.grid), 'hex');
-    assert.equal(await page.evaluate(() => __game.save.sound), 'off');
     await page.click('#levels'); await page.selectOption('#gridChoice', 'mixed');
     await page.locator('#count').evaluate(input => { input.value = 35; input.dispatchEvent(new Event('input', { bubbles: true })); });
     await page.locator('#minDifficulty').evaluate(input => { input.value = 20; input.dispatchEvent(new Event('input', { bubbles: true })); });
@@ -59,12 +58,11 @@ test('custom controls, old bookmarks, worker fallback, and offline saves use the
     await page.click('#defaultSeed'); assert.equal(await page.inputValue('#seed'), 'MONKEYFIST');
     assert.equal(await page.locator('#grid button:enabled').count(), 35);
     await page.click('[data-level="35"]'); await ready(page);
-    assert.deepEqual(await page.evaluate(() => __game.options), { revision: 3, width: 10, height: 14, kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
+    assert.deepEqual(await page.evaluate(() => __game.options), { width: 8, height: 8, kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
     const before = await page.evaluate(() => JSON.stringify(__game.G.level));
     await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { polling: 50 });
     await context.setOffline(true); await page.reload(); await ready(page);
     assert.equal(await page.evaluate(() => JSON.stringify(__game.G.level)), before);
-    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('monkey-fist'))), { keep: 'old scores', sound: false });
     await page.click('#levels'); await page.click('#journey'); assert.equal(await page.locator('#grid button:enabled').count(), 10);
     await page.click('[data-level="6"]'); await ready(page); assert.equal(await page.evaluate(() => __game.G.level.grid), require('../game-engine').spec(require('../game-engine').DEFAULT, 5).grid);
     assert.equal((await solve(page)).ended, true);
@@ -76,7 +74,7 @@ test('hint assistance survives expiry and undo; blocked taps cost one and there 
   try {
     const page = await browser.newPage(); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
     for (const grid of ['S', 'H']) {
-      await page.goto(base + `?set=U1-${grid}-80-80-1-MS-COMBO`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-80-80-8-8-1-MS-COMBO`); await ready(page);
       const original = await page.evaluate(() => JSON.stringify(__game.G.paths));
       await page.evaluate(() => { __game.G.combo = 4; }); await page.click('#hint'); await page.click('#hint');
       assert.deepEqual(await page.evaluate(() => [__game.G.taps, __game.G.combo]), [2, 0]);
@@ -101,7 +99,7 @@ test('rotation and zoom preserve the logical board and departing ropes animate t
   try {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } }); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
     for (const grid of ['S', 'H']) {
-      await page.goto(base + `?set=U1-${grid}-65-65-1-M-VIEW`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-65-65-8-8-1-M-VIEW`); await ready(page);
       const original = await page.evaluate(() => JSON.stringify([__game.G.paths, __game.G.plan]));
       await page.setViewportSize({ width: 390, height: 844 }); await page.evaluate(() => resize());
       await page.focus('#board'); await page.keyboard.press('+'); await page.keyboard.press('0'); // zoom in and fit without moving any rope

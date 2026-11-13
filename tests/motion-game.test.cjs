@@ -1,5 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict');
-const { base, launch, ready } = require('./browser-helpers.cjs');
+const { base, launch, ready, playFixture } = require('./browser-helpers.cjs');
+const { FLIP } = require('./fixtures.cjs');
 
 test('queued exits yield at crossings while separate routes remain concurrent on both grids', { timeout: 60000 }, async () => {
   const browser = await launch();
@@ -66,7 +67,7 @@ test('four rapid pointer taps queue a spring release and solve the Hex regressio
     const page = await browser.newPage({ viewport: { width: 1100, height: 900 } }), errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-    await page.goto(base + '?set=U1-H-1-1-1-S-FLIP0'); await ready(page);
+    await page.goto(base); await ready(page); await playFixture(page, FLIP);
     const points = await page.evaluate(() => [1, 0, 0, 5].map(i => {
       const p = screen(G.paths[i].at(-1)), rect = canvas.getBoundingClientRect(); return { x: p.x + rect.left, y: p.y + rect.top };
     }));
@@ -78,7 +79,7 @@ test('four rapid pointer taps queue a spring release and solve the Hex regressio
       return G.ended && G.taps === 4;
     }), true);
     // A tap on the moving head during the actual flip also queues its release.
-    await page.reload(); await ready(page);
+    await playFixture(page, FLIP);
     const duringFlip = await page.evaluate(() => {
       tap(1); tap(0); const m = G.moves.get(0); while (!m.impacted) update(.001); update(m.hold * .25);
       draw(0); const p = springDrawing(0, springFlip(m)).points.at(-1), box = canvas.getBoundingClientRect();
@@ -87,7 +88,7 @@ test('four rapid pointer taps queue a spring release and solve the Hex regressio
     await page.mouse.click(duringFlip.x, duringFlip.y);
     assert.equal(await page.evaluate(() => G.moves.get(0).queued?.event), 'exit');
     // Undo a queued release restores the post-bounce board and cancels both animations.
-    await page.reload(); await ready(page);
+    await playFixture(page, FLIP);
     const undoResult = await page.evaluate(() => {
       tap(1); tap(0); const afterBounce = JSON.stringify(G.paths); tap(0); const queued = !!G.moves.get(0).queued;
       undo(); return { queued, restored: JSON.stringify(G.paths) === afterBounce, cancelled: !G.moving, taps: G.taps };

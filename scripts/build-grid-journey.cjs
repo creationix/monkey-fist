@@ -11,7 +11,6 @@
 // writes it elsewhere, and --plan prints the seeded schedule without building.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { createHash } = require('node:crypto');
-const { execFileSync } = require('node:child_process');
 const G = require('../game-engine'), F = require('../grid-generator'), L = require('../levels');
 function argumentsOf(argv) {
   const result = { seed: 'MONKEYFIST', out: path.join(__dirname, '../grid-journey.js'), plan: false };
@@ -152,26 +151,7 @@ if (options.plan) {
     const kind = kindOf(b); out[kind] = (out[kind] || 0) + 1; return out;
   }, {}), specs: specs.slice(i * 10, i * 10 + 10) })), null, 2)); process.exit(0);
 }
-// Match the last published campaign (the committed grid-journey.js) by logical
-// geometry, not by its old index. Tagged scores follow layout keys; this map serves
-// untagged ones from the immediately previous GRID_VERSION.
-function previousLayouts() {
-  const reference = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' }).trim();
-  const cache = path.join(os.tmpdir(), 'monkey-old-layout-keys-' + reference + '.json');
-  if (fs.existsSync(cache)) {
-    const saved = JSON.parse(fs.readFileSync(cache, 'utf8'));
-    if (saved.reference === reference) return new Map(saved.entries.map(e => [e.layoutKey, e.index]));
-  }
-  const source = execFileSync('git', ['show', reference + ':grid-journey.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' }), m = { exports: {} };
-  new Function('module', 'exports', source)(m, m.exports);
-  const entries = m.exports.map((metadata, index) => {
-    if (!metadata.layoutKey) throw Error('Published baseline lacks layout identity');
-    return { index, layoutKey: metadata.layoutKey };
-  });
-  fs.writeFileSync(cache, JSON.stringify({ reference, entries }, null, 2));
-  return new Map(entries.map(e => [e.layoutKey, e.index]));
-}
-const previous = previousLayouts(), levels = [];
+const levels = [];
 // Resume validated metadata after an interrupted build. The cache contains no
 // maps or plans, and is invalidated by any generator/kernel or source change.
 const sourceFiles = ['scripts/build-grid-journey.cjs','grid-generator.js','dependency-metrics.js','game-engine.js','levels.js','mechanics.js','twist-circuits.js','hex/engine.js','hex/mirrors.js'];
@@ -205,7 +185,6 @@ for (const [i, source] of specs.entries()) {
     ...(board.complexity ? { complexity: board.complexity } : {}), ...(board.slideStats ? { slideStats: board.slideStats } : {}),
     ...(board.mechanicStats ? { mechanicStats: board.mechanicStats } : {}) };
   metadata.layoutKey = G.layoutKey(board);
-  if (previous.has(metadata.layoutKey)) metadata.previousIndex = previous.get(metadata.layoutKey);
   if (spec.chapter === 1) metadata.openingChallenge = play.challenge;
   levels.push(metadata); cached[sourceKey] = metadata; fs.writeFileSync(cacheFile, JSON.stringify(cached));
   process.stderr.write(`${i + 1}: ${kindOf(spec)} ${board.grid} ${spec.W}×${spec.H}, ${board.ropes.length} ropes / ${board.par} taps, challenge ${play.challenge} (target ${target.toFixed(2)}), casual ${(play.casualWins * 100).toFixed(0)}%, M${usage.mirrors}/S${usage.springs}, slides ${usage.manualSlides}, bounces ${usage.manualBounces}\n`);

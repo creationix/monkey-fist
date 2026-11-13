@@ -8,7 +8,7 @@ test('manual results select the earned celebration and auto-solve selects calm z
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } }), errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-      await page.goto(base + `?set=U1-${grid}-1-1-1-N-TRIUMPH`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-1-1-8-8-1-N-TRIUMPH`); await ready(page);
       for (const stars of [3, 2, 1, 0]) {
         await page.evaluate(() => { window.__wins = []; sfx.win = stars => __wins.push(stars); });
         if (stars === 2 || stars === 1) {

@@ -132,7 +132,7 @@ test('generated tiny boards match an independent full-graph oracle under both ob
     const difficulty = 1 + seed * 4;
     // Generation failures must fail the test, rather than quietly shrinking
     // the sample and accidentally leaving no checked cases.
-    const b = G.generate({revision:3,grid,width:4,height:5,min:difficulty,max:difficulty,count:1,seed:'EVAL'+seed});
+    const b = G.generate({grid,width:4,height:5,min:difficulty,max:difficulty,count:1,seed:'EVAL'+seed});
     const graph = fullGraph(b); largestGraph = Math.max(largestGraph,graph.states.length); boards++;
     for (const objective of ['manualTaps','nonExitMoves']) {
       const expected = oracleValue(b,graph,objective);

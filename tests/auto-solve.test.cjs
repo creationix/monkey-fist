@@ -7,7 +7,7 @@ test('auto-solve queues a full plan immediately, finishes with zero stars, and p
     for (const grid of ['S', 'H']) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } }), errors = [];
       page.on('pageerror', e => errors.push(e.message)); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-      await page.goto(base + `?set=U1-${grid}-60-60-1-MS-AUTOSOLVE`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-60-60-8-8-1-MS-AUTOSOLVE`); await ready(page);
       const planned = await page.evaluate(() => G.plan.length);
       await page.click('#autoSolve');
       assert.equal(await page.locator('.hud').isVisible(), false);

@@ -56,7 +56,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "1jqpesw-dmph4u",
-    "previousIndex": 0,
     "openingChallenge": 0
   },
   {
@@ -173,7 +172,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "77pph5-mbs1bv",
-    "previousIndex": 1,
     "openingChallenge": 0
   },
   {
@@ -232,7 +230,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "uz1p82-1uizj5o",
-    "previousIndex": 2,
     "openingChallenge": 0
   },
   {
@@ -291,7 +288,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "1b152tv-wm3sp9",
-    "previousIndex": 5,
     "openingChallenge": 1
   },
   {
@@ -350,7 +346,6 @@
       "automaticRopes": 3
     },
     "layoutKey": "173c636-ecy4ng",
-    "previousIndex": 6,
     "openingChallenge": 2
   },
   {
@@ -468,7 +463,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "1u6xgvt-1wn3oc3",
-    "previousIndex": 7,
     "openingChallenge": 2.75
   },
   {
@@ -587,7 +581,6 @@
       "automaticRopes": 2
     },
     "layoutKey": "17gz59o-1szwr0i",
-    "previousIndex": 8,
     "openingChallenge": 3.563
   },
   {
@@ -645,8 +638,7 @@
       "interleavedRopes": 0,
       "automaticRopes": 4
     },
-    "layoutKey": "sedvuu-ji0ai8",
-    "previousIndex": 12
+    "layoutKey": "sedvuu-ji0ai8"
   },
   {
     "grid": "hex",
@@ -1010,8 +1002,7 @@
       "manualMirrors": 2,
       "manualSprings": 0
     },
-    "layoutKey": "28vfo8-1njb4py",
-    "previousIndex": 16
+    "layoutKey": "28vfo8-1njb4py"
   },
   {
     "grid": "square",
@@ -1075,8 +1066,7 @@
       "manualMirrors": 4,
       "manualSprings": 0
     },
-    "layoutKey": "hjyf1e-zl4ay8",
-    "previousIndex": 17
+    "layoutKey": "hjyf1e-zl4ay8"
   },
   {
     "grid": "square",
@@ -1140,8 +1130,7 @@
       "manualMirrors": 2,
       "manualSprings": 0
     },
-    "layoutKey": "sad5z0-1xlej3y",
-    "previousIndex": 18
+    "layoutKey": "sad5z0-1xlej3y"
   },
   {
     "grid": "square",
@@ -1205,8 +1194,7 @@
       "manualMirrors": 2,
       "manualSprings": 0
     },
-    "layoutKey": "623rfc-1rgkvp6",
-    "previousIndex": 19
+    "layoutKey": "623rfc-1rgkvp6"
   },
   {
     "grid": "hex",
@@ -1577,8 +1565,7 @@
       "interleavedRopes": 0,
       "automaticRopes": 1
     },
-    "layoutKey": "1lw5z7n-aylldx",
-    "previousIndex": 28
+    "layoutKey": "1lw5z7n-aylldx"
   },
   {
     "grid": "hex",
@@ -2085,8 +2072,7 @@
       "interleavedRopes": 0,
       "automaticRopes": 5
     },
-    "layoutKey": "zsnu76-1tz0rco",
-    "previousIndex": 33
+    "layoutKey": "zsnu76-1tz0rco"
   },
   {
     "grid": "hex",
@@ -2538,8 +2524,7 @@
       "manualMirrors": 4,
       "manualSprings": 0
     },
-    "layoutKey": "1hpn9nv-yozxrl",
-    "previousIndex": 46
+    "layoutKey": "1hpn9nv-yozxrl"
   },
   {
     "grid": "hex",
@@ -2667,8 +2652,7 @@
       "manualMirrors": 5,
       "manualSprings": 0
     },
-    "layoutKey": "11kr9w-15wxu7a",
-    "previousIndex": 49
+    "layoutKey": "11kr9w-15wxu7a"
   },
   {
     "grid": "hex",
@@ -3179,8 +3163,7 @@
       "manualMirrors": 6,
       "manualSprings": 0
     },
-    "layoutKey": "1apltcr-i3vdsx",
-    "previousIndex": 52
+    "layoutKey": "1apltcr-i3vdsx"
   },
   {
     "grid": "hex",
@@ -3373,8 +3356,7 @@
       "manualMirrors": 4,
       "manualSprings": 0
     },
-    "layoutKey": "1nj7j9q-1kkxgug",
-    "previousIndex": 59
+    "layoutKey": "1nj7j9q-1kkxgug"
   },
   {
     "grid": "hex",
@@ -3821,8 +3803,7 @@
       "manualMirrors": 4,
       "manualSprings": 0
     },
-    "layoutKey": "1mrgu6j-1492y99",
-    "previousIndex": 60
+    "layoutKey": "1mrgu6j-1492y99"
   },
   {
     "grid": "square",
@@ -3887,8 +3868,7 @@
       "manualMirrors": 5,
       "manualSprings": 0
     },
-    "layoutKey": "1va1u8h-1n4wl07",
-    "previousIndex": 62
+    "layoutKey": "1va1u8h-1n4wl07"
   },
   {
     "grid": "hex",
@@ -4601,8 +4581,7 @@
       "manualMirrors": 6,
       "manualSprings": 0
     },
-    "layoutKey": "180ztq9-tk4onr",
-    "previousIndex": 75
+    "layoutKey": "180ztq9-tk4onr"
   },
   {
     "grid": "square",
@@ -5120,8 +5099,7 @@
       "manualMirrors": 6,
       "manualSprings": 0
     },
-    "layoutKey": "1olrwq8-17g83u",
-    "previousIndex": 83
+    "layoutKey": "1olrwq8-17g83u"
   },
   {
     "grid": "hex",
@@ -5899,8 +5877,7 @@
       "manualMirrors": 7,
       "manualSprings": 0
     },
-    "layoutKey": "100ut2u-1165pw8",
-    "previousIndex": 93
+    "layoutKey": "100ut2u-1165pw8"
   },
   {
     "grid": "hex",
@@ -6090,8 +6067,7 @@
       "interleavedRopes": 2,
       "automaticRopes": 3
     },
-    "layoutKey": "9e5p4a-13gehdc",
-    "previousIndex": 95
+    "layoutKey": "9e5p4a-13gehdc"
   },
   {
     "grid": "hex",
@@ -6615,8 +6591,7 @@
       "manualMirrors": 7,
       "manualSprings": 0
     },
-    "layoutKey": "1olycaq-n9ijhk",
-    "previousIndex": 104
+    "layoutKey": "1olycaq-n9ijhk"
   },
   {
     "grid": "hex",

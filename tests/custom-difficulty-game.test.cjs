@@ -1,12 +1,12 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { base, launch, ready } = require('./browser-helpers.cjs');
-test('legacy rope-count links upgrade to dense fixed grids and their complete animation queues settle', { timeout: 120000 }, async () => {
+test('hard custom boards fill their fixed grid and their complete animation queues settle', { timeout: 120000 }, async () => {
   const browser = await launch();
   try {
     for (const [grid, viewport] of [['S',{width:1366,height:768}],['H',{width:390,height:844}]]) {
       const page = await browser.newPage({viewport}), errors=[]; page.on('pageerror',e=>errors.push(e.message));
       await page.addInitScript(()=>{requestAnimationFrame=()=>0;});
-      await page.goto(base + `?set=U2-${grid}-100-100-10-10-1-MS-KNOBS`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-100-100-10-14-1-MS-KNOBS`); await ready(page);
       await page.click('#levels');
       assert.equal(await page.inputValue('#gridWidth'),'10'); assert.equal(await page.inputValue('#gridHeight'),'14');
       await page.click('#closeLevels');

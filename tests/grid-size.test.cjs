@@ -4,7 +4,7 @@ const G = require('../game-engine');
 const H = require('../hex/engine');
 
 function options(grid, width, height, difficulty, features = {}) {
-  return { revision: 3, grid, width, height, seed: 'PACKED', min: difficulty, max: difficulty, count: 1, ...features };
+  return { grid, width, height, seed: 'PACKED', min: difficulty, max: difficulty, count: 1, ...features };
 }
 function coverage(board) {
   return board.ropes.reduce((total, path) => total + path.length, 0) / (board.W * board.H);
@@ -72,21 +72,21 @@ test('minimum grids and optional twists retain their exact dimensions and safe s
 });
 
 test('grid settings round-trip with sane bounds and do not reuse the rope-count format', () => {
-  const settings = G.normalize({ revision: 3, grid: 'mixed', width: 10, height: 14, min: 25, max: 80, count: 40, seed: 'SLIDERS', mirrors: true, springs: true });
+  const settings = G.normalize({ grid: 'mixed', width: 10, height: 14, min: 25, max: 80, count: 40, seed: 'SLIDERS', mirrors: true, springs: true });
   assert.equal(G.code(settings), 'U3-M-25-80-10-14-40-MS-SLIDERS');
   assert.deepEqual(G.parseCode(G.code(settings)), settings);
   for (let index = 0; index < 10; index++) {
     const easy = G.spec({ ...settings, min: 1, max: 1 }, index), hard = G.spec({ ...settings, min: 100, max: 100 }, index);
     assert.deepEqual([easy.W, easy.H], [10, 14]); assert.deepEqual([hard.W, hard.H], [10, 14]);
   }
-  const bounds = G.normalize({ revision: 3, width: 1, height: 100, count: 999 });
+  const bounds = G.normalize({ width: 1, height: 100, count: 999 });
   assert.deepEqual([bounds.width, bounds.height, bounds.count], [4, 24, 200]);
-  const features = G.normalize({ revision: 3, width: 4, height: 4, mirrors: true });
+  const features = G.normalize({ width: 4, height: 4, mirrors: true });
   assert.deepEqual([features.width, features.height], [8, 8]);
   assert.equal(G.parseCode('U3-S-1-100-3-14-10-N-SEED'), null);
   assert.equal(G.parseCode('U3-H-1-100-10-25-10-N-SEED'), null);
   assert.equal(G.parseCode('U3-S-1-100-4-4-10-M-SEED'), null);
-  assert.equal(G.code(G.parseCode('U2-H-1-100-6-40-120-MS-MONKEYFIST')), 'U2-H-1-100-6-40-120-MS-MONKEYFIST');
+  assert.equal(G.parseCode('U2-H-1-100-6-40-120-MS-MONKEYFIST'), null, 'the rope-count format is gone');
 });
 
 test('a shared fixed-grid set regenerates the same board and solution', { timeout: 60000 }, () => {

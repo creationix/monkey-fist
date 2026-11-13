@@ -1,5 +1,5 @@
-// Browser audio session shared by square and Hex. Games supply their own settings
-// and menu rules; the synth, mix, mobile unlock, and scheduling live here.
+// Browser audio session. The game supplies its settings and menu rules; the
+// synth, mix, mobile unlock, and scheduling live here.
 (function (root) {
   'use strict';
   const SOUND_LEVELS = [
@@ -7,8 +7,8 @@
     { id: 'low', label: 'Low', gain: .15 },
     { id: 'full', label: 'Full', gain: .6 },
   ];
-  // Keep previous on/off preferences; new players start with the gentler mix.
-  const soundSetting = value => SOUND_LEVELS.find(level => level.id === value) || SOUND_LEVELS[value === false ? 0 : value === true ? 2 : 1];
+  // New players start with the gentler mix.
+  const soundSetting = value => SOUND_LEVELS.find(level => level.id === value) || SOUND_LEVELS[1];
   const nextSound = value => SOUND_LEVELS[(SOUND_LEVELS.indexOf(soundSetting(value)) + 1) % SOUND_LEVELS.length].id;
   function createAudio(readState) {
     let context = null, music = null, sound = null, soundBus = null, soundGain = null;

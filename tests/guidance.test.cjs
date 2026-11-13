@@ -16,7 +16,7 @@ test('off-certificate moves search in a worker; undo and restart reject stale an
   try {
     const page = await browser.newPage(); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
     for (const grid of ['S', 'H']) {
-      await page.goto(base + `?set=U1-${grid}-100-100-1-MS-BRAID`); await ready(page);
+      await page.goto(base + `?set=U3-${grid}-100-100-8-8-1-MS-BRAID`); await ready(page);
       const original = await page.evaluate(() => JSON.stringify(__game.G.paths));
       const state = await page.evaluate(() => {
         const g = __game.G, i = g.paths.findLastIndex((p, i) => p && i !== g.plan[0] && MFGame.tap(g.level, g.paths, i));

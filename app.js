@@ -7,54 +7,15 @@ let restingKey = [];
 const PALETTE = ['#37d5ac', '#f9bd4a', '#a987f5', '#f785ac', '#58b7ef', '#f7a251', '#e8dca1', '#f46f73', '#73d677'];
 const STORAGE = 'monkey-fist-unified-v1';
 let save; try { save = JSON.parse(localStorage.getItem(STORAGE)) || {}; } catch { save = {}; }
-// Different generated boards get fresh scores. Keep both previous saves intact,
-// and carry over the player's audio preferences.
-if (!save.gen) {
-  for (const key of ['monkey-fist', 'monkey-fist-hex-v1']) {
-    try { const old = JSON.parse(localStorage.getItem(key)); if (old) { save.sound ??= old.sound; save.music ??= old.music; } } catch { /* Optional legacy preferences. */ }
-  }
-}
 const persist = () => { try { localStorage.setItem(STORAGE, JSON.stringify(save)); } catch { /* Play still works without storage. */ } };
 const params = new URLSearchParams(location.search);
 let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { ...H.DEFAULT };
-// Replace the short-lived rope-count sets with the corrected grid-size controls.
-const gridCustom = input => H.normalize({ ...input, kind: 'custom', revision: 3 });
-if (opts.revision === 2) opts = opts.kind === 'journey' ? { ...H.DEFAULT } : gridCustom(opts);
 let draft = { ...opts };
+// Scores belong to generated boards; when generation changes they no longer apply.
+if (save.gridGen !== H.GRID_VERSION) { save.sets = {}; save.gridGen = H.GRID_VERSION; }
 save.sets ||= {};
-if (save.gen !== H.VERSION) {
-  if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
-  save.sets = {}; save.chapters = 1; save.gen = H.VERSION;
-}
-// Keep earned scores attached to the same board when Journey is rebalanced.
-// Earlier saves lack layout keys, so the builder records their previous index.
-if (save.gridGen !== H.GRID_VERSION) {
-  const old = {}, previousGrid = save.gridGen || 1;
-  const journey = Array.from({ length: H.DEFAULT.count }, (_, index) => H.spec(H.DEFAULT, index));
-  const previousPositions = new Map(journey.flatMap((level, index) => level.previousIndex == null ? [] : [[level.previousIndex, index]]));
-  const layoutPositions = new Map(journey.flatMap((level, index) => level.layoutKey ? [[level.layoutKey, index]] : []));
-  for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
-    const kept = {}, changed = {}, options = H.parseCode(code);
-    for (const [index, score] of Object.entries(save.sets[code] || {})) {
-      // Since GRID_VERSION 6 every moderate custom board is rewoven; colossal maps are unchanged.
-      let destination;
-      if (code === 'J3-MONKEYFIST') {
-        if (score.layoutKey) destination = layoutPositions.get(score.layoutKey);
-        // Untagged scores follow the builder's map from the previous published Journey.
-        else if (previousGrid === H.GRID_VERSION - 1) destination = previousPositions.get(Number(index));
-      } else if (previousGrid >= 3 && options?.colossal) destination = index;
-      if (destination != null) kept[destination] = score; else changed[index] = score;
-    }
-    if (Object.keys(changed).length) old[code] = changed;
-    if (Object.keys(kept).length) save.sets[code] = kept; else delete save.sets[code];
-  }
-  if (Object.keys(old).length) (save.archives ||= {})['grid-gen-' + previousGrid] = old;
-  save.gridGen = H.GRID_VERSION;
-}
-save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
-save.chapterSets ||= { 'J1-MONKEYFIST': save.chapters };
-save.chapterSets['J3-MONKEYFIST'] ??= save.chapterSets['J2-MONKEYFIST'] || 1;
-const chaptersFor = options => options.revision >= 2 ? save.chapterSets[H.code(options)] || 1 : save.chapters;
+save.chapterSets ||= {};
+const chaptersFor = options => save.chapterSets[H.code(options)] || 1;
 save.sound = MFAudio.soundSetting(save.sound).id;
 const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
 if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
@@ -121,7 +82,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=18');
+    featureWorker = new Worker('generator-worker.js?v=19');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -177,7 +138,7 @@ function weave(options) {
       if (settled) return;
       retryTimer = null; attempts++;
       try {
-        const url = 'generator-worker.js?v=18' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const url = 'generator-worker.js?v=19' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
@@ -221,7 +182,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=18');
+    guideWorker = new Worker('generator-worker.js?v=19');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -371,12 +332,9 @@ function finish() {
   document.body.classList.remove('auto-solving');
   cancelGuide(); G.ended = true; const stars = G.usedAutoSolve ? 0 : G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
-  if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars, layoutKey: G.level.layoutKey || H.layoutKey(G.level) };
+  if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
   const previous = chaptersFor(opts);
-  if (opts.kind === 'journey') {
-    const opened = H.unlock(previous, G.index);
-    if (opts.revision >= 2) save.chapterSets[H.code(opts)] = opened; else save.chapters = opened;
-  }
+  if (opts.kind === 'journey') save.chapterSets[code] = H.unlock(previous, G.index);
   persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
   $('resultText').textContent = G.usedAutoSolve ? 'Auto-solved · 0 stars' : G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
@@ -904,20 +862,20 @@ function renderChooser() {
     button.onclick = () => { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }; $('grid').append(button);
   }
 }
-function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = opts.kind === 'custom' ? gridCustom(opts) : { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
+function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
 function settings(changed = '') {
   let min = Number($('minDifficulty').value), max = Number($('maxDifficulty').value);
   if (min > max) { if (changed === 'maxDifficulty') min = max; else max = min; }
   const parsed = H.parseCode($('seed').value);
-  draft = parsed ? parsed.kind === 'journey' ? parsed.revision === 2 ? { ...H.DEFAULT } : parsed : gridCustom(parsed) :
-    H.normalize({ revision: 3, width: $('gridWidth').value, height: $('gridHeight').value, seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value,
+  draft = parsed ||
+    H.normalize({ width: $('gridWidth').value, height: $('gridHeight').value, seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value,
       min, max, mirrors: $('mirrors').checked, springs: $('springs').checked, colossal: $('colossal').checked });
   if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();
 }
 $('levels').onclick = chooser; $('resultLevels').onclick = chooser;
 $('closeLevels').onclick = () => { $('chooser').close(); syncMusic(); };
 $('journey').onclick = () => { draft = { ...H.DEFAULT }; renderChooser(); };
-$('custom').onclick = () => { const previous = draft.kind === 'custom' ? draft : save.custom; draft = gridCustom({ ...previous, seed: previous?.seed || 'MONKEYFIST', count: previous?.count || 120, grid: previous?.grid || 'mixed' }); renderChooser(); };
+$('custom').onclick = () => { const previous = draft.kind === 'custom' ? draft : save.custom; draft = H.normalize({ ...previous, kind: 'custom', seed: previous?.seed || 'MONKEYFIST', count: previous?.count || 120, grid: previous?.grid || 'mixed' }); renderChooser(); };
 $('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevels').click(); });
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);

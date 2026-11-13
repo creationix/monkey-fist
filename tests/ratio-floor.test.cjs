@@ -39,7 +39,7 @@ test('twenty low-difficulty seeds per grid retain the ratio floor and varied den
     const signatures = dimensions.map(() => new Set());
     for (let seed = 0; seed < 20; seed++) {
       const slot = seed % dimensions.length, [width, height] = dimensions[slot];
-      const board = G.generate({ revision: 3, grid, width, height, min: 1, max: 1, count: 1, seed: 'FLOOR' + seed });
+      const board = G.generate({ grid, width, height, min: 1, max: 1, count: 1, seed: 'FLOOR' + seed });
       assert.deepEqual([board.W, board.H], [width, height]); verify(board);
       signatures[slot].add(shape(board));
     }
@@ -71,10 +71,3 @@ test('the opening Journey has no below-floor or concealed one-tap fan levels', {
   }
 });
 
-test('legacy shared one-tap puzzles retain their original rules and targets', () => {
-  for (const [code, count] of [['U1-H-1-1-1-N-FLOOR', 2], ['U2-H-1-1-10-10-1-N-FLOOR', 10]]) {
-    const board = G.generate(G.parseCode(code));
-    assert.equal(board.ropes.length, count); assert.equal(board.par, 1);
-    assert.equal(G.replay(board, board.plan).solved, true);
-  }
-});

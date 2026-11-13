@@ -35,7 +35,6 @@ hand-picked:
 
 Both grids share the same full-screen canvas, floating controls, menus, scoring,
 audio, zoom, panning, and responsive orientation. There is no separate Hex app.
-Old `/hex/` bookmarks redirect to the shared app with Hex custom settings.
 
 ## Custom sets
 
@@ -59,10 +58,8 @@ reproduce the same puzzles on every device. For example:
 The code encodes format version, grid (`S`/`H`/`M`), minimum and maximum
 difficulty, grid width and height, level count, and flags for mirrors (`M`),
 springs (`S`), or Colossal (`C`), followed by the seed. `N` means no optional
-flags. The journey is `J3-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain
-their original boards and scores. The short-lived `J2` and `U2` rope-count
-settings open the corrected grid-based version in the app; previous scores
-remain stored separately, and Journey chapter unlocks carry over.
+flags. The journey is `J3-MONKEYFIST`. These are the only set formats; earlier
+pre-release formats were removed.
 
 Size means grid dimensions. A 10 × 14 board remains 10 × 14 at every difficulty;
 rope count and rope shapes adapt to fill it. Every plain board uses the original
@@ -85,8 +82,7 @@ ratio. Each displayed chapter has a mechanics quota, so challenge sorting cannot
 push every spinner into the middle of the Journey. Within each chapter, ordering
 runs from the lowest measured challenge to the highest. The builder also checks that larger boards cannot auto-release
 after one tap, and steps a board toward 12 × 16 only if no seed works at its
-planned size. The
-old `journey.js` and its builder remain for compatibility with the earlier format.
+planned size.
 
 Custom sets are free. The single Custom entry point is a natural place for a
 future purchase entitlement; no payment or entitlement code is included yet.
@@ -188,7 +184,7 @@ The underlying engines remain specialized:
 | `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
 | `levels.js` | Square geometry, long woven ropes, sliding knots and traps, fixed tracks that bend on mirrors, fast solver, par search and casual playouts |
 | `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
-| `twist-circuits.js`, `twists.js` | Procedural square circuits with multi-turn routes, interleaved blockers, and verified certificates |
+| `twist-circuits.js` | Procedural square circuits for colossal maps, with multi-turn routes, interleaved blockers, and verified certificates |
 | `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation with or without mirrors, compact track solver |
 | `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
@@ -209,10 +205,9 @@ discard stale results. The workerless fallback uses a much smaller search budget
 For colossal maps, Hex routed generation constructs core escape paths, then interleaves long
 follower ropes whose removal fits the certificate. Every placed mirror must
 actually turn a route. Square circuits similarly weave blockers through routed
-paths. In the grid-based format, difficulty changes blocking depth, sliding,
-circuit count, and turns while keeping the chosen dimensions fixed. Packing
-continues into small gaps while preserving the solution certificate. The older
-formats retain their original size schedules and limits.
+paths. Difficulty changes blocking depth, sliding, circuit count, and turns
+while keeping the chosen dimensions fixed. Packing continues into small gaps
+while preserving the solution certificate.
 
 The historical [`mechanics playground`](https://creationix.github.io/monkey-fist/experiments/mechanics/)
 is still available as a separate sandbox. Its older gate/wall fixtures and pure
@@ -241,10 +236,8 @@ remembers the setting across sessions, including offline play.
 
 The shared save key is `monkey-fist-unified-v1`. It stores chapter unlocks,
 best scores by set code, custom preferences, audio, and the current level.
-Each versioned set has separate scores because its boards can differ. Journey
-chapter unlocks carry over when replacing the rope-count campaign with packed
-grid-based boards. Old square and Hex saves remain untouched; their audio
-preferences are inherited.
+When generation changes (`GRID_VERSION` in `game-engine.js`), saved scores are
+cleared because they belong to different boards; Journey chapter unlocks stay.
 Only scores are persisted, so par always comes from the current generated board.
 
 The service worker caches the complete app, including worker dependencies, for
@@ -270,7 +263,7 @@ browser suite. The current automated tests replay all 120 journey levels,
 exercise custom grid/feature combinations and tiny random seeds, verify mirror
 geometry and generator certificates, and play real pointer taps on laptop and
 phone layouts. They cover chapter unlocks, concurrent animation, hints, undo,
-audio gains, legacy bookmarks, worker fallback, persistence, and offline reloads.
+audio gains, worker fallback, persistence, and offline reloads.
 
 The [generator benchmark](docs/research/puzzle-benchmark.md) compares Git revisions
 or independent generators under common movement rules, with separate tap/slide

@@ -125,7 +125,7 @@ test('advanced generation adds measured challenge at the same moderate grid size
     for (let seed = 0; seed < 8; seed++) {
       const scores = [], boards = [];
       for (const difficulty of [50, 100]) {
-        const b = G.generate({ revision: 3, grid, width: 10, height: 12, min: difficulty, max: difficulty, count: 1, seed: 'INTERACT'+seed });
+        const b = G.generate({ grid, width: 10, height: 12, min: difficulty, max: difficulty, count: 1, seed: 'INTERACT'+seed });
         assert.deepEqual([b.W,b.H], [10,12]); assert.ok(b.coverage >= .85);
         const replayed = G.replay(b,b.plan); assert.equal(replayed.solved,true); assert.equal(replayed.taps,b.par);
         const metrics = Q.analyze(b,b.plan,b.par,G); scores.push(metrics); boards.push(b);

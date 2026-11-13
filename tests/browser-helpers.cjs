@@ -20,4 +20,9 @@ async function solve(page) {
   for (let n = 0; n < 500 && !await page.evaluate(() => __game.G.ended); n++) { await clickNext(page); await settle(page); }
   return page.evaluate(() => ({ ended: __game.G.ended, taps: __game.G.taps, par: __game.G.level.par }));
 }
-module.exports = { base, launch, ready, settle, clickNext, solve };
+// Play a fixed board in the real app, in place of the generated level.
+async function playFixture(page, board) {
+  await page.evaluate(board => { weave = async () => structuredClone(board); return start(0); }, board);
+  await ready(page);
+}
+module.exports = { base, launch, ready, settle, clickNext, solve, playFixture };

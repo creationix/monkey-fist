@@ -7,7 +7,7 @@ const H = require('../hex/engine');
 const Q = require('../dependency-metrics');
 
 function options(grid, width = 8, height = 8) {
-  return { revision: 3, grid, width, height, min: 100, max: 100, count: 1, seed: 'REPEAT' };
+  return { grid, width, height, min: 100, max: 100, count: 1, seed: 'REPEAT' };
 }
 function manualWork(b) {
   const replayed = G.replay(b, b.plan); assert.equal(replayed.solved, true); assert.equal(replayed.taps, b.par);
