@@ -56,7 +56,7 @@ test('unused features fade, in-flight bounces and queued tails retain them, and 
         const p = (q, r) => ({ q, r }); cancelGuide(); $('result').close(); document.body.classList.remove('auto-solving');
         Object.assign(G, { level: { grid, W: 8, H: 8, locks: [], mirrors: [], springs: [p(5, 3), p(0, 0)], par: 1 }, paths: [[p(2, 3), p(3, 3)]],
           plan: [0, 0], moves: new Map(), history: [], auto: false, ended: false, loading: false, usedAutoSolve: false, camera: { zoom: 1, x: 0, y: 0 } });
-        resetFeatures(); resize();
+        G.level.ropes = G.paths; resetFeatures(); resize();
       }, grid); await checked();
       const fadeRates = await page.evaluate(() => {
         const samples = [];
@@ -84,7 +84,7 @@ test('unused features fade, in-flight bounces and queued tails retain them, and 
         Object.assign(G, { level: { grid, W: 8, H: 8, locks: [], springs: [], mirrors: [{ cell: p(5, 1), ...(grid === 'hex' ? { axis: 0 } : { slope: '/' }) }], par: 3 },
           paths: [[p(2, 1), p(3, 1)], [p(0, 5), p(1, 5)], [p(3, 5), p(2, 5)]], plan: [], moves: new Map(), history: [], undos: 3,
           auto: false, ended: false, loading: false, usedAutoSolve: false, camera: { zoom: 1, x: 0, y: 0 } });
-        resetFeatures(); resize(); tap(0);
+        G.level.ropes = G.paths; resetFeatures(); resize(); tap(0);
       }, grid); await checked();
       assert.equal(await page.evaluate(() => {
         for (let i = 0; i < 2000 && (G.moving || G.featuresFading); i++) { update(.01); draw(i / 100); }

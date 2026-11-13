@@ -30,7 +30,7 @@ test('queued acceptance flashes the visible rope without repainting the resting 
       const p = (q,r) => ({q,r}); cancelGuide(); cancelFeatureCheck();
       const paths = [[p(2,3),p(3,3),p(4,3)],[p(3,5),p(3,4)],[p(5,0),p(6,0)],[p(7,9),p(7,8)],[p(6,7),p(7,7)]];
       Object.assign(G,{ level:{grid:'square',W:12,H:12,mirrors:[],springs:[],locks:[],par:5},paths,plan:[0,1,2,4,3],moves:new Map(),activations:new Map(),history:[],auto:false,ended:false,lost:false,loading:false,hint:-1,selected:-1,bump:null,camera:{zoom:1,x:0,y:0}});
-      resetFeatures(); resize();
+      G.level.ropes=G.paths;resetFeatures(); resize();
       let ticks=0,swishes=0; sfx.activate=()=>ticks++;sfx.slide=()=>swishes++;
       for(const name of ['reflect','spring','pop','thud','win'])sfx[name]=()=>{};
       tap(0);tap(1);tap(2);
@@ -82,7 +82,7 @@ test('blocked taps keep their thud while automatic releases have swishes without
     const page=await browser.newPage();await page.addInitScript(()=>{requestAnimationFrame=()=>0;});await page.goto(base);await ready(page);
     const result=await page.evaluate(()=>{
       const p=(q,r)=>({q,r});cancelGuide();cancelFeatureCheck();
-      Object.assign(G,{level:{grid:'square',W:8,H:6,mirrors:[],springs:[],locks:[],par:1},paths:[[p(0,1),p(1,1)],[p(2,1),p(3,1)],[p(0,3),p(1,3)]],plan:[1,0,2],moves:new Map(),activations:new Map(),history:[],auto:false,ended:false,lost:false,loading:false,hint:-1,selected:-1,camera:{zoom:1,x:0,y:0}});resetFeatures();resize();
+      Object.assign(G,{level:{grid:'square',W:8,H:6,mirrors:[],springs:[],locks:[],par:1},paths:[[p(0,1),p(1,1)],[p(2,1),p(3,1)],[p(0,3),p(1,3)]],plan:[1,0,2],moves:new Map(),activations:new Map(),history:[],auto:false,ended:false,lost:false,loading:false,hint:-1,selected:-1,camera:{zoom:1,x:0,y:0}});G.level.ropes=G.paths;resetFeatures();resize();
       let ticks=0,swishes=0,thuds=0;sfx.activate=()=>ticks++;sfx.slide=()=>swishes++;sfx.thud=()=>thuds++;sfx.win=sfx.pop=()=>{};
       tap(0);const blocked={ticks,swishes,thuds,flashes:G.activations.size};tap(1);
       const accepted={ticks,swishes,flashes:[...G.activations.keys()]};for(let n=0;n<3000&&!G.ended;n++)update(.02);

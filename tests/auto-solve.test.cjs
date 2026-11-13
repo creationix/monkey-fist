@@ -45,7 +45,7 @@ test('auto-solve holds a fading empty grid for 1 / 2 / 0.5 seconds and plays com
         $('result').close(); cancelGuide(); save.moveSpeed = speed; let sounds = 0; sfx.win = () => sounds++;
         Object.assign(G, { level: { grid: 'square', W: 6, H: 4, locks: [], mirrors: [], springs: [], par: 1 }, paths: [[p(0, 1), p(1, 1)], [p(2, 1), p(3, 1)]], plan: [1, 0],
           moves: new Map(), history: [], ended: false, loading: false, auto: false, usedAutoSolve: false, clearOutro: null, camera: { zoom: 1, x: 0, y: 0 } });
-        resetFeatures(); resize(); autoSolve(); while (G.moving) update(.001);
+        G.level.ropes = G.paths; resetFeatures(); resize(); autoSolve(); while (G.moving) update(.001);
         const start = G.clearOutro, atStart = sounds; update((.5 - start) / factor); draw(0);
         const halfway = { phase: G.clearOutro, sound: sounds, result: $('result').open, hudHidden: document.body.classList.contains('auto-solving') };
         update(.499 / factor); const beforeEnd = { ended: G.ended, sound: sounds }; update(.002 / factor); draw(0);
