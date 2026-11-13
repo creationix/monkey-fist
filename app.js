@@ -1,4 +1,4 @@
-/* global MFGame, MFHex, MFAudio, MFRopeArt */
+/* global MFGame, MFHex, MFAudio, MFRopeArt, MFInput */
 'use strict';
 const H = MFGame, $ = id => document.getElementById(id), canvas = $('board'), mainContext = canvas.getContext('2d');
 let ctx = mainContext;
@@ -28,7 +28,7 @@ save.sound = MFAudio.soundSetting(save.sound).id;
 const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
-let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true;
+let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null;
 const gameAudio = MFAudio.createAudio(() => ({
   sound: save.sound, music: !!save.music && !document.hidden && !$('chooser').open && !$('result').open, level: G.index + 1,
 }));
@@ -94,7 +94,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
 async function start(index) {
   const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
   cancelGuide();
-  pointers.clear(); gesture = null;
+  resetInput(); cameraTween = null;
   G.index = Math.max(0, Math.min(H.available(opts, save.chapters) - 1, Math.floor(Number(index) || 0)));
   G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
   G.moves.clear();
@@ -121,7 +121,6 @@ function hud() {
   }
   $('chapter').textContent = opts.kind === 'journey' ? 'JOURNEY · ' + (Math.floor(G.index / 10) + 1) + ' / 12' : 'YOUR CUSTOM SET';
   $('gridType').textContent = l.grid === 'hex' ? 'HEX' : 'SQUARE'; $('gridMark').textContent = l.grid === 'hex' ? '⬡' : '◇';
-  canvas.setAttribute('aria-label', (l.grid === 'hex' ? 'Hexagonal' : 'Square') + ' rope puzzle. Tap a rope to slide it. Drag to explore; pinch or scroll to zoom. Arrow keys select ropes; Enter slides the selected rope.');
   $('remaining').textContent = left + ' ropes left';
   $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + l.par;
   $('undos').textContent = G.undos;
@@ -197,13 +196,19 @@ function finish() {
 }
 function update(dt) {
   if (!G.level || $('chooser').open) return;
+  if (cameraTween) {
+    const t = cameraTween; t.time = Math.min(1, t.time + dt / .22); const ease = 1 - Math.pow(1 - t.time, 3);
+    G.camera = Object.fromEntries(['zoom', 'x', 'y'].map(k => [k, t.from[k] + (t.to[k] - t.from[k]) * ease]));
+    if (t.time === 1) cameraTween = null;
+    applyCamera(); drawNext = true;
+  }
   if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) { G.hint = -1; drawNext = true; } }
   if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) { G.bump = null; drawNext = true; } }
   let settled = false;
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
     m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
-    if (m.progress >= m.distance - .001) { m.hold -= dt; if (m.hold <= 0) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); } }
+    if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) { m.hold -= dt; if (m.hold <= 0) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); } }
   }
   if (!G.ended && G.paths.every(p => !p) && !G.moving) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
@@ -212,6 +217,7 @@ function update(dt) {
 function raw(p, rotated) { const v = H.project(p, G.level); return rotated ? { x: -v.y, y: v.x } : v; }
 function screen(p) { const v = raw(p, G.view.rotated); return { x: G.view.ox + v.x * G.view.scale, y: G.view.oy + v.y * G.view.scale }; }
 function resize() {
+  resetInput(); cameraTween = null;
   const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   restingCanvas.width = canvas.width; restingCanvas.height = canvas.height; restingContext.setTransform(dpr, 0, 0, dpr, 0, 0); restingKey = [];
@@ -222,29 +228,34 @@ function resize() {
   const wide = width > height * 1.2, usableW = width - (wide ? 300 : 24), usableH = height - (wide ? 28 : 220);
   const normal = Math.min(usableW / w, usableH / h), rotated = Math.min(usableW / h, usableH / w);
   const rot = rotated > normal, scale = Math.max(1, Math.min(110, rot ? rotated : normal));
-  G.view = { rotated: rot, fit: scale, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
+  G.view = { rotated: rot, fit: scale, zoomable: scale < 56, usableW, usableH, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
   applyCamera();
   draw(0);
 }
 function applyCamera() {
   if (!G.level) return;
-  const c = G.camera, v = G.view, bw = v.bw * c.zoom, bh = v.bh * c.zoom;
-  // Allow every part of the board to move clear of the fixed corner controls,
-  // even at Fit. Clamp only when the entire board would leave the viewport.
-  const limitX = (bw + width) / 2 - Math.min(bw, width) * .25, limitY = (bh + height) / 2 - Math.min(bh, height) * .25;
-  c.x = Math.max(-limitX, Math.min(limitX, c.x)); c.y = Math.max(-limitY, Math.min(limitY, c.y));
+  const v = G.view; G.camera = MFInput.constrain(G.camera, v);
+  const c = G.camera, bw = v.bw * c.zoom, bh = v.bh * c.zoom;
+  v.panX = bw > v.usableW + 1; v.panY = bh > v.usableH + 1;
   v.scale = v.fit * c.zoom; v.ox = width / 2 + c.x - v.cx * v.scale; v.oy = height / 2 + c.y - v.cy * v.scale;
   v.panel = { x: (width - bw) / 2 + c.x - 8, y: (height - bh) / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
   $('zoomFit').textContent = 'Fit'; $('zoomFit').title = 'Fit and center the board · ' + Math.round(c.zoom * 100) + '%';
   $('zoomOut').disabled = c.zoom <= 1; $('zoomIn').disabled = c.zoom >= 8;
+  for (const id of ['zoomOut', 'zoomIn', 'zoomFit']) $(id).hidden = !v.zoomable;
+  $('zoomControls').querySelector('span').textContent = !v.zoomable ? '' : v.panX || v.panY ? 'Drag to explore · pinch to zoom' : 'Pinch or + to zoom';
+  canvas.setAttribute('aria-label', (G.level.grid === 'hex' ? 'Hexagonal' : 'Square') + ' rope puzzle. Tap a rope to slide it. ' + (v.zoomable ? 'Pinch or scroll to zoom; drag when zoomed in. ' : '') + 'Arrow keys select ropes; Enter slides the selected rope.');
   canvas.classList.toggle('zoomed', c.zoom > 1);
+  canvas.classList.toggle('pannable', v.panX || v.panY);
 }
-function zoomTo(zoom, p = { x: width / 2, y: height / 2 }) {
-  if (!G.level) return;
+function setCamera(camera, smooth = false) {
+  const target = MFInput.constrain(camera, G.view);
+  if (smooth && !reduced) cameraTween = { from: { ...G.camera }, to: target, time: 0 };
+  else { cameraTween = null; G.camera = target; applyCamera(); drawNext = true; }
+}
+function zoomTo(zoom, p = { x: width / 2, y: height / 2 }, smooth = false) {
+  if (!G.level || !G.view.zoomable) return;
   const c = G.camera, next = Math.max(1, Math.min(8, zoom)), ratio = next / c.zoom;
-  c.x = p.x - width / 2 - (p.x - width / 2 - c.x) * ratio;
-  c.y = p.y - height / 2 - (p.y - height / 2 - c.y) * ratio; c.zoom = next;
-  applyCamera(); draw(0);
+  setCamera({ zoom: next, x: p.x - width / 2 - (p.x - width / 2 - c.x) * ratio, y: p.y - height / 2 - (p.y - height / 2 - c.y) * ratio }, smooth);
 }
 function focusRope(i) {
   if (!G.paths[i]) return;
@@ -267,6 +278,13 @@ function visiblePath(i) {
   const m = G.moves.get(i), start = m.progress, end = start + m.path.length - 1, points = [pointAt(m.route, start)];
   for (let k = Math.floor(start) + 1; k < end; k++) points.push(m.route[k]);
   points.push(pointAt(m.route, end)); return points;
+}
+function exitCleared(i) {
+  const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
+  const minX = Math.min(...points.map(p => p.x)) - margin, maxX = Math.max(...points.map(p => p.x)) + margin;
+  const minY = Math.min(...points.map(p => p.y)) - margin, maxY = Math.max(...points.map(p => p.y)) + margin;
+  const outside = b => maxX < b.x || minX > b.x + b.w || maxY < b.y || minY > b.y + b.h;
+  return outside({ x: 0, y: 0, w: width, h: height }) && outside(G.view.panel);
 }
 function drawRope(i, time) {
   const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i);
@@ -346,52 +364,50 @@ function draw(time) {
   for (const i of G.moves.keys()) drawRope(i, time);
 }
 function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))); return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t); }
-function tapAt(p) {
-  if (!G.level || G.auto) return;
-  let best = -1, distance = G.view.scale * .43;
+function pickRope(p, padding = 0) {
+  if (!G.level || G.auto) return -1;
+  let best = -1, distance = Math.max(G.view.scale * .43, padding);
   G.paths.forEach((rope, i) => { if (!rope || G.moves.has(i)) return; const points = rope.map(screen), d = headDirection(rope); points.push(screen(H.add(rope.at(-1), d, .35)));
     for (let j = 1; j < points.length; j++) { const v = distanceTo(p, points[j - 1], points[j]); if (v < distance) { distance = v; best = i; } }
   });
-  if (best >= 0) { G.selected = -1; tap(best); }
+  return best;
 }
-const pointers = new Map(); let gesture = null;
 const pointerPosition = e => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-function beginGesture(dragged = false) {
-  const points = [...pointers.values()], c = G.camera;
-  if (points.length === 2) {
-    const [a, b] = points; gesture = { pinch: true, distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, ...c };
-  } else gesture = points.length ? { start: points[0], ...c, dragged } : null;
+const input = MFInput.create({ view: () => ({ ...G.view, width, height }), camera: () => G.camera, change: camera => setCamera(camera),
+  pick: pickRope, tap: i => { G.selected = -1; tap(i); } });
+const consume = e => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); };
+const contact = e => ({ ...pointerPosition(e), id: e.pointerId, type: e.pointerType, width: e.width, height: e.height });
+function resetInput() {
+  for (const id of input.pointers.keys()) { try { canvas.releasePointerCapture(id); } catch { /* A canceled pointer may already be released. */ } }
+  input.reset();
 }
 canvas.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || !G.level) return;
-  e.preventDefault(); canvas.focus({ preventScroll: true }); canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, pointerPosition(e)); beginGesture(pointers.size > 1);
+  if (e.button !== 0 || !G.level || G.ended || G.loading) return;
+  consume(e); cameraTween = null;
+  if (e.pointerType === 'mouse') canvas.focus({ preventScroll: true });
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* Detached/synthetic pointers need no capture. */ }
+  input.down(contact(e));
 });
 canvas.addEventListener('pointermove', e => {
-  if (!pointers.has(e.pointerId) || !gesture) return;
-  const p = pointerPosition(e); pointers.set(e.pointerId, p);
-  if (gesture.pinch && pointers.size >= 2) {
-    const [a, b] = [...pointers.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const zoom = Math.max(1, Math.min(8, gesture.zoom * Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance)), ratio = zoom / gesture.zoom;
-    G.camera = { zoom, x: mid.x - width / 2 - (gesture.mid.x - width / 2 - gesture.x) * ratio, y: mid.y - height / 2 - (gesture.mid.y - height / 2 - gesture.y) * ratio };
-  } else {
-    const dx = p.x - gesture.start.x, dy = p.y - gesture.start.y;
-    gesture.dragged ||= Math.hypot(dx, dy) > 6;
-    if (gesture.dragged) { G.camera.x = gesture.x + dx; G.camera.y = gesture.y + dy; }
-  }
-  applyCamera(); draw(0);
+  if (!input.pointers.has(e.pointerId)) return;
+  consume(e); input.move(contact(e));
 });
-function endPointer(e) {
-  if (!pointers.has(e.pointerId)) return;
-  const shouldTap = e.type === 'pointerup' && gesture && !gesture.pinch && !gesture.dragged;
-  pointers.delete(e.pointerId); beginGesture(true);
-  if (shouldTap) tapAt(pointerPosition(e));
-}
-canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', e => { e.preventDefault(); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
-$('zoomIn').onclick = () => zoomTo(G.camera.zoom * 1.5);
-$('zoomOut').onclick = () => zoomTo(G.camera.zoom / 1.5);
-function fitBoard() { G.camera = { zoom: 1, x: 0, y: 0 }; applyCamera(); draw(0); }
+canvas.addEventListener('pointerup', e => { consume(e); input.up(contact(e)); });
+for (const name of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(name, e => input.cancel(e.pointerId));
+for (const name of ['blur', 'pagehide']) window.addEventListener(name, resetInput);
+document.addEventListener('visibilitychange', () => { if (document.hidden) resetInput(); });
+// Cancel browser gestures on the game surface, not scrolling/form controls in
+// the menu. These cannot cancel gestures reserved by iOS or Android itself.
+for (const name of ['touchstart', 'touchmove', 'touchend']) canvas.addEventListener(name, consume, { passive: false });
+for (const name of ['contextmenu', 'selectstart', 'dragstart']) $('game').addEventListener(name, consume);
+document.addEventListener('contextmenu', e => { if (e.target.closest('button')) consume(e); });
+for (const name of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(name, e => {
+  if (!$('chooser').open && !$('result').open) consume(e);
+}, { passive: false });
+canvas.addEventListener('wheel', e => { consume(e); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
+$('zoomIn').onclick = () => zoomTo(G.camera.zoom * 1.5, undefined, true);
+$('zoomOut').onclick = () => zoomTo(G.camera.zoom / 1.5, undefined, true);
+function fitBoard() { resetInput(); setCamera({ zoom: 1, x: 0, y: 0 }, true); }
 $('zoomFit').onclick = fitBoard;
 $('fullscreen').hidden = !document.fullscreenEnabled;
 $('fullscreen').onclick = async () => {
@@ -434,7 +450,7 @@ function renderChooser() {
     button.onclick = () => { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }; $('grid').append(button);
   }
 }
-function chooser() { $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
+function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
 function settings() {
   draft = H.parseCode($('seed').value) || H.normalize({ seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value, min: $('minDifficulty').value, max: $('maxDifficulty').value, mirrors: $('mirrors').checked, springs: $('springs').checked });
   if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();

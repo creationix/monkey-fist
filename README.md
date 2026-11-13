@@ -68,10 +68,14 @@ or better, two means within two taps, and one means completion. There is no hard
 tap budget. Hints, undo, and blocked taps break the combo; a hinted rope stays
 assisted until restart, even after the highlight expires or an undo.
 
-Drag the board, scroll or pinch to zoom, and press **Fit** to recenter. Keyboard:
+Small boards stay centered with zoom and panning disabled. On larger boards,
+scroll or pinch to zoom, drag to explore the overflowing area, and press **Fit**
+to smoothly recenter. At Fit, panning is disabled. Finger drift is tolerated;
+resting edge contacts do not take ownership of other fingers' taps. Keyboard:
 arrow keys select ropes, Enter/Space slides, +/− zooms, and 0 fits the board.
 The app respects reduced-motion preferences. Fullscreen is available where the
-browser supports it.
+browser supports it. [Touch input and platform limits](docs/touch-and-platforms.md)
+documents gesture handling, device testing, and native iOS/Android options.
 
 ## Generation and solving
 
@@ -92,6 +96,7 @@ The underlying engines remain specialized:
 | `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation, compact track solver |
 | `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
+| `input.js` | Independent touch contacts, intentional pan/pinch recognition, and centered camera bounds |
 | `rope-art.js` | Cached braid geometry that follows rounded bends, matching arrowheads, and reduced detail at small sizes |
 | `audio.js`, `music.js`, `sounds.js` | Shared Web Audio session, arrangements, and effects |
 
@@ -121,6 +126,8 @@ algorithm notes, difficulty metrics, and research references.
 
 Six synthesized arrangements change with the level: bass-led percussion,
 restrained melody, and no downloaded audio. The same swish plays on both grids.
+The exit sound plays as soon as the entire rope clears both the board and the
+visible viewport; animation does not wait for an invisible extended route.
 The sound-effects button cycles **Off → Low → Full**; Low is the default and
 uses one quarter of Full’s gain. Music has a separate toggle. Audio initializes
 on the first gesture, pauses in the background, and music pauses in menus.
