@@ -265,6 +265,16 @@ geometry and generator certificates, and play real pointer taps on laptop and
 phone layouts. They cover chapter unlocks, concurrent animation, hints, undo,
 audio gains, worker fallback, persistence, and offline reloads.
 
+### Code size
+
+`node scripts/code-metrics.cjs` reports size and complexity by area and file:
+tokens (lines mislead in code with long lines), functions, and decision points
+(`if`, loops, `case`, `catch`, `?:`, `&&`, `||`, `??`), plus the functions with the most
+decisions. `--history` prints the same totals at every commit on `main`. The test
+suite checks game code against `scripts/code-budget.json` (current size plus 2 %
+headroom): simplify, or run `--update` when growth is deliberate. Removing code can
+lower the budget the same way.
+
 The [generator benchmark](docs/research/puzzle-benchmark.md) compares Git revisions
 or independent generators under common movement rules, with separate tap/slide
 searches and seeded player policies. It runs offline and does not change gameplay.
