@@ -296,7 +296,8 @@ function tap(i, automatic = false, solveFast = false) {
   if (G.loading || !G.paths[i] || !solveFast && previous && (previous.event !== 'bounce' || previous.queued) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
   const m = rules().tap(G.level, G.paths, i);
-  if (!m) { G.bump = { i, time: .25 }; G.combo = 0; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
+  // The bounce animation shows the rope is blocked; a light sound confirms it.
+  if (!m) { G.bump = { i, time: .25 }; G.combo = 0; if (!automatic) sfx.blocked(); hud(); return; }
   if (!automatic) G.history.push({ paths: G.paths, plan: G.plan.slice(), lost: G.lost });
   if (G.bump?.i === i) G.bump = null;
   const reflections = mirrorCrossings(m.route, G.paths[i].length);

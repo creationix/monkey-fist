@@ -1,7 +1,7 @@
 // The same synthesized effects for square and hex Monkey Fist.
 (function (root) {
   'use strict';
-  const GAPS = { click: 50, activate: 25, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 150, lose: 1500 };
+  const GAPS = { click: 50, activate: 25, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, blocked: 90, undo: 80, hint: 250, win: 150, lose: 1500 };
   function createSoundPlayer(context, destination, options = {}) {
     const bus = context.createGain(); bus.connect(destination);
     const active = new Set(), lastAt = {}, now = options.now || (() => context.currentTime * 1000);
@@ -70,6 +70,8 @@
       },
       bump() { tone(140, .28, 'sine', .6, 0, 55); noise(.16, .35, 300, 90); tone(110, .2, 'triangle', .2, .01, 70); },
       thud() { tone(170, .14, 'sine', .3, 0, 90); noise(.07, .14, 420, 160); },
+      // A tapped rope that cannot move: a light, two-note "uh-uh", softer than a thud.
+      blocked() { tone(392, .07, 'sine', .1, 0, 370); tone(311, .11, 'sine', .09, .08, 294); },
       undo() { tone(620, .16, 'sine', .2, 0, 330); },
       hint() { pluck(880, .35, 0, .25); pluck(1318.5, .35, .09, .4); },
       win(stars = 0) {

@@ -77,18 +77,18 @@ test('queued spring taps tick and flash the current flip; each move swishes only
   }finally{await browser.close();}
 });
 
-test('blocked taps keep their thud while automatic releases have swishes without synthetic user ticks', { timeout:60000 }, async()=>{
+test('blocked taps play a light error sound and no notice, while automatic releases have swishes without synthetic user ticks', { timeout:60000 }, async()=>{
   const browser=await launch();try{
     const page=await browser.newPage();await page.addInitScript(()=>{requestAnimationFrame=()=>0;});await page.goto(base);await ready(page);
     const result=await page.evaluate(()=>{
       const p=(q,r)=>({q,r});cancelGuide();cancelFeatureCheck();
       Object.assign(G,{level:{grid:'square',W:8,H:6,mirrors:[],springs:[],locks:[],par:1},paths:[[p(0,1),p(1,1)],[p(2,1),p(3,1)],[p(0,3),p(1,3)]],plan:[1,0,2],moves:new Map(),activations:new Map(),history:[],auto:false,ended:false,lost:false,loading:false,hint:-1,selected:-1,camera:{zoom:1,x:0,y:0}});G.level.ropes=G.paths;resetFeatures();resize();
-      let ticks=0,swishes=0,thuds=0;sfx.activate=()=>ticks++;sfx.slide=()=>swishes++;sfx.thud=()=>thuds++;sfx.win=sfx.pop=()=>{};
-      tap(0);const blocked={ticks,swishes,thuds,flashes:G.activations.size};tap(1);
+      let ticks=0,swishes=0,errors=0;sfx.activate=()=>ticks++;sfx.slide=()=>swishes++;sfx.blocked=()=>errors++;sfx.win=sfx.pop=()=>{};
+      tap(0);const blocked={ticks,swishes,errors,flashes:G.activations.size,notice:$('notice').classList.contains('show')};tap(1);
       const accepted={ticks,swishes,flashes:[...G.activations.keys()]};for(let n=0;n<3000&&!G.ended;n++)update(.02);
       return {blocked,accepted,ticks,swishes,ended:G.ended};
     });
-    assert.deepEqual(result.blocked,{ticks:0,swishes:0,thuds:1,flashes:0});assert.deepEqual(result.accepted,{ticks:1,swishes:0,flashes:[1]});
+    assert.deepEqual(result.blocked,{ticks:0,swishes:0,errors:1,flashes:0,notice:false});assert.deepEqual(result.accepted,{ticks:1,swishes:0,flashes:[1]});
     assert.equal(result.ticks,1);assert.equal(result.swishes,3);assert.equal(result.ended,true);
   }finally{await browser.close();}
 });
