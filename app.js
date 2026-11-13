@@ -521,7 +521,7 @@ function drawRope(i, time) {
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
   if (moving?.waiting) {
-    MFRopeArt.stroke(ctx, points, s * .4, s * .51, '#fff1b433', false, save.graphics);
+    MFRopeArt.stroke(ctx, points, s * .4, s * .51, '#fff1b433', false, save.graphics, head);
   }
   if (flip && reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
@@ -535,7 +535,8 @@ function drawRope(i, time) {
   };
   if (G.hint === i || G.selected === i) {
     const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
-    MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting, save.graphics); arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
+    MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting, save.graphics, head);
+    if (save.graphics !== 'tiles') arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.

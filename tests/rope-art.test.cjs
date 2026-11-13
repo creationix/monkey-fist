@@ -73,7 +73,7 @@ test('Tiles have flat translucent panels and crisp rims that move with the cord'
       const head = { x: 1, y: 0 };
       MFRopeArt.draw(ctx, [{ x: 60, y: 64 }, { x: 280, y: 64 }], 32, '#58b7ef', head, false, 'tiles');
       const middle = ctx.getImageData(140, 64, 1, 1).data[3], rim = ctx.getImageData(140, 48, 1, 1).data[3];
-      const inside = [[100, 56], [140, 64], [180, 72], [220, 64]].map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data));
+      const inside = [[100, 56], [140, 64], [180, 72], [220, 64], [264, 64], [270, 64], [276, 64], [280, 64], [284, 64], [300, 64]].map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data));
       const before = ctx.getImageData(80, 44, 150, 40).data; ctx.clearRect(0, 0, 512, 128);
       MFRopeArt.draw(ctx, [{ x: 92, y: 64 }, { x: 312, y: 64 }], 32, '#58b7ef', head, true, 'tiles');
       const after = ctx.getImageData(112, 44, 150, 40).data;
@@ -81,6 +81,6 @@ test('Tiles have flat translucent panels and crisp rims that move with the cord'
     });
     assert.ok(result.middle > 60 && result.middle < 190, 'the panel lets the grid show through');
     assert.ok(result.rim > 210, 'the frame stays clear and sharp'); assert.equal(result.attached, true);
-    for (const pixel of result.inside) assert.deepEqual(pixel, result.inside[0], 'no spiral lines or center-brightening band');
+    for (const pixel of result.inside) assert.deepEqual(pixel, result.inside[0], 'flat fill continues through the arrow join with no overlap, cap line, or gap');
   } finally { await browser.close(); }
 });

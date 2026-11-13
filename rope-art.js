@@ -58,17 +58,27 @@
     };
     return { points, line, length, at, breaks, segments };
   }
-  function tileGeometry(points, width, moving) {
+  function tileGeometry(points, width, moving, head = null) {
     const origin = points[0], normalized = points.map(p => ({ x: (p.x - origin.x) / width, y: (p.y - origin.y) / width }));
-    const key = 'tiles/' + normalized.map(p => p.x.toFixed(3) + ',' + p.y.toFixed(3)).join(';');
+    const key = 'tiles/' + (head ? head.x.toFixed(3) + ',' + head.y.toFixed(3) : 'no-head') + '/' + normalized.map(p => p.x.toFixed(3) + ',' + p.y.toFixed(3)).join(';');
     if (!moving && cache.has(key)) return cache.get(key);
-    const g = polyline(normalized), left = [], right = [], outline = new Path2D();
-    for (let i = 0; i < g.points.length; i++) {
-      const p = g.points[i], incoming = g.segments[Math.max(0, i - 1)], outgoing = g.segments[Math.min(i, g.segments.length - 1)];
+    const g = polyline(normalized), left = [], right = [], outline = new Path2D(), arrow = [];
+    let body = g;
+    if (head) {
+      // Stop the shaft at the arrow's neck, even when the last segment is shorter
+      // than the neck. One silhouette gives the join a single fill and no end-cap seam.
+      const back = Math.min(.3, g.length), end = g.length - back;
+      const shaft = g.points.filter((p, i) => g.breaks[i] < end); shaft.push(g.at(end));
+      body = polyline(shaft);
+      const tip = g.points.at(-1), at = (x, y) => ({ x: tip.x + head.x * x - head.y * y, y: tip.y + head.y * x + head.x * y });
+      arrow.push(at(-back, .5), at(-back, .77), at(1.1, 0), at(-back, -.77), at(-back, -.5));
+    }
+    for (let i = 0; i < body.points.length; i++) {
+      const p = body.points[i], incoming = body.segments[Math.max(0, i - 1)], outgoing = body.segments[Math.min(i, body.segments.length - 1)];
       if (!incoming || !outgoing) continue;
       const cross = incoming.x * outgoing.y - incoming.y * outgoing.x, dot = incoming.x * outgoing.x + incoming.y * outgoing.y;
       for (const [sign, side] of [[1, left], [-1, right]]) {
-        if (i > 0 && i < g.points.length - 1 && cross * sign > .001 && dot > -.999) {
+        if (i > 0 && i < body.points.length - 1 && cross * sign > .001 && dot > -.999) {
           const scale = sign * .5 / (1 + dot);
           side.push({ x: p.x - (incoming.y + outgoing.y) * scale, y: p.y + (incoming.x + outgoing.x) * scale });
         } else {
@@ -77,7 +87,7 @@
         }
       }
     }
-    if (left.length) polygon(outline, left.concat(right.reverse()));
+    if (left.length || arrow.length) polygon(outline, left.concat(arrow, right.reverse()));
     const result = { ...g, outline };
     if (!moving) { cache.set(key, result); if (cache.size > 240) cache.delete(cache.keys().next().value); }
     return result;
@@ -117,9 +127,9 @@
   function ink(ctx, paths, color) {
     for (const [i, path] of paths.entries()) { ctx.fillStyle = i === 1 ? shade(color, .38) : i === 2 ? shade(color, -.35) : shade(color, .12); ctx.fill(path); }
   }
-  function stroke(ctx, points, width, strokeWidth, color, moving = false, style = 'rope') {
+  function stroke(ctx, points, width, strokeWidth, color, moving = false, style = 'rope', head = null) {
     if (points.length < 2) return;
-    const g = style === 'tiles' ? tileGeometry(points, width, moving) : geometry(points, width, 0, moving);
+    const g = style === 'tiles' ? tileGeometry(points, width, moving, head) : geometry(points, width, 0, moving);
     ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width);
     ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.lineWidth = strokeWidth / width;
     if (style === 'tiles') { ctx.lineWidth = Math.max(.08, (strokeWidth - width) / width); ctx.stroke(g.outline); }
@@ -150,18 +160,11 @@
   }
   function drawTiles(ctx, points, width, color, head, moving) {
     if (points.length < 2) return;
-    const g = tileGeometry(points, width, moving), alpha = ctx.globalAlpha;
+    const g = tileGeometry(points, width, moving, head), alpha = ctx.globalAlpha;
     ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width); ctx.lineJoin = 'bevel';
     ctx.globalAlpha = alpha * .52; ctx.fillStyle = color; ctx.fill(g.outline);
     ctx.globalAlpha = alpha * .9; ctx.strokeStyle = shade(color, -.05); ctx.lineWidth = .11; ctx.stroke(g.outline);
     ctx.globalAlpha = alpha * .42; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .025; ctx.stroke(g.outline); ctx.restore();
-    if (!head) return;
-    const tip = points.at(-1), triangle = new Path2D(); polygon(triangle, [{ x: -.3, y: -.77 }, { x: 1.1, y: 0 }, { x: -.3, y: .77 }]);
-    ctx.save(); ctx.translate(tip.x, tip.y); ctx.rotate(Math.atan2(head.y, head.x)); ctx.scale(width, width); ctx.lineJoin = 'bevel';
-    ctx.globalAlpha = alpha * .52; ctx.fillStyle = color; ctx.fill(triangle);
-    ctx.globalAlpha = alpha * .95; ctx.strokeStyle = shade(color, -.05); ctx.lineWidth = .11;
-    ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49); ctx.stroke();
-    ctx.restore();
   }
   root.MFRopeArt = { draw, trace, stroke };
 })(globalThis);
