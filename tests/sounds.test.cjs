@@ -72,27 +72,33 @@ test('zero-star completion keeps the calm bass resolution', () => {
 });
 
 
-test('one, two and three stars play distinct major phrases with increasingly full finales', () => {
-  const counts = [], melodies = [], endings = [];
+test('earned stars have unmistakably different rhythms, lengths and melodic contours', () => {
+  const cues = [];
   for (const stars of [1, 2, 3]) {
     const { context, sources } = device(), player = createSoundPlayer(context, {}, { getChord: () => ({ bass: 60 }) });
     assert.equal(player.win(stars), true);
-    counts.push(sources.length);
-    const notes = stars === 1 ? 4 : stars === 2 ? 5 : 6;
-    melodies.push(Array.from({length: notes}, (_, i) => sources[2 + i * 2].frequency.value));
-    const at = sources[2 + (notes - 1) * 2].started;
-    endings.push(sources.filter(source => source.started === at).length);
+    const attacks = [...new Set(sources.filter(source => source.type === 'triangle').map(source => source.started))];
+    const melody = attacks.map(time => sources.find(source => source.type === 'triangle' && source.started === time).frequency.value);
+    const end = attacks.at(-1);
+    cues.push({ attacks, melody, duration: Math.max(...sources.map(source => source.stopped)), voices: sources.length,
+      closingVoices: sources.filter(source => source.started === end).length });
     assert.ok(sources.every(source => source.frequency.value <= 1200), 'brightness stays in a warm, audible register');
     assert.ok(sources.some(source => source.frequency.value === 60), 'every celebration retains its bass foundation');
-    assert.ok(sources.some(source => source.type === 'triangle'));
     assert.equal(player.win(1), false, 'different star rewards share the duplicate-completion throttle');
     player.setEnabled(false); assert.equal(player.state.voices, 0);
     context.currentTime = 2; const before = sources.length;
     assert.equal(player.win(stars), false); assert.equal(sources.length, before);
   }
-  assert.deepEqual(counts, [11, 14, 18]);
-  assert.deepEqual(melodies, [[240, 300, 360, 480], [180, 240, 300, 360, 480], [240, 300, 360, 480, 360, 480]]);
-  assert.deepEqual(endings, [3, 4, 6], 'the final chord grows as well as the melody');
+  const [one, two, three] = cues;
+  assert.equal(one.attacks.length, 2, 'one star is a short two-note close');
+  assert.ok(one.duration <= .6, 'one star ends before a longer riff could be mistaken for it');
+  assert.equal(two.attacks.length, 5, 'two stars has an obvious multi-note ascent');
+  assert.ok(two.attacks.at(-1) >= .7 && two.attacks.at(-1) <= .9);
+  assert.ok(two.melody.every((pitch, i) => !i || pitch > two.melody[i - 1]), 'two stars rises in clear steps');
+  assert.ok(one.melody[0] > two.melody[0], 'the cues begin in different registers');
+  assert.ok(two.duration > one.duration * 2);
+  assert.equal(three.attacks.length, 6); assert.ok(three.closingVoices > two.closingVoices);
+  assert.deepEqual(cues.map(cue => cue.voices), [7, 14, 18]);
 });
 
 test('an automatic release burst cannot crowd the victory sound out of the voice budget', () => {

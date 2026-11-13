@@ -75,26 +75,27 @@
         stars = Math.max(0, Math.min(3, Math.floor(Number(stars) || 0)));
         const bass = Math.max(50, Math.min(85, options.getChord?.().bass || 65.41));
         if (stars) {
-          // A warm major-key celebration: a small rising phrase, a longer
-          // pickup, then a fanfare with a full upper triad for a perfect clear.
+          // Distinct silhouettes make the reward audible without counting:
+          // two warm notes, a measured rising riff, then a full bright fanfare.
           const phrases = [null,
-            [[0, 1], [.13, 1.25], [.26, 1.5], [.44, 2]],
-            [[0, .75], [.11, 1], [.24, 1.25], [.38, 1.5], [.57, 2]],
+            [[0, 1.5], [.2, 2]],
+            [[0, 1], [.12, 1.125], [.24, 1.25], [.42, 1.5], [.74, 2]],
             [[0, 1], [.09, 1.25], [.18, 1.5], [.32, 2], [.46, 1.5], [.61, 2]],
           ];
           const phrase = phrases[stars], root = bass * 4, end = phrase.at(-1)[0];
-          reserveVoices([0, 11, 14, 18][stars]);
-          tone(bass, 1.05, 'sine', .16, 0, undefined, .025);
-          tone(bass * 2, .8, 'sine', .055, .015, undefined, .02);
+          reserveVoices([0, 7, 14, 18][stars]);
+          tone(bass, stars === 1 ? .45 : 1.05, 'sine', .16, 0, undefined, .025);
+          tone(bass * 2, stars === 1 ? .38 : .8, 'sine', .055, .015, undefined, .02);
           for (const [index, [delay, ratio]] of phrase.entries()) {
             const final = index === phrase.length - 1, pitch = root * ratio;
-            tone(pitch, final ? .75 + stars * .08 : .32, 'triangle', .16, delay, undefined, .012);
-            tone(pitch * 2, final ? .6 : .16, 'sine', .025, delay, undefined, .018);
+            const length = stars === 1 ? final ? .28 : .18 : stars === 2 ? final ? .65 : .22 : final ? .99 : .32;
+            tone(pitch, length, 'triangle', .16, delay, undefined, .012);
+            tone(pitch * 2, stars === 1 ? final ? .22 : .07 : final ? stars === 2 ? .48 : .6 : .16, 'sine', .025, delay, undefined, .018);
           }
-          if (stars === 1) tone(root, .72, 'sine', .045, end, undefined, .03);
+          if (stars === 1) tone(root, .26, 'sine', .045, end, undefined, .03);
           if (stars === 2) {
-            tone(root * 1.25, .85, 'sine', .055, end, undefined, .025);
-            tone(root * 1.5, .85, 'sine', .045, end, undefined, .025);
+            tone(root * 1.25, .7, 'sine', .055, end, undefined, .025);
+            tone(root * 1.5, .7, 'sine', .045, end, undefined, .025);
           }
           if (stars === 3) {
             tone(bass * 3, .95, 'sine', .045, end, undefined, .03);
