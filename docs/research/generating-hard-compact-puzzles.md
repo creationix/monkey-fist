@@ -1,8 +1,10 @@
 # Generating hard, compact rope puzzles: prior work and its application to Monkey Fist
 
 *Research note, November 2026. Measurements refer to revision `90b522e` (the J3
-Journey) and to revision `0be7c3a` (the J1 Journey, the last one before difficulty
-was separated from board size). No game code was changed to produce this note.*
+Journey, generation revision 3), to revision `ee2ec69` (the same Journey after
+generation revision 4, section 5.6) and to revision `0be7c3a` (the J1 Journey,
+the last one before difficulty was separated from board size). No game code was
+changed to produce this note.*
 
 ## Abstract
 
@@ -12,7 +14,8 @@ matter. This note surveys what computer science knows about generating and
 rating puzzles of this family, chiefly from work on Rush Hour and Sokoban, and
 tests how the repository's generators measure up.
 
-Four results stand out.
+Five results stand out. The first four were measured on generation revision 3;
+the fifth on revision 4, which followed.
 
 1. **The literature says difficulty must be measured by play, not by shape.**
    For puzzles with irreversible moves, the length of the best solution predicts
@@ -34,6 +37,14 @@ Four results stand out.
    solver and the knot-weaving builder apply unchanged once the exit ray is
    allowed to bend (section 6.3). This is a design argument, not yet an
    implemented result.
+5. **Revision 4 fixed the distribution and mostly fixed the counts, using one
+   template.** Mechanics now appear in every chapter after the first, spinner
+   levels use two spinners, and forced non-exit moves across the set rose from
+   87 to 404. But in chapters 7 to 12, 49 of 60 levels get their slides from the
+   same two-rope staircase, which on its own has no losing move; difficulty is
+   flat across those six chapters; 13 of 13 early mirror-only levels are still
+   exit-only; and 28 of the 62 levels required to have par above the rope count
+   meet that requirement only because their par is not minimal (section 5.6).
 
 ## 1. Introduction
 
@@ -451,11 +462,109 @@ and held the casual player to 10 % or less. This matches Fogleman's observation
 for Rush Hour [5]: a generator's typical output is moderate, and the levels
 worth shipping at the top of the curve are roughly one in ten.
 
+### 5.6 Generation revision 4
+
+Revision `ee2ec69` changed the J3 generator and rebuilt the Journey. Its main
+changes are:
+
+- **Chapter quotas.** Each chapter is built and sorted separately. From chapter
+  4 on, every chapter holds one plain level, two mirror levels, two spinner
+  levels and five that combine both.
+- **Distinct spinners.** Spinner levels must use at least two spinners, each
+  bouncing a rope during the manual part of the solution, and later cores may
+  share a spinner only once two exist.
+- **A repeated-slide core.** Hard boards start from a two-rope mutual-wait
+  motif in which each rope must stop several times against the other
+  (`repeatedCore` in [`grid-generator.js`](../../grid-generator.js)). Depth,
+  orientation and placement vary; the shape is fixed. The kernel builders accept
+  this core and weave the rest of the board around it.
+- **Requirements on the certificate.** From chapter 7, featured levels need at
+  least three manual partial slides, two ropes that slide more than once, a
+  filler rope moved between core actions, and par at least 1.05 times the rope
+  count. Late plain levels have similar requirements.
+- **An exact Hex par search** on the compact offset model, and layout hashes
+  that keep saved results attached to unchanged boards.
+
+All 120 boards were regenerated from the published seeds, matched the stored
+layout hashes, and were measured as in section 4.
+
+| Chapter | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Mechanic levels | 0 | 6 | 8 | 9 | 9 | 9 | 9 | 9 | 9 | 9 | 9 | 9 |
+| 12 × 16 boards | 0 | 0 | 0 | 1 | 2 | 0 | 8 | 7 | 7 | 7 | 7 | 7 |
+| Mean forced non-exit moves | 0.3 | 0.3 | 1.2 | 1.5 | 1.8 | 1.8 | 5.8 | 5.4 | 5.4 | 5.6 | 5.6 | 5.7 |
+| Casual win rate | 100 % | 96 % | 100 % | 99 % | 94 % | 85 % | 59 % | 70 % | 71 % | 41 % | 47 % | 65 % |
+| Levels the casual player cannot lose | 10 | 9 | 10 | 9 | 7 | 6 | 2 | 4 | 5 | 1 | 2 | 3 |
+
+Compared with revision 3, over levels 11 to 120:
+
+| Measure | Revision 3 | Revision 4 |
+| --- | --- | --- |
+| Forced non-exit moves, all levels | 87 | 404 |
+| Levels with reported par above the rope count | 9 | 75 |
+| ... of which still above after postponing unneeded exits | 9 | 45 |
+| Levels the casual player cannot lose | 81 | 58 |
+| Mean casual win rate | 89 % | 75 % |
+| Spinner levels using two or more spinners | 0 of 12 | 68 of 70 |
+| Mean ropes on plain levels 31 to 120, square / Hex | 30.9 / 13.3 | 22.8 / 15.7 |
+
+The forced moves are real: on 112 of the 117 levels where the minimum could be
+proven, the certificate uses exactly the minimum number of non-exit moves.
+Revision 4 therefore addresses findings 2 and 3 of section 5.1 in part, and the
+distribution and spinner findings in full. Five weaknesses remain.
+
+**Late difficulty comes from one motif.** All 60 levels in chapters 7 to 12 are
+built on the repeated-slide core. In 49 of them the manual solution makes
+exactly four slides, all by two ropes that each slide twice, and in 58 of the
+62 cored levels those two ropes strictly alternate. Only 9 of the 60 make any
+other slide. The typical late level is therefore the same staircase, two
+spinner bounces and filler. Given only its two core ropes, the casual player
+solved the staircase in every one of 58 tested levels: the motif makes slides
+necessary but offers no wrong slide. The losing options come from elsewhere on
+the board, which is why 17 of the 60 late levels still cannot be lost.
+
+**The curve is a step.** Forced moves average 1.2 to 1.8 in chapters 3 to 6 and
+5.4 to 5.8 in chapters 7 to 12. Within chapters 7 to 12 the correlation between
+position and forced moves is 0.03, and between position and casual win rate
+−0.12. Inside a single late chapter the casual win rate ranges over 73 to 100
+percentage points; in chapter 11, level 104 holds the casual player to 0 %
+while level 101 cannot be lost. The ordering key is still the interaction
+score of section 5.1.
+
+**Early mirror levels are still exit-only.** All 13 mirror-only levels in
+chapters 2 to 6 have no forced slide and cannot be lost. The repeated core is
+applied to featured boards only from difficulty 75 or when the specification
+requires partial slides, and the circuit builder still inserts exit-only
+ropes around it.
+
+**The par requirement is met by loose pars.** 93 of the 96 pars not proven
+minimal are beaten by postponing unneeded exits, by 2.8 taps on average and up
+to 7. Of the 62 levels whose specification requires par at least 1.05 times
+the rope count, 28 fall below that ratio once this is done. Because three stars
+require matching par, those levels also award three stars to play several taps
+from the best.
+
+**The knot and trap budget is unchanged.** Section 5.4's main lever was not
+applied. Run in a scratch copy of revision 4 on plain square boards, adding the
+J1 knot and trap counts on top of the repeated core raised proven forced slides
+from 3.9 to 7.1 on 10 × 14 at `d = 65` and from 7.8 to 11.0 on 12 × 16 at
+`d = 80`. The added slides come from ordinary knots spread through the board,
+not from the core: slides outside the core rose from about 1 to about 5 per
+board. Coverage stayed at 90 % or above.
+
+Two smaller observations. Forty-six of the 120 levels, and 43 of the last 60,
+use the full 12 × 16 grid, so size is again doing some of the work. And the
+ten introductory maps are pinned to hand-picked seeds and layouts.
+
 ## 6. Applying the techniques
 
 The recommendations are ordered by evidence and cost. The first two are
 supported by the measurements above; the rest are designs that follow from the
 literature and from the model in section 2.
+
+Revision 4 implemented the quota half of 6.4 and the spinner fixes of 6.3.
+Sections 6.1, 6.2, 6.5, the mirror half of 6.3, and the slot filling of 6.4
+remain open.
 
 ### 6.1 Restore the knot and trap budget, and stop selecting against it
 
