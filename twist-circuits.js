@@ -124,11 +124,13 @@
     const ropes = b.ropes.slice(), moves = b.solution.slice(), core = ropes.length;
     const occupied = new Set(ropes.flat().map(p => cell(p, b.W)));
     const tiles = new Set([...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)]);
-    let t = trace(b, moves), followers = 0, early = 0;
+    let t = trace(b, moves), followers = 0, early = 0, checks = moves.length;
+    // Bound actual route checks, not elapsed time, so seeded maps remain reproducible.
+    const maxChecks = options.maxTapChecks ?? Infinity;
     // Give forward approaches their own dependencies, before the reversal.
     // Keep sampling the certified route: insertion deadlines preserve the proof.
     const approaches = t.steps.filter(step => step.event === 'bounce').flatMap(step => step.route.slice(b.ropes[step.i].length).map(p => cell(p, b.W)));
-    for (let attempt = 0; attempt < b.W * b.H * (options.attemptsMultiplier ?? 14) && (!ropeCount || ropes.length < ropeCount) && occupied.size < b.W * b.H * (options.coverage ?? .78); attempt++) {
+    for (let attempt = 0; attempt < b.W * b.H * (options.attemptsMultiplier ?? 14) && checks < maxChecks && (!ropeCount || ropes.length < ropeCount) && occupied.size < b.W * b.H * (options.coverage ?? .78); attempt++) {
       const approach = approaches.length && (attempt < 100 || rng() < .5);
       const dependent = rng() < .85;
       let head, dir;
@@ -151,17 +153,20 @@
       const path = backward.reverse(), deadline = Math.min(moves.length, ...path.map(p => t.firstUse.get(cell(p, b.W)) ?? moves.length));
       const i = ropes.length, v = { ...b, ropes: ropes.concat([path]) };
       let at = -1;
-      for (let k = 0; k <= deadline; k++) {
+      for (let k = 0; k <= deadline && checks < maxChecks; k++) {
+        checks++;
         const n = M.tap(v, t.states[k].concat([path]), i);
         if (n && n.event === 'exit') { at = k; break; }
       }
       if (at < 0 || !options.allowEarly && at === 0 && early >= Math.max(3, followers / 2)) continue;
+      if (checks + moves.length + 1 > maxChecks) break;
+      checks += moves.length + 1; // trace() checks every move in the new certificate.
       if (at) followers++; else early++;
       ropes.push(path); moves.splice(at, 0, i); for (const p of path) occupied.add(cell(p, b.W));
       b = { ...b, ropes, solution: moves }; t = trace(b, moves);
       if (!t || !t.solved) throw Error('Invalid interleaved circuit certificate');
     }
-    return { ...b, circuit: { core, followers, early }, construction: 'circuits' };
+    return { ...b, ...(options.maxTapChecks == null ? {} : { packingChecks: checks }), circuit: { core, followers, early }, construction: 'circuits' };
   }
   function generate(rng, W, H, kinds) {
     const count = Math.max(2, Math.min(5, 1 + Math.floor(W * H / 70)));

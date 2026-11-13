@@ -9,14 +9,14 @@ No build step, dependencies, accounts, or network requests during play.
 
 The default journey has 120 deterministic, procedurally generated levels:
 
-- The first five small square puzzles introduce movement, followed by five
-  small Hex puzzles. They retain the original introduction’s dimensions and
-  gradual unlocking and sliding, with at most five ropes each. The following
-  twenty boards stay at or below 12 × 12.
-- Later boards vary in size, mostly from 8 to 18 cells per side, with occasional
-  larger puzzles. Boards stay packed instead of growing sparse strips.
-- Later levels combine unlocking taps per rope with total taps, rope count, and
-  grid area when ordering difficulty. Mirrors and occasional springs join the mix.
+- Opening puzzles mix square and Hex grids in measured unlocking order. They
+  use at most five ropes and gradually add partial-slide dependencies. The
+  following twenty boards stay at or below 12 × 12.
+- Later boards remain moderate, at most 12 columns by 16 rows. Difficulty comes
+  from interacting blocking dependencies, not steadily larger boards or longer
+  single chains. Boards stay packed instead of growing sparse strips.
+- Later levels consider branching unlocks, shared blockers, mutual waits, and
+  repeated slides alongside tap counts. Mirrors and occasional springs join the mix.
 - The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
   21–30, and so on. Every level in an open group is immediately playable, so
   players can jump to the group’s last level to progress faster.
@@ -34,6 +34,8 @@ Open **Menu → Custom** to choose:
 - A difficulty range from 1 to 100, using two touch-friendly sliders.
 - Independent grid width and height, from 4 to 24 cells each. Mirrors or springs
   require at least an 8 × 8 grid.
+- Optional **Colossal** boards, only in Custom, extend the limits to 48 × 48.
+  These use a separate bounded generation path and never appear in Journey.
 - A level-count slider from 1 to 200.
 - A seed, with dice to randomize it and a reset button for `MONKEYFIST`.
 
@@ -43,8 +45,9 @@ reproduce the same puzzles on every device. For example:
 `?set=U3-M-1-100-10-14-120-MS-MONKEYFIST&level=35`
 
 The code encodes format version, grid (`S`/`H`/`M`), minimum and maximum
-difficulty, grid width and height, level count, features (`N`/`M`/`S`/`MS`), and
-seed. The journey is `J3-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain
+difficulty, grid width and height, level count, and flags for mirrors (`M`),
+springs (`S`), or Colossal (`C`), followed by the seed. `N` means no optional
+flags. The journey is `J3-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain
 their original boards and scores. The short-lived `J2` and `U2` rope-count
 settings open the corrected grid-based version in the app; previous scores
 remain stored separately, and Journey chapter unlocks carry over.
@@ -54,8 +57,8 @@ rope count and rope shapes adapt to fill it. Every plain board uses the original
 dense weaving approach, including the small introductions. Difficulty changes
 blocking and sliding dependencies within the same space. Packing preserves the
 small gaps required for sliding instead of filling the solution’s movement lanes.
-Par must be at least one tap for every three ropes; boards with more than three ropes cannot clear
-after one player tap. Mirrors and springs are optional. Every generated board
+Par must be at least one tap for every three ropes; boards with more than three
+ropes cannot clear after one player tap. Mirrors and springs are optional. Every generated board
 starts blocked and has a replayed solution. Par is a verified target; bounded
 searches label an unproved optimum as best known.
 
@@ -64,7 +67,9 @@ Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
 generator; this orders the default campaign without generating all 120 maps on
 each visit. The builder checks exact dimensions, replayed tap counts, overall
 rope coverage, coverage in each quarter of the board, and the minimum tap-to-rope
-ratio. It also checks that larger boards cannot auto-release after one tap. The
+ratio. Later ordering uses causal interaction metrics rather than rewarding
+plain chain depth. The builder also checks that larger boards cannot auto-release
+after one tap. The
 old `journey.js` and its builder remain for compatibility with the earlier format.
 
 Custom sets are free. The single Custom entry point is a natural place for a
@@ -158,6 +163,7 @@ The underlying engines remain specialized:
 | Module | Responsibility |
 | --- | --- |
 | `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the sorted Journey metadata |
+| `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
 | `levels.js` | Square geometry, long woven ropes, sliding knots, fast straight-track solver and small-board par search |
 | `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
 | `twist-circuits.js`, `twists.js` | Procedural square circuits with multi-turn routes, interleaved blockers, and verified certificates |

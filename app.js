@@ -26,14 +26,22 @@ if (save.gen !== H.VERSION) {
   if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
   save.sets = {}; save.chapters = 1; save.gen = H.VERSION;
 }
-// The denser woven layouts replace the initial band puzzles. Archive only
-// scores whose boards changed; keep legacy scores, settings, and chapter access.
+// Keep earned results for unchanged introductions and low-difficulty custom
+// boards. Archive results only where the generator or Journey layout changed.
 if (save.gridGen !== H.GRID_VERSION) {
-  const old = {};
+  const old = {}, previousGrid = save.gridGen || 1;
+  const introPositions = new Map(Array.from({ length: 10 }, (_, index) => [H.spec(H.DEFAULT, index).introSource ?? index, index]));
   for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
-    old[code] = save.sets[code]; delete save.sets[code];
+    const kept = {}, changed = {}, options = H.parseCode(code);
+    for (const [index, score] of Object.entries(save.sets[code] || {})) {
+      const difficulty = options?.min + (options?.max - options?.min) * Number(index) / Math.max(1, (options?.count || 1) - 1);
+      const unchanged = previousGrid === 2 && (code === 'J3-MONKEYFIST' ? Number(index) < 10 : !options?.colossal && difficulty <= 40);
+      if (unchanged) kept[code === 'J3-MONKEYFIST' ? introPositions.get(Number(index)) : index] = score; else changed[index] = score;
+    }
+    if (Object.keys(changed).length) old[code] = changed;
+    if (Object.keys(kept).length) save.sets[code] = kept; else delete save.sets[code];
   }
-  if (Object.keys(old).length) (save.archives ||= {})['grid-gen-' + (save.gridGen || 1)] = old;
+  if (Object.keys(old).length) (save.archives ||= {})['grid-gen-' + previousGrid] = old;
   save.gridGen = H.GRID_VERSION;
 }
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
@@ -106,7 +114,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=12');
+    featureWorker = new Worker('generator-worker.js?v=13');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -135,18 +143,52 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=12');
-    pendingGeneration = () => { worker.terminate(); resolve(null); };
-    worker.onmessage = ({ data }) => {
-      worker.terminate(); pendingGeneration = null;
-      if (data.error) { reject(Error(data.error)); return; }
-      levelCache.set(key, data.level); if (levelCache.size > 8) levelCache.delete(levelCache.keys().next().value);
-      resolve(data.level);
+    let worker = null, retryTimer = null, attempts = 0, settled = false;
+    const cleanup = () => {
+      clearTimeout(retryTimer); retryTimer = null;
+      if (worker) { worker.onmessage = worker.onerror = null; worker.terminate(); worker = null; }
     };
-    worker.onerror = e => { worker.terminate(); pendingGeneration = null; reject(Error(e.message)); };
-    worker.postMessage(options);
+    const finish = (level, error) => {
+      if (settled) return;
+      settled = true; cleanup(); if (pendingGeneration === cancel) pendingGeneration = null;
+      if (error) { reject(error); return; }
+      if (level) { levelCache.set(key, level); if (levelCache.size > 8) levelCache.delete(levelCache.keys().next().value); }
+      resolve(level);
+    };
+    const cancel = () => finish(null);
+    pendingGeneration = cancel;
+    const failed = error => {
+      if (settled) return;
+      cleanup();
+      if (attempts < 2) {
+        // A deploy or a brief asset load failure must not strand an otherwise
+        // valid seed. A fresh worker also reloads its dependency graph.
+        retryTimer = setTimeout(run, 180);
+      } else finish(null, error);
+    };
+    const run = () => {
+      if (settled) return;
+      retryTimer = null; attempts++;
+      try {
+        const url = 'generator-worker.js?v=13' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const current = worker = new Worker(url);
+        current.onmessage = ({ data }) => {
+          if (settled || worker !== current) return;
+          if (data?.error) { failed(Error(data.error)); return; }
+          if (!Array.isArray(data?.level?.ropes) || !Array.isArray(data.level.plan)) { failed(Error('Incomplete generator response')); return; }
+          finish(data.level);
+        };
+        current.onerror = event => {
+          if (settled || worker !== current) return;
+          event.preventDefault?.(); failed(Error(event.message || 'Could not load the generator worker'));
+        };
+        current.postMessage(options);
+      } catch (error) { failed(error); }
+    };
+    run();
   });
 }
+
 let guideVersion = 0, guideWorker = null;
 function cancelGuide() { G.autoSolveRequested = false; guideVersion++; guideWorker?.terminate(); guideWorker = null; G.solving = false; G.hintRequested = false; }
 function seekPlan(prefer = [], budget = 900, wantHint = false) {
@@ -172,7 +214,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=12');
+    guideWorker = new Worker('generator-worker.js?v=13');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -192,8 +234,9 @@ async function start(index) {
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
     Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, clearOutro: null, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resetFeatures(); resize(); hud(); draw(0);
-  } catch {
+  } catch (error) {
     if (request !== generation) return;
+    console.error('Could not load Monkey Fist level', { set: H.code(opts), level: G.index + 1 }, error);
     G.loading = false; hud(); notice('Couldn’t weave this board. Restart or try another seed.');
   }
 }
@@ -793,7 +836,8 @@ function renderChooser() {
   $('seed').value = draft.seed; $('count').value = draft.count; $('gridChoice').value = draft.grid;
   $('minDifficulty').value = draft.min; $('maxDifficulty').value = draft.max;
   const minimumSize = draft.mirrors || draft.springs ? 8 : 4;
-  for (const id of ['gridWidth', 'gridHeight']) $(id).min = minimumSize;
+  for (const id of ['gridWidth', 'gridHeight']) { $(id).min = minimumSize; $(id).max = draft.colossal ? 48 : 24; }
+  $('colossal').checked = !!draft.colossal; $('colossalHint').hidden = !draft.colossal;
   $('gridWidth').value = draft.width || 10; $('gridHeight').value = draft.height || 14;
   $('gridSizeHint').hidden = minimumSize === 4;
   for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridHeight']) {
@@ -826,7 +870,7 @@ function settings(changed = '') {
   const parsed = H.parseCode($('seed').value);
   draft = parsed ? parsed.kind === 'journey' ? parsed.revision === 2 ? { ...H.DEFAULT } : parsed : gridCustom(parsed) :
     H.normalize({ revision: 3, width: $('gridWidth').value, height: $('gridHeight').value, seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value,
-      min, max, mirrors: $('mirrors').checked, springs: $('springs').checked });
+      min, max, mirrors: $('mirrors').checked, springs: $('springs').checked, colossal: $('colossal').checked });
   if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();
 }
 $('levels').onclick = chooser; $('resultLevels').onclick = chooser;
@@ -837,7 +881,7 @@ $('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevel
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);
 $('undo').onclick = undo; $('hint').onclick = hint; $('autoSolve').onclick = autoSolve;
-for (const id of ['seed', 'gridChoice', 'mirrors', 'springs']) $(id).onchange = () => settings(id);
+for (const id of ['seed', 'gridChoice', 'mirrors', 'springs', 'colossal']) $(id).onchange = () => settings(id);
 for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridHeight']) $(id).oninput = () => settings(id);
 $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
 $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };

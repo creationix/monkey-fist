@@ -7,6 +7,7 @@
   const H = node ? require('./hex/engine.js') : root.MFHex;
   const C = node ? require('./twist-circuits.js') : root.MFTwistCircuits;
   const R = node ? require('./hex/mirrors.js') : root.MFHexMirrors;
+  const Q = node ? require('./dependency-metrics.js') : root.MFDependencyMetrics;
   const point = (q, r) => ({ q, r });
   const key = H.key, MIN_RATIO = 1 / 3;
   const dirs = grid => grid === 'hex' ? H.DIRS : [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -25,28 +26,30 @@
     }
     return true;
   }
-  function woven(grid, W, height, d, rng, style) {
-    const area = W * height, strength = d / 100, length = Math.max(7, Math.round(Math.min(W, height) * 2));
-    if (grid === 'hex') return { ...H.build(rng, { W, H: height, stage: Math.round(d * .59), coverage: .99,
-      length, minLength: 2, tapDepth: strength * 8,
-      // The original Hex introduction adds a sliding knot on its later small
-      // boards; an area-scaled rounded target alone never reached one there.
-      knots: Math.max(area >= 30 && d >= 20 ? 1 : 0, Math.round(area / 32 * strength * strength)) }), grid, mirrors: [], springs: [] };
+  function woven(grid, W, height, d, rng, style, options) {
+    const area = W * height, strength = d / 100, length = options.longRopes ? Math.min(W, height) * 2 : Math.max(7, Math.round(Math.min(W, height) * 2));
+    if (grid === 'hex') {
+      const raw = H.build(rng, { W, H: height, stage: Math.round(d * .59), coverage: .99,
+        length, minLength: 2, tapDepth: strength * 8,
+        // Later small Hex lessons retain their minimum sliding knot.
+        knots: Math.max(area >= 30 && d >= 20 ? 1 : 0, Math.round(area / (options.longRopes ? 50 : 32) * strength * strength)) });
+      return { ...raw, grid, mirrors: [], springs: [], constructionStats: { intendedSlides: raw.slides, depth: raw.stats.depth, averageDepth: raw.stats.averageDepth } };
+    }
     // Keep the old seeded short/medium/twisty mixture while choosing dimensions
     // independently. Asking plan() for an unreachable score collapsed every
     // candidate to its fallback short style before these values were overridden.
     const cfg = { W, H: height, keepBounds: true, style: style.name,
-      lo: 0, hi: 1000000, lenLo: style.lenLo, lenHi: Math.max(style.lenLo, style.lenHi(Math.min(W, height))),
-      minLen: style.minLen, straight: style.straight, floor: 0, cover: .99, bends: style.bends,
-      wantAvg: strength * 7, tapDepth: strength * 8, tie: Math.round(area / 30 * strength),
+      lo: 0, hi: 1000000, lenLo: options.longRopes ? 6 : style.lenLo, lenHi: options.longRopes ? length : Math.max(style.lenLo, style.lenHi(Math.min(W, height))),
+      minLen: options.longRopes ? 2 : style.minLen, straight: style.straight, floor: 0, cover: .99, bends: style.bends,
+      wantAvg: strength * 7, tapDepth: strength * 8, tie: Math.round(area / (options.longRopes ? 40 : 30) * strength),
       bait: Math.round(area / 70 * strength), pull: 5, slide: true };
     const raw = L.weave(rng, cfg); if (!raw) return null;
     return { W: raw.W, H: raw.H, grid, style: style.name, ropes: raw.ropes.map(path => path.map(p => point(p.x, p.y))),
-      locks: [], mirrors: [], springs: [], plan: raw.taps };
+      locks: [], mirrors: [], springs: [], plan: raw.taps, constructionStats: { knots: raw.knots, traps: raw.traps, intendedSlides: raw.slides, depth: Math.max(0, ...raw.costs), averageDepth: raw.costs.reduce((sum, value) => sum + value, 0) / raw.costs.length } };
   }
-  function featured(grid, W, height, d, mirrors, springs, rng, attempt) {
-    const count = attempt >= 6 ? 1 : Math.max(1, Math.min(5, Math.round(W * height / 100 * (.3 + d / 100))));
-    const options = { coverage: .98, attemptsMultiplier: 24, allowEarly: true, minLength: 2, length: Math.max(8, Math.round(Math.min(W, height) * 1.5)) };
+  function featured(grid, W, height, d, mirrors, springs, rng, attempt, limits) {
+    const count = limits.coreCount ? attempt ? 1 : Math.min(limits.coreCount, Math.max(1, Math.floor(W * height / 100))) : attempt >= 6 ? 1 : Math.max(1, Math.min(5, Math.round(W * height / 100 * (.3 + d / 100))));
+    const options = { maxTapChecks: limits.maxTapChecks, coverage: .98, attemptsMultiplier: limits.populateAttempts || 24, allowEarly: true, minLength: 2, length: limits.longRopes ? Math.min(W, height) * 2 : Math.max(8, Math.round(Math.min(W, height) * 1.5)) };
     if (grid === 'hex') {
       const raw = R.skeleton(rng, W, height, count, mirrors ? d < 35 ? 1 : 2 : 0, springs, 4, true);
       return raw && { ...R.populate(raw, rng, Math.round(d * .59), undefined, options), grid, locks: [] };
@@ -116,7 +119,8 @@
       const move = G.tap(b, b.ropes, i); return move && G.allFree(b, move.paths);
     });
   }
-  function score(b, G) {
+  function score(b, G, skipSearch) {
+    if (skipSearch) return { plan: b.plan, par: G.replay(b, b.plan).taps, exact: false };
     if (b.grid === 'square' && !b.mirrors.length && !b.springs.length) {
       const result = L.fewestPlayerTaps(b.ropes.map(path => path.map(p => ({ x: p.q, y: p.r }))), b.W, b.H, b.plan, b.ropes.length <= 12 ? 1800 : 100);
       return { plan: result.taps, par: result.count, exact: result.exact };
@@ -131,24 +135,31 @@
     const roll = !mirrors && !springs && grid === 'square' ? rng() : 0;
     const twisty = Math.min(W, height) >= 7 && d >= 35;
     const style = L.STYLES[roll < .4 ? 0 : roll < .73 || !twisty ? 1 : 2];
+    const colossal = !!details.colossal, limits = colossal ? { longRopes: true, coreCount: 1, populateAttempts: 8, maxTapChecks: 40000, skipSearch: true } : {};
+    const hardness = Math.max(0, (d - 40) / 60), sampleLimit = colossal ? 3 : d >= 75 ? 16 : d >= 45 ? 12 : mirrors || springs ? 12 : d <= 20 ? 16 : 8;
     let best = null, bestValue = -Infinity;
     const featuredBoard = mirrors || springs, smallSlideBoard = W * height <= 48;
     const minCoverage = featuredBoard ? W * height <= 80 ? .8 : .84 : smallSlideBoard ? .8 : .85;
-    for (let attempt = 0; attempt < (mirrors || springs ? 12 : d <= 20 ? 16 : 8); attempt++) {
-      const b = mirrors || springs ? featured(grid, W, height, d, mirrors, springs, rng, attempt) : woven(grid, W, height, d, rng, style);
+    for (let attempt = 0; attempt < sampleLimit; attempt++) {
+      const b = mirrors || springs ? featured(grid, W, height, d, mirrors, springs, rng, attempt, limits) : woven(grid, W, height, d, rng, style, limits);
       if (!b || b.W !== W || b.H !== height || b.ropes.length < 2 || !valid(b) || G.allFree(b, b.ropes)) continue;
       const density = coverage(b); if (density < minCoverage || !regional(b)) continue;
       const replayed = G.replay(b, b.plan); if (!replayed.solved || !featuresUsed(b, G)) continue;
-      const ordered = d <= 30 && (mirrors || springs) ? reorder(b, G) : b;
-      const result = score(ordered, G), ratio = result.par / b.ropes.length;
+      const ordered = !colossal && d <= 30 && (mirrors || springs) ? reorder(b, G) : b;
+      const result = score(ordered, G, limits.skipSearch), ratio = result.par / b.ropes.length;
       const slides = G.replay(b, result.plan).events.includes('slide');
       // A small sliding lesson needs a little vacant travel space. Accept it
       // only when the replayed final certificate actually uses that space.
       if (details.requireSlide && !slides || !featuredBoard && density < .85 && !slides) continue;
       if (result.par * 3 < b.ropes.length || trivial(b, G)) continue;
-      const value = density * 4 - Math.abs(ratio - target(d));
-      if (value > bestValue) { bestValue = value; best = { ...b, ...details, mirrors: b.mirrors, springs: b.springs, locks: [], ...result, coverage: density }; }
-      if (density >= .96 && Math.abs(ratio - target(d)) <= .2) break;
+      const complexity = colossal ? null : Q.analyze(b, result.plan, result.par, G);
+      // Ratios can reward a long, obvious chain. Advanced candidates also need
+      // converging prerequisites, interleaved mutual waits, or repeated work on
+      // ropes whose blockers changed. Mere route length adds nothing here.
+      if (!colossal && d >= 75 && W * height >= 64 && !complexity.mutualWaitRopes && !complexity.revisitedRopes && (complexity.joins < 2 || complexity.branchingDepth < 2)) continue;
+      const value = density * 4 - Math.abs(ratio - target(d)) + (colossal ? 0 : hardness * (complexity.interaction * 1.2 - complexity.initialExitFraction * 2));
+      if (value > bestValue) { bestValue = value; best = { ...b, ...details, mirrors: b.mirrors, springs: b.springs, locks: [], ...result, coverage: density, complexity }; }
+      if (colossal || !hardness && density >= .96 && Math.abs(ratio - target(d)) <= .2) break;
     }
     if (!best) throw Error('Could not densely weave these grid dimensions');
     return best;

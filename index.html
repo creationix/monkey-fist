@@ -9,7 +9,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <main id="game">
@@ -49,7 +49,8 @@
       <label class="slider-setting"><span>Height<output id="gridHeightValue" for="gridHeight">14</output></span><input id="gridHeight" type="range" min="4" max="24" value="14" aria-label="Grid height"></label>
       <p id="gridSizeHint" class="settings-hint" hidden>Mirrors and springs need at least an 8 × 8 grid.</p>
     </fieldset>
-    <div class="feature-options"><label class="check"><input id="mirrors" type="checkbox"> Mirrors</label><label class="check"><input id="springs" type="checkbox"> Springs</label></div>
+    <div class="feature-options"><label class="check"><input id="mirrors" type="checkbox"> Mirrors</label><label class="check"><input id="springs" type="checkbox"> Springs</label><label class="check"><input id="colossal" type="checkbox" aria-describedby="colossalHint"> Colossal maps</label></div>
+    <p id="colossalHint" class="settings-hint" hidden>Enables grids up to 48 × 48. Use zoom to explore.</p>
   </div>
   <div class="set-line"><span id="setSummary">120 tangles · square + hex</span><button id="share" class="quiet">Copy set link</button></div>
   <p id="unlockRule" class="rules"></p>
@@ -63,20 +64,21 @@
 <script src="random.js?v=1"></script>
 <script src="levels.js?v=33"></script>
 <script src="mechanics.js?v=31"></script>
-<script src="twist-circuits.js?v=37"></script>
+<script src="twist-circuits.js?v=38"></script>
 <script src="twists.js?v=32"></script>
 <script src="hex/engine.js?v=8"></script>
-<script src="hex/mirrors.js?v=7"></script>
+<script src="hex/mirrors.js?v=8"></script>
 <script src="difficulty.js?v=1"></script>
 <script src="journey.js?v=1"></script>
-<script src="grid-generator.js?v=2"></script>
-<script src="grid-journey.js?v=2"></script>
-<script src="game-engine.js?v=10"></script>
+<script src="dependency-metrics.js?v=1"></script>
+<script src="grid-generator.js?v=3"></script>
+<script src="grid-journey.js?v=3"></script>
+<script src="game-engine.js?v=11"></script>
 <script src="rope-art.js?v=9"></script>
 <script src="music.js?v=32"></script>
 <script src="sounds.js?v=7"></script>
 <script src="audio.js?v=2"></script>
 <script src="input.js?v=2"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 </body>
 </html>
