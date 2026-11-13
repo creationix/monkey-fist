@@ -69,6 +69,9 @@
         tone(bass * 1.08, 1.1, 'sine', .18, 0, bass, .045);
         tone(bass * 1.5, 1.35, 'sine', .055, .06, undefined, .07);
         tone(bass * 2, .8, 'sine', .025, .02, undefined, .035);
+        // A gentle upper layer carries the resolution through phone speakers.
+        tone(bass * 4, 1.15, 'sine', .055, .035, undefined, .05);
+        tone(bass * 6, .95, 'sine', .025, .07, undefined, .08);
       },
       lose() { [392, 349.23, 311.13, 261.63].forEach((f, i) => { tone(f, .45, 'triangle', .4, i * .22); tone(f / 2, .45, 'sine', .3, i * .22); }); }
     };
