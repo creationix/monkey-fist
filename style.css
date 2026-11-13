@@ -56,3 +56,5 @@ dialog{overscroll-behavior:contain;touch-action:pan-y;user-select:none;-webkit-u
 .actions #autoSolve{grid-column:1/-1;flex-direction:row;justify-content:center;min-height:36px;gap:5px}.actions #autoSolve svg{width:18px;height:18px}.actions #autoSolve small{font-size:10px}#tip{bottom:max(178px,calc(env(safe-area-inset-bottom) + 164px))}@media(max-height:450px){#tip{bottom:max(161px,calc(env(safe-area-inset-bottom) + 147px))}}
 
 .auto-solving .hud,.auto-solving #zoomControls,.auto-solving #notice{visibility:hidden;pointer-events:none}
+
+#chooser #audioControls{flex-wrap:wrap}

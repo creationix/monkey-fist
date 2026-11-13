@@ -25,7 +25,11 @@ if (save.gen !== H.VERSION) {
 }
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
+const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
+if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
 function syncDisplay() {
+  const speed = save.moveSpeed[0].toUpperCase() + save.moveSpeed.slice(1);
+  $('moveSpeed').textContent = 'Speed: ' + speed; $('moveSpeed').setAttribute('aria-label', 'Rope speed: ' + speed);
   document.documentElement.classList.toggle('oled', !!save.oled);
   $('oled').setAttribute('aria-pressed', !!save.oled); $('oled').textContent = 'Dark mode: ' + (save.oled ? 'on' : 'off');
   document.querySelector('meta[name="theme-color"]').content = save.oled ? '#000000' : '#0b1f2a';
@@ -277,10 +281,11 @@ function update(dt) {
   let settled = false;
   // Use the earlier frame's tail positions, so a follower cannot cut through a
   // crossing that its predecessor is still clearing during this frame.
+  const motionDt = dt * MOVE_SPEEDS[save.moveSpeed];
   const positions = new Map(allMotions().map(m => [m, m.progress]));
   for (const [id, m] of G.moves) {
     // Half-speed departures keep the shared-path clearance readable.
-    const travelDt = dt * (m.event === 'exit' ? .5 : 1);
+    const travelDt = motionDt * (m.event === 'exit' ? .5 : 1);
     if (!m.impacted) m.speed = Math.min(38, m.speed + travelDt * 100);
     const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
@@ -288,7 +293,7 @@ function update(dt) {
     if (m.spring && m.progress >= m.distance - 1) m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
-      let remaining = dt;
+      let remaining = motionDt;
       if (m.event === 'bounce' && !m.impacted) {
         m.progress = m.distance;
         const track = MFRopeArt.trace(ropeDrawing(id).points, G.view.scale * .4);
@@ -297,7 +302,7 @@ function update(dt) {
         const speed = m.distance ? m.speed : 38;
         m.speed = speed;
         m.hold = m.bounceDuration = reduced ? .12 : track.length / G.view.scale / speed;
-        remaining = m.distance ? Math.max(0, (proposed - m.distance) / (reduced ? m.distance * 12 : speed)) : dt;
+        remaining = m.distance ? Math.max(0, (proposed - m.distance) / (reduced ? m.distance * 12 : speed)) : motionDt;
         m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
         m.impacted = true; sfx.spring();
       }
@@ -718,6 +723,7 @@ $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); }
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
 $('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
+$('moveSpeed').onclick = () => { const choices = ['normal', 'fast', 'slow']; save.moveSpeed = choices[(choices.indexOf(save.moveSpeed) + 1) % choices.length]; persist(); syncDisplay(); };
 $('oled').onclick = () => {
   save.oled = !save.oled; persist(); syncDisplay(); drawNext = true;
 };
