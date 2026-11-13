@@ -1,6 +1,32 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { base, launch, ready } = require('./browser-helpers.cjs');
 
+test('desktop touch on journey level 27 accepts varied contact sizes with live animation', { timeout: 60000 }, async () => {
+  const browser = await launch();
+  try {
+    for (const deviceScaleFactor of [1, 2]) {
+      const context = await browser.newContext({ viewport: { width: 1366, height: 900 }, hasTouch: true, isMobile: false, deviceScaleFactor });
+      const page = await context.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
+      await page.goto(base + '?set=J1-MONKEYFIST&level=27'); await ready(page);
+      await page.evaluate(() => { __game.save.chapters = 3; });
+      const cdp = await context.newCDPSession(page);
+      for (const radius of [7, 20, 40]) {
+        await page.evaluate(() => __game.start(26));
+        const at = await page.evaluate(() => __game.screen(__game.G.paths[__game.G.plan[0]].at(-1)));
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...at, id: 1, radiusX: radius, radiusY: radius }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: at.x + 8, y: at.y + 5, id: 1, radiusX: radius * 1.5, radiusY: radius * 1.5 }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        assert.equal(await page.evaluate(() => __game.G.taps), 1, `touch radius ${radius} at DPR ${deviceScaleFactor}`);
+        assert.equal(await page.evaluate(() => input.pointers.size), 0);
+      }
+      await page.evaluate(() => __game.start(26));
+      const at = await page.evaluate(() => __game.screen(__game.G.paths[__game.G.plan[0]].at(-1)));
+      await page.mouse.click(at.x, at.y); assert.equal(await page.evaluate(() => __game.G.taps), 1, 'mouse still works on a hybrid device');
+      assert.deepEqual(errors, []); await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
 test('real multi-touch tolerates drift and an edge grip, recovers from cancel, and leaves small boards centered', { timeout: 60000 }, async () => {
   const browser = await launch();
   try {

@@ -14,9 +14,11 @@ itself does not grant permission to suppress operating-system gestures.
 - Latch the nearest rope at touch-down. Allow 42 CSS pixels of finger drift,
   with extra tolerance when release remains on that rope. Touch picking gets
   a minimum 22-pixel radius. Mouse input retains a tighter threshold.
-- Ignore broad contacts as a palm heuristic. Held edge contacts never become
-  pans or pinches. These heuristics cannot recover touches the OS never delivers
-  or reliably classify every device's contact geometry.
+- Do not reject touches by reported width or height: desktop touchscreen drivers
+  can report large contact areas for ordinary fingers. Use timing and movement
+  to keep resting contacts out of gestures. Held edge contacts never become pans
+  or pinches; long-held contacts do not release ropes. Honor OS cancellation, but
+  do not attempt a size-based palm classifier or recover touches never delivered.
 - Pinching requires two fresh, moving contacts; a stationary third finger does
   not join or reset it. Pan/pinch recognition starts from the current camera to
   avoid a jump. A completed pinch cannot accidentally release a rope.

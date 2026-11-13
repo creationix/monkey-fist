@@ -10,9 +10,17 @@ function setup(overrides = {}) {
 test('a wobbly tap stays on the rope picked at touch-down', () => {
   const { input, point, taps } = setup(); input.down(point(1, 190)); input.move(point(1, 220, 220)); input.up(point(1, 220, 220)); assert.deepEqual(taps, [1]);
 });
+test('reported contact size never vetoes an otherwise valid finger tap', () => {
+  for (const size of [1, 14, 40, 60, 100]) {
+    const s = setup(), contact = (x, width = size) => s.point(1, x, 200, { width, height: width });
+    s.input.down(contact(200)); s.input.move(contact(215, size * 2)); s.tick(120); s.input.up(contact(215));
+    assert.deepEqual(s.taps, [2], `contact width ${size}`);
+  }
+});
 test('a held edge and broad palm do not block independent fingers or create zoom', () => {
   const s = setup({ zoomable: true }); s.input.down(s.point(1, 5)); s.tick(800);
   s.input.down(s.point(2, 300, 400, { width: 65, height: 50 }));
+  s.tick(2500);
   for (let i = 3; i < 8; i++) { s.input.down(s.point(i, 200)); s.input.move(s.point(i, 225, 212)); s.input.up(s.point(i, 225, 212)); }
   s.input.up(s.point(1, 5)); s.input.up(s.point(2, 300, 400, { width: 65, height: 50 }));
   assert.deepEqual(s.taps, [2, 2, 2, 2, 2]); assert.deepEqual(s.camera, { zoom: 1, x: 0, y: 0 });

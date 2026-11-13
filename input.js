@@ -3,7 +3,6 @@
   'use strict';
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  const palm = e => e.type === 'touch' && (Math.max(e.width || 0, e.height || 0) > 55 || Math.min(e.width || 0, e.height || 0) > 32);
   function constrain(camera, view) {
     const zoom = view.zoomable ? Math.max(1, Math.min(8, camera.zoom)) : 1;
     const limitX = Math.max(0, (view.bw * zoom - view.usableW) / 2), limitY = Math.max(0, (view.bh * zoom - view.usableH) / 2);
@@ -15,14 +14,13 @@
       const v = view(), touch = e.type === 'touch';
       pointers.set(e.id, { ...e, start: { x: e.x, y: e.y }, at: { x: e.x, y: e.y }, time: now(), moved: 0,
         edge: touch && (e.x < 18 || e.x > v.width - 18 || e.y < 18 || e.y > v.height - 18),
-        mode: palm(e) ? 'ignore' : 'tap', target: pick(e, touch ? 22 : 0) });
+        mode: 'tap', target: pick(e, touch ? 22 : 0) });
     }
     function eligible(p) { return p.type === 'touch' && !p.edge && ['tap', 'pan'].includes(p.mode) && now() - p.time < 1000; }
     function move(e) {
       const p = pointers.get(e.id); if (!p) return;
       p.at = { x: e.x, y: e.y }; p.moved = Math.max(p.moved, distance(p.at, p.start));
-      if (palm(e)) { cancel(e.id); return; }
-      if (p.mode === 'ignore' || p.mode === 'spent') return;
+      if (p.mode === 'spent') return;
       const v = view();
       if (pinch) {
         if (!pinch.ids.includes(e.id)) return;
@@ -60,7 +58,9 @@
       p.moved = Math.max(p.moved, distance(e, p.start));
       const duration = now() - p.time, slop = p.type === 'touch' ? 42 : p.type === 'pen' ? 18 : 7;
       const sameRope = p.target >= 0 && p.moved <= slop * 2 && pick(e, 0) === p.target;
-      const accept = p.mode === 'tap' && !palm(e) && duration < 2000 && !(p.edge && duration > 500) && (p.moved <= slop || sameRope);
+      // Contact dimensions vary by driver and can be large for a normal finger.
+      // Reject resting contacts by timing/gesture state, never width or height.
+      const accept = p.mode === 'tap' && duration < 2000 && !(p.edge && duration > 500) && (p.moved <= slop || sameRope);
       cancel(e.id);
       if (accept) { const target = p.target >= 0 ? p.target : pick(e, p.type === 'touch' ? 22 : 0); if (target >= 0) tap(target); }
     }
