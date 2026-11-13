@@ -28,12 +28,12 @@ test('queued exits yield at crossings while separate routes remain concurrent on
             [p(5, 0), p(6, 0)], [p(7, 9), p(7, 8)], [p(6, 7), p(7, 7)]];
           const level = { grid, W: 12, H: 12, mirrors, springs: [], locks: [], par: 5 };
           Object.assign(G, { level, paths, plan: [0, 1, 2, 4, 3], taps: 0, moves: new Map(), auto: false, ended: false, lost: false, loading: false, history: [], camera: { zoom: 1, x: 0, y: 0 } }); resize();
-          let swishes = 0; sfx.slide = () => swishes++;
+          let swishes = 0, activations = 0; sfx.slide = () => swishes++; sfx.activate = () => activations++;
           for (const name of ['reflect', 'spring', 'pop', 'thud', 'win']) sfx[name] = () => {};
           tap(0); tap(1); tap(2); draw(0);
           const first = G.moves.get(0), follower = G.moves.get(1), separate = G.moves.get(2), queued = follower.waiting;
           const accepted = G.taps === 3 && G.paths.slice(0, 3).every(p => p === null), initialSwishes = swishes;
-          update(1 / 60); const separateAdvances = separate.progress > 0 && follower.progress === 0;
+          update(1 / 60); const firstFrameSwishes = swishes, separateAdvances = separate.progress > 0 && follower.progress === 0;
           let closest = Infinity, resumedBeforeExit = false;
           for (let frame = 0; frame < 6000 && G.moving; frame++) {
             update(1 / 60); draw(frame / 60);
@@ -43,13 +43,14 @@ test('queued exits yield at crossings while separate routes remain concurrent on
               for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) closest = Math.min(closest, segmentDistance(a[i - 1], a[i], b[j - 1], b[j]) / G.view.scale);
             }
           }
-          results.push({ grid, routed, accepted, queued, initialSwishes, swishes, separateAdvances, resumedBeforeExit, closest, drained: !G.moving });
+          results.push({ grid, routed, accepted, queued, initialSwishes, swishes, activations, firstFrameSwishes, separateAdvances, resumedBeforeExit, closest, drained: !G.moving });
         }
         cancelGuide(); return results;
       });
       for (const r of results) {
         assert.equal(r.accepted, true, JSON.stringify(r)); assert.equal(r.queued, true, JSON.stringify(r));
-        assert.equal(r.initialSwishes, 3, 'every accepted tap gets an immediate swish'); assert.equal(r.swishes, 3, JSON.stringify(r));
+        assert.equal(r.initialSwishes, 0, 'acceptance waits for visual motion before swishing'); assert.equal(r.activations, 3, 'accepted user taps get an immediate soft tick');
+        assert.equal(r.firstFrameSwishes, 2, 'only the two independent routes start audibly'); assert.equal(r.swishes, 3, JSON.stringify(r));
         assert.equal(r.separateAdvances, true);
         if (reducedMotion !== 'reduce') assert.equal(r.resumedBeforeExit, true, 'release as soon as the shared path clears: ' + JSON.stringify(r));
         assert.ok(r.closest > .25, 'visible strokes stay apart: ' + JSON.stringify(r)); assert.equal(r.drained, true);

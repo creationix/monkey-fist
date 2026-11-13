@@ -61,7 +61,7 @@ function syncDisplay() {
   document.querySelector('meta[name="theme-color"]').content = save.oled ? '#000000' : '#0b1f2a';
 }
 syncDisplay();
-const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
+const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), activations: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 const springRotations = new WeakMap();
 const springKey = p => p.q + ',' + p.r;
 const rules = () => H;
@@ -227,7 +227,7 @@ async function start(index) {
   resetInput(); cameraTween = null;
   G.index = Math.max(0, Math.min(H.available(opts, chaptersFor(opts)) - 1, Math.floor(Number(index) || 0)));
   G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
-  G.moves.clear();
+  G.moves.clear(); G.activations.clear();
   $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); gameAudio.music?.setLevel(G.index + 1); draw(0);
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
@@ -309,7 +309,7 @@ function tap(i, automatic = false, solveFast = false) {
   move.waiting = move.distance > 0 && motionLimit(move, new Map(allMotions().map(m => [m, m.progress]))) === 0;
   if (previous) previous.queued = move; else G.moves.set(i, move);
   commit(move);
-  sfx.slide();
+  if (!automatic && !solveFast) { G.activations.set(i, .18); sfx.activate(); }
   if (!automatic) {
     if (G.assisted.has(i)) G.combo = 0;
     else if (m.event === 'exit') G.combo++;
@@ -335,7 +335,7 @@ function commit(m) {
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
-  cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); springRotations.delete(G.level); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
+  cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.activations.clear(); springRotations.delete(G.level); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
   refreshFrozen(); resetFeatures();
   if (!G.plan.length && !G.lost) seekPlan();
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
@@ -386,6 +386,10 @@ function update(dt) {
   }
   if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) { G.hint = -1; drawNext = true; } }
   if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) { G.bump = null; drawNext = true; } }
+  for (const [id, remaining] of G.activations) {
+    if (remaining <= dt) G.activations.delete(id); else G.activations.set(id, remaining - dt);
+    drawNext = true;
+  }
   let settled = false;
   // Use the earlier frame's tail positions, so a follower cannot cut through a
   // crossing that its predecessor is still clearing during this frame.
@@ -397,6 +401,7 @@ function update(dt) {
     if (!m.impacted) m.speed = Math.min(38, m.speed + travelDt * 100);
     const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
+    if (!m.swished && m.progress > 0) { m.swished = true; sfx.slide(); }
     if (m.waiting) m.speed = 0;
     if (m.spring && m.progress >= m.distance - 1) m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
@@ -611,6 +616,24 @@ function drawRope(i, time) {
   } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated, save.graphics);
   ctx.restore();
 }
+function drawActivations() {
+  // Flash the sprite that is actually on screen, including a paused route or
+  // the outgoing side of a queued spring. The logical rope may already be gone.
+  for (const [id, remaining] of G.activations) {
+    const move = G.moves.get(id); if (!move && !G.paths[id]) continue;
+    const flip = springFlip(move), drawing = flip ? springDrawing(id, flip) : ropeDrawing(id);
+    if (!drawing) continue;
+    const { points, head } = drawing, s = G.view.scale, tip = points.at(-1);
+    ctx.save(); ctx.globalAlpha *= .28 * Math.min(1, remaining / .18);
+    MFRopeArt.stroke(ctx, points, s * .4, s * .43, '#fff8dc', !!move && !move.waiting, save.graphics, head);
+    if (save.graphics !== 'tiles') {
+      const dx = head.x, dy = head.y, reach = s * .44, back = s * .12, half = s * .308;
+      path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
+      ctx.fillStyle = '#fff8dc'; ctx.fill();
+    }
+    ctx.restore();
+  }
+}
 function springSpin(move) {
   if (!move || reduced) return 0;
   const approach = Math.min(1, Math.max(0, move.progress - (move.distance - 1)));
@@ -762,6 +785,7 @@ function draw(time) {
   for (const i of new Set([G.hint, G.selected, G.bump?.i])) if (i >= 0 && G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   // Departing ropes stay visible all the way off-screen, including rotated boards.
   for (const [i, move] of G.moves) if (!move.waiting) drawRope(i, time);
+  drawActivations();
 }
 function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))); return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t); }
 function pickRope(p, padding = 0) {
@@ -895,7 +919,7 @@ $('oled').onclick = () => {
 };
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
-function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }
+function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.activations.size || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 window.__game = { G, start, tap, undo, hint, autoSolve, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };

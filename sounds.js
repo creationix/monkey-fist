@@ -1,7 +1,7 @@
 // The same synthesized effects for square and hex Monkey Fist.
 (function (root) {
   'use strict';
-  const GAPS = { click: 50, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 150, lose: 1500 };
+  const GAPS = { click: 50, activate: 25, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 150, lose: 1500 };
   function createSoundPlayer(context, destination, options = {}) {
     const bus = context.createGain(); bus.connect(destination);
     const active = new Set(), lastAt = {}, now = options.now || (() => context.currentTime * 1000);
@@ -45,6 +45,7 @@
     // Preserve the square game's waveforms, envelopes, pitches, and timings.
     const effects = {
       click() { tone(520, .06, 'sine', .22, 0, 700); },
+      activate() { tone(240, .055, 'sine', .04, 0, 180, .003); tone(360, .03, 'sine', .012, .004, 270, .003); },
       slide() { noise(.3, .3, 500, 2400); tone(260, .2, 'sine', .1, 0, 520); },
       reflect(turn = 0) {
         // A hollow, low pluck with a soft answering note, tuned to the music.

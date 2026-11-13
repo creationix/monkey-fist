@@ -106,11 +106,12 @@ route. Tap a bouncing rope again to queue its next move before the flip finishes
 Auto-solve queues the complete solution immediately, hides the HUD and notices
 until the animation finishes, and awards zero stars. Its empty grid fades for
 one second at Normal speed (two on Slow, half a second on Fast), then the result appears
-with a soft bass resolution. That tone also replaces the manual victory jingle.
+with a soft bass resolution reserved for zero stars. Earned one-, two-, and three-star results play increasingly cheerful celebrations; one star is a short two-note finish, while two stars climbs through a longer phrase.
 Earned scores take precedence over auto-solved clears. Undo restores the previous full board and cancels in-flight animations.
 Queued moves yield at shared paths until the earlier rope's tail clears them;
-independent routes still animate together. Every accepted tap gets an immediate
-swish, even while its animation waits. Departures run at half their original
+independent routes still animate together. An accepted player tap gets an immediate
+soft tick and a brief flash on the visible rope. Each queued move swishes once
+when it actually starts moving. Departures run at half their original
 speed to keep the clearance readable.
 
 Boards with up to twelve ropes use a bounded shortest-tap search for par,

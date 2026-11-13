@@ -17,13 +17,15 @@ test('square and Hex share the real swish; sound and music mute independently', 
         localStorage.setItem('monkey-fist', '{"sound":true,"music":false}');
       });
       await page.goto(base + `?set=U1-${grid}-70-70-1-N-SOUND`); await ready(page); await clickNext(page);
+      assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length), 0, 'accepted taps do not swish before visual motion');
+      await page.evaluate(() => __game.update(1 / 60));
       assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001 && n.energy > 10).length), 1);
       assert.equal(await page.evaluate(() => __game.music.state.enabled), false);
       await page.click('#levels'); await page.click('#sound'); await page.click('#music');
       assert.equal(await page.evaluate(() => __game.sound.state.enabled), false);
       await page.click('#closeLevels'); assert.equal(await page.evaluate(() => __game.music.state.enabled), true);
       const before = await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length);
-      await page.click('#restart'); await ready(page); await clickNext(page);
+      await page.click('#restart'); await ready(page); await clickNext(page); await page.evaluate(() => __game.update(1 / 60));
       assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length), before);
       await page.click('#levels'); await page.click('#sound'); await page.click('#music'); await page.click('#closeLevels');
       assert.equal(await page.evaluate(() => __game.sound.state.enabled), true); assert.equal(await page.evaluate(() => __game.music.state.enabled), false);
