@@ -54,7 +54,8 @@ implying a non-reflective side. Arrowheads curve into their reflected direction
 when resting on a mirror.
 Springs have a copper coil and braided rim. On impact they compress, and the
 arrow reflects 180° and slides back directly over its own rope, ending at the
-old tail. The arrowhead is drawn on top of the overlapping body. Spring approaches have varied run-up lengths, and ordinary
+old tail. The return carries the incoming speed through contact without a pause
+or easing. The arrowhead is drawn on top of the overlapping body. Spring approaches have varied run-up lengths, and ordinary
 ropes can block the approach until cleared. Their removal is included in the
 generated solution certificate. Other ropes remain tappable. Reduced motion uses a brief fade
 between directions.

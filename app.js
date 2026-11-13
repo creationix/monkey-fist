@@ -167,7 +167,7 @@ function tap(i, automatic = false) {
     for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
     m.distance += extra;
   }
-  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : Math.min(1.6, .7 + G.paths[i].length * .035) : 0;
+  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : 1 : 0;
   const spring = m.event === 'bounce' ? H.add(m.route.at(-1), headDirection(m.route.slice(-G.paths[i].length))) : null;
   const move = { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
     popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
@@ -243,14 +243,25 @@ function update(dt) {
   for (const [id, m] of G.moves) {
     // Half-speed departures keep the shared-path clearance readable.
     const travelDt = dt * (m.event === 'exit' ? .5 : 1);
-    m.speed = Math.min(38, m.speed + travelDt * 100);
+    if (!m.impacted) m.speed = Math.min(38, m.speed + travelDt * 100);
     const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
     if (m.waiting) m.speed = 0;
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
-      if (m.event === 'bounce' && !m.impacted) { m.impacted = true; sfx.spring(); }
-      m.hold -= dt;
+      let remaining = dt;
+      if (m.event === 'bounce' && !m.impacted) {
+        m.progress = m.distance;
+        const track = MFRopeArt.trace(ropeDrawing(id).points, G.view.scale * .4);
+        // Carry the incoming velocity through the reflection. An already
+        // adjacent rope starts its return at the normal cruising speed.
+        const speed = m.distance ? m.speed : 38;
+        m.speed = speed;
+        m.hold = m.bounceDuration = reduced ? .12 : track.length / G.view.scale / speed;
+        remaining = m.distance ? Math.max(0, (proposed - m.distance) / (reduced ? m.distance * 12 : speed)) : dt;
+        m.impacted = true; sfx.spring();
+      }
+      m.hold -= remaining;
       if (m.hold <= 0) {
         G.moves.delete(id); settled = true;
         if (m.event === 'exit') sfx.pop(m.popNote);
@@ -370,7 +381,7 @@ function ropeDrawing(i, settled = false) {
 function springFlip(move) {
   if (!move?.impacted || !move.bounceDuration) return null;
   const t = Math.max(0, Math.min(1, 1 - move.hold / move.bounceDuration));
-  const turn = reduced ? t : Math.max(0, (t - .1) / .9);
+  const turn = t;
   return { t, turn, reversed: turn >= .5 };
 }
 function springDrawing(i, flip) {
@@ -382,7 +393,7 @@ function springDrawing(i, flip) {
   if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4) };
   const track = move.springTrace.from, length = track.length;
   const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
-  const t = flip.turn, progress = length * ease(t);
+  const t = flip.turn, progress = length * t;
   // A 180-degree mirror folds the route directly back onto itself. Include
   // the reflection point exactly; the returning head is painted after the body.
   const at = distance => track.at(distance <= length ? distance : 2 * length - distance);
@@ -405,13 +416,6 @@ function exitCleared(i) {
 function drawRope(i, time) {
   const moving = G.moves.get(i), flip = springFlip(moving), drawing = flip ? springDrawing(i, flip) : ropeDrawing(i); if (!drawing) return;
   const { points, head } = drawing, s = G.view.scale, col = color(i);
-  if (moving?.spring && !moving.impacted && !reduced) {
-    const tip = points.at(-1), spring = screen(moving.spring);
-    const reach = Math.max(0, 1 - (moving.distance - moving.progress) / .35);
-    const gap = ((spring.x - tip.x) * head.x + (spring.y - tip.y) * head.y) / s - .78;
-    const stretch = s * Math.max(0, Math.min(.2 * reach, gap));
-    tip.x += head.x * stretch; tip.y += head.y * stretch;
-  }
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
