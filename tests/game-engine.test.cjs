@@ -97,3 +97,24 @@ test('spring reflections enter the tile completely and reverse with the tail on 
     assert.equal(G.tap(b, [paths[0], [p(5, 3), p(5, 4)]], 0).event, 'slide', 'occupied spring tiles still block entry');
   }
 });
+
+test('the small Hex spring regression gets a proven four-tap par, counting auto releases as free', () => {
+  const b = G.generate({ ...G.parseCode('U1-H-1-1-1-S-FLIP0'), index: 0 });
+  const canClear = (paths, taps) => {
+    if (G.allFree(b, paths)) return true;
+    if (!taps) return false;
+    return paths.some((p, i) => {
+      const move = p && G.tap(b, paths, i);
+      return move && canClear(move.paths, taps - 1);
+    });
+  };
+  assert.equal(canClear(b.ropes, 3), false, 'independent depth-limited search rules out three taps');
+  assert.equal(canClear(b.ropes, 4), true);
+  assert.equal(b.par, 4); assert.equal(b.exact, true);
+  assert.equal(G.replay(b, b.plan).solved, true); assert.equal(G.replay(b, b.plan).taps, 4);
+  const construction = [5, 3, 1, 0, 4, 0, 2];
+  const bounded = G.minimumTaps(b, construction, 0);
+  assert.equal(bounded.exact, false); assert.equal(bounded.par, 6);
+  assert.equal(G.replay(b, bounded.plan).solved, true);
+  assert.throws(() => G.minimumTaps(b, [], 5000), /complete solution/);
+});

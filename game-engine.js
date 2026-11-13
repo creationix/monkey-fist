@@ -103,6 +103,32 @@
     if (b.grid === 'hex') return featured(b) ? R.direction(b, path) : H.direction(path);
     return M.direction(native(b), xy([path])[0]);
   }
+  // Breadth-first search counts only player taps. Once every remaining rope
+  // has a clear exit, the rest of the certificate is an automatic suffix.
+  function minimumTaps(b, fallback = b.plan, budget = 5000) {
+    const verified = replay(b, fallback);
+    if (!verified.solved) throw Error('Par requires a complete solution');
+    const best = { plan: fallback.slice(), par: verified.taps, exact: false };
+    const queue = [{ paths: b.ropes, parent: -1, move: -1, depth: 0 }], seen = new Set([JSON.stringify(b.ropes)]);
+    for (let q = 0; q < queue.length; q++) {
+      if (q >= budget) return { ...best, nodes: q };
+      const state = queue[q];
+      if (state.depth >= best.par) continue;
+      if (allFree(b, state.paths)) {
+        const plan = [];
+        for (let node = state; node.parent >= 0; node = queue[node.parent]) plan.push(node.move);
+        plan.reverse(); plan.push(...state.paths.flatMap((p, i) => p ? [i] : []));
+        return { plan, par: Math.max(state.paths.some(Boolean) ? 1 : 0, state.depth), exact: true, nodes: q + 1 };
+      }
+      for (let i = 0; i < state.paths.length; i++) {
+        if (!state.paths[i]) continue;
+        const next = tap(b, state.paths, i); if (!next) continue;
+        const key = JSON.stringify(next.paths); if (seen.has(key)) continue;
+        seen.add(key); queue.push({ paths: next.paths, parent: q, move: i, depth: state.depth + 1 });
+      }
+    }
+    return { ...best, exact: true, nodes: queue.length };
+  }
   function generate(options = {}) {
     const o = normalize(options), details = spec(o, options.index), d = details.difficulty;
     for (let attempt = 0; attempt < 24; attempt++) {
@@ -129,7 +155,8 @@
       // including the smallest introductions; retries are deterministic and bounded.
       if (b.ropes.length < 2 || allFree(b, b.ropes)) continue;
       const certificate = replay(b, b.plan); if (!certificate.solved) continue;
-      return { ...b, par: certificate.taps, exact: b.exact && b.par === certificate.taps };
+      const target = b.ropes.length <= 12 ? minimumTaps(b) : { plan: b.plan, par: certificate.taps, exact: b.exact && b.par === certificate.taps };
+      return { ...b, ...target };
     }
     throw Error('Could not weave a blocked, solvable board for these settings');
   }
@@ -137,6 +164,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

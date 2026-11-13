@@ -75,6 +75,10 @@ independent routes still animate together. Every accepted tap gets an immediate
 swish, even while its animation waits. Departures run at half their original
 speed to keep the clearance readable.
 
+Boards with up to twelve ropes use a bounded shortest-tap search for par,
+including mirrors and springs. It stops charging taps when automatic release
+becomes available; unfinished searches retain the verified construction target.
+
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic
 and free. Par is a replay-verified target; larger routed boards use a known
