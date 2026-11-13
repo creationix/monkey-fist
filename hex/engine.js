@@ -18,18 +18,47 @@
   const pick = (rng, list) => list[Math.floor(rng() * list.length)];
   const cell = (p, W) => p.r * W + p.q + Math.floor(p.r / 2);
   const point = (c, W) => ({ q: c % W - Math.floor(Math.floor(c / W) / 2), r: Math.floor(c / W) });
+  // Fixed mirrors (level.mirrors, { cell, axis }) bend a moving head exactly as in
+  // hex/mirrors.js: entering a mirror cell, direction d becomes 2 * axis - d
+  // (unchanged when met edge-on). A rope's future cells stay one fixed sequence.
+  const reflect = (d, axis) => ((2 * axis - d) % 6 + 6) % 6;
+  const dirIndex = v => DIRS.findIndex(d => d[0] === v[0] && d[1] === v[1]);
+  function mirrorCells(level) {
+    const out = new Map(); for (const m of level.mirrors || []) out.set(cell(m.cell, level.W), m.axis); return out;
+  }
+  // Append the cells ahead of `head` (a cell index) moving in direction d, to the
+  // edge. Null if the way out would enter a cell twice (the game refuses that tap).
+  function rayTrack(level, head, d, mirrors, out = [], turns = null) {
+    const start = out.length; let p = point(head, level.W), turned = false;
+    for (;;) {
+      p = add(p, DIRS[d]); if (!inside(level, p)) break;
+      const c = cell(p, level.W), axis = mirrors.get(c); out.push(c);
+      if (axis !== undefined) { const e = reflect(d, axis); if (e !== d) { turned = true; turns?.add(c); } d = e; if (out.length - start > 2 * level.W * level.H) return null; }
+    }
+    if (turned && new Set(out.slice(start)).size !== out.length - start) return null;
+    return out;
+  }
+  const exitIndex = (level, path, mirrors) => { const d = dirIndex(direction(path)), axis = mirrors.get(cell(path.at(-1), level.W)); return axis === undefined ? d : reflect(d, axis); };
+  // Mirror cells (as cell indices) on which some rope's way out actually turns.
+  function turningMirrors(level, paths = level.ropes) {
+    const bent = mirrorCells(level), turns = new Set();
+    for (const path of paths) if (path) rayTrack(level, cell(path.at(-1), level.W), exitIndex(level, path, bent), bent, [], turns);
+    return turns;
+  }
   // A rope can only advance along its original body followed by its exit ray.
   // Search stores one offset per rope, instead of copying every body at every node.
   function compile(level, paths = level.ropes) {
     const n = paths.length, N = level.W * level.H, tracks = [], lengths = new Int32Array(n), offsets = new Int32Array(n).fill(-1);
     const occupied = new Int32Array(N).fill(-1), at = new Int32Array(N), gates = new Int32Array(N).fill(-1);
     for (const g of level.locks) gates[cell(g.cell, level.W)] = g.key;
+    const bent = mirrorCells(level);
     let left = 0;
     paths.forEach((path, i) => {
       if (!path) { tracks.push([]); return; }
-      const track = path.map(p => cell(p, level.W)), d = direction(path);
+      const track = path.map(p => cell(p, level.W));
       track.forEach((c, j) => { occupied[c] = i; at[c] = j; });
-      for (let p = add(path.at(-1), d); inside(level, p); p = add(p, d)) track.push(cell(p, level.W));
+      if (bent.size) { if (!rayTrack(level, track.at(-1), exitIndex(level, path, bent), bent, track)) throw Error('A rope\u2019s way out passes a cell twice'); }
+      else { const d = direction(path); for (let p = add(path.at(-1), d); inside(level, p); p = add(p, d)) track.push(cell(p, level.W)); }
       tracks.push(track); lengths[i] = path.length; offsets[i] = 0; left++;
     });
     function to(i) {
@@ -144,6 +173,37 @@
   }
   // Exact manual-prefix search on compact offsets. Unlike greedily clearing
   // exits, this keeps useful temporary stoppers until the search chooses them.
+  // Move exits the rest of a solution does not need to the automatic release.
+  function postponeExits(level, plan) {
+    let best = plan.slice(), result = replay(level, best);
+    if (!result.solved) return null;
+    for (let pass = 0; pass < 2; pass++) {
+      let improved = false;
+      for (let k = best.length - 1; k >= 0; k--) {
+        const i = best[k]; if (best.indexOf(i, k + 1) >= 0) continue;
+        const trial = best.slice(0, k).concat(best.slice(k + 1), i), r = replay(level, trial);
+        if (r.solved && r.taps < result.taps) { best = trial; result = r; improved = true; }
+      }
+      if (!improved) break;
+    }
+    return { plan: best, taps: result.taps };
+  }
+  // The casual player of levels.js: an exit if one exists, otherwise any move, at random.
+  function casualWins(level, rng, games) {
+    let wins = 0; const exits = [], moves = [];
+    for (let g = 0; g < games; g++) {
+      const b = compile(level);
+      for (;;) {
+        exits.length = 0; moves.length = 0;
+        for (let i = 0; i < level.ropes.length; i++) if (b.offsets[i] >= 0) { const t = b.to(i); if (t === -1) exits.push(i); else if (t !== b.offsets[i]) moves.push(i, t); }
+        if (exits.length) b.place(exits[Math.floor(rng() * exits.length)], -1);
+        else if (moves.length) { const k = 2 * Math.floor(rng() * moves.length / 2); b.place(moves[k], moves[k + 1]); }
+        else break;
+        if (!b.left) { wins++; break; }
+      }
+    }
+    return wins / Math.max(1, games);
+  }
   function fewestPlayerTaps(level, fallback, budget = 6000) {
     const verified = replay(level, fallback);
     if (!verified.solved) throw Error('Par requires a replayable Hex solution');
@@ -223,26 +283,31 @@
     const { W, H, stage } = cfg, area = W * H, points = cells({ W, H });
     const neighbours = points.map(p => DIRS.map(d => { const q = add(p, d); return inside({ W, H }, q) ? cell(q, W) : -1; }));
     const occupied = new Int32Array(area).fill(-1), seen = new Int32Array(area), forward = new Int32Array(area);
-    const level = { W, H, ropes: [], locks: [] }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
-    const ray = (head, d) => { const out = []; for (let c = neighbours[head][d]; c >= 0; c = neighbours[c][d]) out.push(c); return out; };
-    function shape(want, minimum = Math.max(2, cfg.minLength || 3)) {
-      let head = -1;
-      for (let n = 0; n < 24; n++) { const c = Math.floor(rng() * area); if (occupied[c] < 0) { head = c; break; } }
+    const level = { W, H, ropes: [], locks: [], ...(cfg.mirrors?.length ? { mirrors: cfg.mirrors } : {}) }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
+    const bent = mirrorCells(level), tile = new Uint8Array(area); for (const c of bent.keys()) tile[c] = 1;
+    const free = c => c >= 0 && occupied[c] < 0 && !tile[c];
+    const ray = (head, d) => bent.size ? rayTrack(level, head, d, bent) : (() => { const out = []; for (let c = neighbours[head][d]; c >= 0; c = neighbours[c][d]) out.push(c); return out; })();
+    // `aim`, if given, fixes the head and its direction (toward a mirror).
+    function shape(want, minimum = Math.max(2, cfg.minLength || 3), aim = null) {
+      let head = aim ? aim.head : -1;
+      for (let n = 0; n < 24 && !aim; n++) { const c = Math.floor(rng() * area); if (free(c)) { head = c; break; } }
       if (head < 0) return null;
-      const dir = Math.floor(rng() * 6), back = (dir + 3) % 6, second = neighbours[head][back];
-      if (second < 0 || occupied[second] >= 0) return null;
+      const dir = aim ? aim.dir : Math.floor(rng() * 6), back = (dir + 3) % 6, second = neighbours[head][back];
+      if (!free(second)) return null;
+      const turns = new Set(), ahead = bent.size ? rayTrack(level, head, dir, bent, [], turns) : ray(head, dir); if (!ahead) return null;
       stamp++; const body = [head, second]; seen[head] = seen[second] = stamp;
-      const ahead = ray(head, dir); for (const c of ahead) forward[c] = stamp;
+      for (const c of ahead) forward[c] = stamp;
+      if (forward[second] === stamp) return null;
       let previous = back;
       while (body.length < want) {
         const choices = [];
-        for (let d = 0; d < 6; d++) { const c = neighbours[body.at(-1)][d]; if (c >= 0 && occupied[c] < 0 && seen[c] !== stamp && forward[c] !== stamp) choices.push(d); }
+        for (let d = 0; d < 6; d++) { const c = neighbours[body.at(-1)][d]; if (free(c) && seen[c] !== stamp && forward[c] !== stamp) choices.push(d); }
         if (!choices.length) break;
         previous = choices.includes(previous) && rng() < .38 ? previous : pick(rng, choices);
         const c = neighbours[body.at(-1)][previous]; seen[c] = stamp; body.push(c);
       }
       if (body.length < minimum) return null;
-      return { path: body.reverse().map(c => points[c]), ids: body, ray: ahead };
+      return { path: body.reverse().map(c => points[c]), ids: body, ray: ahead, turns };
     }
     // Optional repeated-slide core, replayed before any gap-filling additions.
     if (cfg.initialRopes?.length) {
@@ -280,18 +345,30 @@
     // Prefer long, winding additions that make many existing ropes wait. Evaluate
     // several candidates at each step, instead of accepting the first free exit.
     let attempts = 0;
+    const turnedBy = new Set(); // mirrors some committed rope's way out turns on
+    const aimAt = () => {
+      const idle = (level.mirrors || []).filter(m => !turnedBy.has(cell(m.cell, W))); if (!idle.length) return null;
+      const m = pick(rng, idle), c = cell(m.cell, W), d = pick(rng, [0, 1, 2, 3, 4, 5].filter(e => e % 3 !== m.axis % 3)), j = 1 + Math.floor(rng() * 3);
+      let head = c; for (let k = 0; k < j && head >= 0; k++) head = neighbours[head][(d + 3) % 6];
+      for (let k = 0, x = head; k < j && x >= 0; k++, x = neighbours[x][d]) if (!free(x)) return null;
+      return head >= 0 ? { head, dir: d } : null;
+    };
+    const noteTurns = path => { if (bent.size) rayTrack(level, cell(path.at(-1), W), exitIndex(level, path, bent), bent, [], turnedBy); };
+    for (const path of level.ropes) noteTurns(path);
     while ((cfg.ropeCount ? level.ropes.length < cfg.ropeCount : covered < area * cfg.coverage) && attempts < area * 22) {
       let best = null;
+      const aim = bent.size > turnedBy.size;
       for (let n = 0; n < 12 && attempts++ < area * 22; n++) {
-        const want = 4 + Math.floor((.45 + .55 * rng()) * cfg.length), shapeResult = shape(want); if (!shapeResult) continue;
+        const want = 4 + Math.floor((.45 + .55 * rng()) * cfg.length), shapeResult = shape(want, undefined, aim && n < 4 ? aimAt() : null); if (!shapeResult) continue;
         level.ropes.push(shapeResult.path); stops.push(null);
         const trial = intentions(level, stops); level.ropes.pop(); stops.pop();
         if (!trial) continue;
-        const gain = (trial.cost - result.cost) * (cfg.tapDepth == null ? 1 : cfg.tapDepth - 1) + shapeResult.ids.length * 4;
+        const gain = (trial.cost - result.cost) * (cfg.tapDepth == null ? 1 : cfg.tapDepth - 1) + shapeResult.ids.length * 4 +
+          30 * [...shapeResult.turns].filter(c => !turnedBy.has(c)).length; // bring idle mirrors into play
         if (!best || gain > best.gain) best = { ...shapeResult, trial, gain };
       }
       if (!best) continue;
-      const id = level.ropes.length; level.ropes.push(best.path); stops.push(null); result = best.trial;
+      const id = level.ropes.length; level.ropes.push(best.path); stops.push(null); result = best.trial; noteTurns(best.path);
       best.ids.forEach(c => occupied[c] = id); covered += best.ids.length;
     }
     const certified = intentions(level, stops, result.moves);
@@ -324,7 +401,7 @@
     cache.set(identity, result); if (cache.size > 24) cache.delete(cache.keys().next().value);
     return result;
   }
-  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, fewestPlayerTaps, generate, code, parseCode, cleanSeed, profile, build, compile };
+  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, fewestPlayerTaps, postponeExits, casualWins, turningMirrors, cellIndex: cell, reflect, generate, code, parseCode, cleanSeed, profile, build, compile };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MFHex = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

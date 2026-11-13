@@ -111,8 +111,19 @@ For ordinary Hex boards, `hex/engine.js` seeds mutual-wait pairs and adds long
 strands while maintaining a complete certificate. Its straight-track solver
 represents a rope by its offset along its original body and forward ray.
 
-For mirrors and spinners, `twist-circuits.js` and `hex/mirrors.js` construct routed
-core ropes first. Ordinary ropes are inserted at positions in that certificate
+Mirrors no longer need a separate construction. Without spinners, a rope's
+future cells are one fixed sequence even with fixed mirrors: its body, then its
+way out as the mirrors bend it. `levels.js` and `hex/engine.js` build tracks
+that way (`rayCells`, `rayTrack`), and refuse a rope whose way out would enter a
+cell twice. The replay, knots, traps, relaxation and exact searches then work
+unchanged. A mirror-only level places its mirrors first, away from the edges and
+from any repeated-slide core's ways out, weaves knots and traps around them, aims
+some ropes at idle mirrors, and finally removes mirrors no rope turns on. The
+offset model was cross-checked against the game's own taps over more than
+14,000 random moves on both grids without a disagreement.
+
+For spinners, and for colossal mirror maps, `twist-circuits.js` and
+`hex/mirrors.js` construct routed core ropes first. Ordinary ropes are inserted at positions in that certificate
 where they can legally leave before a route needs their occupied cells. This
 can create dependencies both before and after a mechanic move. The routed
 solver tracks full rope paths because mirrors and reversals change them.
@@ -150,8 +161,20 @@ Published density floors are approximately:
 | Routed mechanic board | 80–84%, depending on size |
 
 Feature cells are not counted as rope cells. Larger boards also reject sparse
-quarters; the Journey builder checks regional coverage on every map. Candidate
-selection balances density with the requested difficulty and dependency quality.
+quarters; the Journey builder checks regional coverage on every map.
+
+Woven boards ask for about `0.6 √T` knots and as many traps, with a tangle
+target `T = 300 (d/100)^1.3`, as the J1 generator did. Revision 3 tied these
+counts to area instead, which asked for a third as many knots and a fifth as
+many traps and was the main reason fixed-size boards forced so few slides.
+
+Candidates are chosen by play. Each one is measured by the manual slides and
+bounces in its par solution (`work`) and by how often a casual player wins: one
+that taps a rope that can leave if there is one, and otherwise any legal move,
+at random. The measured challenge is `work + 6 × (1 − wins)`; the difficulty
+setting maps to a target `0.5 + 9.5 (d/100)^1.3`, and the candidate closest to
+it (weighted with density) is kept. Playouts run on the compact offset kernels
+except on spinner boards, which use fewer games on the routed rules.
 
 Colossal generation uses longer ropes, fewer candidate attempts, no expensive
 optimal-par or structural search, and a deterministic packing-work budget. It
@@ -172,10 +195,10 @@ One-key fans and unrelated moves do not supply join or revisit evidence.
 Disconnected dependency groups are discounted according to the largest coupled
 group. Additional viewport padding does not increase these interaction metrics.
 
-Hard candidates favor these interaction measures, repeated partial-slide work,
-and fewer initially clear exits. Journey ordering also includes absolute tap
-workload, rope count and area. These are heuristics for human difficulty, not a
-proof that every later level is harder for every player.
+These measures still reject advanced candidates without mutual waits, revisits
+or joins, and contribute a small term to selection. They no longer order the
+Journey: they describe one certificate, and the measurements in the research
+note found them a weak guide to whether a board can be lost.
 
 ### Counting taps and interpreting par
 
@@ -197,8 +220,12 @@ below its rope count if it ends with a large automatic release. Conversely, a
 long exit-only chain can have par close to the rope count without being very
 interesting.
 
-Small boards receive bounded minimum-tap searches. Larger boards retain the best
-verified solution found, which is an **upper bound** on the true minimum. Current
+Par is computed honestly. Exits the rest of the certificate does not need are
+first moved to the automatic release, then a bounded minimum-tap search runs
+from there: on the offset kernels for every board without spinners, and on full
+geometry for spinner boards with up to twelve ropes. Where the search does not
+finish, the result is the best verified solution found, an **upper bound** on
+the true minimum. Current
 acceptance enforces the 1/3 floor against that reported target and independently
 rejects complete one-tap clears on boards containing more than three ropes.
 It does not limit partial cascades or prove a global minimum-ratio bound for
@@ -214,13 +241,23 @@ cannot move every mechanic level into the middle of the campaign.
 | 1 | 0 | 0 | 0 |
 | 2 | 6 | 5 | 2 |
 | 3 | 8 | 6 | 5 |
-| 4–12 | 9 | 7 | 7 |
+| 4–12 | 9 | 7 | 6 |
 
-A level with both mechanics counts in both columns. Later chapters keep one
-plain-rules interlude and finish on a featured puzzle. Every Journey source slot is derived from the master seed, including the opening
-ten. The seed controls the grid mix, dimensions and candidate retry seeds. A shared
-difficulty curve supplies each source slot’s target. Opening candidates must pass small-board quality checks; their
-particular layouts and seeds are never listed in the source.
+A level with both mechanics counts in both columns. From chapter 4 a chapter has
+one plain level, three mirror levels, two spinner levels and four with both.
+Later chapters keep the plain-rules interlude between featured puzzles and
+finish on a featured puzzle.
+
+Every level, the opening ten included, is built from the master seed. The
+builder plans each position's kind, size and difficulty (rising smoothly from
+20 to 100 after the introductions), tries several derived seeds, rejects any
+candidate that fails the checks above, re-measures the rest with more casual
+games, and keeps the one closest to the position's target challenge. Within a
+chapter, levels run from lowest to highest measured challenge. If no seed works
+at the planned size, the board steps toward 12 × 16. Each level records its
+`slot`, `journeySeed` and `seedAttempt`, and its map seed is a hash of those
+alone, so `--seed` builds a different deterministic campaign and no layout or
+seed is listed in the source.
 
 From chapter 4, enabled mechanics require at least three actually turning
 mirrors or two distinct actually used spinners. The checks inspect the final
@@ -248,6 +285,11 @@ for changed boards are archived; chapter access and preferences are retained.
 
 ### Remaining limitations
 
+- The casual player is a comparative measure, not a model of people; it has not
+  been calibrated against human solving times.
+- Spinner levels still use routed circuits and the repeated-slide core. Their
+  slides come mostly from that core, and they are the least losable featured
+  levels in the late chapters.
 - Construction starts from a limited family of sliding and routed cores. Dense
   packing and random transformations add variety, but this does not explore every
   possible dependency structure.

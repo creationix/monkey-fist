@@ -12,7 +12,7 @@
   const J = node ? require('./journey.js') : root.MFJourney;
   const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
   const K = node ? require('./grid-journey.js') : root.MFGridJourney;
-  const VERSION = 1, GRID_VERSION = 5;
+  const VERSION = 1, GRID_VERSION = 6;
   const LEGACY_DEFAULT = { kind: 'journey', revision: 1, seed: 'MONKEYFIST', grid: 'mixed', count: 120, min: 1, max: 100, mirrors: true, springs: true };
   const ROPE_DEFAULT = { ...LEGACY_DEFAULT, revision: 2, sizeMin: 4, sizeMax: 60 };
   const DEFAULT = { ...LEGACY_DEFAULT, revision: 3, width: 10, height: 14 };
@@ -78,6 +78,28 @@
   const xy = paths => paths.map(path => path && path.map(p => ({ x: p.q, y: p.r })));
   const qr = paths => paths.map(path => path && path.map(p => ({ q: p.x, r: p.y })));
   const featured = b => !!(b.mirrors?.length || b.springs?.length);
+  // Without spinners every rope keeps one fixed track, mirrors included, so the
+  // compact offset kernels (with their dead-board pruning) apply. Woven boards
+  // never have a track that enters a cell twice; older routed mirror boards can,
+  // across separate moves, so those keep the full-geometry rules.
+  const simpleTracks = new WeakMap();
+  function tracked(b) {
+    if (b.springs?.length) return false;
+    if (!b.mirrors?.length) return true;
+    if (!simpleTracks.has(b)) {
+      let simple = true;
+      try { if (b.grid === 'hex') H.compile({ ...b, locks: b.locks || [] }, b.ropes); else L.tracksOf(xy(b.ropes), b.W, b.H, squareMirrors(b)); }
+      catch { simple = false; }
+      simpleTracks.set(b, simple);
+    }
+    return simpleTracks.get(b);
+  }
+  const squareMirrors = b => new Map((b.mirrors || []).map(m => [m.cell.r * b.W + m.cell.q, m.slope]));
+  // The square offset kernels index ropes densely; drop ropes that have left.
+  function compact(paths) {
+    const ids = paths.flatMap((p, i) => p ? [i] : []);
+    return { ids, paths: xy(ids.map(i => paths[i])), local: new Map(ids.map((id, k) => [id, k])) };
+  }
   const nativeCache = new WeakMap();
   function native(b) {
     if (!nativeCache.has(b)) nativeCache.set(b, { W: b.W, H: b.H,
@@ -104,7 +126,7 @@
   function replay(b, moves, paths = b.ropes) {
     // Keep the compact track replay on mega Hex boards; rebuilding every route
     // after every move makes checking an alternate tap unnecessarily expensive.
-    if (b.grid === 'hex' && !featured(b)) return H.replay(b, moves, paths);
+    if (b.grid === 'hex' && tracked(b)) return H.replay(b, moves, paths);
     let taps = 0, automatic = false; const events = [];
     for (const i of moves) {
       const move = tap(b, paths, i); if (!move) return { solved: false, paths, taps, events };
@@ -114,8 +136,10 @@
     return { solved: paths.every(p => !p), paths, taps, events };
   }
   function solve(b, paths = b.ropes, budget = 900, prefer = []) {
-    if (b.grid === 'hex') return (featured(b) ? R : H).solve(b, paths, budget, prefer);
-    return featured(b) ? M.solve(native(b), xy(paths), budget, prefer) : L.solve(xy(paths), b.W, b.H, budget, prefer);
+    if (b.grid === 'hex') return (tracked(b) ? H : R).solve(b, paths, budget, prefer);
+    if (!tracked(b)) return M.solve(native(b), xy(paths), budget, prefer);
+    const c = compact(paths), result = L.solve(c.paths, b.W, b.H, budget, prefer.filter(i => c.local.has(i)).map(i => c.local.get(i)), squareMirrors(b));
+    return { ...result, moves: result.moves.map(k => c.ids[k]) };
   }
   function guide(b, paths, budget = 900, prefer = []) {
     // An earlier exit can make later taps of the same rope redundant. Trim those
@@ -170,10 +194,10 @@
     return [...live];
   }
   function frozenRopes(b, paths = b.ropes) {
-    if (!featured(b)) {
+    if (tracked(b)) {
       if (b.grid === 'hex') return H.compile(b, paths).frozen();
-      const ids = paths.flatMap((p, i) => p ? [i] : []);
-      return L.frozenRopes(xy(ids.map(i => paths[i])), b.W, b.H).map(i => ids[i]);
+      const c = compact(paths);
+      return L.frozenRopes(c.paths, b.W, b.H, squareMirrors(b)).map(i => c.ids[i]);
     }
     // Optimistically erase any rope that has a legal first move, even if that
     // move would only slide or reverse it. Repeat as blockers disappear. Every

@@ -26,7 +26,38 @@ const MFLevels = (() => {
     }
     return { clear: true, dist, blocker: -1 };
   }
-  function selfBlocked(path) {
+  // Fixed two-sided mirrors, as a Map from cell (y * W + x) to '/' or '\'. A moving rope turns as it
+  // enters a mirror's cell, exactly as in mechanics.js. A rope's future cells are therefore still
+  // one fixed sequence: its body, then its way out as the mirrors bend it. Everything below that
+  // works on that sequence (the replay, the relaxation and the searches) needs no other change.
+  const NO_MIRRORS = new Map();
+  const mirrorMap = m => m instanceof Map ? m : Array.isArray(m) ? new Map(m.map(x => [x.cell, x.slope])) : NO_MIRRORS;
+  const turn = (slope, dx, dy) => slope === '/' ? [-dy, -dx] : [dy, dx];
+  function exitDir(path, W, mirrors) {
+    const h = path[path.length - 1], d = headDir(path), m = mirrors.get(h.y * W + h.x);
+    return m === undefined ? d : turn(m, d[0], d[1]);
+  }
+  // Append to `out` the cells a head at (x, y) passes moving (dx, dy), up to the edge. Null if that
+  // way out would enter a cell twice: in the game such a tap overlaps itself or never settles.
+  function rayCells(x, y, dx, dy, W, H, mirrors, out = []) {
+    const start = out.length; let turned = false;
+    for (;;) {
+      x += dx; y += dy;
+      if (x < 0 || y < 0 || x >= W || y >= H) break;
+      const c = y * W + x, m = mirrors.get(c);
+      out.push(c);
+      if (m !== undefined) { [dx, dy] = turn(m, dx, dy); turned = true; if (out.length - start > 2 * W * H) return null; }
+    }
+    if (turned && new Set(out.slice(start)).size !== out.length - start) return null;
+    return out;
+  }
+  function selfBlocked(path, W, H, mirrors) {
+    if (mirrors && mirrors.size) {
+      const h = path[path.length - 1], d = exitDir(path, W, mirrors), ahead = rayCells(h.x, h.y, d[0], d[1], W, H, mirrors);
+      if (!ahead) return true;
+      const body = new Set(path.map(p => p.y * W + p.x));
+      return ahead.some(c => body.has(c));
+    }
     const h = path[path.length - 1], d = headDir(path);
     return path.some(p => (d[0] ? p.y === h.y && (p.x - h.x) * d[0] > 0 : p.x === h.x && (p.y - h.y) * d[1] > 0));
   }
@@ -38,7 +69,11 @@ const MFLevels = (() => {
 
   // ---------- difficulty ----------
   // Every rope standing anywhere in a rope's way out: it cannot leave until each has got out of the way.
-  function blockersOf(paths, W, H) {
+  function blockersOf(paths, W, H, mirrors) {
+    if (mirrors && mirrors.size) {
+      const b = boardOf(paths, W, H, mirrors);
+      return b.seq.map((s, i) => { const seen = new Set(); for (let p = b.len[i]; p < s.length; p++) if (b.occ[s[p]] !== -1) seen.add(b.occ[s[p]]); return [...seen]; });
+    }
     const occ = occupancy(paths, W, H);
     return paths.map((path, id) => {
       const h = path[path.length - 1], d = headDir(path), seen = new Set();
@@ -140,18 +175,21 @@ const MFLevels = (() => {
   }
   // The loops on a board: each a list of ropes that wait on one another in a circle, so that none
   // of them can leave until one slides far enough to let another by.
-  function loopsOf(paths, W, H) {
-    return groupsOf(blockersOf(paths, W, H)).filter(g => g.length > 1).map(g => g.sort((x, y) => x - y));
+  function loopsOf(paths, W, H, mirrors) {
+    return groupsOf(blockersOf(paths, W, H, mirrors)).filter(g => g.length > 1).map(g => g.sort((x, y) => x - y));
   }
   // A board in compact form, for the analysis and the solver. A rope can only ever occupy the
   // cells of its own track: its body as first laid, then the straight line ahead of its head
   // to the edge. seq[i] is that track, len[i] the rope's length, and off[i] how far along it has
   // slid (so it sits on seq[i][off[i]] ... seq[i][off[i] + len[i] - 1]); off[i] is -1 once it has left.
-  function boardOf(paths, W, H) {
+  // With mirrors, the track after the head follows them (see rayCells).
+  function boardOf(paths, W, H, mirrors) {
     const n = paths.length, occ = new Int16Array(W * H).fill(-1), at = new Int16Array(W * H), seq = [], len = new Int16Array(n);
+    const bent = mirrors && mirrors.size;
     paths.forEach((path, i) => {
-      const h = path[path.length - 1], d = headDir(path), s = path.map(p => p.y * W + p.x);
-      for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) s.push(y * W + x);
+      const h = path[path.length - 1], d = bent ? exitDir(path, W, mirrors) : headDir(path), s = path.map(p => p.y * W + p.x);
+      if (bent) { if (!rayCells(h.x, h.y, d[0], d[1], W, H, mirrors, s)) throw Error('A rope’s way out passes a cell twice'); }
+      else for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) s.push(y * W + x);
       seq.push(Int16Array.from(s)); len[i] = path.length;
       s.slice(0, path.length).forEach((c, j) => { occ[c] = i; at[c] = j; }); // at[cell]: where on its rope's track the cell is
     });
@@ -209,8 +247,8 @@ const MFLevels = (() => {
     return waiting;
   }
   // The ropes that can never leave. Empty on any board that can still be solved.
-  function deadRopes(paths, W, H) {
-    const b = boardOf(paths, W, H), dead = [];
+  function deadRopes(paths, W, H, mirrors) {
+    const b = boardOf(paths, W, H, mirrors), dead = [];
     if (relax(b)) for (let i = 0; i < b.n; i++) if (b.now[i] !== GONE) dead.push(i);
     return dead;
   }
@@ -219,8 +257,8 @@ const MFLevels = (() => {
   // truly fixed for good: it never names a rope that could still move. (It may miss one that is
   // fixed for a subtler reason.) A board with such a rope is lost, since that rope can never leave.
   // A lost board need not have one: ropes that can never leave can often still slide a little.
-  function frozenRopes(paths, W, H) {
-    const b = boardOf(paths, W, H), frozen = [];
+  function frozenRopes(paths, W, H, mirrors) {
+    const b = boardOf(paths, W, H, mirrors), frozen = [];
     relax(b);
     for (let i = 0; i < b.n; i++) if (b.now[i] === b.off[i]) frozen.push(i);
     return frozen;
@@ -238,8 +276,8 @@ const MFLevels = (() => {
   // `budget` caps the number of boards looked at. Returns { solved, moves, nodes }: solved is true
   // with `moves` the ropes to tap in order, false if there is certainly no way, or null if the
   // budget ran out first.
-  function solve(paths, W, H, budget, prefer) {
-    const b = boardOf(paths, W, H), n = b.n, hopeless = new Set(), moves = [], limit = budget || 20000;
+  function solve(paths, W, H, budget, prefer, mirrors) {
+    const b = boardOf(paths, W, H, mirrors), n = b.n, hopeless = new Set(), moves = [], limit = budget || 20000;
     // rank[i]: where rope i first comes in the preferred order; later[i]: where it comes last (a
     // knot is tapped twice, to slide and then to leave), used once it has moved.
     const rank = new Int32Array(n).fill(1e6), later = new Int32Array(n).fill(1e6);
@@ -286,10 +324,10 @@ const MFLevels = (() => {
   // best solution's taps in order, and whether the search finished (so that nothing shorter
   // exists) or ran out of budget and fell back on the solution it was given. On every board small
   // enough to check by trying all possible play, a finished search has matched the true fewest.
-  function fewestTaps(paths, W, H, known, budget) {
-    const b = boardOf(paths, W, H), n = b.n, limit = budget || 20000;
+  function fewestTaps(paths, W, H, known, budget, mirrors) {
+    const b = boardOf(paths, W, H, mirrors), n = b.n, limit = budget || 20000;
     // the slides in the known solution, and where each rope first comes in it
-    const sim = boardOf(paths, W, H), rank = new Int32Array(n).fill(1e6);
+    const sim = boardOf(paths, W, H, mirrors), rank = new Int32Array(n).fill(1e6);
     let knownSlides = 0;
     known.forEach((i, k) => { if (sim.off[i] < 0) return; if (rank[i] === 1e6) rank[i] = k; const to = slideTo(sim, i); if (to >= 0 && to !== sim.off[i]) knownSlides++; place(sim, i, to); });
     if (sim.left) return null; // not a solution
@@ -334,8 +372,8 @@ const MFLevels = (() => {
 
   // Only player taps count: once no rope blocks another, the game releases the remainder.
   // Keep a complete solution for hints/replay, but score only its prefix before auto-release.
-  function playerTapCount(paths, W, H, taps) {
-    const b = boardOf(paths, W, H);
+  function playerTapCount(paths, W, H, taps, mirrors) {
+    const b = boardOf(paths, W, H, mirrors);
     let count = 0, auto = false;
     for (const i of taps) {
       if (b.off[i] < 0) continue;
@@ -351,10 +389,10 @@ const MFLevels = (() => {
     for (let i = 0; i < b.n; i++) if (b.off[i] >= 0 && slideTo(b, i) >= 0) return false;
     return true;
   }
-  function fewestPlayerTaps(paths, W, H, known, budget) {
-    const count = playerTapCount(paths, W, H, known);
+  function fewestPlayerTaps(paths, W, H, known, budget, mirrors) {
+    const count = playerTapCount(paths, W, H, known, mirrors);
     if (count === null) return null;
-    const b = boardOf(paths, W, H), limit = budget || 6000, moves = [], tried = new Map();
+    const b = boardOf(paths, W, H, mirrors), limit = budget || 6000, moves = [], tried = new Map();
     const rank = new Int32Array(b.n).fill(1e6), later = new Int32Array(b.n).fill(1e6);
     known.forEach((i, k) => { if (rank[i] === 1e6) rank[i] = k; later[i] = k; });
     let nodes = 0, gaveUp = false;
@@ -403,10 +441,52 @@ const MFLevels = (() => {
   }
   // Play a list of taps and report what is left: the paths still on the board (null where a rope
   // has gone). Used to check a solution, and by the tests.
-  function play(paths, W, H, taps) {
-    const b = boardOf(paths, W, H);
+  function play(paths, W, H, taps, mirrors) {
+    const b = boardOf(paths, W, H, mirrors);
     for (const i of taps) if (b.off[i] >= 0) place(b, i, slideTo(b, i));
-    return paths.map((p, i) => (b.off[i] < 0 ? null : advance(p, b.off[i])));
+    return paths.map((p, i) => (b.off[i] < 0 ? null : Array.from(b.seq[i].subarray(b.off[i], b.off[i] + b.len[i]), c => ({ x: c % W, y: c / W | 0 }))));
+  }
+  // Each rope's whole track as cell indices (see boardOf).
+  const tracksOf = (paths, W, H, mirrors) => boardOf(paths, W, H, mirrors).seq.map(s => Array.from(s));
+  // Shorten a solution's player taps by moving exits the rest of the solution does not need to the
+  // automatic release at the end. Every result is replay-checked; the best one found is returned.
+  function postponeExits(paths, W, H, taps, mirrors) {
+    let best = taps.slice(), count = playerTapCount(paths, W, H, best, mirrors);
+    if (count === null) return null;
+    for (let pass = 0; pass < 2; pass++) {
+      let improved = false;
+      for (let k = best.length - 1; k >= 0; k--) {
+        const i = best[k]; if (best.indexOf(i, k + 1) >= 0) continue; // only a rope's last tap is its exit
+        const trial = best.slice(0, k).concat(best.slice(k + 1), i), c = playerTapCount(paths, W, H, trial, mirrors);
+        if (c !== null && c < count) { best = trial; count = c; improved = true; }
+      }
+      if (!improved) break;
+    }
+    return { taps: best, count };
+  }
+  // A casual player: tap a rope that can leave if there is one, otherwise any rope that can move, at
+  // random. Returns the share of `games` it wins. It plays the original no-slide game perfectly and
+  // guesses at every slide, so a low share means a board offers many wrong slides. A comparative
+  // measure between boards, not a model of any particular person.
+  function casualWins(paths, W, H, rng, games, mirrors) {
+    const b = boardOf(paths, W, H, mirrors), exits = [], moves = [];
+    let wins = 0;
+    for (let g = 0; g < games; g++) {
+      b.occ.fill(-1); b.left = 0;
+      for (let i = 0; i < b.n; i++) { b.off[i] = -1; place(b, i, 0); }
+      for (;;) {
+        exits.length = 0; moves.length = 0;
+        for (let i = 0; i < b.n; i++) if (b.off[i] >= 0) {
+          const to = slideTo(b, i);
+          if (to < 0) exits.push(i); else if (to !== b.off[i]) moves.push(i, to);
+        }
+        if (exits.length) place(b, exits[Math.floor(rng() * exits.length)], -1);
+        else if (moves.length) { const k = 2 * Math.floor(rng() * moves.length / 2); place(b, moves[k], moves[k + 1]); }
+        else break;
+        if (!b.left) { wins++; break; }
+      }
+    }
+    return wins / Math.max(1, games);
   }
 
   // How many corners a rope turns.
@@ -432,7 +512,8 @@ const MFLevels = (() => {
   // Ways to shape a new rope on a board, shared by both builders. `occ` is the board (-1 where a
   // cell is empty); cfg gives the rope lengths and how straight they run.
   function shaper(occ, W, H, rng, cfg) {
-    const N = W * H, xy = c => ({ x: c % W, y: c / W | 0 });
+    const N = W * H, xy = c => ({ x: c % W, y: c / W | 0 }), mirrors = mirrorMap(cfg.mirrors);
+    const blocked = path => selfBlocked(path, W, H, mirrors);
     // A random walk through empty cells starting at `start`, optionally with its first step
     // forced in direction `first`. `straight` is the chance each step carries straight on.
     const grow = (start, first, straight) => {
@@ -456,44 +537,47 @@ const MFLevels = (() => {
     };
     // The way out from (x, y) in direction d, not counting (x, y) itself: every cell to the edge,
     // how many of them are empty, and the ropes standing in it.
+    // With mirrors the way out bends; null if it would pass a cell twice.
     const wayOut = (x, y, d) => {
-      const cells = [], ids = [];
+      let cells = [];
+      if (mirrors.size) { cells = rayCells(x, y, d[0], d[1], W, H, mirrors); if (!cells) return null; }
+      else for (let a = x + d[0], b = y + d[1]; a >= 0 && b >= 0 && a < W && b < H; a += d[0], b += d[1]) cells.push(b * W + a);
+      const ids = [];
       let free = 0;
-      for (x += d[0], y += d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) {
-        const c = y * W + x, o = occ[c];
-        cells.push(c);
-        if (o === -1) free++; else if (o >= 0 && !ids.includes(o)) ids.push(o);
-      }
+      for (const c of cells) { const o = occ[c]; if (o === -1) free++; else if (o >= 0 && !ids.includes(o)) ids.push(o); }
       return { cells, free, ids };
     };
     // Shape a rope that includes `start`. Usually head-first: point the head from `start` (longer
     // ways out favoured: they cross more of the board) and lay the body out behind it. Otherwise
     // walk a body through `start` and take whichever end has the longer way out.
-    const shape = (start, straight) => {
+    const shape = (start, straight, dir = -1) => {
       const s = xy(start);
-      if (rng() < 0.75) {
+      if (dir >= 0 || rng() < 0.75) {
         const opts = []; let sum = 0;
         for (let d = 0; d < 4; d++) {
+          if (dir >= 0 && d !== dir) continue;
           const bx = s.x - DIRS[d][0], by = s.y - DIRS[d][1]; // the body's first cell sits behind the head
           if (bx < 0 || by < 0 || bx >= W || by >= H || occ[by * W + bx] !== -1) continue;
           const lane = wayOut(s.x, s.y, DIRS[d]);
+          if (!lane) continue;
           opts.push({ d, lane, w: lane.cells.length + 1 }); sum += lane.cells.length + 1;
         }
         if (opts.length) {
           let r = rng() * sum, o = opts[opts.length - 1];
           for (const cand of opts) { r -= cand.w; if (r < 0) { o = cand; break; } }
           const cells = grow(start, (o.d + 2) % 4, straight), path = cells.map(xy).reverse();
-          if (cells.length >= cfg.minLen && !selfBlocked(path)) return { cells, path, lane: o.lane };
+          if (cells.length >= cfg.minLen && !blocked(path)) return { cells, path, lane: o.lane };
         }
+        if (dir >= 0) return null;
       }
       const cells = grow(start, -1, straight);
       if (cells.length < cfg.minLen) return null;
       const a = cells.map(xy), b = a.slice().reverse(), ok = [];
-      for (const p of [a, b]) if (!selfBlocked(p)) { const h = p[p.length - 1]; ok.push({ cells, path: p, lane: wayOut(h.x, h.y, headDir(p)) }); }
+      for (const p of [a, b]) if (!blocked(p)) { const h = p[p.length - 1]; ok.push({ cells, path: p, lane: wayOut(h.x, h.y, headDir(p)) }); }
       if (!ok.length) return null;
       return ok.length === 2 && (ok[1].lane.cells.length > ok[0].lane.cells.length || (ok[1].lane.cells.length === ok[0].lane.cells.length && rng() < 0.5)) ? ok[1] : ok[0];
     };
-    return { xy, grow, wayOut, shape };
+    return { xy, grow, wayOut, shape, blocked, mirrors };
   }
 
   // ---------- building one level for the original game ----------
@@ -780,14 +864,18 @@ const MFLevels = (() => {
   function weave(rng, cfg) {
     const W = cfg.W, H = cfg.H, N = W * H, KEPT = -3;
     const occ = new Int16Array(N).fill(-1); // the board as the level starts; KEPT marks a cell held empty in front of a trap
-    const { xy, wayOut, shape } = shaper(occ, W, H, rng, cfg);
+    // Fixed mirrors (cfg.mirrors) are passable for moving ropes but no rope may start on one.
+    const MIRROR = -4;
+    const { xy, wayOut, shape, blocked, mirrors } = shaper(occ, W, H, rng, cfg);
+    for (const c of mirrors.keys()) occ[c] = MIRROR;
     const paths = [], stops = [];           // per rope: where it starts, and the offsets it is meant to slide to before leaving
     let order = [];                         // the ropes in the order the last replay first tapped them: the order to try them in next time
     // The board the replay runs on (see boardOf), able to take one more rope at a time.
     const b = { n: 0, left: 0, occ: new Int16Array(N), at: new Int16Array(N), seq: [], len: new Int16Array(N), off: new Int16Array(N), was: new Int16Array(N), now: new Int16Array(N) };
     const add = (path, st) => {
       const h = path[path.length - 1], d = headDir(path), q = path.map(c => c.y * W + c.x);
-      for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) q.push(y * W + x);
+      if (mirrors.size) { if (!rayCells(h.x, h.y, d[0], d[1], W, H, mirrors, q)) throw Error('Unchecked looping track'); }
+      else for (let x = h.x + d[0], y = h.y + d[1]; x >= 0 && y >= 0 && x < W && y < H; x += d[0], y += d[1]) q.push(y * W + x);
       b.seq[b.n] = Int16Array.from(q); b.len[b.n] = path.length; paths[b.n] = path; stops[b.n] = st;
       return b.n++;
     };
@@ -832,15 +920,17 @@ const MFLevels = (() => {
       return ok ? sum : -1;
     };
     let total0 = 0, bendSum = 0, covered = 0, knots = 0, traps = 0; // total0: the block cost total of the board as it stands
+    const mirrorUsed = new Set();
     const commit = c => {
       const id = add(c.first || c.path, c.first ? [c.pull] : NO_STOPS);
+      if (mirrors.size) for (const cell of b.seq[id]) if (mirrors.has(cell)) mirrorUsed.add(cell);
       replay([id].concat(order), id);
       total0 = costSum;
       order = []; for (const i of taps) if (!order.includes(i)) order.push(i);
       for (const p of paths[id]) occ[p.y * W + p.x] = id;
       covered += paths[id].length; bendSum += c.bends;
       if (c.first) { knots++; for (const cell of c.rest) rest[cell] = id; }
-      if (c.gap) { traps++; for (const cell of c.gap) occ[cell] = KEPT; }
+      if (c.gap) { traps++; for (const cell of c.gap) if (occ[cell] === -1) occ[cell] = KEPT; }
     };
 
     // How the board stands as the level starts: ahead[i] the empty cells on rope i's way out,
@@ -876,13 +966,22 @@ const MFLevels = (() => {
       return w.length - 1;
     };
     // One possible next rope, with what it would do to the score. Null if it does not fit.
+    const aimed = () => { // a head 1 to 3 cells before an unused mirror, pointing at it
+      const idle = [...mirrors.keys()].filter(c => !mirrorUsed.has(c)); if (!idle.length) return null;
+      const m = idle[Math.floor(rng() * idle.length)], di = Math.floor(rng() * 4), j = 1 + Math.floor(rng() * 3);
+      const x = m % W - DIRS[di][0] * j, y = (m / W | 0) - DIRS[di][1] * j;
+      if (x < 0 || y < 0 || x >= W || y >= H) return null;
+      for (let k = 0; k < j; k++) { const c = (y + DIRS[di][1] * k) * W + x + DIRS[di][0] * k; if (occ[c] !== -1) return null; }
+      return { start: y * W + x, di };
+    };
     const candidate = (kind, at) => {
-      let start = at >= 0 ? at : -1;
+      let start = at >= 0 ? at : -1, dir = -1;
+      if (kind === 'mirror') { const a = aimed(); if (!a) return null; start = a.start; dir = a.di; }
       const parent = start >= 0 || kind === 'any' || kind === 'plain' ? -1 : pickParent(kind);
       if (parent >= 0) start = ahead[parent][Math.floor(rng() * ahead[parent].length)];
       for (let t = 0; start < 0 && t < 6; t++) { const c = Math.floor(rng() * N); if (occ[c] === -1) start = c; }
       if (start < 0) return null;
-      const c = shape(start, kind === 'plain' ? 1 : cfg.straight);
+      const c = shape(start, kind === 'plain' ? 1 : cfg.straight, dir);
       if (!c) return null;
       const sum = trial(c.path, NO_STOPS);
       if (sum < 0) return null;
@@ -908,6 +1007,12 @@ const MFLevels = (() => {
             let room = 0, bx = x - d[0], by = y - d[1];
             while (room <= cfg.pull && bx >= 0 && by >= 0 && bx < W && by < H && occ[by * W + bx] === -1) { room++; bx -= d[0]; by -= d[1]; }
             if (room >= 2) (o >= 0 ? tight : chain).push({ c, di, room, against });
+            continue;
+          }
+          if (mirrors.size) { // the gap follows the bending way out; mirror cells in it stay passable
+            const ahead = rayCells(x, y, d[0], d[1], W, H, mirrors); if (!ahead) continue;
+            let gap = 0; while (gap < ahead.length && gap <= cfg.pull && (occ[ahead[gap]] === -1 || occ[ahead[gap]] === MIRROR)) gap++;
+            if (gap && gap <= cfg.pull && gap < ahead.length && occ[ahead[gap]] >= 0) gapped.push({ c, di, gap });
             continue;
           }
           let gap = 0, nx = ax, ny = ay;
@@ -957,14 +1062,15 @@ const MFLevels = (() => {
       }
       for (const c of cells) occ[c] = -1;
       for (const c of tail) occ[c] = -1;
-      if (cells.length < Math.max(cfg.minLen, k + 2) || selfBlocked(cells.map(xy).reverse())) return null;
-      if (k && (tail.length < k || !got || selfBlocked(cells.slice(k).concat(tail).map(xy).reverse()))) return null;
+      if (cells.length < Math.max(cfg.minLen, k + 2) || blocked(cells.map(xy).reverse())) return null;
+      if (k && (tail.length < k || !got || blocked(cells.slice(k).concat(tail).map(xy).reverse()))) return null;
       return { cells, tail };
     };
     // A knot at a spot where there is something to stop against: shaped in the place it slides
     // to, and starting k cells back.
     const knot = spot => {
       const lane = wayOut(spot.c % W, spot.c / W | 0, DIRS[spot.di]);
+      if (!lane) return null;
       below(spot.against >= 0 ? lane.ids.concat([spot.against]) : lane.ids);
       if (tied(spot.c)) return null;
       const k = 1 + Math.floor(rng() * Math.min(cfg.pull, spot.room - 1)), w = walk(spot, k);
@@ -975,7 +1081,9 @@ const MFLevels = (() => {
     // A trap at a spot with a gap ahead. Sliding it into the gap must leave ropes that can never
     // get out, which is checked by doing it.
     const trap = spot => {
-      const lane = wayOut(spot.c % W, spot.c / W | 0, DIRS[spot.di]), gap = lane.cells.slice(0, spot.gap);
+      const lane = wayOut(spot.c % W, spot.c / W | 0, DIRS[spot.di]);
+      if (!lane) return null;
+      const gap = lane.cells.slice(0, spot.gap);
       below(lane.ids);
       if (tied(spot.c) || !gap.some(tied)) return null;
       const w = walk(spot, 0);
@@ -1043,11 +1151,14 @@ const MFLevels = (() => {
           if (fits(c)) best = c;
         }
       }
+      // While some mirror lies on no rope's way out, aim one try per step at it.
+      const aim = mirrors.size > mirrorUsed.size && b.n >= 1;
       for (let k = best ? TRIES_PER_STEP : 0; k < TRIES_PER_STEP; k++) {
-        const c = candidate(kinds[k % kinds.length], -1);
+        const c = candidate(aim && k === 0 ? 'mirror' : kinds[k % kinds.length], -1);
         if (!fits(c)) continue;
         const lands = need > 0 && c.gain + c.bends >= need && covered + c.path.length >= MIN_COVERAGE_SLIDE * N;
-        const miss = Math.abs(c.gain - desire) + rng() * 0.6 - (desire >= 2 ? Math.min(c.lane.free, 4) * 0.2 : 0) - (lands ? 100 : 0);
+        const reaches = aim && c.lane.cells.some(cell => mirrors.has(cell) && !mirrorUsed.has(cell)); // brings an idle mirror into play
+        const miss = Math.abs(c.gain - desire) + rng() * 0.6 - (desire >= 2 ? Math.min(c.lane.free, 4) * 0.2 : 0) - (lands ? 100 : 0) - (reaches ? 1.5 : 0);
         if (miss < bestMiss) { best = c; bestMiss = miss; }
       }
       if (!best) { if (++stuck > MAX_STUCK) break; continue; }
@@ -1076,15 +1187,16 @@ const MFLevels = (() => {
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
     let w = x1 - x0 + 1, h = y1 - y0 + 1;
-    if (cfg.keepBounds) { x0 = 0; y0 = 0; w = W; h = H; }
-    const tall = cfg.keepBounds || h >= w;
+    const keep = cfg.keepBounds || mirrors.size > 0; // mirrors are fixed: never trim or turn their board
+    if (keep) { x0 = 0; y0 = 0; w = W; h = H; }
+    const tall = keep || h >= w;
     const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
     if (!tall) { const t = w; w = h; h = t; }
     if (!cfg.ropeCount && !goodEnough(ropes, w, h, costs, true)) return null;
-    if (play(ropes, w, h, solution).some(Boolean)) return null; // cannot happen; but never hand out a level without its solution
+    if (play(ropes, w, h, solution, mirrors).some(Boolean)) return null; // cannot happen; but never hand out a level without its solution
     // Count the knots that really are one (a rope meant to slide that starts in a loop), and the
     // slides open at the start that would leave ropes that can never get out.
-    const looped = new Set([].concat(...loopsOf(ropes, w, h))), fin = boardOf(ropes, w, h);
+    const looped = new Set([].concat(...loopsOf(ropes, w, h, mirrors))), fin = boardOf(ropes, w, h, mirrors);
     let tiedUp = 0, fatal = 0;
     for (let i = 0; i < n; i++) {
       if (stops[i].length && looped.has(i)) tiedUp++;
@@ -1285,7 +1397,7 @@ const MFLevels = (() => {
   const CAMPAIGN = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: false };
   const CAMPAIGN_SLIDE = { seed: 'MONKEYFIST', mode: 'C', count: 60, big: false, slide: true };
 
-  return { mulberry32, hashString, headDir, ray, selfBlocked, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, fewestPlayerTaps, playerTapCount, play, bendsOf, ropeScores, nothingBlocked, difficulty,
+  return { mulberry32, hashString, headDir, ray, selfBlocked, mirrorMap, rayCells, tracksOf, postponeExits, casualWins, occupancy, advance, blockersOf, loopsOf, analyse, deadRopes, frozenRopes, blockCosts, solve, fewestTaps, fewestPlayerTaps, playerTapCount, play, bendsOf, ropeScores, nothingBlocked, difficulty,
     construct, weave, solutionCosts, plan, generateSet, levelFrom, slotEdges, rangeFor, randomSeed, cleanSeed, encodeCode, parseCode, quality, goodEnough, heightFor, FLOORS, floorFor, KNOT_FLOORS, knotFloorFor, knotsWanted,
     MODES, PLAYER_MODES, COUNTS, SET_MODES, SET_COUNTS, progressiveStage, STYLES, WIDTHS, BIG_WIDTHS, CAMPAIGN, CAMPAIGN_SLIDE, MIN_ROPES, MIN_COVERAGE, MIN_COVERAGE_SLIDE, MIN_COVERAGE_SMALL, MIN_BLOCKED_SHARE, SMALL_W, TWISTY_W };
 })();

@@ -7,14 +7,20 @@ const { execFileSync } = require('node:child_process');
 const { loadGenerator } = require('../scripts/lib/revision-generator.cjs');
 const G = require('../game-engine.js');
 
-test('the published revision reproduces a tiny board', () => {
+test('a published revision reproduces its own published maps, independent of the live generator', () => {
   const old = loadGenerator('ee2ec69');
   assert.match(old.ref, /^[a-f0-9]{40}$/);
+  const source = execFileSync('git', ['show', 'ee2ec69:grid-journey.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' }), published = { exports: {} };
+  new Function('module', 'exports', source)(published, published.exports);
+  for (const index of [0, 9, 61]) {
+    const board = old.generate({ ...old.DEFAULT, index });
+    assert.equal(G.layoutKey(board), published.exports[index].layoutKey, 'the loaded revision rebuilds its published map ' + index);
+    assert.equal(board.par, published.exports[index].par);
+    assert.equal(G.replay(board, board.plan).solved, true);
+  }
   const options = { revision: 3, grid: 'square', width: 4, height: 5, min: 1, max: 1, count: 1, seed: 'REPEAT', index: 0 };
-  const expected = G.generate(options), board = old.generate(options);
-  assert.deepEqual(board, expected);
-  assert.deepEqual(old.spec(options, 0), G.spec(options, 0));
-  assert.equal(G.replay(board, board.plan).solved, true);
+  assert.deepEqual(old.generate(options), loadGenerator('ee2ec69').generate(options), 'fresh loads are deterministic');
+  assert.deepEqual(old.spec(options, 0), G.spec(options, 0), 'custom specifications keep their published meaning');
 });
 
 test('both research baselines load their own default campaign and emit current-rule boards', () => {

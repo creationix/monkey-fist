@@ -36,13 +36,13 @@ if (save.gridGen !== H.GRID_VERSION) {
   for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
     const kept = {}, changed = {}, options = H.parseCode(code);
     for (const [index, score] of Object.entries(save.sets[code] || {})) {
-      const difficulty = options?.min + (options?.max - options?.min) * Number(index) / Math.max(1, (options?.count || 1) - 1);
+      // GRID_VERSION 6 rewove every moderate custom board; colossal maps are unchanged.
       let destination;
       if (code === 'J3-MONKEYFIST') {
         if (score.layoutKey) destination = layoutPositions.get(score.layoutKey);
-        else if (previousGrid === 4) destination = previousPositions.get(Number(index));
-      } else if (previousGrid >= 4 || (previousGrid === 3 && (options?.colossal || difficulty < 60)) ||
-                 (previousGrid === 2 && !options?.colossal && difficulty <= 40)) destination = index;
+        // Untagged scores follow the builder's map from the previous published Journey.
+        else if (previousGrid === 5) destination = previousPositions.get(Number(index));
+      } else if (previousGrid >= 3 && options?.colossal) destination = index;
       if (destination != null) kept[destination] = score; else changed[index] = score;
     }
     if (Object.keys(changed).length) old[code] = changed;
@@ -121,7 +121,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=15');
+    featureWorker = new Worker('generator-worker.js?v=16');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -177,7 +177,7 @@ function weave(options) {
       if (settled) return;
       retryTimer = null; attempts++;
       try {
-        const url = 'generator-worker.js?v=15' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const url = 'generator-worker.js?v=16' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
@@ -206,7 +206,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     guideWorker?.terminate(); guideWorker = null; G.solving = false;
     G.plan = answer.moves; G.lost = answer.solved === false;
     if (answer.solved === true) G.frozen = new Set();
-    if (G.lost) sfx.bump(); hud();
+    if (G.lost) { sfx.bump(); notice('Knotted. Undo or restart.'); } hud();
     if (G.autoSolveRequested) {
       G.autoSolveRequested = false; hud();
       if (G.plan.length) autoSolve(); else notice(G.lost ? 'Knotted. Undo or restart.' : 'No route found yet. Try again.');
@@ -221,7 +221,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=15');
+    guideWorker = new Worker('generator-worker.js?v=16');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -256,7 +256,7 @@ function hud() {
   $('autoSolve').disabled = G.loading || !l || G.ended || G.usedAutoSolve || G.autoSolveRequested || G.paths.every(p => !p);
   if (!l) {
     $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Weaving long ropes…' : 'Try another seed or restart.';
-    $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; $('tip').textContent = 'Every seed weaves a different puzzle.'; return;
+    $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; return;
   }
   $('chapter').textContent = opts.kind === 'journey' ? 'JOURNEY · ' + (Math.floor(G.index / 10) + 1) + ' / 12' : 'YOUR CUSTOM SET';
   $('gridType').textContent = l.grid === 'hex' ? 'HEX' : 'SQUARE'; $('gridMark').textContent = l.grid === 'hex' ? '⬡' : '◇';
@@ -265,7 +265,6 @@ function hud() {
   $('undos').textContent = G.undos;
   $('undo').disabled = !G.undos || !G.history.length || G.auto || G.ended;
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
-  $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.springs?.length ? 'Springs reverse a rope.' : l.mirrors?.length ? 'Mirrors turn ropes.' : 'Tap a rope. Follow its arrow.';
 }
 const allMotions = () => {
   const motions = []; for (let move of G.moves.values()) for (; move; move = move.queued) motions.push(move);
@@ -337,7 +336,7 @@ function commit(m) {
   } else if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
   if (!m.automatic && !G.auto && !G.lost && !G.plan.length) seekPlan(previousPlan.filter(i => G.paths[i]));
   refreshFrozen(); requestFeatureCheck();
-  if (G.lost && !wasLost) sfx.bump();
+  if (G.lost && !wasLost) { sfx.bump(); notice('Knotted. Undo or restart.'); }
   hud();
 }
 function undo() {
@@ -493,7 +492,7 @@ function focusRope(i) {
   if (!G.paths[i]) return;
   const p = screen(G.paths[i].at(-1)), pad = Math.min(48, width / 4, height / 4);
   const r = canvas.getBoundingClientRect(), x = p.x + r.left, y = p.y + r.top;
-  const covered = [...document.querySelectorAll('.brand, .readout, .actions, #audioControls, #tip, #zoomControls')].some(el => {
+  const covered = [...document.querySelectorAll('.brand, .readout, .actions, #audioControls, #zoomControls')].some(el => {
     const box = el.getBoundingClientRect(); return x >= box.left - 8 && x <= box.right + 8 && y >= box.top - 8 && y <= box.bottom + 8;
   });
   if (covered || p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
