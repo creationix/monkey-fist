@@ -455,25 +455,36 @@ function resize() {
   if (!G.level) return;
   const points = H.cells(G.level).map(p => H.project(p, G.level)), minX = Math.min(...points.map(p => p.x)) - .6, maxX = Math.max(...points.map(p => p.x)) + .6;
   const minY = Math.min(...points.map(p => p.y)) - .6, maxY = Math.max(...points.map(p => p.y)) + .6, w = maxX - minX, h = maxY - minY;
-  // Fit leaves the corner controls clear. Zooming/panning still uses the entire screen.
-  const wide = width > height * 1.2, usableW = width - (wide ? 300 : 24), usableH = height - (wide ? 28 : 220);
+  // Fit leaves the floating controls clear. Zooming/panning still uses the entire
+  // screen. In portrait the controls sit above and below the board, so measure
+  // them: a fixed allowance let tall control stacks cover the board's corners.
+  const wide = width > height * 1.2, band = freeBand(rect, wide);
+  const usableW = Math.max(80, width - band.left - band.right), usableH = Math.max(80, height - band.top - band.bottom);
   const normal = Math.min(usableW / w, usableH / h), rotated = Math.min(usableW / h, usableH / w);
   const rot = rotated > normal, scale = Math.max(1, Math.min(110, rot ? rotated : normal));
-  G.view = { rotated: rot, fit: scale, zoomable: scale < 56, usableW, usableH, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
+  G.view = { rotated: rot, fit: scale, zoomable: scale < 56, usableW, usableH, centerX: band.left + usableW / 2, centerY: band.top + usableH / 2, cx: (rot ? -(maxY + minY) : maxX + minX) / 2, cy: (rot ? maxX + minX : maxY + minY) / 2, bw: (rot ? h : w) * scale, bh: (rot ? w : h) * scale };
   applyCamera();
   draw(0);
+}
+// The space the floating controls leave free. In portrait they sit along the top
+// and bottom edges; on wide screens, down the left and right sides.
+function freeBand(canvasRect, wide) {
+  const boxes = selector => [...document.querySelectorAll(selector)].map(el => el.getBoundingClientRect()).filter(box => box.width && box.height);
+  const edge = (selector, measure) => boxes(selector).reduce((most, box) => Math.max(most, measure(box)), 0) + 8;
+  if (wide) return { top: 14, bottom: 14,
+    left: Math.max(14, edge('.brand, #audioControls, .actions', box => box.right - canvasRect.left)),
+    right: Math.max(14, edge('.readout, #zoomControls', box => canvasRect.right - box.left)) };
+  return { left: 12, right: 12,
+    top: Math.max(14, edge('.brand, .readout, #audioControls', box => box.bottom - canvasRect.top)),
+    bottom: Math.max(14, edge('.actions, #zoomControls', box => canvasRect.bottom - box.top)) };
 }
 function applyCamera() {
   if (!G.level) return;
   const v = G.view; G.camera = MFInput.constrain(G.camera, v);
   const c = G.camera, bw = v.bw * c.zoom, bh = v.bh * c.zoom;
   v.panX = bw > v.usableW + 1; v.panY = bh > v.usableH + 1;
-  v.scale = v.fit * c.zoom; v.ox = width / 2 + c.x - v.cx * v.scale; v.oy = height / 2 + c.y - v.cy * v.scale;
-  v.panel = { x: (width - bw) / 2 + c.x - 8, y: (height - bh) / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
-  $('zoomFit').textContent = 'Fit'; $('zoomFit').title = 'Fit and center the board · ' + Math.round(c.zoom * 100) + '%';
-  $('zoomOut').disabled = c.zoom <= 1; $('zoomIn').disabled = c.zoom >= 8;
-  for (const id of ['zoomOut', 'zoomIn', 'zoomFit']) $(id).hidden = !v.zoomable;
-  $('zoomControls').querySelector('span').textContent = !v.zoomable ? '' : v.panX || v.panY ? 'Drag to explore · pinch to zoom' : 'Pinch or + to zoom';
+  v.scale = v.fit * c.zoom; v.ox = v.centerX + c.x - v.cx * v.scale; v.oy = v.centerY + c.y - v.cy * v.scale;
+  v.panel = { x: v.centerX - bw / 2 + c.x - 8, y: v.centerY - bh / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
   canvas.setAttribute('aria-label', (G.level.grid === 'hex' ? 'Hexagonal' : 'Square') + ' rope puzzle. Tap a rope to slide it. ' + (v.zoomable ? 'Pinch or scroll to zoom; drag when zoomed in. ' : '') + 'Arrow keys select ropes; Enter slides the selected rope.');
   canvas.classList.toggle('zoomed', c.zoom > 1);
   canvas.classList.toggle('pannable', v.panX || v.panY);
@@ -483,10 +494,11 @@ function setCamera(camera, smooth = false) {
   if (smooth && !reduced) cameraTween = { from: { ...G.camera }, to: target, time: 0 };
   else { cameraTween = null; G.camera = target; applyCamera(); drawNext = true; }
 }
-function zoomTo(zoom, p = { x: width / 2, y: height / 2 }, smooth = false) {
+function zoomTo(zoom, p = { x: G.view?.centerX ?? width / 2, y: G.view?.centerY ?? height / 2 }, smooth = false) {
   if (!G.level || !G.view.zoomable) return;
   const c = G.camera, next = Math.max(1, Math.min(8, zoom)), ratio = next / c.zoom;
-  setCamera({ zoom: next, x: p.x - width / 2 - (p.x - width / 2 - c.x) * ratio, y: p.y - height / 2 - (p.y - height / 2 - c.y) * ratio }, smooth);
+  const ox = G.view.centerX, oy = G.view.centerY;
+  setCamera({ zoom: next, x: p.x - ox - (p.x - ox - c.x) * ratio, y: p.y - oy - (p.y - oy - c.y) * ratio }, smooth);
 }
 function focusRope(i) {
   if (!G.paths[i]) return;
@@ -496,7 +508,7 @@ function focusRope(i) {
     const box = el.getBoundingClientRect(); return x >= box.left - 8 && x <= box.right + 8 && y >= box.top - 8 && y <= box.bottom + 8;
   });
   if (covered || p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
-    G.camera.x += width / 2 - p.x; G.camera.y += height / 2 - p.y; applyCamera();
+    G.camera.x += G.view.centerX - p.x; G.camera.y += G.view.centerY - p.y; applyCamera();
   }
 }
 function path(ctx, points, close = false) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (close) ctx.closePath(); }
@@ -839,10 +851,8 @@ for (const name of ['gesturestart', 'gesturechange', 'gestureend']) document.add
   if (!$('chooser').open && !$('result').open) consume(e);
 }, { passive: false });
 canvas.addEventListener('wheel', e => { consume(e); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
-$('zoomIn').onclick = () => zoomTo(G.camera.zoom * 1.5, undefined, true);
-$('zoomOut').onclick = () => zoomTo(G.camera.zoom / 1.5, undefined, true);
+// Pinch, drag and the scroll wheel zoom and pan; + − 0 do the same from a keyboard.
 function fitBoard() { resetInput(); setCamera({ zoom: 1, x: 0, y: 0 }, true); }
-$('zoomFit').onclick = fitBoard;
 $('fullscreen').hidden = !document.fullscreenEnabled;
 $('fullscreen').onclick = async () => {
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }

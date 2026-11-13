@@ -104,7 +104,7 @@ test('rotation and zoom preserve the logical board and departing ropes animate t
       await page.goto(base + `?set=U1-${grid}-65-65-1-M-VIEW`); await ready(page);
       const original = await page.evaluate(() => JSON.stringify([__game.G.paths, __game.G.plan]));
       await page.setViewportSize({ width: 390, height: 844 }); await page.evaluate(() => resize());
-      await page.click('#zoomIn'); await page.click('#zoomFit');
+      await page.focus('#board'); await page.keyboard.press('+'); await page.keyboard.press('0'); // zoom in and fit without moving any rope
       assert.equal(await page.evaluate(() => JSON.stringify([__game.G.paths, __game.G.plan])), original);
       await page.setViewportSize({ width: 1366, height: 768 }); await page.evaluate(() => resize());
       const animation = await page.evaluate(() => {

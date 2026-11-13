@@ -26,8 +26,9 @@
         if (!pinch.ids.includes(e.id)) return;
         const [a, b] = pinch.ids.map(id => pointers.get(id).at), mid = midpoint(a, b);
         const zoom = Math.max(1, Math.min(8, pinch.camera.zoom * distance(a, b) / pinch.distance)), ratio = zoom / pinch.camera.zoom;
-        change({ zoom, x: mid.x - v.width / 2 - (pinch.mid.x - v.width / 2 - pinch.camera.x) * ratio,
-          y: mid.y - v.height / 2 - (pinch.mid.y - v.height / 2 - pinch.camera.y) * ratio }); return;
+        const ox = v.centerX ?? v.width / 2, oy = v.centerY ?? v.height / 2; // the camera's origin on screen
+        change({ zoom, x: mid.x - ox - (pinch.mid.x - ox - pinch.camera.x) * ratio,
+          y: mid.y - oy - (pinch.mid.y - oy - pinch.camera.y) * ratio }); return;
       }
       if (v.zoomable && eligible(p) && p.moved >= 12) {
         const other = [...pointers.values()].find(q => q.id !== p.id && eligible(q) && q.moved >= 12 && Math.abs(p.time - q.time) <= 350 && distance(p.start, q.start) >= 48);
