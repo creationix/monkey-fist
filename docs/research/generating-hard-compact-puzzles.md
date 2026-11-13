@@ -1,10 +1,10 @@
 # Generating hard, compact rope puzzles: prior work and its application to Monkey Fist
 
 *Research note, November 2026. Measurements refer to revision `90b522e` (the J3
-Journey, generation revision 3), to revision `ee2ec69` (the same Journey after
-generation revision 4, section 5.6) and to revision `0be7c3a` (the J1 Journey,
-the last one before difficulty was separated from board size). No game code was
-changed to produce this note.*
+Journey, generation revision 3), to revision `ee2ec69` (generation revision 4,
+section 5.6), to generation revision 5 (section 5.7, which applies parts of
+section 6), and to revision `0be7c3a` (the J1 Journey, the last one before
+difficulty was separated from board size).*
 
 ## Abstract
 
@@ -14,8 +14,9 @@ matter. This note surveys what computer science knows about generating and
 rating puzzles of this family, chiefly from work on Rush Hour and Sokoban, and
 tests how the repository's generators measure up.
 
-Five results stand out. The first four were measured on generation revision 3;
-the fifth on revision 4, which followed.
+Six results stand out. The first four were measured on generation revision 3,
+the fifth on revision 4, and the sixth on revision 5, which applies sections
+6.1 to 6.5.
 
 1. **The literature says difficulty must be measured by play, not by shape.**
    For puzzles with irreversible moves, the length of the best solution predicts
@@ -45,6 +46,15 @@ the fifth on revision 4, which followed.
    flat across those six chapters; 13 of 13 early mirror-only levels are still
    exit-only; and 28 of the 62 levels required to have par above the rope count
    meet that requirement only because their par is not minimal (section 5.6).
+6. **Revision 5 makes mirror levels sliding puzzles and smooths the curve.** With
+   mirror-aware tracks, the restored knot and trap budget, honest par and
+   selection by play, every mirror-only level in chapters 2 to 6 now forces
+   slides (16 of 16, against 0 of 13), levels the casual player cannot lose fall
+   from 58 to 41, no par can be shortened by postponing exits (against 93), and
+   only 5 levels use the full 12 × 16 grid (against 46). Measured challenge now
+   rises in every chapter but two. The mean casual win rate is unchanged at 75 %,
+   and spinner levels, still built by routed circuits, are not improved
+   (section 5.7).
 
 ## 1. Introduction
 
@@ -556,6 +566,67 @@ Two smaller observations. Forty-six of the 120 levels, and 43 of the last 60,
 use the full 12 × 16 grid, so size is again doing some of the work. And the
 ten introductory maps are pinned to hand-picked seeds and layouts.
 
+### 5.7 Generation revision 5
+
+Revision 5 applies sections 6.1 to 6.5 and the mirror half of 6.3:
+
+- **Mirror-aware tracks.** `levels.js` and `hex/engine.js` build each rope's track
+  as its body followed by its way out bent by fixed mirrors, and reject a track
+  that enters a cell twice. The offset model agreed with the game's own taps on
+  every one of 15,049 random moves across 70 mirrored boards on both grids.
+- **Woven mirror levels.** Mirror-only levels place mirrors first, weave knots and
+  traps around them, aim ropes at idle mirrors, and remove mirrors no rope turns
+  on. Spinner levels and colossal mirror maps keep the routed circuits.
+- **The J1 knot and trap budget** (section 6.1), on top of revision 4's optional
+  repeated-slide core.
+- **Honest par** (section 6.5): unneeded exits are postponed before the bounded
+  minimum-tap search, which runs on the offset kernels for every board without
+  spinners.
+- **Selection by play** (section 6.2): candidates are scored by the manual slides
+  and bounces of their par solution plus `6 × (1 − casual win rate)`, against a
+  target set by the difficulty.
+- **A seeded, curated Journey** (section 6.4): all 120 levels, the introductions
+  included, come from seeds derived from the master seed. Each position tries
+  several seeds and keeps the one closest to a target challenge that rises
+  smoothly; chapters keep the revision 4 quotas, shifted from four to three mirror
+  levels against two spinner levels.
+
+The same independent measurements as before, over levels 11 to 120:
+
+| Measure | Revision 3 | Revision 4 | Revision 5 |
+| --- | --- | --- | --- |
+| Forced non-exit moves, all levels | 84 | 401 | 436 |
+| Levels the casual player cannot lose | 81 | 58 | 41 |
+| Mean casual win rate | 89 % | 75 % | 75 % |
+| Pars beaten by postponing unneeded exits | 69 | 93 | 0 |
+| Levels with par above the rope count after that check | 9 | 45 | 59 |
+| Mirror-only levels in chapters 2 to 6 that force a slide | 0 of 19 | 0 of 13 | 16 of 16 |
+| Mirror-only levels, mean ropes turned by a mirror | 1.9 | 3.9 | 5.5 |
+| Levels on the full 12 × 16 grid | 1 | 46 | 5 |
+| Mean generation time per level | | 137 ms | 211 ms |
+
+Measured challenge (forced moves plus six times the casual loss rate) by chapter:
+
+| Chapter | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Revision 4 | 0.3 | 0.5 | 1.2 | 1.6 | 2.2 | 2.7 | 8.3 | 7.2 | 7.2 | 9.1 | 8.8 | 7.8 |
+| Revision 5 | 1.7 | 1.6 | 2.3 | 2.9 | 4.1 | 4.9 | 6.6 | 6.3 | 6.4 | 7.7 | 8.5 | 8.9 |
+
+The step at chapter 7 is now a ramp, and the last chapter is the hardest. The
+trade is that chapters 7 to 10 are somewhat gentler than revision 4's: only 2
+late levels hold the casual player to 15 % or less, against 7. The target
+curve, not the generator, sets that balance.
+
+What did not improve:
+
+- **Spinner levels.** They still come from routed circuits with the repeated
+  core. In the late chapters they make most of their slides in that core and
+  remain the least losable featured kind.
+- **The casual win rate overall.** It is flat at 75 %. Early chapters are more
+  often losable than before; chapters 7 to 9 are less so.
+- **Proofs.** 42 of 120 pars are proven minimal; the rest are the best solution
+  found after postponement.
+
 ## 6. Applying the techniques
 
 The recommendations are ordered by evidence and cost. The first two are
@@ -563,8 +634,9 @@ supported by the measurements above; the rest are designs that follow from the
 literature and from the model in section 2.
 
 Revision 4 implemented the quota half of 6.4 and the spinner fixes of 6.3.
-Sections 6.1, 6.2, 6.5, the mirror half of 6.3, and the slot filling of 6.4
-remain open.
+Revision 5 implemented 6.1, 6.2, 6.5, the mirror half of 6.3 and the slot
+filling of 6.4 (section 5.7). Sections 6.6 and 6.7, and spinner levels built
+by search rather than by circuit, remain open.
 
 ### 6.1 Restore the knot and trap budget, and stop selecting against it
 

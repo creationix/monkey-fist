@@ -9,15 +9,18 @@ No build step, dependencies, accounts, or network requests during play.
 
 The default journey has 120 deterministic, procedurally generated levels:
 
-- Opening puzzles mix square and Hex grids in measured unlocking order. They
-  use at most five ropes and gradually add partial-slide dependencies. The
-  following twenty boards stay at or below 12 × 12.
+- Every level, the opening ten included, is built from a seed derived from the
+  Journey's master seed; none is hand-picked. Opening puzzles mix square and Hex
+  grids, use at most five ropes, and gradually add partial-slide dependencies.
 - Later boards remain moderate, at most 12 columns by 16 rows. Difficulty comes
   from interacting blocking dependencies, not steadily larger boards or longer
   single chains. Boards stay packed instead of growing sparse strips.
-- Later levels consider branching unlocks, shared blockers, mutual waits, and
-  repeated slides alongside tap counts. Mirrors and spring spinners start after the
-  opening ten and recur throughout the Journey.
+- Difficulty is measured by play: the slides and spins the par solution must
+  make, and how often a casual player (exits first, otherwise random moves)
+  loses. Each level is the best of several seeds for a target that rises over
+  the Journey. Mirrors and spring spinners start after the opening ten and recur
+  throughout. Mirror levels are sliding puzzles in their own right: ropes are
+  woven around the mirrors with knots and traps.
 - Most later puzzles use mirrors, spinners, or both, with a plain-rules interlude
   in each chapter. Late mirror maps use at least three mirrors; late spinner maps
   use at least two distinct spinners. Their verified solutions must use them
@@ -75,8 +78,9 @@ each visit. The builder checks exact dimensions, replayed tap counts, overall
 rope coverage, coverage in each quarter of the board, and the minimum tap-to-rope
 ratio. Each displayed chapter has a mechanics quota, so challenge sorting cannot
 push every spinner into the middle of the Journey. Within each chapter, ordering
-uses causal interaction metrics rather than rewarding plain chain depth. The builder also checks that larger boards cannot auto-release
-after one tap. The
+runs from the lowest measured challenge to the highest. The builder also checks that larger boards cannot auto-release
+after one tap, and steps a board toward 12 × 16 only if no seed works at its
+planned size. The
 old `journey.js` and its builder remain for compatibility with the earlier format.
 
 Custom sets are free. The single Custom entry point is a natural place for a
@@ -121,9 +125,11 @@ soft tick and a brief flash on the visible rope. Each queued move swishes once
 when it actually starts moving. Departures run at half their original
 speed to keep the clearance readable.
 
-Boards with up to twelve ropes use a bounded shortest-tap search for par,
-including mirrors and springs. It stops charging taps when automatic release
-becomes available; unfinished searches retain the verified construction target.
+Par is the fewest player taps found. Exits the rest of the solution does not
+need are first moved to the automatic release, then a bounded search looks for
+fewer taps. Boards without spinners, mirrors included, search on the compact
+offset kernels; spinner boards with up to twelve ropes use a full-geometry
+search. An unfinished search keeps the best verified solution.
 
 Graphics can switch between braided Rope and translucent Tiles. Tiles use
 flat, beveled panels with clear rims. Mirrors
@@ -175,19 +181,20 @@ The underlying engines remain specialized:
 | --- | --- |
 | `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the sorted Journey metadata |
 | `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
-| `levels.js` | Square geometry, long woven ropes, sliding knots, fast straight-track solver and small-board par search |
+| `levels.js` | Square geometry, long woven ropes, sliding knots and traps, fixed tracks that bend on mirrors, fast solver, par search and casual playouts |
 | `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
 | `twist-circuits.js`, `twists.js` | Procedural square circuits with multi-turn routes, interleaved blockers, and verified certificates |
-| `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation, compact track solver |
+| `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation with or without mirrors, compact track solver |
 | `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
 | `input.js` | Independent touch contacts, intentional pan/pinch recognition, and centered camera bounds |
 | `rope-art.js` | Cached braid geometry that follows rounded bends, matching arrowheads, and reduced detail at small sizes |
 | `audio.js`, `music.js`, `sounds.js` | Shared Web Audio session, arrangements, and effects |
 
-Straight ropes only advance along fixed tracks, so their solver can store small
-offset states. Mirrors and springs change paths and can revisit states, so
-routed solvers store full rope geometry and enforce search budgets. Exhausting
+Without spinners, every rope only advances along a fixed track (its body, then
+its way out as fixed mirrors bend it), so solvers store small offset states and
+prune boards a relaxation proves lost. Springs reverse ropes and can revisit
+states, so their routed solvers store full rope geometry and enforce search budgets. Exhausting
 a budget means unknown, not a false declaration that a board is lost. A valid
 remaining certificate is reused before attempting another search.
 Checks after off-certificate moves and hint searches run in a cancellable worker,
@@ -206,7 +213,9 @@ The historical [`mechanics playground`](https://creationix.github.io/monkey-fist
 is still available as a separate sandbox. Its older gate/wall fixtures and pure
 kernel tests remain useful; those features are not part of generated gameplay.
 The [generator background](docs/generation.md) retains the original square
-algorithm notes, difficulty metrics, and research references.
+algorithm notes, difficulty metrics, and research references. The
+[research note](docs/research/generating-hard-compact-puzzles.md) surveys puzzle
+generation research and measures each Journey revision.
 
 ## Sound, saves, and offline play
 

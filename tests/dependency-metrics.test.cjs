@@ -119,26 +119,30 @@ test('duplicate edges and isolated vertices cannot create evidence', () => {
   assert.equal(Q.graphMetrics([], 5).interaction, 0);
 });
 
-test('advanced generation adds causal interaction at the same moderate grid size', { timeout: 120000 }, () => {
+test('advanced generation adds measured challenge at the same moderate grid size', { timeout: 120000 }, () => {
   for (const grid of ['square', 'hex']) {
-    let medium = 0, hard = 0, mediumRevisits = 0, hardRevisits = 0, improvements = 0;
+    let medium = 0, hard = 0, mediumRevisits = 0, hardRevisits = 0, improvements = 0, mediumWins = 0, hardWins = 0;
     for (let seed = 0; seed < 8; seed++) {
-      const scores = [];
+      const scores = [], boards = [];
       for (const difficulty of [50, 100]) {
         const b = G.generate({ revision: 3, grid, width: 10, height: 12, min: difficulty, max: difficulty, count: 1, seed: 'INTERACT'+seed });
         assert.deepEqual([b.W,b.H], [10,12]); assert.ok(b.coverage >= .85);
         const replayed = G.replay(b,b.plan); assert.equal(replayed.solved,true); assert.equal(replayed.taps,b.par);
-        const metrics = Q.analyze(b,b.plan,b.par,G); scores.push(metrics);
+        const metrics = Q.analyze(b,b.plan,b.par,G); scores.push(metrics); boards.push(b);
         if (difficulty === 100) assert.ok(metrics.mutualWaitRopes > 0 || metrics.revisitedRopes > 0 || metrics.joins >= 2 && metrics.branchingDepth >= 2,
           'an advanced board needs mutual waits, causal interleaving, or essential converging prerequisites');
       }
-      medium += scores[0].interaction; hard += scores[1].interaction;
+      // Candidates are chosen by play (docs/research): required slides and how often
+      // a careless player loses, not by the shape score of one certificate.
+      medium += boards[0].play.challenge; hard += boards[1].play.challenge;
+      mediumWins += boards[0].play.casualWins; hardWins += boards[1].play.casualWins;
       mediumRevisits += scores[0].revisitedRopes; hardRevisits += scores[1].revisitedRopes;
-      improvements += Number(scores[1].interaction > scores[0].interaction);
+      improvements += Number(boards[1].play.challenge > boards[0].play.challenge);
     }
-    assert.ok(hard / 8 > medium / 8 + .25, `${grid}: hard candidates should add genuine interaction, rather than only increasing taps or area`);
+    assert.ok(hard / 8 > medium / 8 + 2, `${grid}: hard settings must need more work or offer more ways to lose, not only more taps or area`);
+    assert.ok(hardWins < mediumWins, `${grid}: a careless player loses harder boards more often`);
     assert.ok(hardRevisits > mediumRevisits, `${grid}: harder boards revisit more ropes after another blocker moves`);
-    assert.ok(improvements >= 5, `${grid}: interaction should improve across a range of seeds`);
+    assert.ok(improvements >= 6, `${grid}: measured challenge should rise across a range of seeds`);
   }
 });
 

@@ -1,47 +1,66 @@
-// Rebuild J3's seed/settings index. Maps and solutions are never stored.
+// Rebuild J3's seed/settings index from the master seed. Maps and solutions are
+// never stored: each entry is a specification and a seed, and the game rebuilds
+// the board from them. Nothing is hand-picked, including the first ten levels.
+//
+// Each position has a planned kind, size and difficulty. Several seeds are tried
+// for it; every candidate is replay-checked, measured by play (forced slides and
+// bounces in the par solution, and how often a casual player loses), and the one
+// closest to the position's target challenge is kept. See docs/research.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process'), { createRequire } = require('node:module');
 const G = require('../game-engine'), F = require('../grid-generator'), L = require('../levels');
-const introSeeds = ['S35S00','2VR5EZ','1P3S0GT','QMYSAQ','G1XW18','1PVNBFB','14016LY','ESMK0X','PV3HC8','1QT5MJ7'];
-const introDimensions = [[4,5],[4,5],[4,5],[4,5],[4,7],[4,5],[4,5],[5,6],[5,6],[6,7]];
-const introDifficulty = [1,8,22,22,30,1,8,22,30,40];
+const MASTER = 'MONKEYFIST', BUILD = 'journey/5/' + MASTER;
 const coverage = b => b.ropes.reduce((sum, rope) => sum + rope.length, 0) / (b.W * b.H);
 const pick = (rng, min, max) => min + Math.floor(rng() * (max - min + 1));
 const kindOf = b => b.mirrors && b.springs ? 'B' : b.mirrors ? 'M' : b.springs ? 'S' : 'P';
+const rngFor = label => L.mulberry32(L.hashString(BUILD + '/' + label));
 function shuffle(list, rng) {
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
   return list;
 }
+// Displayed chapter (1-12) to its mechanic mix: P plain, M mirrors, S spinners, B both.
 function chapterKinds(chapter) {
-  const kinds = chapter === 1 ? 'PPPPMMMMBS' : chapter === 2 ? 'PPMMMSSBBB' : 'PMMSSBBBBB';
-  return shuffle([...kinds], L.mulberry32(L.hashString('journey/3/mechanics/' + chapter)));
+  const kinds = chapter === 1 ? 'PPPPPPPPPP' : chapter === 2 ? 'PPPPMMMMBS' : chapter === 3 ? 'PPMMMSSBBB' : 'PMMMSSBBBB';
+  return chapter === 1 ? [...kinds] : shuffle([...kinds], rngFor('kinds/' + chapter));
+}
+// Difficulty rises smoothly over the whole Journey; within a chapter it rises with the slot.
+const difficultyAt = i => i < 10 ? 1 + 39 * (i % 5) / 4 : 20 + 80 * Math.pow((i - 10) / 109, 1.05);
+function sizeFor(chapter, slot, kind, grid) {
+  const rng = rngFor('size/' + chapter + '/' + slot + '/' + kind + '/' + grid);
+  if (chapter === 1) return grid === 'hex' ? [pick(rng, 4, 5), pick(rng, 5, 6)] : [4, pick(rng, 5, 6)]; // five ropes at most
+  if (kind === 'S' || kind === 'B') { // routed spinner circuits need room for several core routes
+    if (chapter === 2) return [pick(rng, 8, 9), pick(rng, 9, 10)];
+    if (chapter === 3) return [pick(rng, 8, 10), pick(rng, 10, 12)];
+    if (chapter >= 7 && kind === 'S') return [pick(rng, 11, 12), pick(rng, 14, 16)];
+    return [pick(rng, 10, 12), pick(rng, 12, 16)];
+  }
+  // Woven boards grow only gently; difficulty comes from knots, traps and mirrors.
+  const lo = 64 + 8 * (chapter - 2), hi = Math.min(192, 100 + 9 * (chapter - 2));
+  for (let tries = 0; tries < 200; tries++) {
+    const W = pick(rng, kind === 'M' ? 8 : 7, 12), H = pick(rng, Math.max(W, 8), 16);
+    if (W * H >= lo && W * H <= hi) return [W, H];
+  }
+  return [10, 12];
 }
 function plan() {
-  const specs = introSeeds.map((seed, i) => ({ grid: i < 5 ? 'square' : 'hex', W: introDimensions[i][0], H: introDimensions[i][1],
-    difficulty: introDifficulty[i], mirrors: false, springs: false, requireSlide: i >= 7, seed, introSource: i, chapter: 1 }));
-  const base = [0,22,32,45,55,65,72,78,84,88,92,96], span = [0,8,8,10,10,10,8,8,6,6,6,4];
-  for (let chapter = 1; chapter < 12; chapter++) {
+  const specs = [];
+  for (let chapter = 1; chapter <= 12; chapter++) {
     const kinds = chapterKinds(chapter);
     for (let slot = 0; slot < 10; slot++) {
-      const rng = L.mulberry32(L.hashString('journey/3/chapter-size/' + chapter + '/' + slot));
-      const kind = kinds[slot], mirrors = kind === 'M' || kind === 'B', springs = kind === 'S' || kind === 'B';
-      let W, H;
-      if (chapter === 1) { W = pick(rng, mirrors || springs ? 8 : 6, mirrors || springs ? 9 : 8); H = pick(rng, 8, 10); }
-      else if (chapter === 2) { W = pick(rng, 8, 10); H = pick(rng, 10, 12); }
-      else if (kind === 'P') { W = pick(rng, 8, 12); H = pick(rng, 10, 16); }
-      else if (chapter >= 6 && springs) { W = 12; H = 16; }
-      else if (chapter >= 6) { W = pick(rng, 10, 12); H = pick(rng, Math.max(13, Math.ceil(150 / W)), 16); }
-      else { W = pick(rng, 10, 12); H = pick(rng, 12, 16); }
+      const i = (chapter - 1) * 10 + slot, kind = kinds[slot], mirrors = kind === 'M' || kind === 'B', springs = kind === 'S' || kind === 'B';
+      const grid = chapter === 1 ? slot < 5 ? 'square' : 'hex' : slot % 2 ? 'hex' : 'square';
+      const [W, H] = sizeFor(chapter, slot, kind, grid), difficulty = Number(difficultyAt(i).toFixed(3));
       if (W > 12 || H > 16) throw Error('Journey exceeds moderate grid bounds');
-      const latePlain = kind === 'P' && chapter >= 4, richFeatured = (mirrors || springs) && chapter >= 6;
-      const difficulty = latePlain ? Math.max(65, base[chapter] - 5) : base[chapter] + span[chapter] * slot / 9;
-      specs.push({ grid: slot % 2 ? 'hex' : 'square', W, H, difficulty, mirrors, springs, chapter: chapter + 1,
-        ...(mirrors ? { minMirrors: chapter === 1 ? kind === 'B' ? 2 : 1 : chapter === 2 ? 2 : 3 } : {}),
-        ...(springs ? { minSprings: chapter < 3 ? 1 : 2 } : {}),
-        ...(mirrors || springs ? { coreRopes: chapter >= 6 ? 3 : chapter >= 2 ? 2 : 1 } : {}),
+      const latePlain = kind === 'P' && chapter >= 5, routedLate = (kind === 'S' || kind === 'B') && chapter >= 7, wovenLate = kind === 'M' && chapter >= 7;
+      specs.push({ grid, W, H, difficulty, mirrors, springs, chapter,
+        // The three hardest introductions must demonstrate a partial slide.
+        ...(chapter === 1 && (slot === 4 || slot >= 8) ? { requireSlide: true } : {}),
+        ...(mirrors ? { minMirrors: chapter === 2 ? kind === 'B' ? 2 : 1 : chapter === 3 ? 2 : 3 } : {}),
+        ...(springs ? { minSprings: chapter < 4 ? 1 : 2, coreRopes: chapter >= 7 ? 3 : chapter >= 3 ? 2 : 1 } : {}),
         ...(latePlain ? { minParRatio: 1.05, minPartialSlides: 3, minRepeatedRopes: 1, minInterleavedRopes: 1 } : {}),
-        ...(richFeatured ? { minParRatio: 1.05, minPartialSlides: 3, minRepeatedRopes: 2, minInterleavedRopes: 1 } : {}), seed: '' });
+        ...(routedLate ? { minParRatio: 1.05, minPartialSlides: 3, minRepeatedRopes: 2, minInterleavedRopes: 1 } : {}),
+        ...(wovenLate ? { minPartialSlides: 3 } : {}), seed: '' });
     }
   }
   return specs;
@@ -85,22 +104,29 @@ function inspectPlan(b) {
 function oneTapClears(b) {
   return b.ropes.length > 3 && b.ropes.some((_, i) => { const moved = G.tap(b, b.ropes, i); return moved && G.allFree(b, moved.paths); });
 }
-function introChallenge(b) {
-  const c = b.complexity;
-  return Number((b.par * 5 + c.interaction * 2 + c.branchingDepth * .5 + b.par / b.ropeCount * 2 + b.ropeCount * .15 + b.W * b.H * .01 - c.initialExitFraction * .4).toFixed(6));
+// The build re-measures each candidate with more casual games than the generator's
+// own candidate selection uses, so the stored challenge is a steadier estimate.
+function measure(b) {
+  const rng = L.mulberry32(L.hashString(BUILD + '/measure/' + b.seed)), wins = F.casualRate(b, G, rng, b.springs.length ? 24 : 96);
+  return { casualWins: Number(wins.toFixed(4)), work: b.play.work, challenge: Number(F.challengeOf(b.play.work, wins).toFixed(3)) };
 }
-function challenge(b) {
-  const c = b.complexity;
-  if (!c || !Number.isFinite(c.interaction) || !Number.isFinite(c.branchingDepth) || !Number.isFinite(c.initialExitFraction)) throw Error('Missing dependency metrics for ' + b.seed);
-  return c.interaction * 10 + Math.min(c.branchingDepth, 6) * 1.5 + b.par * .3 + b.ropeCount * .08 + b.W * b.H * .003 - c.initialExitFraction * 3;
+function acceptable(spec, candidate, usage) {
+  const replayed = G.replay(candidate, candidate.plan), filled = coverage(candidate), tutorial = spec.chapter === 1;
+  const minimum = spec.mirrors || spec.springs || spec.W * spec.H <= 48 && usage.manualSlides ? .8 : .85;
+  return candidate.W === spec.W && candidate.H === spec.H && replayed.solved && replayed.taps === candidate.par && candidate.par * 3 >= candidate.ropes.length &&
+    !(spec.requireSlide && !usage.manualSlides) && !(tutorial && candidate.ropes.length > 5) && !oneTapClears(candidate) && filled >= minimum && balanced(candidate) &&
+    usage.mirrors >= (spec.minMirrors || 0) && usage.springs >= (spec.minSprings || 0) &&
+    usage.manualMirrors >= (spec.minMirrors || 0) && usage.manualSprings >= (spec.minSprings || 0) &&
+    candidate.par / candidate.ropes.length >= (spec.minParRatio || 0) && usage.manualSlides >= (spec.minPartialSlides || 0) && usage.repeatedSlideRopes >= (spec.minRepeatedRopes || 0) &&
+    (candidate.slideStats?.interleavedRopes || 0) >= (spec.minInterleavedRopes || 0);
 }
-const compare = (a, b) => challenge(a) - challenge(b) || a.par * b.ropeCount - b.par * a.ropeCount || a.ropeCount - b.ropeCount || b.grid.localeCompare(a.grid) || a.seed.localeCompare(b.seed);
+// Within a chapter, levels run from the lowest measured challenge to the highest.
+// From chapter 4 the one plain-rules level sits between featured ones, so every
+// chapter still ends on a featured puzzle.
+const byChallenge = (a, b) => a.play.challenge - b.play.challenge || a.par - b.par || a.ropeCount - b.ropeCount || a.seed.localeCompare(b.seed);
 function orderChapter(chapter, cards) {
-  if (chapter === 0) return cards.sort((a, b) => a.introChallenge - b.introChallenge || a.introSource - b.introSource);
-  cards.sort(compare);
-  if (chapter < 3) return cards;
-  // Put each late plain-rules interlude between featured puzzles; the final
-  // challenge in every advanced chapter still uses mirrors or spinners.
+  cards.sort(byChallenge);
+  if (chapter < 4) return cards;
   const plain = cards.filter(b => kindOf(b) === 'P'), featured = cards.filter(b => kindOf(b) !== 'P');
   if (plain.length !== 1) throw Error('Expected one plain-rules interlude');
   featured.splice(3 + chapter % 4, 0, plain[0]); return featured;
@@ -111,9 +137,9 @@ if (process.argv.includes('--plan')) {
     const kind = kindOf(b); out[kind] = (out[kind] || 0) + 1; return out;
   }, {}), specs: specs.slice(i * 10, i * 10 + 10) })), null, 2)); process.exit(0);
 }
-// Match the last published campaign by logical geometry, not by its old index.
-// Keep this baseline with the GRID_VERSION4 migration; later migrations can
-// choose a new published reference without touching the generated maps.
+// Match the last published campaigns by logical geometry, not by their old index.
+// Scores saved since GRID_VERSION 4 carry layout keys; older untagged scores use
+// the previous index into the GRID_VERSION 3 campaign.
 function previousLayouts() {
   const reference = '93688c4', cache = path.join(os.tmpdir(), 'monkey-old-layout-keys.json');
   if (fs.existsSync(cache)) {
@@ -131,52 +157,53 @@ function previousLayouts() {
   return new Map(entries.map(e => [e.layoutKey, e.index]));
 }
 const previous = previousLayouts(), levels = [];
-// Resume validated metadata after a later seed fails. The cache contains no
+// Resume validated metadata after an interrupted build. The cache contains no
 // maps or plans, and is invalidated by any generator/kernel or source change.
 const sourceFiles = ['scripts/build-grid-journey.cjs','grid-generator.js','dependency-metrics.js','game-engine.js','levels.js','mechanics.js','twist-circuits.js','hex/engine.js','hex/mirrors.js'];
 const cacheHash = createHash('sha256'); for (const file of sourceFiles) cacheHash.update(fs.readFileSync(path.join(__dirname, '..', file)));
 const cacheFile = path.join(os.tmpdir(), 'monkey-journey-build-' + cacheHash.digest('hex') + '.json');
 const cached = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : {};
+const CANDIDATES = { P: 6, M: 6, S: 4, B: 4 }, EXTRA = 10;
 
 for (const [i, source] of specs.entries()) {
-  const spec = { ...source }, tutorial = i < 10, sourceKey = JSON.stringify(source);
+  const sourceKey = JSON.stringify(source);
   if (cached[sourceKey]) { levels.push(cached[sourceKey]); process.stderr.write('Resume ' + (i + 1) + '/120\n'); continue; }
-  let board, used;
-  for (let attempt = 0; attempt < (tutorial ? 1 : 8); attempt++) {
-    if (!tutorial) spec.seed = L.hashString('journey/3/chapter-map/' + spec.chapter + '/' + (i % 10) + '/' + kindOf(spec) + '/' + attempt).toString(36).toUpperCase();
-    try {
-      const candidate = F.generate(spec, G), replayed = G.replay(candidate, candidate.plan), usage = inspectPlan(candidate);
-      const filled = coverage(candidate), minimum = spec.mirrors || spec.springs || spec.W * spec.H <= 48 && usage.manualSlides ? .8 : .85;
-      if (candidate.W !== spec.W || candidate.H !== spec.H || !replayed.solved || replayed.taps !== candidate.par || candidate.par * 3 < candidate.ropes.length ||
-          spec.requireSlide && !usage.manualSlides || tutorial && candidate.ropes.length > 5 || oneTapClears(candidate) || filled < minimum || !balanced(candidate) ||
-          usage.mirrors < (spec.minMirrors || 0) || usage.springs < (spec.minSprings || 0) ||
-          usage.manualMirrors < (spec.minMirrors || 0) || usage.manualSprings < (spec.minSprings || 0) ||
-          candidate.par / candidate.ropes.length < (spec.minParRatio || 0) || usage.manualSlides < (spec.minPartialSlides || 0) || usage.repeatedSlideRopes < (spec.minRepeatedRopes || 0) || (candidate.slideStats?.interleavedRopes || 0) < (spec.minInterleavedRopes || 0)) {
-        process.stderr.write(`Retry ${i + 1}/${attempt + 1}: ${(filled * 100).toFixed(1)}% full, ${candidate.ropes.length} ropes / ${candidate.par} taps, ${JSON.stringify(usage)}\n`); continue;
-      }
-      board = candidate; used = usage; break;
-    } catch (error) { process.stderr.write(`Retry ${i + 1}/${attempt + 1}: ${error.message}\n`); }
+  const target = F.targetChallenge(source.difficulty), wanted = CANDIDATES[kindOf(source)] + (source.chapter === 1 ? 6 : 0), extra = EXTRA + (source.chapter === 1 ? 20 : 0);
+  let chosen = null, tried = 0, attempt = 0;
+  // If no seed works at the planned size, step the board up toward 12 × 16.
+  for (let size = [source.W, source.H], step = 0; !chosen && step < 3; size = [Math.min(12, size[0] + 1), Math.min(16, size[1] + 2)], step++) {
+   if (step && size[0] === source.W && size[1] === source.H) break;
+   for (let local = 0; local < wanted + extra && (tried < wanted || !chosen); local++, attempt++) {
+    const spec = { ...source, W: size[0], H: size[1], seed: L.hashString(BUILD + '/map/' + i + '/' + attempt).toString(36).toUpperCase() };
+    let candidate, usage;
+    try { candidate = F.generate(spec, G); usage = inspectPlan(candidate); }
+    catch (error) { process.stderr.write(`  ${i + 1}/${attempt + 1}: ${error.message}\n`); continue; }
+    if (!acceptable(spec, candidate, usage)) { process.stderr.write(`  ${i + 1}/${attempt + 1}: rejected (${candidate.ropes.length} ropes / ${candidate.par} taps, ${JSON.stringify(usage)})\n`); continue; }
+    tried++;
+    const play = measure(candidate), miss = Math.abs(play.challenge - target);
+    if (!chosen || miss < chosen.miss) chosen = { spec, candidate, usage, play, miss };
+   }
   }
-  if (!board) throw Error('Could not create a dense Journey level: ' + JSON.stringify(spec));
-  const metadata = { ...spec, par: board.par, ropeCount: board.ropes.length, coverage: coverage(board), featureUse: used,
+  if (!chosen) throw Error('Could not create a dense Journey level: ' + JSON.stringify(source));
+  const { spec, candidate: board, usage, play } = chosen;
+  const metadata = { ...spec, par: board.par, ropeCount: board.ropes.length, coverage: coverage(board), featureUse: usage, play, targetChallenge: Number(target.toFixed(3)),
     ...(board.complexity ? { complexity: board.complexity } : {}), ...(board.slideStats ? { slideStats: board.slideStats } : {}),
     ...(board.mechanicStats ? { mechanicStats: board.mechanicStats } : {}) };
   metadata.layoutKey = G.layoutKey(board);
   if (previous.has(metadata.layoutKey)) metadata.previousIndex = previous.get(metadata.layoutKey);
-  if (tutorial) metadata.introChallenge = introChallenge(metadata);
+  if (spec.chapter === 1) metadata.introChallenge = play.challenge;
   levels.push(metadata); cached[sourceKey] = metadata; fs.writeFileSync(cacheFile, JSON.stringify(cached));
-  process.stderr.write(`${i + 1}: ${board.grid} ${spec.W}×${spec.H}, ${board.ropes.length} ropes / ${board.par} taps, M${used.mirrors}/S${used.springs}, slides${used.manualSlides}, bounces${used.manualBounces}\n`);
+  process.stderr.write(`${i + 1}: ${kindOf(spec)} ${board.grid} ${spec.W}×${spec.H}, ${board.ropes.length} ropes / ${board.par} taps, challenge ${play.challenge} (target ${target.toFixed(2)}), casual ${(play.casualWins * 100).toFixed(0)}%, M${usage.mirrors}/S${usage.springs}, slides ${usage.manualSlides}, bounces ${usage.manualBounces}\n`);
 }
-for (let chapter = 0; chapter < 12; chapter++) levels.splice(chapter * 10, 10, ...orderChapter(chapter, levels.slice(chapter * 10, chapter * 10 + 10)));
+for (let chapter = 1; chapter <= 12; chapter++) levels.splice((chapter - 1) * 10, 10, ...orderChapter(chapter, levels.slice((chapter - 1) * 10, chapter * 10)));
 const report = [];
-for (let chapter = 0; chapter < 12; chapter++) {
-  const cards = levels.slice(chapter * 10, chapter * 10 + 10), expected = chapterKinds(chapter).reduce((a, k) => (a[k] = (a[k] || 0) + 1, a), {});
+for (let chapter = 1; chapter <= 12; chapter++) {
+  const cards = levels.slice((chapter - 1) * 10, chapter * 10), expected = chapterKinds(chapter).reduce((a, k) => (a[k] = (a[k] || 0) + 1, a), {});
   const kinds = cards.reduce((a, b) => (a[kindOf(b)] = (a[kindOf(b)] || 0) + 1, a), {});
-  if (chapter && JSON.stringify(Object.entries(kinds).sort()) !== JSON.stringify(Object.entries(expected).sort())) throw Error('Mechanic quotas changed after ordering');
-  report.push({ chapter: chapter + 1, kinds, aboveRopePar: cards.filter(b => b.par > b.ropeCount).length,
-    usedMirrors: cards.reduce((n, b) => n + b.featureUse.mirrors, 0), usedSprings: cards.reduce((n, b) => n + b.featureUse.springs, 0),
-    manualSlides: cards.reduce((n, b) => n + b.featureUse.manualSlides, 0), repeatedSlideRopes: cards.reduce((n, b) => n + b.featureUse.repeatedSlideRopes, 0),
-    meanParRatio: cards.reduce((n, b) => n + b.par / b.ropeCount, 0) / cards.length, manualBounces: cards.reduce((n, b) => n + b.featureUse.manualBounces, 0) });
+  if (JSON.stringify(Object.entries(kinds).sort()) !== JSON.stringify(Object.entries(expected).sort())) throw Error('Mechanic quotas changed after ordering');
+  const mean = f => Number((cards.reduce((n, b) => n + f(b), 0) / cards.length).toFixed(2));
+  report.push({ chapter, kinds, meanChallenge: mean(b => b.play.challenge), meanCasualWins: mean(b => b.play.casualWins), meanWork: mean(b => b.play.work),
+    aboveRopePar: cards.filter(b => b.par > b.ropeCount).length, meanArea: mean(b => b.W * b.H) });
 }
 const output = '// Generated by scripts/build-grid-journey.cjs. Metadata only; maps are built from seeds.\n' +
   '(function(root){const levels=' + JSON.stringify(levels, null, 2) + ';if(typeof module!=="undefined"&&module.exports)module.exports=levels;else root.MFGridJourney=levels;})(globalThis);\n';

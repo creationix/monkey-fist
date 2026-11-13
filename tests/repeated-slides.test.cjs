@@ -38,13 +38,15 @@ function prove(b) {
 }
 
 test('small dense square and Hex puzzles can provably need more taps than ropes', { timeout: 120000 }, () => {
-  for (const [grid,count,par] of [['square',12,14],['hex',9,11]]) {
+  for (const [grid,count,par] of [['square',16,17],['hex',6,9]]) {
     const b = G.generate(options(grid)), before = JSON.stringify(b.ropes);
     assert.deepEqual([b.W,b.H],[8,8]); assert.equal(b.ropes.length,count); assert.equal(b.par,par); assert.ok(b.par > count);
     assert.ok(b.coverage >= .85); assert.equal(b.exact,true);
     const work = manualWork(b);
-    assert.ok(work.manualSlides >= 4); assert.ok(work.repeated >= 1);
+    assert.ok(work.manualSlides >= 4);
+    assert.ok(work.repeated >= 1 || work.metrics.revisitedRopes >= 2,'a rope is returned to after other ropes have moved');
     assert.ok(work.metrics.revisitedRopes >= 1,'another blocker must free a rope between its required moves');
+    assert.ok(b.play.casualWins < .5,'a careless slide can lose these boards');
     assert.equal(work.manualSlides,b.slideStats.manualSlides); assert.equal(work.repeated,b.slideStats.repeatedRopes);
     assert.equal(b.slideStats.manualBounces,0,'plain-rule complexity comes from sliding, not artificial bounce taps');
     prove(b); assert.equal(JSON.stringify(b.ropes),before,'search and replay keep the initial generated layout intact');

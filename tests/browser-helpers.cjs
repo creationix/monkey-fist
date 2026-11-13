@@ -6,9 +6,15 @@ const settle = page => page.evaluate(() => { for (let n = 0; n < 2000 && (__game
 async function clickNext(page) {
   const p = await page.evaluate(() => {
     const i = __game.G.plan[0]; focusRope(i); __game.draw(0);
-    const at = __game.screen(__game.G.paths[i].at(-1)), box = document.querySelector('#board').getBoundingClientRect(); return { x: at.x + box.left, y: at.y + box.top };
+    // Tap the head, or the nearest rope cell not covered by a floating control.
+    const board = document.querySelector('#board'), box = board.getBoundingClientRect();
+    for (const cell of __game.G.paths[i].slice().reverse()) {
+      const at = __game.screen(cell), x = at.x + box.left, y = at.y + box.top;
+      if (document.elementFromPoint(x, y) === board) return { x, y };
+    }
+    __game.G.selected = i; board.focus(); return null; // wholly under a control: select it as the keyboard does
   });
-  await page.mouse.click(p.x, p.y);
+  if (p) await page.mouse.click(p.x, p.y); else await page.keyboard.press('Enter');
 }
 async function solve(page) {
   for (let n = 0; n < 500 && !await page.evaluate(() => __game.G.ended); n++) { await clickNext(page); await settle(page); }

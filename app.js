@@ -31,7 +31,8 @@ if (save.gen !== H.VERSION) {
 if (save.gridGen !== H.GRID_VERSION) {
   const old = {}, previousGrid = save.gridGen || 1;
   const journey = Array.from({ length: H.DEFAULT.count }, (_, index) => H.spec(H.DEFAULT, index));
-  const introPositions = new Map(journey.slice(0, 10).map((level, index) => [level.introSource ?? index, index]));
+  // Only metadata that names a published source introduction may inherit its score.
+  const introPositions = new Map(journey.slice(0, 10).flatMap((level, index) => level.introSource == null ? [] : [[level.introSource, index]]));
   const previousPositions = new Map(journey.flatMap((level, index) => level.previousIndex == null ? [] : [[level.previousIndex, index]]));
   const layoutPositions = new Map(journey.flatMap((level, index) => level.layoutKey ? [[level.layoutKey, index]] : []));
   for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
@@ -43,8 +44,10 @@ if (save.gridGen !== H.GRID_VERSION) {
         if (score.layoutKey) destination = layoutPositions.get(score.layoutKey);
         else if (previousGrid === 3) destination = previousPositions.get(Number(index));
         else if (previousGrid === 2 && Number(index) < 10) destination = introPositions.get(Number(index));
-      } else if ((previousGrid === 3 && (options?.colossal || difficulty < 60)) ||
-                 (previousGrid === 2 && !options?.colossal && difficulty <= 40)) destination = index;
+      } else if (H.GRID_VERSION === 4 && (previousGrid === 3 && (options?.colossal || difficulty < 60) ||
+                 previousGrid === 2 && !options?.colossal && difficulty <= 40)) destination = index;
+      // GRID_VERSION 5 rewove every moderate custom board; colossal maps are unchanged.
+      else if (H.GRID_VERSION >= 5 && previousGrid >= 3 && options?.colossal) destination = index;
       if (destination != null) kept[destination] = score; else changed[index] = score;
     }
     if (Object.keys(changed).length) old[code] = changed;
@@ -123,7 +126,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=14');
+    featureWorker = new Worker('generator-worker.js?v=15');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -179,7 +182,7 @@ function weave(options) {
       if (settled) return;
       retryTimer = null; attempts++;
       try {
-        const url = 'generator-worker.js?v=14' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const url = 'generator-worker.js?v=15' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
@@ -223,7 +226,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=14');
+    guideWorker = new Worker('generator-worker.js?v=15');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });

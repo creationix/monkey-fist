@@ -27,10 +27,6 @@ function observedUse(b) {
   assert.ok(paths.every(p => !p));
   return { usedMirrors:turned.size, usedSprings:bounced.size, manualMirrors:manualTurns.size, manualSprings:manualBounces.size, bounceActions };
 }
-const originalIntroKeys = {
-  0:'wc4klj-fsbag5', 1:'7ka4pd-11dvd6j', 2:'17nc4lr-l4lawt', 3:'32i8j9-prmp33', 4:'9jkn6z-pvi8bd',
-  5:'1vd9cy1-rqv90v', 6:'nl7yuv-1y42v1l', 7:'14ezvae-stj7es', 8:'19up6wq-1kscun0', 9:'mznpy2-1688lh0',
-};
 
 test('mechanics appear early and remain represented in every later Journey chapter', () => {
   const levels = require('../grid-journey'); assert.equal(levels.length,120);
@@ -83,14 +79,30 @@ test('later mechanic tiles are used by the final manual solution, not placed as 
   }
 });
 
-test('the ten introductory maps keep their layout identities while later mechanics change', { timeout: 60000 }, () => {
-  const levels = require('../grid-journey'), intro = levels.slice(0,10);
-  assert.deepEqual(intro.map(b => b.introSource).sort((a,b) => a-b),[...Array(10).keys()]);
+test('every Journey level, the introductions included, comes from a seed derived from the master seed', { timeout: 60000 }, () => {
+  const L = require('../levels'), levels = require('../grid-journey'), derived = new Set();
+  for (let i = 0; i < 120; i++) for (let attempt = 0; attempt < 120; attempt++) derived.add(L.hashString('journey/5/MONKEYFIST/map/'+i+'/'+attempt).toString(36).toUpperCase());
+  assert.equal(new Set(levels.map(b => b.seed)).size,120,'each level has its own seed');
+  for (const b of levels) { assert.ok(derived.has(b.seed),'no hand-picked seed: '+b.seed); assert.equal(b.introSource,undefined); }
   for (let index = 0; index < 10; index++) {
-    const metadata = intro[index], b = G.generate({ ...G.DEFAULT,index });
-    assert.equal(metadata.layoutKey,originalIntroKeys[metadata.introSource]);
-    assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
-    assert.equal(b.mirrors.length,0); assert.equal(b.springs.length,0);
+    const metadata = levels[index], b = G.generate({ ...G.DEFAULT,index });
+    assert.equal(b.seed,metadata.seed); assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
+    assert.equal(b.mirrors.length,0); assert.equal(b.springs.length,0); assert.ok(b.ropes.length <= 5);
+  }
+});
+
+test('Journey difficulty is measured by play and rises across chapters', () => {
+  const levels = require('../grid-journey'), mean = list => list.reduce((a,b) => a+b,0)/list.length;
+  for (const b of levels) {
+    assert.ok(Number.isFinite(b.play.challenge) && b.play.casualWins >= 0 && b.play.casualWins <= 1);
+    assert.ok(Math.abs(b.play.challenge - (b.play.work + 6*(1-b.play.casualWins))) < .002,'stored challenge is work plus the casual loss term');
+  }
+  const chapters = Array.from({ length:12 },(_,c) => mean(levels.slice(c*10,c*10+10).map(b => b.play.challenge)));
+  for (let c = 1; c < 12; c++) assert.ok(chapters[c] >= chapters[c-1] - 1,'no chapter is much easier than the one before it: '+chapters.map(x => x.toFixed(1)).join(' '));
+  assert.ok(chapters[11] >= chapters[1] + 4,'the last chapter is substantially harder than the second');
+  for (let c = 1; c < 12; c++) {
+    const mirrored = levels.slice(c*10,c*10+10).filter(b => b.mirrors && !b.springs);
+    if (c >= 3) assert.ok(mirrored.some(b => b.play.work >= 2),'mirror levels need slides, not only exits, in chapter '+(c+1));
   }
 });
 
