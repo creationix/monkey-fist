@@ -38,7 +38,7 @@ function prove(b) {
 }
 
 test('small dense square and Hex puzzles can provably need more taps than ropes', { timeout: 120000 }, () => {
-  for (const [grid,count,par] of [['square',16,17],['hex',9,10]]) {
+  for (const [grid,count,par] of [['square',16,17],['hex',9,12]]) {
     const b = G.generate(options(grid)), before = JSON.stringify(b.ropes);
     assert.deepEqual([b.W,b.H],[8,8]); assert.equal(b.ropes.length,count); assert.equal(b.par,par); assert.ok(b.par > count);
     assert.ok(b.coverage >= .85); assert.equal(b.exact,true);

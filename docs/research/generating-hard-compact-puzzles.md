@@ -660,6 +660,55 @@ The remaining unlosable levels are all in chapters 1 to 3, by design. Two costs:
 spinner levels take longer to generate (median about 0.6 s, worst 2.2 s), and
 the curve now steps up at chapter 4, where the losability cap begins.
 
+### 5.9 Generation revision 8: one construction, fewer exceptions
+
+Revision 8 removed the special cases that had accumulated around the woven
+generator, before the game's first release:
+
+- **One generator.** Earlier set formats (J1/J2, U1/U2 and the old square and Hex
+  share codes) each kept their own generator. Only the current Journey and
+  custom formats remain, both built by `grid-generator.js`.
+- **Colossal maps are woven.** Colossal maps with mirrors or spinners came from
+  separate routed generators (`twist-circuits.js`, `hex/mirrors.js`). Measured on
+  18 settings from 24 × 24 to 48 × 48, every routed map had par equal to its rope
+  count, no manual slide and at most one bounce; woven maps had 1 to 17 manual
+  slides and up to 6 working mirrors (usually 4 to 6). Most settings take 0.2 to
+  3.5 s; Hex with spinners takes 8 to 17 s at 40 × 40 and 48 × 48, against the
+  routed path's worst case of 14 s.
+- **Spinners adapt the known solution.** Instead of a full-geometry search for
+  each candidate cell, the solution is replayed with the new spinner and the rope
+  that bounces gets one extra tap, at once or last; the search remains a
+  fallback, and the empty cells on ropes' ways out are tried only after those the
+  manual moves pass. The bouncing rope may not have a clear run to the spinner
+  from the start.
+- **One rule per check.** Coverage is measured over the cells ropes can occupy
+  (mirror and spinner tiles excluded) with one threshold, instead of four that
+  depended on board kind and size; every board below 85 % must use a slide; the
+  sample limit no longer depends on mechanics; mirrored square boards draw their
+  rope style like plain ones. A custom mirror board that the old floor rejected
+  at every sample (square, 10 × 14, difficulty 52) now generates.
+- **The Journey builder only adds what is its own.** It had repeated the
+  generator's coverage, balance, par-ratio, one-tap and mechanic-use checks; it
+  now relies on them and adds only that no map repeats and introductions have at
+  most five ropes. Its chapter-tier win caps became the generator's ceiling
+  (falling linearly from 1 at difficulty 30 to 0.5 at 100), and the late
+  "three manual slides" and "par above rope count" requirements were dropped.
+
+| Measure | Revision 7 | Revision 8 |
+| --- | --- | --- |
+| Mean distance from target challenge | 1.80 | 0.89 |
+| Levels 11 to 120 the casual player cannot lose | 20 | 16 |
+| ... in chapters 4 to 12 | 0 | 0 |
+| Measured challenge, chapters 10 / 11 / 12 | 10.0 / 9.8 / 11.6 | 8.3 / 8.9 / 9.6 |
+| Casual win rate, chapters 10 / 11 / 12 | 38 / 25 / 33 % | 31 / 38 / 17 % |
+| Mean manual slides, featured levels 61 to 120 | 4.5 | 3.0 |
+
+The Journey now follows its target curve more closely. The cost is in the late
+chapters: revision 7's extra slide requirements pushed them above the curve,
+and without those requirements they force fewer slides, while the casual player
+loses them about as often or more. If late levels feel easier, the place to
+change that is the target curve, not a per-chapter rule.
+
 ## 6. Applying the techniques
 
 The recommendations are ordered by evidence and cost. The first two are

@@ -11,7 +11,6 @@ function verify(board) {
     assert.ok(!bouncers.has(next.q + ',' + next.r), 'starting arrows leave an empty space before bouncers');
   }
   assert.equal(G.allFree(board, board.ropes), false, 'every board starts with a blocked rope');
-  assert.equal(board.locks.length, 0);
   const solution = G.replay(board, board.plan);
   assert.equal(solution.solved, true); assert.equal(solution.taps, board.par);
   let paths = board.ropes;
@@ -24,11 +23,11 @@ function verify(board) {
   }
 }
 
-test('custom settings round-trip and generate at both ends of the range with every feature combination', { timeout: 120000 }, () => {
+test('custom settings round-trip and generate across the range with every feature combination', { timeout: 120000 }, () => {
   for (const grid of ['square', 'hex', 'mixed']) for (const mirrors of [false, true]) for (const springs of [false, true]) {
     const options = G.normalize({ grid, mirrors, springs, seed: 'BRAID', min: 1, max: 100, count: 30 });
     assert.deepEqual(G.parseCode(G.code(options)), options);
-    for (const index of [0, 29]) {
+    for (const index of [0, 15, 29]) {
       const b = G.generate({ ...options, index }); verify(b);
       assert.equal(!!b.mirrors.length, mirrors); assert.equal(!!b.springs.length, springs);
       if (grid !== 'mixed') assert.equal(b.grid, grid);
@@ -53,6 +52,29 @@ test('only a group’s last level opens the next ten; custom sets stay fully ope
     assert.equal(G.unlock(chapters, 9), chapters, 'replaying an earlier chapter cannot relock levels');
   }
   assert.equal(chapters, 12); assert.equal(G.available({ count: 137 }), 137);
+});
+
+test('Journey spinners have varied approaches and wait on another rope on both grids', { timeout: 300000 }, () => {
+  const distances = { square: new Set(), hex: new Set() };
+  for (let index = 0; index < G.DEFAULT.count; index++) {
+    if (!G.spec(G.DEFAULT, index).springs) continue;
+    const b = G.generate({ ...G.DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0; const users = new Map();
+    for (const i of b.plan) {
+      const move = G.tap(b, paths, i);
+      if (move.event === 'bounce') {
+        distances[b.grid].add(move.distance); bounces++;
+        const spring = JSON.stringify(move.route.at(-1)); if (!users.has(spring)) users.set(spring, new Set()); users.get(spring).add(i);
+        if (G.tap(b, b.ropes, i)?.event !== 'bounce') blocked++;
+      }
+      paths = move.paths;
+    }
+    assert.ok(paths.every(p => !p)); assert.ok(bounces >= b.springs.length);
+    assert.ok(blocked > 0 || [...users.values()].some(ids => ids.size > 1), `level ${index + 1} needs an approach or shared-bouncer dependency`);
+  }
+  for (const grid of ['square', 'hex']) {
+    assert.ok(distances[grid].size >= 2, grid + ' needs varied run-up lengths');
+    assert.ok([...distances[grid]].some(n => n >= 2), grid + ' needs space between rope and spring');
+  }
 });
 
 test('spring reflections enter the tile completely and reverse with the tail on that tile', () => {

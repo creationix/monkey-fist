@@ -5,31 +5,31 @@
   const node = typeof module !== 'undefined' && module.exports;
   const L = node ? require('./levels.js') : MFLevels;
   const H = node ? require('./hex/engine.js') : root.MFHex;
-  const C = node ? require('./twist-circuits.js') : root.MFTwistCircuits;
-  const R = node ? require('./hex/mirrors.js') : root.MFHexMirrors;
   const Q = node ? require('./dependency-metrics.js') : root.MFDependencyMetrics;
   const point = (q, r) => ({ q, r });
   const key = H.key, MIN_RATIO = 1 / 3;
   const dirs = grid => grid === 'hex' ? H.DIRS : [[1, 0], [0, 1], [-1, 0], [0, -1]];
   const adjacent = (a, b, grid) => dirs(grid).some(d => b.q - a.q === d[0] && b.r - a.r === d[1]);
-  const coverage = b => b.ropes.reduce((sum, path) => sum + path.length, 0) / (b.W * b.H);
+  const inside = (b, p) => b.grid === 'hex' ? H.inside(b, p) : p.q >= 0 && p.r >= 0 && p.q < b.W && p.r < b.H;
+  // Share of the cells ropes can occupy (mirror and spinner tiles excluded).
+  const coverage = b => b.ropes.reduce((sum, path) => sum + path.length, 0) / (b.W * b.H - b.mirrors.length - b.springs.length);
   function valid(b) {
     const occupied = new Set(), features = new Set([...b.springs, ...b.mirrors.map(m => m.cell)].map(key));
     for (const path of b.ropes) {
       if (path.length < 2) return false;
       for (let i = 0; i < path.length; i++) {
         const p = path[i], at = key(p);
-        if (occupied.has(at) || features.has(at) || (b.grid === 'hex' ? !H.inside(b, p) : p.q < 0 || p.r < 0 || p.q >= b.W || p.r >= b.H)) return false;
+        if (occupied.has(at) || features.has(at) || !inside(b, p)) return false;
         if (i && !adjacent(path[i - 1], p, b.grid)) return false;
         occupied.add(at);
       }
     }
     return true;
   }
-  function repeatedCore(grid, W, height, d, rng, G, depthHint) {
+  function repeatedCore(grid, W, height, d, rng, G) {
     const options = [];
     // Leave room around the repeated pair for other interdependent ropes.
-    const maximum = Math.min(10, Math.floor(Math.min(W, height) / 2), Math.max(W, height) - 4), wanted = depthHint ?? Math.round(3 + Math.max(0, Math.min(1, (d - 60) / 40)) * (maximum - 3));
+    const maximum = Math.min(10, Math.floor(Math.min(W, height) / 2), Math.max(W, height) - 4), wanted = Math.round(3 + Math.max(0, Math.min(1, (d - 60) / 40)) * (maximum - 3));
     for (let depth = Math.min(maximum, wanted); depth >= 3; depth--) {
       const roomy = Math.min(W, height) >= 10;
       const extra = roomy ? Math.floor(rng() * 3) : 0, bottom = roomy ? 2 + Math.floor(rng() * 3) : 2, side = roomy ? 1 + Math.floor(rng() * 2) : 1;
@@ -66,7 +66,7 @@
       if (options.length) break;
     }
     if (!options.length) return null;
-    const chosen = options[Math.floor(rng() * options.length)], board = { grid, W, H: height, ropes: chosen.ropes, mirrors: [], springs: [], locks: [] };
+    const chosen = options[Math.floor(rng() * options.length)], board = { grid, W, H: height, ropes: chosen.ropes, mirrors: [], springs: [] };
     const solution = G.solve(board, board.ropes, 2000); if (!solution.solved) return null;
     const proven = G.minimumTaps(board, solution.moves, 20000);
     const stops = board.ropes.map(() => []), offsets = board.ropes.map(() => 0); let paths = board.ropes;
@@ -105,7 +105,7 @@
     if (extra.mirrors) {
       const avoid = new Set();
       if (core) { // keep the core's ways out straight, so its proven stops still hold
-        const tracks = grid === 'hex' ? H.compile({ W, H: height, ropes: core.initialRopes, locks: [] }).tracks : L.tracksOf(core.initialRopes.map(path => path.map(p => ({ x: p.q, y: p.r }))), W, height);
+        const tracks = grid === 'hex' ? H.compile({ W, H: height, ropes: core.initialRopes }).tracks : L.tracksOf(core.initialRopes.map(path => path.map(p => ({ x: p.q, y: p.r }))), W, height);
         for (const track of tracks) for (const c of track) avoid.add(c);
       }
       mirrors = placeMirrors(grid, W, height, extra.mirrors, rng, avoid);
@@ -136,84 +136,81 @@
     const raw = L.weave(rng, cfg); if (!raw) return null;
     const used = new Set(mirrors.length ? L.tracksOf(raw.ropes, W, height, mirrorMap).flat() : []);
     return { W: raw.W, H: raw.H, grid, style: style.name, ropes: raw.ropes.map(path => path.map(p => point(p.x, p.y))),
-      locks: [], mirrors: mirrors.filter(m => used.has(indexOf(grid, W, m.cell))), springs: [], plan: raw.taps,
+      mirrors: mirrors.filter(m => used.has(indexOf(grid, W, m.cell))), springs: [], plan: raw.taps,
       constructionStats: { knots: raw.knots, traps: raw.traps, intendedSlides: raw.slides, depth: Math.max(0, ...raw.costs), averageDepth: raw.costs.reduce((sum, value) => sum + value, 0) / raw.costs.length, ...coreStats } };
   }
-  function combineRepeated(grid, raw, d, rng, G) {
-    const W = raw.W, height = raw.H, p = cell => point(cell % W, Math.floor(cell / W));
-    const base = grid === 'hex' ? { ...raw, grid } : { grid, W, H: height, locks: [],
-      ropes: raw.ropes.map(path => path.map(p => point(p.x, p.y))), plan: raw.solution,
-      mirrors: raw.mirrors.map(m => ({ cell: p(m.cell), slope: m.slope })), springs: raw.springs.map(p) };
-    const occupied = new Set([...base.ropes.flat(), ...base.springs, ...base.mirrors.map(m => m.cell)].map(key));
-    for (let trial = 0; trial < 20; trial++) {
-      // A compact repeated-slide knot leaves room for the routed strands and
-      // ordinary blockers. Dense population below couples them further.
-      const pair = repeatedCore(grid, W, height, d, rng, G, 4); if (!pair) continue;
-      if (pair.initialRopes.flat().some(p => occupied.has(key(p)))) continue;
-      const offset = base.ropes.length, b = { ...base, ropes: base.ropes.concat(pair.initialRopes),
-        plan: base.plan.concat(pair.initialPlan.map(i => i + offset)) };
-      const replayed = G.replay(b, b.plan), solved = replayed.solved ? { solved: true, moves: b.plan } : G.solve(b, b.ropes, 5000, b.plan);
-      if (!solved.solved) continue;
-      const best = G.minimumTaps(b, solved.moves, 5000), trace = G.replay(b, best.plan);
-      if (!trace.solved || trace.events.slice(0, best.par).filter(event => event === 'slide').length < 3) continue;
-      if (grid === 'hex') return { ...b, plan: best.plan, repeatedFeatured: true };
-      return { W, H: height, ropes: b.ropes.map(path => path.map(p => ({ x: p.q, y: p.r }))),
-        mirrors: b.mirrors.map(m => ({ cell: m.cell.r * W + m.cell.q, slope: m.slope })),
-        springs: b.springs.map(p => p.r * W + p.q), gates: [], solution: best.plan, repeatedFeatured: true };
-    }
-    return null;
-  }
-  function featured(grid, W, height, d, mirrors, springs, rng, attempt, limits, details, G) {
-    const requested = details.coreRopes || 0, distinct = details.minSprings || 0;
-    const count = requested ? Math.max(distinct, attempt >= 6 ? Math.min(requested, Math.max(2, requested - 1)) : requested) : limits.coreCount ? attempt ? 1 : Math.min(limits.coreCount, Math.max(1, Math.floor(W * height / 100))) : attempt >= 6 ? 1 : Math.max(1, Math.min(5, Math.round(W * height / 100 * (.3 + d / 100))));
-    const tryRepeated = !limits.longRopes && (details.minPartialSlides || d >= 75 && W * height >= 150 && attempt < 8);
-    const options = { maxTapChecks: limits.maxTapChecks, coverage: .98, attemptsMultiplier: limits.populateAttempts || 24, allowEarly: true, minLength: 2, length: limits.longRopes ? Math.min(W, height) * 2 : Math.max(8, Math.round(Math.min(W, height) * 1.5)) };
-    if (grid === 'hex') {
-      // Each Hex core route places its own turning mirrors; meet a requested minimum.
-      const turns = mirrors ? Math.max(d < 35 ? 1 : 2, Math.ceil((details.minMirrors || 0) / count)) : 0;
-      let raw = R.skeleton(rng, W, height, count, turns, springs, 4, true, { minDistinctSprings: distinct });
-      if (raw && tryRepeated) { const combined = combineRepeated(grid, raw, d, rng, G); if (combined || details.minPartialSlides) raw = combined; }
-      return raw && { ...R.populate(raw, rng, Math.round(d * .59), undefined, options), grid, locks: [] };
-    }
-    const kinds = [mirrors && 'mirrors', springs && 'springs'].filter(Boolean);
-    let raw = C.skeleton(rng, W, height, kinds, count, { minDistinctSprings: distinct });
-    if (raw && tryRepeated) { const combined = combineRepeated(grid, raw, d, rng, G); if (combined || details.minPartialSlides) raw = combined; }
-    if (!raw) return null;
-    const b = C.populate(raw, rng, undefined, options), p = c => point(c % W, Math.floor(c / W));
-    return { grid, W, H: height, ropes: b.ropes.map(path => path.map(p => point(p.x, p.y))), plan: b.solution,
-      locks: [], core: b.circuit?.core || count, ...(raw.repeatedFeatured ? { repeatedFeatured: true } : {}), springs: b.springs.map(p), mirrors: b.mirrors.map(m => ({ cell: p(m.cell), slope: m.slope })) };
-  }
-  // Spinners on a woven board. Candidate cells are empty cells some rope's way out
-  // crosses, tried in seeded order; a spinner stays only if the board still solves
-  // under the full rules and that solution bounces off it before automatic release.
-  // The woven board's knots and traps are kept, so a careless slide can still lose.
+  // Spinners on a woven board. Candidate cells are empty cells that the solution's
+  // manual moves pass through, then other empty cells on ropes' ways out, each group
+  // in seeded order. First the known solution is
+  // adapted: the first rope to bounce off the new spinner gets one more tap, at once
+  // or last. Only if no candidate allows that does a bounded search look for a new
+  // solution. Either way the bounce must come before automatic release. The woven
+  // board's knots and traps are kept, so careless slides can still lose.
   function addSpinners(b, G, rng, count) {
     let board = b;
     for (let n = 0; n < count; n++) {
       const blocked = new Set([...board.ropes.flat(), ...board.mirrors.map(m => m.cell), ...board.springs].map(key));
       // A spinner straight in front of a head would bounce a rope that has not moved.
       for (const path of board.ropes) { const d = G.direction(board, path); blocked.add(key(point(path.at(-1).q + d[0], path.at(-1).r + d[1]))); }
-      const tracks = board.grid === 'hex' ? H.compile({ ...board, springs: [] }).tracks.map(t => t.map(c => point(c % board.W - Math.floor(Math.floor(c / board.W) / 2), Math.floor(c / board.W))))
-        : L.tracksOf(xyOf(board), board.W, board.H, squareMirrors(board)).map(t => t.map(c => point(c % board.W, Math.floor(c / board.W))));
-      const seen = new Set(), cells = [];
-      tracks.forEach((track, i) => { for (const p of track.slice(board.ropes[i].length)) if (!blocked.has(key(p)) && !seen.has(key(p))) { seen.add(key(p)); cells.push(p); } });
-      for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-      let placed = null;
-      for (const cell of cells.slice(0, 8)) {
-        const v = { ...board, springs: board.springs.concat(cell) }, solution = G.solve(v, v.ropes, 600, board.plan);
-        if (solution.solved !== true) continue;
-        const played = G.replay(v, solution.moves); if (!played.solved) continue;
-        let paths = v.ropes, used = false;
-        for (let step = 0; step < played.taps && !used; step++) {
-          const move = G.tap(v, paths, solution.moves[step]);
-          used = move.event === 'bounce' && key(move.route.at(-1)) === key(cell); paths = move.paths;
-        }
-        if (used) { placed = { ...v, plan: solution.moves }; break; }
+      // Cells the manual moves pass first; only if none of them works, the other
+      // cells on ropes' ways out.
+      const manual = G.replay(board, board.plan).taps, routes = [], seen = new Set();
+      let paths = board.ropes;
+      for (let step = 0; step < manual; step++) {
+        const move = G.tap(board, paths, board.plan[step]);
+        routes.push(...move.route.slice(paths[board.plan[step]].length));
+        paths = move.paths;
       }
+      const fresh = group => {
+        const cells = group.filter(p => inside(board, p) && !blocked.has(key(p)) && !seen.has(key(p)) && seen.add(key(p)));
+        for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+        return cells;
+      };
+      const tryCells = cells => cells.slice(0, 16).map(cell => withSpinner(board, cell, G)).find(Boolean) || cells.slice(0, 8).map(cell => searchSpinner(board, cell, G)).find(Boolean);
+      const placed = tryCells(fresh(routes)) || tryCells(fresh(waysOut(board)));
       if (!placed) return null;
       board = placed;
     }
     return board;
+  }
+  // Every cell beyond each rope's body on its track (its way out, as mirrors bend it).
+  function waysOut(board) {
+    const tracks = board.grid === 'hex' ? H.compile({ ...board, springs: [] }).tracks.map(t => t.map(c => point(c % board.W - Math.floor(Math.floor(c / board.W) / 2), Math.floor(c / board.W))))
+      : L.tracksOf(xyOf(board), board.W, board.H, squareMirrors(board)).map(t => t.map(c => point(c % board.W, Math.floor(c / board.W))));
+    return tracks.flatMap((track, i) => track.slice(board.ropes[i].length));
+  }
+  function withSpinner(board, cell, G) {
+    const b = { ...board, springs: board.springs.concat(cell) }, at = key(cell);
+    let paths = b.ropes;
+    for (let step = 0; step < b.plan.length; step++) {
+      const i = b.plan[step], move = G.tap(b, paths, i); if (!move) return null;
+      if (move.event === 'bounce' && key(move.route.at(-1)) === at) {
+        for (const plan of [[...b.plan.slice(0, step + 1), i, ...b.plan.slice(step + 1)], [...b.plan, i]]) {
+          if (bounceStep(b, plan, at, G) === step) return { ...b, plan };
+        }
+        return null;
+      }
+      paths = move.paths;
+    }
+    return null;
+  }
+  // Each search node tries every rope, so the node budget shrinks as ropes grow.
+  function searchSpinner(board, cell, G) {
+    const b = { ...board, springs: board.springs.concat(cell) }, solution = G.solve(b, b.ropes, Math.round(12000 / b.ropes.length), board.plan);
+    return solution.solved === true && bounceStep(b, solution.moves, key(cell), G) >= 0 ? { ...b, plan: solution.moves } : null;
+  }
+  // The manual step at which a solution first bounces off the spinner at `at`, or -1.
+  // The bouncing rope must not have a clear run to the spinner from the start: using
+  // it has to wait for another rope to move.
+  function bounceStep(b, plan, at, G) {
+    const played = G.replay(b, plan); if (!played.solved) return -1;
+    let paths = b.ropes;
+    for (let step = 0; step < played.taps; step++) {
+      const move = G.tap(b, paths, plan[step]);
+      if (move.event === 'bounce' && key(move.route.at(-1)) === at) return G.tap(b, b.ropes, plan[step])?.event === 'bounce' ? -1 : step;
+      paths = move.paths;
+    }
+    return -1;
   }
   function featuresUsed(b, G) {
     const wanted = new Set([...b.springs, ...b.mirrors.map(m => m.cell)].map(key));
@@ -245,39 +242,6 @@
     }
     return { usedMirrors: turned.size, usedSprings: bounced.size, manualMirrors: manualTurns.size, manualSprings: manualBounces.size };
   }
-  function reorder(b, G) {
-    let paths = b.ropes, prefer = b.plan, budget = Math.min(120, b.ropes.length * 6); const plan = [];
-    const core = b.core || 1;
-    while (paths.some(Boolean)) {
-      if (G.allFree(b, paths)) { plan.push(...paths.flatMap((p, i) => p ? [i] : [])); break; }
-      if (budget <= 0) { plan.push(...prefer); break; }
-      const ready = current => {
-        let value = 0;
-        for (let i = 0; i < core; i++) if (current[i]) {
-          const event = G.tap(b, current, i)?.event;
-          value += event === 'exit' ? 4 : event === 'bounce' ? 3 : event === 'slide' ? 1 : 0;
-        }
-        return value;
-      };
-      const choices = paths.flatMap((p, i) => {
-        const move = p && G.tap(b, paths, i);
-        return move ? [{ i, move, ready: ready(move.paths), rank: prefer.indexOf(i) }] : [];
-      });
-      choices.sort((a, c) => c.ready - a.ready || Number(c.i < core) - Number(a.i < core) || a.rank - c.rank);
-      let best = null;
-      for (const candidate of choices.slice(0, 6)) {
-        if (--budget < 0) break;
-        const next = G.guide(b, candidate.move.paths, 0, prefer);
-        if (!next.solved) continue;
-        const cost = G.allFree(b, candidate.move.paths) ? 1 : 1 + G.replay(b, next.moves, candidate.move.paths).taps;
-        if (!best || cost < best.cost) best = { ...candidate, cost, next };
-      }
-      if (!best) { plan.push(...prefer); break; }
-      plan.push(best.i); paths = best.move.paths; prefer = best.next.moves;
-    }
-    const replayed = G.replay(b, plan);
-    return replayed.solved ? { ...b, plan } : b;
-  }
   function regional(b) {
     if (b.W < 8 || b.H < 8) return true;
     const area = [0,0,0,0], used = [0,0,0,0], cells = b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => point(i % b.W, Math.floor(i / b.W)));
@@ -295,7 +259,7 @@
   }
   const squareMirrors = b => new Map(b.mirrors.map(m => [m.cell.r * b.W + m.cell.q, m.slope]));
   const xyOf = b => b.ropes.map(path => path.map(p => ({ x: p.q, y: p.r })));
-  // Move exits the rest of a routed solution does not need to the automatic release.
+  // Move exits the rest of a spinner solution does not need to the automatic release.
   function postpone(b, G, plan) {
     let best = plan, taps = G.replay(b, plan).taps;
     for (let k = Math.min(taps, best.length) - 1; k >= 0; k--) {
@@ -345,46 +309,42 @@
   const challengeOf = (work, wins) => work + 6 * (1 - wins);
   const targetChallenge = d => .5 + 9.5 * Math.pow(Math.max(0, Math.min(100, d)) / 100, 1.3);
   // Harder settings should be losable: above this casual win rate a candidate is
-  // penalised, so forced but safe work cannot stand in for real decisions.
-  const winCeiling = d => d < 40 ? 1 : 1 - .5 * Math.min(1, (d - 40) / 60);
+  // penalised, so forced but safe work cannot stand in for real decisions. It falls
+  // from 1 at difficulty 30 to one half at 100.
+  const winCeiling = d => 1 - .5 * Math.max(0, Math.min(1, (d - 30) / 70));
   function generate(details, G) {
     const { grid, W, H: height, difficulty: d, mirrors, springs } = details;
     const rng = L.mulberry32(L.hashString('grid/3/' + details.seed));
     // Select a level's style once, so candidate scoring cannot wash out the
     // intended mixture by repeatedly preferring the short-rope variant.
-    const roll = !mirrors && !springs && grid === 'square' ? rng() : 0;
-    const twisty = Math.min(W, height) >= 7 && d >= 35;
+    const roll = rng(), twisty = Math.min(W, height) >= 7 && d >= 35;
     const style = L.STYLES[roll < .4 ? 0 : roll < .73 || !twisty ? 1 : 2];
-    const colossal = !!details.colossal, limits = colossal ? { longRopes: true, coreCount: 1, populateAttempts: 8, maxTapChecks: 40000, skipSearch: true } : {};
-    // Spinners need routed circuits; so do colossal mirror maps. Every other board,
-    // mirrored or not, is woven on the track kernels with knots and traps.
-    // Colossal maps with mechanics use routed circuits. Every other board is woven
-    // on the track kernels with knots and traps; spinners are placed afterwards.
-    const routed = colossal && (springs || mirrors), strength = d / 100;
-    const spinnerCount = springs && !routed ? Math.max(1, details.minSprings || 1) : 0;
-    const mirrorCount = !mirrors || routed ? 0 : Math.min(Math.round(W * height / 14), grid === 'hex' ? 2 * (details.minMirrors || 2) + 2 : (details.minMirrors || 2) + 2 + Math.round(2 * strength));
+    // Colossal maps use long ropes and skip the searches and playouts that would
+    // take too long on thousands of cells; par is the construction's tap count.
+    const colossal = !!details.colossal, limits = colossal ? { longRopes: true, skipSearch: true } : {}, strength = d / 100;
+    const spinnerCount = springs ? Math.max(1, details.minSprings || 1) : 0;
+    const mirrorCount = !mirrors ? 0 : Math.min(Math.round(W * height / 14), grid === 'hex' ? 2 * (details.minMirrors || 2) + 2 : (details.minMirrors || 2) + 2 + Math.round(2 * strength));
     // The repeated-slide core is used when a specification demands repeated or
     // interleaved work, and otherwise on alternate hard candidates; play decides.
     const wantsCore = attempt => !!(details.minRepeatedRopes || details.minInterleavedRopes) || d >= 60 && attempt % 2 === 0;
-    const hardness = Math.max(0, (d - 40) / 60), sampleLimit = colossal ? 3 : spinnerCount ? 6 : d >= 75 ? 12 : 10;
-    let best = null, bestValue = -Infinity, richCandidates = 0;
-    const featuredBoard = mirrors || springs, smallSlideBoard = W * height <= 48;
-    const minCoverage = featuredBoard ? W * height <= 80 ? .8 : .84 : smallSlideBoard ? .8 : .85;
+    const hardness = Math.max(0, (d - 40) / 60), sampleLimit = colossal ? 3 : 10;
+    // Small boards keep a little vacant travel space for their sliding lessons.
+    const minCoverage = W * height <= 48 ? .8 : .85;
+    let best = null, bestValue = -Infinity;
     for (let attempt = 0; attempt < sampleLimit; attempt++) {
-      let b = routed ? featured(grid, W, height, d, mirrors, springs, rng, attempt, limits, details, G) : woven(grid, W, height, d, rng, style, limits, G, { mirrors: mirrorCount, core: wantsCore(attempt) });
+      let b = woven(grid, W, height, d, rng, style, limits, G, { mirrors: mirrorCount, core: wantsCore(attempt) });
       if (b && spinnerCount && valid(b)) b = addSpinners(b, G, rng, spinnerCount);
       if (!b || b.W !== W || b.H !== height || b.ropes.length < 2 || !valid(b) || G.allFree(b, b.ropes)) continue;
       if (mirrors && !b.mirrors.length || springs && !b.springs.length) continue;
       const density = coverage(b); if (density < minCoverage || !regional(b)) continue;
       const replayed = G.replay(b, b.plan); if (!replayed.solved || !featuresUsed(b, G)) continue;
-      const ordered = !colossal && d <= 30 && b.core ? reorder(b, G) : b;
-      const result = score(ordered, G, limits.skipSearch), ratio = result.par / b.ropes.length;
-      const mechanicStats = details.minMirrors || details.minSprings ? featureStats(b, result.plan, result.par, G) : null;
+      const result = score(b, G, limits.skipSearch), ratio = result.par / b.ropes.length;
+      const mechanicStats = b.mirrors.length || b.springs.length ? featureStats(b, result.plan, result.par, G) : null;
       if (mechanicStats && (b.mirrors.length < (details.minMirrors || 0) || b.springs.length < (details.minSprings || 0) ||
           mechanicStats.usedMirrors !== b.mirrors.length || mechanicStats.usedSprings !== b.springs.length ||
           mechanicStats.manualMirrors < (details.minMirrors || 0) || mechanicStats.manualSprings < (details.minSprings || 0))) continue;
       const played = G.replay(b, result.plan), manualEvents = played.events.slice(0, result.par);
-      const manualPlan = result.plan.slice(0, result.par), seededRopes = b.constructionStats?.seededRopes || b.core || 0;
+      const manualPlan = result.plan.slice(0, result.par), seededRopes = b.constructionStats?.seededRopes || 0;
       const firstCore = seededRopes ? manualPlan.findIndex(i => i < seededRopes) : -1;
       const lastCore = seededRopes ? manualPlan.findLastIndex(i => i < seededRopes) : -1;
       const actions = new Uint16Array(b.ropes.length);
@@ -394,25 +354,21 @@
         repeatedRopes: Array.from(actions).filter(count => count >= 2).length,
         interleavedRopes: firstCore < 0 ? 0 : new Set(manualPlan.slice(firstCore, lastCore + 1).filter(i => i >= seededRopes)).size,
         automaticRopes: played.events.slice(result.par).filter(event => event === 'exit').length };
+      // A board that leaves vacant travel space must actually use it in its
+      // replayed final certificate.
       const slides = played.events.includes('slide');
-      // A small sliding lesson needs a little vacant travel space. Accept it
-      // only when the replayed final certificate actually uses that space.
-      if (details.requireSlide && !slides || !featuredBoard && density < .85 && !slides) continue;
+      if ((details.requireSlide || density < .85) && !slides) continue;
       if (result.par * 3 < b.ropes.length || trivial(b, G)) continue;
       if (slideStats.manualSlides < (details.minPartialSlides || 0) || slideStats.repeatedRopes < (details.minRepeatedRopes || 0) || slideStats.interleavedRopes < (details.minInterleavedRopes || 0) || ratio < (details.minParRatio || 0)) continue;
       const complexity = colossal ? null : Q.analyze(b, result.plan, result.par, G);
-      // Ratios can reward a long, obvious chain. Advanced candidates also need
-      // converging prerequisites, interleaved mutual waits, or repeated work on
-      // ropes whose blockers changed. Mere route length adds nothing here.
-      if (!colossal && d >= 75 && W * height >= 64 && !complexity.mutualWaitRopes && !complexity.revisitedRopes && (complexity.joins < 2 || complexity.branchingDepth < 2)) continue;
       // Choose by play, not by the shape of one certificate: forced work and how
       // often a casual player loses, against the difficulty setting's target.
+      // Spinner boards play on the slower full-geometry kernel, so fewer games.
       const wins = colossal ? 1 : casualRate(b, G, L.mulberry32(L.hashString('casual/' + details.seed + '/' + attempt)), b.springs.length ? 10 : 32);
       const work = slideStats.manualSlides + slideStats.manualBounces, challenge = challengeOf(work, wins);
       const value = density * 3 - Math.abs(challenge - targetChallenge(d)) * .5 - Math.max(0, wins - winCeiling(d)) * 4 + (colossal ? 0 : hardness * complexity.interaction * .25);
-      if (value > bestValue) { bestValue = value; best = { ...b, ...details, mirrors: b.mirrors, springs: b.springs, locks: [], ...result, coverage: density, complexity, slideStats,
+      if (value > bestValue) { bestValue = value; best = { ...b, ...details, mirrors: b.mirrors, springs: b.springs, ...result, coverage: density, complexity, slideStats,
         play: { casualWins: wins, work, challenge: Number(challenge.toFixed(3)) }, ...(mechanicStats ? { mechanicStats } : {}) }; }
-      if (routed && (details.minPartialSlides || b.repeatedFeatured) && ++richCandidates >= 2) break;
       if (colossal || density >= .9 && Math.abs(challenge - targetChallenge(d)) <= .5 && wins <= winCeiling(d)) break;
     }
     if (!best) throw Error('Could not densely weave these grid dimensions');

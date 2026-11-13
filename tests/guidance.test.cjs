@@ -27,7 +27,8 @@ test('off-certificate moves search in a worker; undo and restart reject stale an
       await page.waitForFunction(() => !__game.G.solving, null, { polling: 25 });
       assert.equal(await page.evaluate(() => JSON.stringify(__game.G.paths)), original);
       assert.equal(await page.evaluate(() => MFGame.replay(__game.G.level, __game.G.plan, __game.G.paths).solved), true);
-      await page.evaluate(() => { const g = __game.G, i = g.paths.findLastIndex((p, i) => p && i !== g.plan[0] && MFGame.tap(g.level, g.paths, i)); __game.tap(i); __game.hint(); });
+      // An off-certificate move that keeps the board solvable, so the hint finds a route.
+      await page.evaluate(() => { const g = __game.G, i = g.paths.findLastIndex((p, i) => { const m = p && i !== g.plan[0] && MFGame.tap(g.level, g.paths, i); return m && MFGame.solve(g.level, m.paths, 20000).solved === true; }); __game.tap(i); __game.hint(); });
       await page.waitForFunction(() => !__game.G.solving, null, { polling: 25 });
       assert.equal(await page.evaluate(() => __game.G.taps), 5, 'hint charges only after the worker finds a route');
       assert.equal(await page.evaluate(() => MFGame.replay(__game.G.level, __game.G.plan, __game.G.paths).solved), true);

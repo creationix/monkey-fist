@@ -1,10 +1,10 @@
 # Generator background
 
-This describes the original square generation kernels, their difficulty metrics, and solver research. The old mode names and ranges are historical; the current journey and custom settings are described in the [README](../README.md).
+This describes the original game's square generator, its difficulty metrics, and solver research. That generator (`construct`, `plan`, `generateSet` and the old mode names and ranges) was removed before release; read it at commit [d3abcdc](https://github.com/creationix/monkey-fist/blob/d3abcdc/levels.js). The woven builder and kernels in `levels.js` grew from it. The current journey and custom settings are described in the [README](../README.md) and [generator design](generator-design.md).
 
 ## How levels are made
 
-Procedural straight-track generation is in [`levels.js`](../levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Twists orchestration lives in [`twists.js`](../twists.js), route-first construction in [`twist-circuits.js`](../twist-circuits.js), and routed movement in [`mechanics.js`](../mechanics.js).
+Procedural straight-track generation is in [`levels.js`](../levels.js), which has no dependency on the page. This section describes the original game; the sliding game builds on it and is described after. Twists orchestration (`twists.js`) and route-first construction (`twist-circuits.js`) were removed at the same time; full-geometry movement remains in [`mechanics.js`](../mechanics.js).
 
 **Difficulty (tangle).** A rope's *block cost* is how many layers of other ropes must leave before it can: a free rope costs 0, and a blocked rope costs 1 more than the deepest rope in its way. A rope waiting on a chain seven ropes deep costs 7.
 

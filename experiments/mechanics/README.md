@@ -40,9 +40,11 @@ Requires Node; no packages or browser required:
 
 ```sh
 node --test experiments/mechanics/*.test.cjs
-node experiments/mechanics/run.cjs
-node experiments/mechanics/springs-run.cjs
 ```
+
+`results.json` and `springs-results.json` came from `run.cjs` and `springs-run.cjs`, which
+built their corpus with the original game's set generator. Both were removed with that
+generator; check out commit d3abcdc to rerun them.
 
 Browser checks require Playwright, Chromium, and a server on port 4173 (or `MF_TEST_URL`):
 

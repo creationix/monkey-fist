@@ -9,8 +9,8 @@ function brute(ropes, W, H) {
     if (seen.has(key)) continue; seen.add(key);
     const left = paths.filter(Boolean);
     if (!left.length) return depth;
-    if (L.nothingBlocked(left, W, H)) return Math.max(1, depth);
     const occ = L.occupancy(left, W, H);
+    if (left.every(p => L.ray(p, occ, W, H).clear)) return Math.max(1, depth);
     paths.forEach((p, i) => {
       if (!p) return;
       const r = L.ray(p, occ, W, H); if (!r.clear && !r.dist) return;
@@ -44,12 +44,4 @@ test('player-tap par agrees with exhaustive search on 160 seeded small boards', 
     assert.ok(L.play(ropes, W, H, p.taps).every(p => !p)); checked++;
   }
   assert.ok(checked > 60);
-});
-test('early built-in levels have a one-tap target without changing their generated boards', () => {
-  const set = L.generateSet(L.CAMPAIGN_SLIDE);
-  for (const i of [0, 1]) {
-    const b = L.levelFrom(set.levels[i]);
-    assert.equal(b.par, 1); assert.equal(b.parExact, true);
-    assert.equal(L.playerTapCount(b.ropes, b.W, b.H, b.best), 1);
-  }
 });
