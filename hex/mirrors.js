@@ -109,7 +109,7 @@
     return walk(path.at(-1), indexOf(H.direction(path)), 0, []);
   }
   const pick = (rng, list) => list[Math.floor(rng() * list.length)];
-  function strand(level, head, dir, occupied, tiles, rng, length) {
+  function strand(level, head, dir, occupied, tiles, rng, length, minimum = 3) {
     const body = [], seen = new Set();
     const free = p => inside(level, p) && !occupied.has(key(p)) && !tiles.has(key(p)) && !seen.has(key(p));
     const previous = add(head, DIRS[mod(dir + 3)]);
@@ -121,10 +121,10 @@
       const choices = DIRS.map(d => add(body.at(-1), d)).filter(free); if (!choices.length) break;
       const p = pick(rng, choices); body.push(p); seen.add(key(p));
     }
-    return body.length >= 3 ? body.reverse() : null;
+    return body.length >= minimum ? body.reverse() : null;
   }
-  function springStrand(level, rng) {
-    const gap = 1 + Math.floor(rng() * 2), length = 2 + Math.floor(rng() * 3), path = [];
+  function springStrand(level, rng, maxGap) {
+    const gap = 1 + Math.floor(rng() * maxGap), length = 2 + Math.floor(rng() * 3), path = [];
     for (let q = length; q >= -1; q--) path.push({ q, r: -gap - 1 });
     for (let r = -gap; r <= 1; r++) path.push({ q: -1, r });
     path.push({ q: 0, r: 1 }, { q: 0, r: 0 });
@@ -132,19 +132,21 @@
     const transform = p => { let { q, r } = p; for (let j = 0; j < turn; j++) [q, r] = [-r, q + r]; return { q: q + origin.q, r: r + origin.r }; };
     return { path: path.map(transform), spring: transform({ q: 0, r: -gap }) };
   }
-  function skeleton(rng, W, height, count, wanted, springs) {
+  function skeleton(rng, W, height, count, wanted, springs, maxGap) {
     let level = { W, H: height, ropes: [], mirrors: [], springs: [], locks: [], plan: [] };
     const cells = H.cells(level), occupied = new Set(), reserved = new Set();
     for (let i = 0; i < count; i++) {
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
         const tiles = new Set([...reserved, ...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
-        const spring = springs ? springStrand(level, rng) : null;
+        const spring = springs ? springStrand(level, rng, maxGap) : null;
         const path = spring ? spring.path : strand(level, pick(rng, cells), Math.floor(rng() * 6), occupied, tiles, rng, 4 + Math.floor(rng() * 9));
         if (!path || path.some(p => !inside(level, p) || occupied.has(key(p)) || tiles.has(key(p)))) continue;
         if (spring && (!inside(level, spring.spring) || occupied.has(key(spring.spring)) || tiles.has(key(spring.spring)) || path.some(p => key(p) === key(spring.spring)))) continue;
         let variant = { ...level, ropes: level.ropes.concat([path]), springs: spring ? level.springs.concat(spring.spring) : level.springs };
-        const bounce = spring && tap(variant, Array(i).fill(null).concat([path]), i);
+        const alone = Array(i).fill(null).concat([path]);
+        if (spring && solve({ ...variant, mirrors: [], springs: [] }, alone, 100).solved !== false) continue;
+        const bounce = spring && tap(variant, alone, i);
         if (spring && bounce?.event !== 'bounce') continue;
         const current = bounce ? bounce.paths[i] : path;
         const mirrors = route(variant, current, new Set([...reserved, ...occupied, ...path.map(key), ...(bounce?.route || []).map(key)]), rng, wanted); if (!mirrors) continue;
@@ -160,10 +162,17 @@
   function populate(level, rng, stage) {
     const core = level.ropes.length, occupied = new Set(level.ropes.flat().map(key)), tiles = new Set([...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
     const cells = H.cells(level); let traced = trace(level, level.plan), followers = 0, early = 0;
+    let paths = level.ropes; const approaches = [];
+    for (const i of level.plan) {
+      const move = tap(level, paths, i);
+      if (move.event === 'bounce') approaches.push(...move.route.slice(paths[i].length));
+      paths = move.paths;
+    }
     for (let attempt = 0; attempt < cells.length * 10 && occupied.size < cells.length * .76; attempt++) {
       const dir = Math.floor(rng() * 6), target = pick(rng, level.ropes.flat());
-      const head = rng() < .8 ? add(target, DIRS[mod(dir + 3)]) : pick(rng, cells);
-      const path = strand(level, head, dir, occupied, tiles, rng, 5 + Math.floor(rng() * (8 + stage / 3))); if (!path) continue;
+      const approach = approaches.length && (attempt < 100 || rng() < .5);
+      const head = approach ? add(pick(rng, approaches), DIRS[dir]) : rng() < .8 ? add(target, DIRS[mod(dir + 3)]) : pick(rng, cells);
+      const path = strand(level, head, dir, occupied, tiles, rng, 5 + Math.floor(rng() * (8 + stage / 3)), approach ? 2 : 3); if (!path) continue;
       const deadline = Math.min(level.plan.length, ...path.map(p => traced.firstUse.get(key(p)) ?? level.plan.length));
       const i = level.ropes.length, variant = { ...level, ropes: level.ropes.concat([path]) }; let at = -1;
       for (let k = 0; k <= deadline; k++) if (tap(variant, traced.states[k].concat([path]), i)?.event === 'exit') { at = k; break; }
@@ -185,9 +194,10 @@
     const W = 7 + Math.round(stage / 59 * (opts.big ? 13 : 7)), height = 8 + Math.round(stage / 59 * (opts.big ? 16 : 10));
     const count = Math.min(5, 1 + Math.floor(stage / 10)), wanted = opts.mirrors ? stage < 3 ? 1 : stage < 30 ? 2 : 3 : 0;
     let best = null;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const core = skeleton(rng, W, height, count, wanted, springs); if (!core) continue;
+    for (let attempt = 0; attempt < (springs ? 16 : 8); attempt++) {
+      const core = skeleton(rng, W, height, count, wanted, springs, attempt < 8 ? 4 : 2); if (!core) continue;
       const candidate = populate(core, rng, stage);
+      if (springs && count > 1 && candidate.ropes.slice(0, candidate.core).every((p, i) => tap(candidate, candidate.ropes, i)?.event === 'bounce')) continue;
       if (!best || candidate.stats.coverage > best.stats.coverage) best = candidate;
       if (candidate.stats.coverage >= .65) break;
     }

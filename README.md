@@ -55,7 +55,9 @@ when resting on a mirror.
 Springs have a copper coil and braided rim. On impact they compress, and the
 arrow makes a visible U-turn and slides back alongside its own rope. The two
 strands separate during the fold, then settle into the same cells with the arrow
-at the old tail. Other ropes remain tappable. Reduced motion uses a brief fade
+at the old tail. Spring approaches have varied run-up lengths, and ordinary
+ropes can block the approach until cleared. Their removal is included in the
+generated solution certificate. Other ropes remain tappable. Reduced motion uses a brief fade
 between directions.
 
 On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled

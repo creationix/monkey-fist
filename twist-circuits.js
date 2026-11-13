@@ -19,7 +19,7 @@
     return { states, firstUse, steps, solved: paths.every(p => !p) };
   }
   function hook(rng) {
-    const gap = 1 + Math.floor(rng() * 2), length = 2 + Math.floor(rng() * 3), path = [];
+    const gap = 1 + Math.floor(rng() * 4), length = 2 + Math.floor(rng() * 3), path = [];
     for (let x = length; x >= -1; x--) path.push({ x, y: -gap - 1 });
     for (let y = -gap; y <= 1; y++) path.push({ x: -1, y });
     path.push({ x: 0, y: 1 }, { x: 0, y: 0 });
@@ -74,6 +74,7 @@
             s.spring !== undefined && s.spring !== null && (taken.has(s.spring) || reserved.has(s.spring) || tiles.includes(s.spring))) continue;
         let v = { ...b, ropes: b.ropes.concat([s.path]), springs: s.spring === undefined || s.spring === null ? b.springs : b.springs.concat(s.spring) };
         const paths = Array(i).fill(null).concat([s.path]), actions = [];
+        if (kinds.includes('springs') && M.solve({ ...v, springs: [], mirrors: [], gates: [] }, paths, 100).solved !== false) continue;
         let current = s.path;
         if (s.spring !== undefined && s.spring !== null) {
           const bounce = M.tap(v, paths, i);
@@ -112,10 +113,16 @@
     const occupied = new Set(ropes.flat().map(p => cell(p, b.W)));
     const tiles = new Set([...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)]);
     let t = trace(b, moves), followers = 0, early = 0;
+    // Give forward approaches their own dependencies, before the reversal.
+    // Keep sampling the certified route: insertion deadlines preserve the proof.
+    const approaches = t.steps.filter(step => step.event === 'bounce').flatMap(step => step.route.slice(b.ropes[step.i].length).map(p => cell(p, b.W)));
     for (let attempt = 0; attempt < b.W * b.H * 14 && occupied.size < b.W * b.H * .78; attempt++) {
+      const approach = approaches.length && (attempt < 100 || rng() < .5);
       const dependent = rng() < .85;
       let head, dir;
-      if (dependent) {
+      if (approach) {
+        const c = pick(approaches, rng); dir = pick(dirs, rng); head = { x: c % b.W + dir[0], y: Math.floor(c / b.W) + dir[1] };
+      } else if (dependent) {
         const target = pick([...occupied], rng); dir = pick(dirs, rng);
         head = { x: target % b.W - dir[0], y: Math.floor(target / b.W) - dir[1] };
       } else { head = { x: Math.floor(rng() * b.W), y: Math.floor(rng() * b.H) }; dir = pick(dirs, rng); }
@@ -128,7 +135,7 @@
         const p = backward.at(-1), options = dirs.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).filter(free);
         if (!options.length) break; backward.push(pick(options, rng));
       }
-      if (backward.length < 3) continue;
+      if (backward.length < (approach ? 2 : 3)) continue;
       const path = backward.reverse(), deadline = Math.min(moves.length, ...path.map(p => t.firstUse.get(cell(p, b.W)) ?? moves.length));
       const i = ropes.length, v = { ...b, ropes: ropes.concat([path]) };
       let at = -1;

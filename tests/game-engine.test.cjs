@@ -61,3 +61,25 @@ test('only a group’s last level opens the next ten; custom sets stay fully ope
   }
   assert.equal(chapters, 12); assert.equal(G.available({ count: 237 }), 237);
 });
+
+test('Journey springs have varied approaches and require clearing another rope on both grids', () => {
+  const distances = { square: new Set(), hex: new Set() };
+  for (let index = 0; index < G.DEFAULT.count; index++) {
+    if (!G.spec(G.DEFAULT, index).springs) continue;
+    const b = G.generate({ ...G.DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0;
+    for (const i of b.plan) {
+      const move = G.tap(b, paths, i);
+      if (move.event === 'bounce') {
+        distances[b.grid].add(move.distance); bounces++;
+        if (G.tap(b, b.ropes, i)?.event !== 'bounce') blocked++;
+      }
+      paths = move.paths;
+    }
+    assert.ok(paths.every(p => !p)); assert.ok(bounces >= b.springs.length);
+    assert.ok(blocked > 0, `level ${index + 1} needs a dependency before a spring`);
+  }
+  for (const grid of ['square', 'hex']) {
+    assert.ok(distances[grid].size >= 3, grid + ' needs varied run-up lengths');
+    assert.ok([...distances[grid]].some(n => n >= 2), grid + ' needs space between rope and spring');
+  }
+});
