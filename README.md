@@ -20,8 +20,10 @@ hand-picked:
   make, and how often a casual player (exits first, otherwise random moves)
   loses. Each level is the best of several seeds for a target that rises over
   the Journey. Mirrors and spring spinners start after the opening ten and recur
-  throughout. Mirror levels are sliding puzzles in their own right: ropes are
-  woven around the mirrors with knots and traps.
+  throughout. Mirror and spinner levels are sliding puzzles in their own right:
+  ropes are woven around the mirrors with knots and traps, and spinners are added
+  only where the solution must bounce off them. From chapter 4, levels are chosen
+  so that a careless slide can lose them.
 - Most later puzzles use mirrors, spinners, or both, with a plain-rules interlude
   in each chapter. Late mirror maps use at least three mirrors; late spinner maps
   use at least two distinct spinners. Their verified solutions must use them
@@ -204,7 +206,7 @@ Checks after off-certificate moves and hint searches run in a cancellable worker
 so the next tap and animations do not wait for search. New moves, undo, and restart
 discard stale results. The workerless fallback uses a much smaller search budget.
 
-Hex routed generation constructs core escape paths, then interleaves long
+For colossal maps, Hex routed generation constructs core escape paths, then interleaves long
 follower ropes whose removal fits the certificate. Every placed mirror must
 actually turn a route. Square circuits similarly weave blockers through routed
 paths. In the grid-based format, difficulty changes blocking depth, sliding,

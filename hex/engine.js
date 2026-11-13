@@ -285,7 +285,8 @@
     const occupied = new Int32Array(area).fill(-1), seen = new Int32Array(area), forward = new Int32Array(area);
     const level = { W, H, ropes: [], locks: [], ...(cfg.mirrors?.length ? { mirrors: cfg.mirrors } : {}) }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
     const bent = mirrorCells(level), tile = new Uint8Array(area); for (const c of bent.keys()) tile[c] = 1;
-    const free = c => c >= 0 && occupied[c] < 0 && !tile[c];
+    const kept = new Uint8Array(area); // empty gaps in front of traps, which no rope may fill
+    const free = c => c >= 0 && occupied[c] < 0 && !tile[c] && !kept[c];
     const ray = (head, d) => bent.size ? rayTrack(level, head, d, bent) : (() => { const out = []; for (let c = neighbours[head][d]; c >= 0; c = neighbours[c][d]) out.push(c); return out; })();
     // `aim`, if given, fixes the head and its direction (toward a mirror).
     function shape(want, minimum = Math.max(2, cfg.minLength || 3), aim = null) {
@@ -355,7 +356,39 @@
     };
     const noteTurns = path => { if (bent.size) rayTrack(level, cell(path.at(-1), W), exitIndex(level, path, bent), bent, [], turnedBy); };
     for (const path of level.ropes) noteTurns(path);
+    // Traps: a rope with a short empty gap ahead of its head, kept empty, such that
+    // sliding into the gap leaves some rope that can never leave (checked with the
+    // relaxation). A careless slide can then lose the board, as on square grids.
+    let traps = 0;
+    function tryTrap() {
+      // A slide is fatal when the rope comes to rest on the way out of the rope it is
+      // waiting behind: each then waits on the other for good. Prefer such gaps.
+      const board = compile(level), wayOut = board.tracks.map((track, i) => new Set(track.slice(board.lengths[i])));
+      const spots = [], deadly = [];
+      for (let c = 0; c < area; c++) if (free(c)) for (let d = 0; d < 6; d++) {
+        if (!free(neighbours[c][(d + 3) % 6])) continue;
+        const ahead = ray(c, d); if (!ahead) continue;
+        let gap = 0; while (gap < ahead.length && gap < 4 && occupied[ahead[gap]] < 0) gap++;
+        if (gap >= 1 && gap <= 3 && gap < ahead.length && occupied[ahead[gap]] >= 0 && ahead.slice(0, gap).every(x => !kept[x])) {
+          const spot = { c, d, gap, cells: ahead.slice(0, gap) }, blocker = occupied[ahead[gap]];
+          spots.push(spot); if (blocker < wayOut.length && [c, ...spot.cells].some(x => wayOut[blocker].has(x))) deadly.push(spot);
+        }
+      }
+      const pool = deadly.length ? deadly : spots;
+      for (let t = 0; t < 16 && pool.length; t++) {
+        const spot = pick(rng, pool), shaped = shape(3 + Math.floor(rng() * Math.max(2, cfg.length / 2)), 2, { head: spot.c, dir: spot.d }); if (!shaped) continue;
+        const id = level.ropes.length; level.ropes.push(shaped.path); stops.push(null);
+        const trial = intentions(level, stops); let fatal = false;
+        if (trial) { const board = compile(level); if (board.to(id) === spot.gap) { board.place(id, spot.gap); fatal = board.dead(); } }
+        if (!fatal) { level.ropes.pop(); stops.pop(); continue; }
+        result = trial; noteTurns(shaped.path); shaped.ids.forEach(c => occupied[c] = id); covered += shaped.ids.length;
+        for (const x of spot.cells) kept[x] = 1;
+        traps++; return true;
+      }
+      return false;
+    }
     while ((cfg.ropeCount ? level.ropes.length < cfg.ropeCount : covered < area * cfg.coverage) && attempts < area * 22) {
+      if (traps < (cfg.traps || 0) && level.ropes.length >= 2 && rng() < .5 && tryTrap()) continue;
       let best = null;
       const aim = bent.size > turnedBy.size;
       for (let n = 0; n < 12 && attempts++ < area * 22; n++) {
@@ -374,7 +407,7 @@
     const certified = intentions(level, stops, result.moves);
     if (!certified) throw Error('Hex weaving certificate failed');
     const bends = level.ropes.map(path => path.slice(2).reduce((sum, p, j) => sum + Number(p.q - path[j + 1].q !== path[j + 1].q - path[j].q || p.r - path[j + 1].r !== path[j + 1].r - path[j].r), 0));
-    return { ...level, plan: result.moves, slides: knots, wantedSlides: cfg.knots,
+    return { ...level, plan: result.moves, slides: knots, wantedSlides: cfg.knots, traps,
       stats: { cells: area, coverage: covered / area, depth: certified.depth, averageDepth: certified.cost / level.ropes.length,
         averageLength: covered / level.ropes.length, longest: Math.max(...level.ropes.map(p => p.length)), bends: bends.reduce((a, b) => a + b, 0), longestBends: Math.max(...bends) } };
   }

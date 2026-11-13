@@ -137,18 +137,19 @@ test('Journey difficulty is measured by play and rises across chapters', () => {
   const chapters = Array.from({ length:12 },(_,c) => mean(levels.slice(c*10,c*10+10).map(b => b.play.challenge)));
   for (let c = 1; c < 12; c++) assert.ok(chapters[c] >= chapters[c-1] - 1,'no chapter is much easier than the one before it: '+chapters.map(x => x.toFixed(1)).join(' '));
   assert.ok(chapters[11] >= chapters[1] + 4,'the last chapter is substantially harder than the second');
-  for (let c = 1; c < 12; c++) {
-    const mirrored = levels.slice(c*10,c*10+10).filter(b => b.mirrors && !b.springs);
-    if (c >= 3) assert.ok(mirrored.some(b => b.play.work >= 2),'mirror levels need slides, not only exits, in chapter '+(c+1));
+  for (let c = 3; c < 12; c++) {
+    const cards = levels.slice(c*10,c*10+10);
+    for (const b of cards) assert.ok(b.play.casualWins < 1,'from chapter 4 every level can be lost by a careless slide: level '+(c*10+cards.indexOf(b)+1));
+    for (const b of cards.filter(b => b.mirrors && !b.springs)) assert.ok(b.play.work >= 1,'mirror levels need slides, not only exits, in chapter '+(c+1));
   }
 });
 
-test('later plain-rule interludes require real repeated sliding work', () => {
+test('later plain-rule interludes require real sliding work that can be lost', () => {
   const levels = require('../grid-journey');
   const plain = levels.filter((b,i) => i >= 40 && !b.mirrors && !b.springs); assert.ok(plain.length >= 4);
   for (const b of plain) {
-    assert.ok(b.minParRatio > 1); assert.ok(b.par > b.ropeCount,'repeated work pushes the manual target above a single move per rope');
+    assert.ok(b.minParRatio > 1); assert.ok(b.par > b.ropeCount,'required slides push the manual target above a single move per rope');
     assert.ok(b.minPartialSlides >= 3); assert.ok(b.slideStats.manualSlides >= b.minPartialSlides);
-    assert.ok(b.slideStats.repeatedRopes >= 1); assert.ok(b.featureUse.repeatedSlideRopes >= 1);
+    assert.ok(b.play.casualWins < 1,'a careless slide can lose a late plain-rules level');
   }
 });

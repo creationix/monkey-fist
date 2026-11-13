@@ -629,6 +629,37 @@ What did not improve:
 - **Proofs.** 42 of 120 pars are proven minimal; the rest are the best solution
   found after postponement.
 
+### 5.8 Generation revision 7: losable spinner levels
+
+Revision 7 applied the remaining diagnosis: in chapters 4 to 12 of the revision
+5/6 Journey, 26 levels could not be lost, 14 of them spinner levels built on the
+repeated-slide motif, 7 Hex levels (the Hex builder had no traps) and 5 square
+levels where traps rarely fitted. The changes:
+
+- **Spinner levels are woven.** A woven board (with mirrors for combined levels)
+  gets spinners on empty cells that some rope's way out crosses, kept only if the
+  board still solves under the full rules and the solution bounces off them
+  during manual play. A test on 8 woven 10 × 14 boards found a usable spinner on
+  every board, and the best placement cut the casual win rate from 70 % to 36 %.
+- **Hex traps**, aimed at gaps on the way out of the rope ahead.
+- **Losability in selection.** The generator penalises candidates above a casual
+  win ceiling, and the Journey builder caps each chapter's win rate from chapter 4.
+  The late "a rope must slide twice" requirements, which forced the safe motif,
+  were dropped.
+
+| Measure (levels 11 to 120) | Revision 6 | Revision 7 |
+| --- | --- | --- |
+| Levels the casual player cannot lose | 45 | 20 |
+| ... in chapters 4 to 12 | 26 | 0 |
+| Mean casual win rate | 73 % | 54 % |
+| Casual win rate, chapters 10 / 11 / 12 | 68 / 49 / 44 % | 31 / 25 / 32 % |
+| Levels on the full 12 × 16 grid | 5 | 0 |
+| Mean generation time per level | 219 ms | 510 ms |
+
+The remaining unlosable levels are all in chapters 1 to 3, by design. Two costs:
+spinner levels take longer to generate (median about 0.6 s, worst 2.2 s), and
+the curve now steps up at chapter 4, where the losability cap begins.
+
 ## 6. Applying the techniques
 
 The recommendations are ordered by evidence and cost. The first two are

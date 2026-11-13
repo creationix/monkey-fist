@@ -44,7 +44,7 @@ async function seedSave(page, data) {
   }, data);
 }
 // The builder records previousIndex for any board whose layout survived from the
-// published GRID_VERSION 5 campaign. Serve metadata with known values to test the mapping.
+// previous published campaign. Serve metadata with known values to test the mapping.
 function withPrevious(assignments) {
   const journey = require('../grid-journey').map(level => { const { previousIndex, ...rest } = level; return rest; });
   for (const [index,previous] of Object.entries(assignments)) journey[index].previousIndex = previous;
@@ -56,7 +56,7 @@ async function serve(browser, journey) {
   return context.newPage();
 }
 
-test('untagged GRID_VERSION 5 scores carry only when the published previous-layout map matches', { timeout: 60000 }, async () => {
+test('untagged scores from the previous GRID_VERSION carry only when the published previous-layout map matches', { timeout: 60000 }, async () => {
   const journey = require('../grid-journey');
   const scores = Object.fromEntries(Array.from({length:120},(_,index)=>[index,{taps:index+1,stars:1+index%3}]));
   const expected = Object.fromEntries(journey.flatMap((level,index)=>Number.isInteger(level.previousIndex)?[[index,scores[level.previousIndex]]]:[]));
@@ -65,13 +65,13 @@ test('untagged GRID_VERSION 5 scores carry only when the published previous-layo
   const browser = await launch();
   try {
     const page = await browser.newPage();
-    await seedSave(page,{ gen:1,gridGen:5,chapters:2,chapterSets:{'J3-MONKEYFIST':7},sets:{'J3-MONKEYFIST':scores},sound:'off',music:false,moveSpeed:'fast',oled:true });
+    await seedSave(page,{ gen:1,gridGen:require('../game-engine').GRID_VERSION-1,chapters:2,chapterSets:{'J3-MONKEYFIST':7},sets:{'J3-MONKEYFIST':scores},sound:'off',music:false,moveSpeed:'fast',oled:true });
     await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
     const state = await page.evaluate(() => __game.save);
     assert.equal(state.gridGen,require('../game-engine').GRID_VERSION);
     assert.equal(state.chapterSets['J3-MONKEYFIST'],7);
     assert.deepEqual(state.sets['J3-MONKEYFIST']||{},expected);
-    assert.deepEqual(state.archives?.['grid-gen-5']?.['J3-MONKEYFIST']||{},changed);
+    assert.deepEqual(state.archives?.['grid-gen-'+(require('../game-engine').GRID_VERSION-1)]?.['J3-MONKEYFIST']||{},changed);
     assert.equal(state.moveSpeed,'fast'); assert.equal(state.oled,true); assert.equal(state.sound,'off');
     await page.click('#levels'); assert.equal(await page.locator('#grid button:enabled').count(),70);
     await page.reload(); await ready(page);
@@ -86,11 +86,11 @@ test('untagged scores follow a known previous-index map and the rest are archive
   const browser = await launch();
   try {
     const page = await serve(browser, journey);
-    await seedSave(page,{ gen:1,gridGen:5,chapters:2,chapterSets:{'J3-MONKEYFIST':7},sets:{'J3-MONKEYFIST':scores},sound:'off',music:false });
+    await seedSave(page,{ gen:1,gridGen:require('../game-engine').GRID_VERSION-1,chapters:2,chapterSets:{'J3-MONKEYFIST':7},sets:{'J3-MONKEYFIST':scores},sound:'off',music:false });
     await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
     const state = await page.evaluate(() => __game.save);
     assert.deepEqual(state.sets['J3-MONKEYFIST'],{ 0:scores[17],7:scores[3],44:scores[90] });
-    assert.deepEqual(state.archives['grid-gen-5']['J3-MONKEYFIST'],{ 11:scores[11] },'changed maps do not inherit a previous level number’s stars');
+    assert.deepEqual(state.archives['grid-gen-'+(require('../game-engine').GRID_VERSION-1)]['J3-MONKEYFIST'],{ 11:scores[11] },'changed maps do not inherit a previous level number’s stars');
   } finally { await browser.close(); }
 });
 
@@ -102,7 +102,7 @@ test('untagged scores from before the previous published Journey are archived, n
     await seedSave(page,{ gen:1,gridGen:4,chapterSets:{'J3-MONKEYFIST':2},sets:{'J3-MONKEYFIST':scores} });
     await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
     const state = await page.evaluate(() => __game.save);
-    assert.equal(state.sets['J3-MONKEYFIST'],undefined,'previousIndex names GRID_VERSION 5 positions, not GRID_VERSION 4 ones');
+    assert.equal(state.sets['J3-MONKEYFIST'],undefined,'previousIndex names the previous GRID_VERSION positions, not older ones');
     assert.deepEqual(state.archives['grid-gen-4']['J3-MONKEYFIST'],scores);
   } finally { await browser.close(); }
 });
@@ -115,7 +115,7 @@ test('previousIndex migration follows a metadata reorder instead of retaining ol
   const browser = await launch();
   try {
     const page = await serve(browser, reordered);
-    await seedSave(page,{ gen:1,gridGen:5,chapterSets:{'J3-MONKEYFIST':3},sets:{'J3-MONKEYFIST':{ 7:first,97:second }} });
+    await seedSave(page,{ gen:1,gridGen:require('../game-engine').GRID_VERSION-1,chapterSets:{'J3-MONKEYFIST':3},sets:{'J3-MONKEYFIST':{ 7:first,97:second }} });
     await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
     const state = await page.evaluate(() => __game.save);
     assert.deepEqual(state.sets['J3-MONKEYFIST'][0],second);

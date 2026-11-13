@@ -108,8 +108,12 @@ candidates inside the exact requested dimensions.
 For ordinary square boards, `levels.js` constructs ropes together with a
 replayable sequence of intermediate stops and exits, then packs remaining gaps.
 For ordinary Hex boards, `hex/engine.js` seeds mutual-wait pairs and adds long
-strands while maintaining a complete certificate. Its straight-track solver
-represents a rope by its offset along its original body and forward ray.
+strands while maintaining a complete certificate. It also places traps: a rope
+with a one-to-three-cell gap ahead of its head, kept empty, accepted only if
+sliding into the gap leaves some rope that can never leave. It prefers gaps that
+lie on the way out of the rope ahead, where such a deadlock forms. Its
+straight-track solver represents a rope by its offset along its original body and
+forward ray.
 
 Mirrors no longer need a separate construction. Without spinners, a rope's
 future cells are one fixed sequence even with fixed mirrors: its body, then its
@@ -122,7 +126,14 @@ some ropes at idle mirrors, and finally removes mirrors no rope turns on. The
 offset model was cross-checked against the game's own taps over more than
 14,000 random moves on both grids without a disagreement.
 
-For spinners, and for colossal mirror maps, `twist-circuits.js` and
+Spinner levels are woven too. The board is first woven as a sliding puzzle
+(with mirrors for combined levels). Spinners are then tried, in seeded order, on
+empty cells that some rope's way out crosses and that are not directly in front
+of a head. One is kept only if the board still solves under the full rules and
+that solution bounces off it before the automatic release. The woven board's
+knots and traps survive, so a careless slide can still lose the level.
+
+For colossal maps with mechanics, `twist-circuits.js` and
 `hex/mirrors.js` construct routed core ropes first. Ordinary ropes are inserted at positions in that certificate
 where they can legally leave before a route needs their occupied cells. This
 can create dependencies both before and after a mechanic move. The routed
@@ -173,8 +184,11 @@ bounces in its par solution (`work`) and by how often a casual player wins: one
 that taps a rope that can leave if there is one, and otherwise any legal move,
 at random. The measured challenge is `work + 6 × (1 − wins)`; the difficulty
 setting maps to a target `0.5 + 9.5 (d/100)^1.3`, and the candidate closest to
-it (weighted with density) is kept. Playouts run on the compact offset kernels
-except on spinner boards, which use fewer games on the routed rules.
+it (weighted with density) is kept. Above difficulty 40, a candidate whose
+casual win rate exceeds a ceiling (falling to 50 % at difficulty 100) is
+penalised, so forced but safe work cannot stand in for decisions. Playouts run on
+the compact offset kernels except on spinner boards, which use fewer games on the
+routed rules.
 
 Colossal generation uses longer ropes, fewer candidate attempts, no expensive
 optimal-par or structural search, and a deterministic packing-work budget. It
@@ -266,10 +280,11 @@ spinners are established before allowing further core ropes to share them;
 shared occupancy still follows normal collision rules.
 
 From chapter 7, featured levels also require at least three manual partial
-slides, two repeatedly slid ropes, an intervening filler move, and reported
-par/rope count of at least 1.05. Late plain levels have similar sliding and ratio
-requirements. The builder retries bounded seed alternatives if a specification
-cannot be satisfied; it never substitutes a sparse or unsolved map.
+slides; from chapter 5, plain levels require three and par of at least 1.05 per
+rope. From chapter 4 a level should also be losable: the builder caps the casual
+player's win rate at 85 % (chapters 4 to 6), 75 % (7 to 9) and 65 % (10 to 12),
+keeps trying seeds while the best candidate is over the cap, and otherwise takes
+the most losable one. It never substitutes a sparse or unsolved map.
 
 ### Reproducibility and progress migration
 
@@ -287,9 +302,9 @@ for changed boards are archived; chapter access and preferences are retained.
 
 - The casual player is a comparative measure, not a model of people; it has not
   been calibrated against human solving times.
-- Spinner levels still use routed circuits and the repeated-slide core. Their
-  slides come mostly from that core, and they are the least losable featured
-  levels in the late chapters.
+- Spinners are placed after weaving and checked with the full-geometry solver,
+  so spinner levels take longer to generate (up to about two seconds) and their
+  par is less often proven minimal.
 - Construction starts from a limited family of sliding and routed cores. Dense
   packing and random transformations add variety, but this does not explore every
   possible dependency structure.
