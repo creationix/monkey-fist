@@ -47,3 +47,19 @@ test('square and hex bends use circular fillets with continuous tangents and nor
     for (let i = 0; i <= 10; i++) assert.ok(Object.values(rope.at(rope.length * i / 10, 5)).every(Number.isFinite));
   }
 });
+
+test('activation outlines follow the same circular bends without protruding grey corner points', async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage(); await page.addScriptTag({ path: path.join(__dirname, '../rope-art.js') });
+    const pixels = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = c.height = 200; const ctx = c.getContext('2d');
+      const points = [{ x: 40, y: 160 }, { x: 40, y: 40 }, { x: 160, y: 40 }];
+      MFRopeArt.stroke(ctx, points, 40, 51, '#fff1b433');
+      MFRopeArt.draw(ctx, points, 40, '#58b7ef', null);
+      return { corner: ctx.getImageData(24, 24, 1, 1).data[3], border: ctx.getImageData(31, 31, 1, 1).data[3] };
+    });
+    assert.equal(pixels.corner, 0, 'no highlight remains at the raw grid corner');
+    assert.ok(pixels.border > 0, 'the thin highlight still follows the curved cord');
+  } finally { await browser.close(); }
+});

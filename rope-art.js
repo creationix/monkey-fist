@@ -76,6 +76,13 @@
   function ink(ctx, paths, color) {
     for (const [i, path] of paths.entries()) { ctx.fillStyle = i === 1 ? shade(color, .38) : i === 2 ? shade(color, -.35) : shade(color, .12); ctx.fill(path); }
   }
+  function stroke(ctx, points, width, strokeWidth, color, moving = false) {
+    if (points.length < 2) return;
+    const g = geometry(points, width, 0, moving);
+    ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width);
+    ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.lineWidth = strokeWidth / width;
+    ctx.stroke(g.line); ctx.restore();
+  }
   function draw(ctx, points, width, color, head, moving = false) {
     if (points.length < 2) return;
     // At Fit on mega maps, color and silhouette matter more than tiny stitches.
@@ -98,5 +105,5 @@
     ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49);
     ctx.strokeStyle = shade(color, -.55); ctx.lineWidth = .13; ctx.lineJoin = 'round'; ctx.stroke(); ctx.restore();
   }
-  root.MFRopeArt = { draw, trace };
+  root.MFRopeArt = { draw, trace, stroke };
 })(globalThis);
