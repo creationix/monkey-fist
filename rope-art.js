@@ -155,20 +155,20 @@
     if (points.length < 2) return;
     const g = tileGeometry(points, width, moving), alpha = ctx.globalAlpha;
     ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width); ctx.lineJoin = 'bevel';
-    ctx.globalAlpha = alpha * .42; ctx.fillStyle = color; ctx.fill(g.outline);
-    ctx.globalAlpha = alpha * .9; ctx.strokeStyle = shade(color, -.25); ctx.lineWidth = .11; ctx.stroke(g.outline);
-    ctx.save(); ctx.clip(g.outline); ctx.globalAlpha = alpha * .18; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035; ctx.stroke(g.ribs);
-    ctx.globalAlpha = alpha * .06; ctx.lineWidth = .42; ctx.stroke(g.line); ctx.restore();
-    ctx.globalAlpha = alpha * .35; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .025; ctx.stroke(g.outline); ctx.restore();
+    ctx.globalAlpha = alpha * .52; ctx.fillStyle = color; ctx.fill(g.outline);
+    ctx.globalAlpha = alpha * .9; ctx.strokeStyle = shade(color, -.05); ctx.lineWidth = .11; ctx.stroke(g.outline);
+    ctx.save(); ctx.clip(g.outline); ctx.globalAlpha = alpha * .22; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035; ctx.stroke(g.ribs);
+    ctx.globalAlpha = alpha * .08; ctx.lineWidth = .42; ctx.stroke(g.line); ctx.restore();
+    ctx.globalAlpha = alpha * .42; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .025; ctx.stroke(g.outline); ctx.restore();
     if (!head) return;
     const tip = points.at(-1), triangle = new Path2D(); polygon(triangle, [{ x: -.3, y: -.77 }, { x: 1.1, y: 0 }, { x: -.3, y: .77 }]);
     ctx.save(); ctx.translate(tip.x, tip.y); ctx.rotate(Math.atan2(head.y, head.x)); ctx.scale(width, width); ctx.lineJoin = 'bevel';
-    ctx.globalAlpha = alpha * .42; ctx.fillStyle = color; ctx.fill(triangle);
-    ctx.save(); ctx.clip(triangle); ctx.globalAlpha = alpha * .18; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035;
+    ctx.globalAlpha = alpha * .52; ctx.fillStyle = color; ctx.fill(triangle);
+    ctx.save(); ctx.clip(triangle); ctx.globalAlpha = alpha * .22; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035;
     ctx.beginPath(); for (let c = Math.floor((g.length - 1) / .9); c <= Math.ceil((g.length + 2) / .9); c++) {
       const x = c * .9 - g.length; ctx.moveTo(x - .18, -.8); ctx.lineTo(x + .18, .8);
     } ctx.stroke(); ctx.restore();
-    ctx.globalAlpha = alpha * .95; ctx.strokeStyle = shade(color, -.25); ctx.lineWidth = .11;
+    ctx.globalAlpha = alpha * .95; ctx.strokeStyle = shade(color, -.05); ctx.lineWidth = .11;
     ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49); ctx.stroke();
     ctx.restore();
   }

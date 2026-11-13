@@ -568,8 +568,8 @@ function drawTileSpring(spring, move) {
   const s = G.view.scale, p = screen(spring), alpha = ctx.globalAlpha;
   ctx.save(); ctx.translate(p.x, p.y);
   if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
-  const gear = gearPath(s); ctx.globalAlpha = alpha * .28; ctx.fillStyle = '#ffc169'; ctx.fill(gear);
-  ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#daa05e'; ctx.lineWidth = s * .035; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
+  const gear = gearPath(s); ctx.globalAlpha = alpha * .38; ctx.fillStyle = '#ffc169'; ctx.fill(gear);
+  ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#f4bf78'; ctx.lineWidth = s * .035; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
   ctx.globalAlpha = alpha * .3; ctx.strokeStyle = '#fff4cf'; ctx.lineWidth = s * .01; ctx.stroke(gear);
   ctx.globalAlpha = alpha * .85; path(ctx, [{ x: -s * .14, y: s * .11 }, { x: -s * .14, y: -s * .11 }, { x: s * .14, y: -s * .11 }, { x: s * .14, y: s * .07 }]);
   ctx.strokeStyle = '#ffd293'; ctx.lineWidth = s * .038; ctx.stroke();
@@ -612,7 +612,7 @@ function drawMirrors(activeSprings, dynamic = false) {
     if (save.graphics === 'tiles') {
       ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
       const alpha = ctx.globalAlpha, glass = new Path2D(); glass.rect(-length / 2, -s * .08, length, s * .16);
-      ctx.globalAlpha = alpha * .3; ctx.fillStyle = '#8edce0'; ctx.fill(glass);
+      ctx.globalAlpha = alpha * .4; ctx.fillStyle = '#8edce0'; ctx.fill(glass);
       ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#9ad7d4'; ctx.lineWidth = s * .03; ctx.lineJoin = 'bevel'; ctx.stroke(glass);
       ctx.clip(glass); ctx.globalAlpha = alpha * .2; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = s * .012; ctx.beginPath();
       for (let x = -length / 2; x < length; x += s * .14) { ctx.moveTo(x, -s * .08); ctx.lineTo(x + s * .1, s * .08); } ctx.stroke(); ctx.restore(); continue;
