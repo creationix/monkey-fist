@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v42';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=1', './app.js?v=3', './game-engine.js?v=2', './generator-worker.js?v=2', './rope-art.js?v=2', './random.js?v=1', './levels.js?v=31', './mechanics.js?v=30', './twist-circuits.js?v=31', './twists.js?v=32', './music.js?v=32', './sounds.js?v=1', './audio.js?v=2', './hex/', './hex/index.html', './hex/engine.js?v=5', './hex/mirrors.js?v=1', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v43';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=1', './app.js?v=4', './game-engine.js?v=2', './generator-worker.js?v=2', './rope-art.js?v=2', './random.js?v=1', './levels.js?v=31', './mechanics.js?v=30', './twist-circuits.js?v=31', './twists.js?v=32', './music.js?v=32', './sounds.js?v=1', './audio.js?v=2', './hex/', './hex/index.html', './hex/engine.js?v=5', './hex/mirrors.js?v=1', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));

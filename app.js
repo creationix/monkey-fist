@@ -1,6 +1,9 @@
 /* global MFGame, MFHex, MFAudio, MFRopeArt */
 'use strict';
-const H = MFGame, $ = id => document.getElementById(id), canvas = $('board'), ctx = canvas.getContext('2d');
+const H = MFGame, $ = id => document.getElementById(id), canvas = $('board'), mainContext = canvas.getContext('2d');
+let ctx = mainContext;
+const restingCanvas = document.createElement('canvas'), restingContext = restingCanvas.getContext('2d');
+let restingKey = [];
 const PALETTE = ['#37d5ac', '#f9bd4a', '#a987f5', '#f785ac', '#58b7ef', '#f7a251', '#e8dca1', '#f46f73', '#73d677'];
 const STORAGE = 'monkey-fist-unified-v1';
 let save; try { save = JSON.parse(localStorage.getItem(STORAGE)) || {}; } catch { save = {}; }
@@ -194,8 +197,8 @@ function finish() {
 }
 function update(dt) {
   if (!G.level || $('chooser').open) return;
-  if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) G.hint = -1; }
-  if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) G.bump = null; }
+  if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) { G.hint = -1; drawNext = true; } }
+  if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) { G.bump = null; drawNext = true; } }
   let settled = false;
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
@@ -211,6 +214,7 @@ function screen(p) { const v = raw(p, G.view.rotated); return { x: G.view.ox + v
 function resize() {
   const rect = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2.5); width = rect.width; height = rect.height;
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  restingCanvas.width = canvas.width; restingCanvas.height = canvas.height; restingContext.setTransform(dpr, 0, 0, dpr, 0, 0); restingKey = [];
   if (!G.level) return;
   const points = H.cells(G.level).map(p => H.project(p, G.level)), minX = Math.min(...points.map(p => p.x)) - .6, maxX = Math.max(...points.map(p => p.x)) + .6;
   const minY = Math.min(...points.map(p => p.y)) - .6, maxY = Math.max(...points.map(p => p.y)) + .6, w = maxX - minX, h = maxY - minY;
@@ -266,6 +270,9 @@ function visiblePath(i) {
 }
 function drawRope(i, time) {
   const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
+  if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
@@ -309,9 +316,8 @@ function drawMirrors() {
     ctx.strokeStyle = '#ffb35a'; ctx.lineWidth = s * .052; ctx.stroke(); ctx.restore();
   }
 }
-function draw(time) {
-  drawNext = false;
-  ctx.clearRect(0, 0, width, height); if (!G.level) return;
+function drawRestingBoard() {
+  ctx.clearRect(0, 0, width, height);
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
   board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
   const surface = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
@@ -321,8 +327,21 @@ function draw(time) {
   ctx.fillStyle = '#b3d7d91c';
   for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
   drawMirrors();
-  for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i)) drawRope(i, time);
+  for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i) && i !== G.hint && i !== G.selected && i !== G.bump?.i) drawRope(i, 0);
   ctx.restore();
+}
+function draw(time) {
+  drawNext = false;
+  if (!G.level) { ctx.clearRect(0, 0, width, height); return; }
+  // Reuse the rasterized stationary scene, not hundreds of texture paths on
+  // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
+  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, [...G.moves.keys()].join(',')];
+  if (key.some((v, i) => v !== restingKey[i])) {
+    ctx = restingContext;
+    try { drawRestingBoard(); restingKey = key; } finally { ctx = mainContext; }
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(restingCanvas, 0, 0); ctx.restore();
+  for (const i of new Set([G.hint, G.selected, G.bump?.i])) if (i >= 0 && G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   // Departing ropes stay visible all the way off-screen, including rotated boards.
   for (const i of G.moves.keys()) drawRope(i, time);
 }
