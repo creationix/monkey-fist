@@ -996,11 +996,12 @@ const MFLevels = (() => {
     let stuck = 0;
     for (let guard = 0; guard < 2 * N; guard++) {
       const n = b.n, score = total0 + bendSum;
-      if (score >= sMin && n >= MIN_ROPES && covered >= coverGoal) break;
+      if (cfg.ropeCount && n >= cfg.ropeCount) break;
+      if (!cfg.ropeCount && score >= sMin && n >= MIN_ROPES && covered >= coverGoal) break;
       const budget = sMax - score;
       const room = Math.max(1, (coverGoal - covered) / meanLen);
       const pace = ((sMin + sMax) / 2 - score) / room - cfg.bends, depth = cfg.wantAvg * (n + 1) - total0;
-      const desire = Math.max(0, Math.min(budget, Math.round(Math.max(pace, depth))));
+      const desire = cfg.tapDepth ?? Math.max(0, Math.min(budget, Math.round(Math.max(pace, depth))));
       const need = sMin - score;
       const kinds = !n ? ['any'] : budget < 1 ? ['plain'] : desire >= 2 ? ['deep', 'deep', 'leaf', 'inner', 'deep', 'any', 'leaf', 'inner'] : desire >= 1 ? ['leaf', 'inner', 'any', 'leaf', 'inner', 'plain', 'any', 'leaf'] : ['inner', 'any', 'plain', 'inner', 'any', 'plain', 'inner', 'any'];
       survey();
@@ -1038,6 +1039,7 @@ const MFLevels = (() => {
       for (let c = 0; c < N; c++) if (occ[c] === -1) empty.push(c);
       for (let i = empty.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = empty[i]; empty[i] = empty[j]; empty[j] = t; }
       for (const cell of empty) {
+        if (cfg.ropeCount && b.n >= cfg.ropeCount) break;
         if (occ[cell] !== -1) continue;
         const n = b.n, budget = sMax - total0 - bendSum;
         for (let t = 0; t < 3; t++) {
@@ -1048,7 +1050,7 @@ const MFLevels = (() => {
       }
     }
     const n = b.n;
-    if (n < MIN_ROPES || !replay(order, -1)) return null;
+    if (n < (cfg.ropeCount ? 2 : MIN_ROPES) || cfg.ropeCount && n !== cfg.ropeCount || !replay(order, -1)) return null;
     const costs = Array.from(cost.subarray(0, n)), solution = taps.slice();
     // Trim away empty outer rows and columns, and keep the board portrait (see construct).
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
@@ -1057,7 +1059,7 @@ const MFLevels = (() => {
     const tall = h >= w;
     const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
     if (!tall) { const t = w; w = h; h = t; }
-    if (!goodEnough(ropes, w, h, costs, true)) return null;
+    if (!cfg.ropeCount && !goodEnough(ropes, w, h, costs, true)) return null;
     if (play(ropes, w, h, solution).some(Boolean)) return null; // cannot happen; but never hand out a level without its solution
     // Count the knots that really are one (a rope meant to slide that starts in a loop), and the
     // slides open at the start that would leave ropes that can never get out.

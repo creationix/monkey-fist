@@ -9,10 +9,11 @@ No build step, dependencies, accounts, or network requests during play.
 
 The default journey has 120 deterministic, procedurally generated levels:
 
-- Levels 1–5 introduce square movement on small boards.
-- Levels 6–10 introduce the six directions of Hex on small boards.
-- After that, square and Hex alternate, with gradually larger, more tangled ropes.
-- Mirrors first appear in the fourth group. Occasional springs join later.
+- Small square and Hex puzzles introduce the movement rules.
+- Sizes vary throughout; later levels need more unlocking taps per rope,
+  rather than simply adding more ropes.
+- Levels are sorted by their verified tap target divided by rope count, with
+  rope count breaking ties. Mirrors and occasional springs join the mix.
 - The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
   21–30, and so on. Every level in an open group is immediately playable, so
   players can jump to the group’s last level to progress faster.
@@ -27,19 +28,32 @@ Open **Levels → Custom** to choose:
 
 - Square + Hex, square only, or Hex only.
 - Mirrors and springs, independently.
-- A difficulty range from 1 to 100.
+- A difficulty range from 1 to 100, targeting more player taps per rope.
+- An independent size range of 2–200 ropes per level.
 - 1–500 levels.
 - A seed, with dice to randomize it and a reset button for `MONKEYFIST`.
 
 All custom levels are playable immediately. Set links include every setting and
 reproduce the same puzzles on every device. For example:
 
-`?set=U1-M-1-100-120-MS-MONKEYFIST&level=35`
+`?set=U2-M-1-100-6-40-120-MS-MONKEYFIST&level=35`
 
 The code encodes format version, grid (`S`/`H`/`M`), minimum and maximum
-difficulty, level count, features (`N`/`M`/`S`/`MS`), and seed. The journey is
-`J1-MONKEYFIST`. Older square and Hex set codes import their settings; the new
-generator produces new boards for those settings.
+difficulty, minimum and maximum rope count, level count, features (`N`/`M`/`S`/`MS`), and seed. The journey is
+`J2-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain their original boards
+and scores. The new Journey has separate chapter progress; selecting Journey in
+the menu opens it without deleting the previous save.
+
+The v2 generator combines randomly woven boards, fan dependencies, and repeated
+interleaved-tail unlocks. A small board can require many successive slides.
+Mirrors and springs are optional, and every generated board starts blocked and
+has a replayed solution. Par is a verified target; bounded searches label an
+unproved optimum as best known. Size means rope count, so long winding ropes and
+empty travel space can still change the board's dimensions.
+
+`journey.js` stores only seed/settings/score metadata, not maps or solutions.
+Rebuild it with `node scripts/build-journey.cjs` after changing the v2 generator;
+this sorts the default campaign without generating all 120 maps on each visit.
 
 Custom sets are free. The single Custom entry point is a natural place for a
 future purchase entitlement; no payment or entitlement code is included yet.

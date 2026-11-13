@@ -120,7 +120,7 @@
   // Insert ordinary ropes where they can leave *during* the key sequence. Their
   // bodies may obstruct later routes but never an earlier certified move. This
   // preserves a proof while building dependencies in both directions.
-  function populate(b, rng) {
+  function populate(b, rng, ropeCount) {
     const ropes = b.ropes.slice(), moves = b.solution.slice(), core = ropes.length;
     const occupied = new Set(ropes.flat().map(p => cell(p, b.W)));
     const tiles = new Set([...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)]);
@@ -128,7 +128,7 @@
     // Give forward approaches their own dependencies, before the reversal.
     // Keep sampling the certified route: insertion deadlines preserve the proof.
     const approaches = t.steps.filter(step => step.event === 'bounce').flatMap(step => step.route.slice(b.ropes[step.i].length).map(p => cell(p, b.W)));
-    for (let attempt = 0; attempt < b.W * b.H * 14 && occupied.size < b.W * b.H * .78; attempt++) {
+    for (let attempt = 0; attempt < b.W * b.H * 14 && (!ropeCount || ropes.length < ropeCount) && occupied.size < b.W * b.H * .78; attempt++) {
       const approach = approaches.length && (attempt < 100 || rng() < .5);
       const dependent = rng() < .85;
       let head, dir;

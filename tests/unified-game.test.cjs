@@ -9,7 +9,7 @@ test('one journey opens ten levels at a time and keeps chapter unlocks after rel
     await page.goto(base + '?level=120'); await ready(page);
     assert.equal(await page.evaluate(() => __game.G.index), 9, 'a link cannot skip locked groups');
     await page.click('#levels'); assert.equal(await page.locator('#grid button').count(), 120); assert.equal(await page.locator('#grid button:enabled').count(), 10);
-    await page.click('[data-level="1"]'); await ready(page); assert.deepEqual(await solve(page), { ended: true, taps: 2, par: 2 });
+    await page.click('[data-level="1"]'); await ready(page); const first = await solve(page); assert.equal(first.ended, true); assert.equal(first.taps, first.par);
     assert.equal(await page.evaluate(() => __game.save.chapters), 1);
     await page.click('#resultLevels'); await page.click('[data-level="10"]'); await ready(page);
     const result = await solve(page); assert.equal(result.ended, true); assert.equal(result.taps, result.par);
@@ -59,14 +59,14 @@ test('custom controls, old bookmarks, worker fallback, and offline saves use the
     await page.click('#defaultSeed'); assert.equal(await page.inputValue('#seed'), 'MONKEYFIST');
     assert.equal(await page.locator('#grid button:enabled').count(), 35);
     await page.click('[data-level="35"]'); await ready(page);
-    assert.deepEqual(await page.evaluate(() => __game.options), { kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
+    assert.deepEqual(await page.evaluate(() => __game.options), { revision: 2, sizeMin: 6, sizeMax: 40, kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
     const before = await page.evaluate(() => JSON.stringify(__game.G.level));
     await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { polling: 50 });
     await context.setOffline(true); await page.reload(); await ready(page);
     assert.equal(await page.evaluate(() => JSON.stringify(__game.G.level)), before);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('monkey-fist'))), { keep: 'old scores', sound: false });
     await page.click('#levels'); await page.click('#journey'); assert.equal(await page.locator('#grid button:enabled').count(), 10);
-    await page.click('[data-level="6"]'); await ready(page); assert.equal(await page.evaluate(() => __game.G.level.grid), 'hex');
+    await page.click('[data-level="6"]'); await ready(page); assert.equal(await page.evaluate(() => __game.G.level.grid), require('../game-engine').spec(require('../game-engine').DEFAULT, 5).grid);
     assert.equal((await solve(page)).ended, true);
   } finally { await browser.close(); }
 });

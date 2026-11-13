@@ -176,7 +176,7 @@
     }
     return level;
   }
-  function populate(level, rng, stage) {
+  function populate(level, rng, stage, ropeCount) {
     const core = level.ropes.length, occupied = new Set(level.ropes.flat().map(key)), tiles = new Set([...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
     const cells = H.cells(level); let traced = trace(level, level.plan), followers = 0, early = 0;
     let paths = level.ropes; const approaches = [];
@@ -185,7 +185,7 @@
       if (move.event === 'bounce') approaches.push(...move.route.slice(paths[i].length));
       paths = move.paths;
     }
-    for (let attempt = 0; attempt < cells.length * 10 && occupied.size < cells.length * .76; attempt++) {
+    for (let attempt = 0; attempt < cells.length * 10 && (!ropeCount || level.ropes.length < ropeCount) && occupied.size < cells.length * .76; attempt++) {
       const dir = Math.floor(rng() * 6), target = pick(rng, level.ropes.flat());
       const approach = approaches.length && (attempt < 100 || rng() < .5);
       const head = approach ? add(pick(rng, approaches), DIRS[dir]) : rng() < .8 ? add(target, DIRS[mod(dir + 3)]) : pick(rng, cells);
@@ -226,6 +226,6 @@
     cache.set(identity, result); if (cache.size > 16) cache.delete(cache.keys().next().value);
     return result;
   }
-  const api = { VERSION, reflect, direction, tap, allFree, replay, solve, trace, generate };
+  const api = { VERSION, reflect, direction, tap, allFree, replay, solve, trace, generate, skeleton, populate };
   if (node) module.exports = api; else root.MFHexMirrors = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

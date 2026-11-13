@@ -24,7 +24,7 @@ function verify(board) {
 }
 
 test('the complete 120-level journey is solvable, blocked, lock-free, and grows across both grids', { timeout: 120000 }, () => {
-  const boards = Array.from({ length: 120 }, (_, index) => G.generate({ ...G.DEFAULT, index }));
+  const boards = Array.from({ length: 120 }, (_, index) => G.generate({ ...G.LEGACY_DEFAULT, index }));
   boards.forEach(verify);
   assert.deepEqual(boards.slice(0, 10).map(b => b.grid), [...Array(5).fill('square'), ...Array(5).fill('hex')]);
   assert.equal(boards.filter(b => b.grid === 'square').length, 60);
@@ -59,7 +59,7 @@ test('the smallest random custom boards still contain a dependency', { timeout: 
 test('only a group’s last level opens the next ten; custom sets stay fully open', () => {
   let chapters = 1;
   for (let group = 0; group < 12; group++) {
-    assert.equal(G.available(G.DEFAULT, chapters), (group + 1) * 10);
+    assert.equal(G.available(G.LEGACY_DEFAULT, chapters), (group + 1) * 10);
     for (let i = group * 10; i < group * 10 + 9; i++) assert.equal(G.unlock(chapters, i), chapters);
     chapters = G.unlock(chapters, group * 10 + 9);
     assert.equal(G.unlock(chapters, 9), chapters, 'replaying an earlier chapter cannot relock levels');
@@ -69,9 +69,9 @@ test('only a group’s last level opens the next ten; custom sets stay fully ope
 
 test('Journey springs have varied approaches and require clearing another rope on both grids', () => {
   const distances = { square: new Set(), hex: new Set() };
-  for (let index = 0; index < G.DEFAULT.count; index++) {
-    if (!G.spec(G.DEFAULT, index).springs) continue;
-    const b = G.generate({ ...G.DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0; const users = new Map();
+  for (let index = 0; index < G.LEGACY_DEFAULT.count; index++) {
+    if (!G.spec(G.LEGACY_DEFAULT, index).springs) continue;
+    const b = G.generate({ ...G.LEGACY_DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0; const users = new Map();
     for (const i of b.plan) {
       const move = G.tap(b, paths, i);
       if (move.event === 'bounce') {
@@ -142,7 +142,7 @@ test('the pictured Hex bounce vacates the blue exit while parking the green tail
 
 test('generated square and Hex ropes share bouncers and must clear an occupying tail before using them', () => {
   for (const index of [82, 117]) {
-    const b = G.generate({ ...G.DEFAULT, index }), users = new Map(); let paths = b.ropes;
+    const b = G.generate({ ...G.LEGACY_DEFAULT, index }), users = new Map(); let paths = b.ropes;
     for (const id of b.plan) {
       const move = G.tap(b, paths, id);
       if (move.event === 'bounce') {

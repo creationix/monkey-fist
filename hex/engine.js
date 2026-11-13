@@ -202,7 +202,7 @@
     }
     // Each accepted pair has a true mutual wait: at least one rope must slide.
     // Their long tails then become blockers for the rest of the generated board.
-    for (let attempt = 0; attempt < Math.max(5000, area * 24) && knots < cfg.knots; attempt++) {
+    for (let attempt = 0; attempt < Math.max(5000, area * 24) && knots < cfg.knots && (!cfg.ropeCount || level.ropes.length + 2 <= cfg.ropeCount); attempt++) {
       const length = Math.min(38, 7 + Math.floor(stage / 2)), base = 4 + Math.floor(stage / 14);
       const a = shape(base + Math.floor(rng() * length)); if (!a) continue;
       a.ids.forEach(c => occupied[c] = 9999);
@@ -222,14 +222,14 @@
     // Prefer long, winding additions that make many existing ropes wait. Evaluate
     // several candidates at each step, instead of accepting the first free exit.
     let attempts = 0;
-    while (covered < area * cfg.coverage && attempts < area * 22) {
+    while ((cfg.ropeCount ? level.ropes.length < cfg.ropeCount : covered < area * cfg.coverage) && attempts < area * 22) {
       let best = null;
       for (let n = 0; n < 12 && attempts++ < area * 22; n++) {
         const want = 4 + Math.floor((.45 + .55 * rng()) * cfg.length), shapeResult = shape(want); if (!shapeResult) continue;
         level.ropes.push(shapeResult.path); stops.push(null);
         const trial = intentions(level, stops); level.ropes.pop(); stops.pop();
         if (!trial) continue;
-        const gain = trial.cost - result.cost + shapeResult.ids.length * 4;
+        const gain = (trial.cost - result.cost) * (cfg.tapDepth == null ? 1 : cfg.tapDepth - 1) + shapeResult.ids.length * 4;
         if (!best || gain > best.gain) best = { ...shapeResult, trial, gain };
       }
       if (!best) continue;
@@ -266,7 +266,7 @@
     cache.set(identity, result); if (cache.size > 24) cache.delete(cache.keys().next().value);
     return result;
   }
-  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, generate, code, parseCode, cleanSeed, profile, compile };
+  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, generate, code, parseCode, cleanSeed, profile, build, compile };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MFHex = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
