@@ -1,7 +1,7 @@
 // The same synthesized effects for square and hex Monkey Fist.
 (function (root) {
   'use strict';
-  const GAPS = { click: 50, slide: 45, reflect: 40, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 };
+  const GAPS = { click: 50, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 };
   function createSoundPlayer(context, destination, options = {}) {
     const bus = context.createGain(); bus.connect(destination);
     const active = new Set(), lastAt = {}, now = options.now || (() => context.currentTime * 1000);
@@ -14,7 +14,8 @@
       if (active.size >= 40) return;
       const time = context.currentTime + delay, oscillator = context.createOscillator(), gain = context.createGain();
       oscillator.type = type || 'sine'; oscillator.frequency.setValueAtTime(frequency, time);
-      if (to) oscillator.frequency.exponentialRampToValueAtTime(to, time + duration);
+      if (Array.isArray(to)) for (const [offset, pitch] of to) oscillator.frequency.exponentialRampToValueAtTime(pitch, time + offset);
+      else if (to) oscillator.frequency.exponentialRampToValueAtTime(to, time + duration);
       gain.gain.setValueAtTime(.0001, time); gain.gain.exponentialRampToValueAtTime(volume, time + .008); gain.gain.exponentialRampToValueAtTime(.0001, time + duration);
       oscillator.connect(gain); gain.connect(bus); track(oscillator, [gain]); oscillator.start(time); oscillator.stop(time + duration + .03);
     }
@@ -44,6 +45,11 @@
         tone(frequency * 2, .07, 'sine', .035);
         tone(frequency * 1.5, .14, 'triangle', .07, .035);
         noise(.045, .06, 750, 260);
+      },
+      spring() {
+        tone(170, .38, 'sine', .28, 0, [[.04, 82], [.09, 150], [.16, 100], [.25, 126], [.38, 108]]);
+        tone(340, .13, 'triangle', .055, 0, 150);
+        noise(.045, .06, 500, 120);
       },
       pop(streak) {
         streak = Math.max(1, streak | 0);

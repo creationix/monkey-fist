@@ -73,9 +73,9 @@ test('reflection sounds follow head arrivals once, including a stop on a mirror,
       reflections = 0; tap(0); for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
       results.push({ edgeOnSounds: reflections });
       setup('square', [{ cell: p(3, 2), slope: '\\' }], [[p(1, 2), p(2, 2)]], [0, 0], [p(3, 3)]);
-      reflections = thuds = 0; tap(0);
+      let springs = 0; sfx.spring = () => springs++; reflections = thuds = 0; tap(0);
       for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
-      results.push({ mirrorThenSpring: { reflections, thuds } }); cancelGuide(); return results;
+      results.push({ mirrorThenSpring: { reflections, springs, thuds } }); cancelGuide(); return results;
     });
     for (const r of results.slice(0, 2)) {
       assert.equal(r.atTap, 0); assert.deepEqual(r.sounds.map(s => s.n), [0, 1]);
@@ -83,6 +83,6 @@ test('reflection sounds follow head arrivals once, including a stop on a mirror,
     }
     assert.deepEqual(results[2], { beforeArrival: 0, atStop: 1, afterResume: 1, thuds: 0 });
     assert.deepEqual(results[3], { edgeOnSounds: 0 });
-    assert.deepEqual(results[4], { mirrorThenSpring: { reflections: 1, thuds: 1 } });
+    assert.deepEqual(results[4], { mirrorThenSpring: { reflections: 1, springs: 1, thuds: 0 } });
   } finally { await browser.close(); }
 });

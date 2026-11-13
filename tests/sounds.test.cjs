@@ -43,6 +43,13 @@ test('mirror reflections use the current harmony, stay in the lower register, an
   assert.equal(sources.filter(s => s.frequency)[3].frequency.value, 275);
   player.setEnabled(false); assert.equal(player.reflect(2), false); assert.equal(player.state.voices, 0);
 });
+test('spring impacts make a damped low-pitch wobble and stop immediately when muted', () => {
+  const { context, sources } = device(), player = createSoundPlayer(context, {});
+  assert.equal(player.spring(), true);
+  assert.deepEqual(sources[0].frequency.events, [[170, 0], [82, .04], [150, .09], [100, .16], [126, .25], [108, .38]]);
+  assert.equal(player.spring(), false); player.setEnabled(false);
+  assert.equal(player.state.voices, 0); assert.equal(player.spring(), false);
+});
 test('exit notes follow the selected song and concurrent sound voices stay bounded', () => {
   const { context, sources } = device(), player = createSoundPlayer(context, {}, { getChord: () => ({ melody: [300, 400, 500] }) });
   player.pop(2); assert.equal(sources[0].frequency.value, 400);

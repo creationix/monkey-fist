@@ -148,7 +148,10 @@ function tap(i, automatic = false) {
     for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
     m.distance += extra;
   }
-  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: m.event === 'bounce' ? .16 : 0, popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 });
+  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : .58 : 0;
+  const spring = m.event === 'bounce' ? H.add(m.route.at(-1), headDirection(m.route.slice(-G.paths[i].length))) : null;
+  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
+    popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 });
   commit(G.moves.get(i));
   sfx.slide();
   if (!automatic) {
@@ -217,11 +220,12 @@ function update(dt) {
     m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
+      if (m.event === 'bounce' && !m.impacted) { m.impacted = true; sfx.spring(); }
       m.hold -= dt;
       if (m.hold <= 0) {
         G.moves.delete(id); settled = true;
         if (m.event === 'exit') sfx.pop(m.popNote);
-        else if (m.event === 'bounce' || m.reflections.at(-1) !== m.distance) sfx.thud();
+        else if (m.event !== 'bounce' && m.reflections.at(-1) !== m.distance) sfx.thud();
       }
     }
   }
@@ -306,9 +310,9 @@ function mirrorCrossings(route, length) {
   for (let i = length; i < route.length; i++) if (mirrorTurn(route, i)) crossings.push(i - length + 1);
   return crossings;
 }
-function ropeDrawing(i) {
-  const rope = visiblePath(i); if (!rope) return null;
-  const points = rope.map(screen), tip = points.at(-1), moving = G.moves.get(i);
+function ropeDrawing(i, settled = false) {
+  const rope = settled ? G.paths[i] : visiblePath(i); if (!rope) return null;
+  const points = rope.map(screen), tip = points.at(-1), moving = settled ? null : G.moves.get(i);
   const end = moving ? moving.progress + moving.path.length - 1 : rope.length - 1, route = moving?.route || rope;
   const previous = moving ? screen(pointAt(route, end - .001)) : screen(H.add(rope.at(-1), headDirection(rope), -1));
   const length = Math.hypot(tip.x - previous.x, tip.y - previous.y);
@@ -334,6 +338,13 @@ function ropeDrawing(i) {
   }
   return { points, head };
 }
+function springFlip(move) {
+  if (!move?.impacted || !move.bounceDuration) return null;
+  const t = Math.max(0, Math.min(1, 1 - move.hold / move.bounceDuration));
+  const turn = reduced ? t : Math.max(0, (t - .16) / .84);
+  return { t, turn, reversed: turn >= .5, squash: reduced ? 1 : Math.max(.015, Math.abs(Math.cos(Math.PI * turn))),
+    lift: reduced ? 0 : Math.sin(Math.PI * turn) * G.view.scale * .45 };
+}
 function exitCleared(i) {
   const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
   const minX = Math.min(...points.map(p => p.x)) - margin, maxX = Math.max(...points.map(p => p.x)) + margin;
@@ -342,15 +353,34 @@ function exitCleared(i) {
   return outside({ x: 0, y: 0, w: width, h: height }) && outside(G.view.panel);
 }
 function drawRope(i, time) {
-  const drawing = ropeDrawing(i); if (!drawing) return;
+  const moving = G.moves.get(i), flip = springFlip(moving), drawing = ropeDrawing(i, flip?.reversed); if (!drawing) return;
   const { points, head } = drawing, s = G.view.scale, col = color(i);
+  if (moving?.spring && !reduced && !flip?.reversed) {
+    const tip = points.at(-1), spring = screen(moving.spring);
+    const reach = moving.impacted ? Math.max(0, 1 - flip.t / .16) : Math.max(0, 1 - (moving.distance - moving.progress) / .35);
+    const gap = ((spring.x - tip.x) * head.x + (spring.y - tip.y) * head.y) / s - .78;
+    const stretch = s * Math.max(0, Math.min(.2 * reach, gap));
+    tip.x += head.x * stretch; tip.y += head.y * stretch;
+  }
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
+  if (flip) {
+    if (reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
+    else {
+      // The cached board remains untouched. Only this rope turns edge-on; the
+      // reverse face is revealed while it is thin, then lands on the same cells.
+      path(ctx, points); ctx.lineCap = ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#00000014'; ctx.lineWidth = s * .6; ctx.stroke();
+      ctx.strokeStyle = '#00000024'; ctx.lineWidth = s * .46; ctx.stroke();
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, lift = Math.sin(Math.PI * flip.turn);
+      ctx.translate(cx, cy - flip.lift); ctx.rotate(lift * .04); ctx.scale(1 + lift * .03, flip.squash); ctx.translate(-cx, -cy);
+    }
+  }
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
-  const tip = points.at(-1), moving = G.moves.get(i);
+  const tip = points.at(-1);
   const { x: dx, y: dy } = head;
   const arrow = (grow, fill) => {
     const reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
@@ -363,10 +393,36 @@ function drawRope(i, time) {
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
-  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving);
+  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && moving.progress < moving.distance);
   ctx.restore();
 }
-function drawMirrors() {
+function drawSpring(spring, move) {
+  const s = G.view.scale, p = screen(spring), flip = springFlip(move);
+  ctx.save(); ctx.translate(p.x, p.y);
+  if (flip && !reduced) {
+    const from = screen(move.route.at(-1)), angle = Math.atan2(p.y - from.y, p.x - from.x);
+    const squash = Math.sin(flip.t * Math.PI * 3) * Math.exp(-flip.t * 3) * .4;
+    ctx.rotate(angle); ctx.scale(1 - squash, 1 + squash * .22); ctx.rotate(-angle);
+  }
+  ctx.beginPath(); ctx.arc(0, s * .025, s * .34, 0, Math.PI * 2); ctx.fillStyle = '#00000055'; ctx.fill();
+  const cushion = ctx.createRadialGradient(-s * .1, -s * .12, s * .02, 0, 0, s * .32);
+  cushion.addColorStop(0, '#6c5138'); cushion.addColorStop(1, '#2d3029');
+  ctx.beginPath(); ctx.arc(0, 0, s * .3, 0, Math.PI * 2); ctx.fillStyle = cushion; ctx.fill();
+  const rim = Array.from({ length: 25 }, (_, i) => ({ x: Math.cos(i * Math.PI / 12) * s * .285, y: Math.sin(i * Math.PI / 12) * s * .285 }));
+  MFRopeArt.draw(ctx, rim, s * .085, '#b69b6c', null);
+  const coil = new Path2D();
+  for (let t = 0; t <= Math.PI * 5; t += .14) {
+    const r = s * (.035 + .0115 * t), x = Math.cos(t) * r, y = Math.sin(t) * r;
+    if (!t) coil.moveTo(x, y); else coil.lineTo(x, y);
+  }
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#211e1a'; ctx.lineWidth = s * .09; ctx.stroke(coil);
+  const copper = ctx.createLinearGradient(-s * .2, -s * .2, s * .2, s * .2);
+  copper.addColorStop(0, '#efc78b'); copper.addColorStop(.45, '#ce9454'); copper.addColorStop(1, '#94603c');
+  ctx.strokeStyle = copper; ctx.lineWidth = s * .058; ctx.stroke(coil);
+  ctx.translate(-s * .008, -s * .012); ctx.strokeStyle = '#ffe0aa66'; ctx.lineWidth = s * .016; ctx.stroke(coil);
+  ctx.restore();
+}
+function drawMirrors(activeSprings) {
   const s = G.view.scale;
   for (const mirror of G.level.mirrors || []) {
     const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
@@ -392,16 +448,9 @@ function drawMirrors() {
     }
     ctx.restore();
   }
-  for (const spring of G.level.springs || []) {
-    const p = screen(spring); ctx.save(); ctx.translate(p.x, p.y);
-    ctx.beginPath(); ctx.arc(0, 0, s * .34, 0, Math.PI * 2); ctx.fillStyle = '#183741'; ctx.fill();
-    ctx.strokeStyle = '#ffcc7a'; ctx.lineWidth = s * .055; ctx.stroke();
-    ctx.beginPath();
-    for (let t = 0; t < Math.PI * 5.5; t += .12) { const r = s * (.035 + .011 * t); const x = Math.cos(t) * r, y = Math.sin(t) * r; if (!t) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
-    ctx.strokeStyle = '#ffb35a'; ctx.lineWidth = s * .052; ctx.stroke(); ctx.restore();
-  }
+  for (const spring of G.level.springs || []) if (!activeSprings.has(spring.q + ',' + spring.r)) drawSpring(spring);
 }
-function drawRestingBoard() {
+function drawRestingBoard(activeSprings) {
   ctx.clearRect(0, 0, width, height);
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
   board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
@@ -411,21 +460,24 @@ function drawRestingBoard() {
   ctx.save(); ctx.clip(board);
   ctx.fillStyle = '#b3d7d91c';
   for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
-  drawMirrors();
+  drawMirrors(activeSprings);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i) && i !== G.hint && i !== G.selected && i !== G.bump?.i) drawRope(i, 0);
   ctx.restore();
 }
 function draw(time) {
   drawNext = false;
   if (!G.level) { ctx.clearRect(0, 0, width, height); return; }
+  const activeSprings = new Map();
+  for (const move of G.moves.values()) if (move.spring) activeSprings.set(move.spring.q + ',' + move.spring.r, move);
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
   const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, [...G.moves.keys()].join(','), !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
-    try { drawRestingBoard(); restingKey = key; } finally { ctx = mainContext; }
+    try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(restingCanvas, 0, 0); ctx.restore();
+  for (const move of activeSprings.values()) drawSpring(move.spring, move);
   for (const i of new Set([G.hint, G.selected, G.bump?.i])) if (i >= 0 && G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   // Departing ropes stay visible all the way off-screen, including rotated boards.
   for (const i of G.moves.keys()) drawRope(i, time);

@@ -52,6 +52,10 @@ end-for-end. There are no locks in generated levels. Mirrors have muted glass,
 rounded frames, and cord bindings. Both sides reflect; there is no triangle
 implying a non-reflective side. Arrowheads curve into their reflected direction
 when resting on a mirror.
+Springs have a copper coil and braided rim. On impact they compress, and the
+rope lifts into a vertical turnover before landing in the same cells with its
+direction reversed. Other ropes remain tappable. Reduced motion uses a brief
+fade between directions instead of the turnover.
 
 On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled
 approach turns 120°; an edge-on approach continues straight. Springs work from
@@ -135,6 +139,7 @@ uses one quarter of Full’s gain. Music has a separate toggle. Audio initialize
 on the first gesture, pauses in the background, and music pauses in menus.
 Mirror turns make a low, hollow pluck tuned to the current music, timed to the
 head reaching each mirror. Sliding away from a mirror does not repeat its sound.
+Spring impacts make a low, damped boing when the coil compresses.
 
 In **Levels**, toggle **OLED** for a black page background and nearly black
 board and menu surfaces. It preserves rope colors, works on both grids, and
