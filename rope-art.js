@@ -78,9 +78,20 @@
       if (!incoming || !outgoing) continue;
       const cross = incoming.x * outgoing.y - incoming.y * outgoing.x, dot = incoming.x * outgoing.x + incoming.y * outgoing.y;
       for (const [sign, side] of [[1, left], [-1, right]]) {
-        if (i > 0 && i < body.points.length - 1 && cross * sign > .001 && dot > -.999) {
+        if (i > 0 && i < body.points.length - 1 && dot > -.999) {
           const scale = sign * .5 / (1 + dot);
-          side.push({ x: p.x - (incoming.y + outgoing.y) * scale, y: p.y + (incoming.x + outgoing.x) * scale });
+          const miter = { x: p.x - (incoming.y + outgoing.y) * scale, y: p.y + (incoming.x + outgoing.x) * scale };
+          const reach = Math.hypot(miter.x - p.x, miter.y - p.y), limit = .5 / Math.cos(Math.PI / 6);
+          if (cross * sign > .001 || reach <= limit + .000001) side.push(miter);
+          else {
+            // Full corners at 60 degrees; sharper turns share the same reach from
+            // the grid dot, instead of the old bevel cutting the corner too thin.
+            const projection = .5 * Math.sqrt((1 + dot) / 2), cut = (limit - projection) / (reach - projection);
+            for (const d of [incoming, outgoing]) {
+              const edge = { x: p.x - d.y * sign * .5, y: p.y + d.x * sign * .5 };
+              side.push({ x: edge.x + (miter.x - edge.x) * cut, y: edge.y + (miter.y - edge.y) * cut });
+            }
+          }
         } else {
           side.push({ x: p.x - incoming.y * sign * .5, y: p.y + incoming.x * sign * .5 });
           if (Math.abs(cross) > .001) side.push({ x: p.x - outgoing.y * sign * .5, y: p.y + outgoing.x * sign * .5 });
@@ -132,7 +143,7 @@
     const g = style === 'tiles' ? tileGeometry(points, width, moving, head) : geometry(points, width, 0, moving);
     ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width);
     ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.lineWidth = strokeWidth / width;
-    if (style === 'tiles') { ctx.lineWidth = Math.max(.08, (strokeWidth - width) / width); ctx.stroke(g.outline); }
+    if (style === 'tiles') { ctx.lineJoin = 'miter'; ctx.miterLimit = 1.25; ctx.lineWidth = Math.max(.08, (strokeWidth - width) / width); ctx.stroke(g.outline); }
     else ctx.stroke(g.line); ctx.restore();
   }
   function draw(ctx, points, width, color, head, moving = false, style = 'rope') {
@@ -161,7 +172,7 @@
   function drawTiles(ctx, points, width, color, head, moving) {
     if (points.length < 2) return;
     const g = tileGeometry(points, width, moving, head), alpha = ctx.globalAlpha;
-    ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width); ctx.lineJoin = 'bevel';
+    ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width); ctx.lineJoin = 'miter'; ctx.miterLimit = 1.25;
     ctx.globalAlpha = alpha * .52; ctx.fillStyle = color; ctx.fill(g.outline);
     ctx.globalAlpha = alpha * .9; ctx.strokeStyle = shade(color, -.05); ctx.lineWidth = .11; ctx.stroke(g.outline);
     ctx.globalAlpha = alpha * .42; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .025; ctx.stroke(g.outline); ctx.restore();

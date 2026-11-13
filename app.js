@@ -620,8 +620,7 @@ function drawMirrors(activeSprings, dynamic = false) {
       const alpha = ctx.globalAlpha, glass = new Path2D(); glass.rect(-length / 2, -s * .08, length, s * .16);
       ctx.globalAlpha = alpha * .4; ctx.fillStyle = '#8edce0'; ctx.fill(glass);
       ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#9ad7d4'; ctx.lineWidth = s * .03; ctx.lineJoin = 'bevel'; ctx.stroke(glass);
-      ctx.clip(glass); ctx.globalAlpha = alpha * .2; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = s * .012; ctx.beginPath();
-      for (let x = -length / 2; x < length; x += s * .14) { ctx.moveTo(x, -s * .08); ctx.lineTo(x + s * .1, s * .08); } ctx.stroke(); ctx.restore(); continue;
+      ctx.restore(); continue;
     }
     ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
     ctx.lineCap = ctx.lineJoin = 'round';

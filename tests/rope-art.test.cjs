@@ -84,3 +84,27 @@ test('Tiles have flat translucent panels and crisp rims that move with the cord'
     for (const pixel of result.inside) assert.deepEqual(pixel, result.inside[0], 'flat fill continues through the arrow join with no overlap, cap line, or gap');
   } finally { await browser.close(); }
 });
+
+test('Tiles keep full 60 degree corners and give sharper turns the same thickness around the dot', async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage(); await page.addScriptTag({ path: path.join(__dirname, '../rope-art.js') });
+    const corners = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = c.height = 400;
+      const ctx = c.getContext('2d', { willReadFrequently: true }), results = [];
+      for (const degrees of [-120, -90, -60, 60, 90, 120]) {
+        ctx.clearRect(0, 0, 400, 400);
+        const angle = degrees * Math.PI / 180, width = 40;
+        MFRopeArt.draw(ctx, [{ x: 100, y: 200 }, { x: 200, y: 200 }, { x: 200 + 100 * Math.cos(angle), y: 200 + 100 * Math.sin(angle) }], width, '#58b7ef', null, false, 'tiles');
+        const outward = { x: Math.sin(Math.abs(angle) / 2), y: -Math.sign(angle) * Math.cos(angle / 2) };
+        const alphaAt = radius => ctx.getImageData(Math.round(200 + outward.x * width * radius), Math.round(200 + outward.y * width * radius), 1, 1).data[3];
+        results.push({ degrees, corner: alphaAt(.5), beyond: alphaAt(.72) });
+      }
+      return results;
+    });
+    for (const corner of corners) {
+      assert.ok(corner.corner >= 130, `full thickness at ${corner.degrees} degrees`);
+      assert.equal(corner.beyond, 0, `no long spike at ${corner.degrees} degrees`);
+    }
+  } finally { await browser.close(); }
+});
