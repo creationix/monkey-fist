@@ -27,7 +27,6 @@ function observedUse(b) {
   assert.ok(paths.every(p => !p));
   return { usedMirrors:turned.size, usedSprings:bounced.size, manualMirrors:manualTurns.size, manualSprings:manualBounces.size, bounceActions };
 }
-
 test('mechanics appear early and remain represented in every later Journey chapter', () => {
   const levels = require('../grid-journey'); assert.equal(levels.length,120);
   const firstMirror = levels.findIndex(b => b.mirrors)+1, firstSpring = levels.findIndex(b => b.springs)+1;
@@ -79,16 +78,54 @@ test('later mechanic tiles are used by the final manual solution, not placed as 
   }
 });
 
-test('every Journey level, the introductions included, comes from a seed derived from the master seed', { timeout: 60000 }, () => {
-  const L = require('../levels'), levels = require('../grid-journey'), derived = new Set();
-  for (let i = 0; i < 120; i++) for (let attempt = 0; attempt < 120; attempt++) derived.add(L.hashString('journey/5/MONKEYFIST/map/'+i+'/'+attempt).toString(36).toUpperCase());
-  assert.equal(new Set(levels.map(b => b.seed)).size,120,'each level has its own seed');
-  for (const b of levels) { assert.ok(derived.has(b.seed),'no hand-picked seed: '+b.seed); assert.equal(b.introSource,undefined); }
+test('the opening is seeded, varied, compact and nontrivial without pinned layout identities', { timeout: 60000 }, () => {
+  const levels = require('../grid-journey'), opening = levels.slice(0,10);
+  assert.equal(new Set(opening.map(b=>b.grid)).size,2);
+  assert.ok(new Set(opening.map(b=>b.W+'x'+b.H)).size>=2);
+  assert.equal(new Set(opening.map(b=>b.layoutKey)).size,10);
   for (let index = 0; index < 10; index++) {
-    const metadata = levels[index], b = G.generate({ ...G.DEFAULT,index });
-    assert.equal(b.seed,metadata.seed); assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
-    assert.equal(b.mirrors.length,0); assert.equal(b.springs.length,0); assert.ok(b.ropes.length <= 5);
+    const metadata = opening[index], b = G.generate({ ...G.DEFAULT,index });
+    assert.equal(metadata.journeySeed,G.DEFAULT.seed);
+    assert.equal(Object.hasOwn(metadata,'introSource'),false);
+    assert.ok(b.ropes.length<=5); assert.ok(b.W*b.H<=48);
+    assert.equal(b.mirrors.length,0); assert.equal(b.springs.length,0);
+    assert.equal(G.allFree(b,b.ropes),false,'an opening board starts with an actual blocked rope');
+    assert.ok(b.par*3>=b.ropes.length);
+    assert.equal(G.replay(b,b.plan).solved,true);
+    assert.equal(b.layoutKey,metadata.layoutKey); assert.equal(G.layoutKey(b),metadata.layoutKey);
+    if(metadata.requireSlide) assert.ok(b.slideStats.manualSlides>0);
   }
+  const again=G.generate({...G.DEFAULT,index:0});
+  assert.equal(again.layoutKey,opening[0].layoutKey);
+});
+
+test('the master seed deterministically derives every Journey slot, including the opening', () => {
+  const {execFileSync}=require('node:child_process'),path=require('node:path');
+  const script=path.join(__dirname,'../scripts/build-grid-journey.cjs');
+  const plan=seed=>JSON.parse(execFileSync(process.execPath,[script,'--seed',seed,'--plan'],{encoding:'utf8'}));
+  const first=plan('MONKEYFIST'),same=plan('MONKEYFIST'),different=plan('ANOTHERSEED');
+  assert.deepEqual(first,same);
+  const specs=first.flatMap(chapter=>chapter.specs),other=different.flatMap(chapter=>chapter.specs);
+  assert.equal(specs.length,120);assert.equal(other.length,120);
+  for(let i=0;i<120;i++) {
+    assert.equal(specs[i].journeySeed,'MONKEYFIST');assert.equal(other[i].journeySeed,'ANOTHERSEED');
+    assert.notEqual(specs[i].seed,other[i].seed,'changing the master seed changes every slot’s initial map seed');
+    assert.equal(Object.hasOwn(specs[i],'introSource'),false);
+  }
+  const levels=require('../grid-journey');
+  for(let chapter=1;chapter<=12;chapter++) {
+    const cards=levels.filter(b=>b.chapter===chapter);
+    assert.equal(cards.length,10);
+    assert.deepEqual(cards.map(b=>b.slot).sort((a,b)=>a-b),Array.from({length:10},(_,i)=>i));
+    assert.ok(cards.every(b=>b.journeySeed==='MONKEYFIST'));
+    assert.ok(cards.every(b=>Number.isInteger(b.seedAttempt)&&b.seedAttempt>=0));
+  }
+});
+
+test('every Journey seed is derived from the master seed, its position and an attempt number', () => {
+  const L = require('../levels'), levels = require('../grid-journey');
+  assert.equal(new Set(levels.map(b => b.seed)).size,120,'each level has its own seed');
+  for (const b of levels) assert.equal(b.seed,L.hashString('journey/5/'+b.journeySeed+'/map/'+b.chapter+'/'+b.slot+'/'+b.seedAttempt).toString(36).toUpperCase(),'no hand-picked seed');
 });
 
 test('Journey difficulty is measured by play and rises across chapters', () => {

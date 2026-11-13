@@ -1,0 +1,4784 @@
+{
+  "schema": 1,
+  "rules": {
+    "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c",
+    "hash": "d2d0ef60733327a52c9001b55185b8945810a976613d028f2242988ce8526dcb"
+  },
+  "settings": {
+    "nodeBudget": 2000,
+    "trials": 64,
+    "maxSteps": 200,
+    "maxArea": 192,
+    "seed": "MONKEY-BENCH-1"
+  },
+  "results": [
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "journey-opening",
+      "options": {
+        "kind": "journey",
+        "index": 0
+      },
+      "generateMs": 11.565318999999988,
+      "layoutKey": "19nrs70-1lr9d96",
+      "quality": {
+        "grid": "square",
+        "W": 4,
+        "H": 5,
+        "ropes": 5,
+        "coverage": 0.95,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          0.75
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 2,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 2,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 2,
+        "upperBound": 2,
+        "bestPlan": [
+          4,
+          2,
+          0,
+          1,
+          3
+        ],
+        "nodes": 4
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          4,
+          2,
+          0,
+          1,
+          3
+        ],
+        "nodes": 0
+      },
+      "searchMs": 2.6721430000000055,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-opening",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 2,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 3.140625,
+            "meanExcessTaps": 1.140625,
+            "meanSteps": 3.140625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1.140625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 3.15625,
+            "meanExcessTaps": 1.15625,
+            "meanSteps": 3.15625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1.15625
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 3.1875,
+            "meanExcessTaps": 1.1875,
+            "meanSteps": 3.1875,
+            "screenedChoices": 489,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1.1875
+          }
+        },
+        "provenOptimalTaps": 2
+      },
+      "simulationMs": 9.966429000000005,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "journey-first-chapter-end",
+      "options": {
+        "kind": "journey",
+        "index": 9
+      },
+      "generateMs": 8.676883999999973,
+      "layoutKey": "d7ah6-1h2kq2w",
+      "quality": {
+        "grid": "hex",
+        "W": 6,
+        "H": 7,
+        "ropes": 5,
+        "coverage": 0.8571428571428571,
+        "quadrantCoverage": [
+          0.8333333333333334,
+          0.6666666666666666,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 4,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 4,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          1,
+          4,
+          3,
+          0,
+          1,
+          2
+        ],
+        "nodes": 12
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          1,
+          4,
+          3,
+          0,
+          1,
+          2
+        ],
+        "nodes": 5
+      },
+      "searchMs": 2.707928000000038,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-first-chapter-end",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 4,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5.6875,
+            "meanExcessTaps": 1.6875,
+            "meanSteps": 5.6875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1.6875
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 576,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          }
+        },
+        "provenOptimalTaps": 4
+      },
+      "simulationMs": 12.682458999999994,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "square-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "status": "unsupported",
+      "reason": "This revision does not support independent grid-size settings"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "hex-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "status": "unsupported",
+      "reason": "This revision does not support independent grid-size settings"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "square-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "status": "unsupported",
+      "reason": "This revision does not support independent grid-size settings"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "hex-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "status": "unsupported",
+      "reason": "This revision does not support independent grid-size settings"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "journey-level-62",
+      "options": {
+        "kind": "journey",
+        "index": 61
+      },
+      "generateMs": 16.43817200000001,
+      "layoutKey": "jr65uy-vex63k",
+      "quality": {
+        "grid": "hex",
+        "W": 12,
+        "H": 16,
+        "ropes": 16,
+        "coverage": 0.828125,
+        "quadrantCoverage": [
+          0.7708333333333334,
+          0.8958333333333334,
+          0.75,
+          0.8958333333333334
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 17,
+        "nonExitMoves": 2
+      },
+      "declaredPar": 17,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 15,
+        "upperBound": 15,
+        "bestPlan": [
+          7,
+          9,
+          4,
+          6,
+          8,
+          10,
+          14,
+          13,
+          5,
+          15,
+          2,
+          12,
+          1,
+          0,
+          3,
+          1,
+          2,
+          11
+        ],
+        "nodes": 1388
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 2,
+        "upperBound": 2,
+        "bestPlan": [
+          14,
+          13,
+          11,
+          9,
+          8,
+          7,
+          5,
+          4,
+          15,
+          6,
+          10,
+          2,
+          12,
+          0,
+          1,
+          0,
+          3,
+          2
+        ],
+        "nodes": 494
+      },
+      "searchMs": 385.28607099999994,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-62",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 17,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 32,
+            "losses": 32,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.5,
+            "winRate95": {
+              "low": 0.3810209474394701,
+              "high": 0.6189790525605299
+            },
+            "completedWinRate": 0.5,
+            "meanManualTaps": 17.03125,
+            "meanExcessTaps": 0.03125,
+            "meanSteps": 17.140625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 2.03125
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 4,
+            "losses": 60,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.0625,
+            "winRate95": {
+              "low": 0.024571201396618017,
+              "high": 0.14997485092208662
+            },
+            "completedWinRate": 0.0625,
+            "meanManualTaps": 20,
+            "meanExcessTaps": 3,
+            "meanSteps": 17.703125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 5
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 35,
+            "losses": 29,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.546875,
+            "winRate95": {
+              "low": 0.4257359722005412,
+              "high": 0.6627055221938833
+            },
+            "completedWinRate": 0.546875,
+            "meanManualTaps": 17.257142857142856,
+            "meanExcessTaps": 0.25714285714285623,
+            "meanSteps": 17.25,
+            "screenedChoices": 3869,
+            "fatalChoices": 29,
+            "restarts": 0,
+            "meanTapRegret": 2.2571428571428562
+          }
+        },
+        "provenOptimalTaps": 15
+      },
+      "simulationMs": 605.701752,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "0be7c3a",
+        "ref": "0be7c3ae89882809dda582844e29f5286f8015c3"
+      },
+      "id": "journey-level-67",
+      "options": {
+        "kind": "journey",
+        "index": 66
+      },
+      "generateMs": 28.271285000000034,
+      "layoutKey": "1d5fsjy-1446y54",
+      "quality": {
+        "grid": "square",
+        "W": 10,
+        "H": 14,
+        "ropes": 25,
+        "coverage": 0.7928571428571428,
+        "quadrantCoverage": [
+          0.8,
+          0.7142857142857143,
+          0.8857142857142857,
+          0.7714285714285715
+        ],
+        "mirrors": 9,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 23,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 23,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 7,
+        "upperBound": 23,
+        "bestPlan": [
+          22,
+          17,
+          16,
+          11,
+          14,
+          4,
+          20,
+          10,
+          0,
+          5,
+          18,
+          7,
+          19,
+          1,
+          24,
+          12,
+          8,
+          13,
+          15,
+          2,
+          3,
+          6,
+          9,
+          23,
+          21
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          22,
+          17,
+          16,
+          11,
+          14,
+          4,
+          20,
+          10,
+          0,
+          5,
+          18,
+          7,
+          19,
+          1,
+          24,
+          12,
+          8,
+          13,
+          15,
+          2,
+          3,
+          6,
+          9,
+          23,
+          21
+        ],
+        "nodes": 0
+      },
+      "searchMs": 987.3338390000001,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-67",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 23,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 22.984375,
+            "meanExcessTaps": -0.015625,
+            "meanSteps": 22.984375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 0,
+            "losses": 64,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0,
+            "winRate95": {
+              "low": 0,
+              "high": 0.05662405979280534
+            },
+            "completedWinRate": 0,
+            "meanManualTaps": null,
+            "meanExcessTaps": null,
+            "meanSteps": 21.953125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 22.953125,
+            "meanExcessTaps": -0.046875,
+            "meanSteps": 22.953125,
+            "screenedChoices": 7350,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 1754.9282550000003,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "journey-opening",
+      "options": {
+        "kind": "journey",
+        "index": 0
+      },
+      "generateMs": 28.480781000000206,
+      "layoutKey": "1vd9cy1-rqv90v",
+      "quality": {
+        "grid": "hex",
+        "W": 4,
+        "H": 5,
+        "ropes": 3,
+        "coverage": 1,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 1,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 1,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "searchMs": 0.2021179999992455,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-opening",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 1,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.640625,
+            "meanExcessTaps": 0.640625,
+            "meanSteps": 1.640625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.640625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 157,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          }
+        },
+        "provenOptimalTaps": 1
+      },
+      "simulationMs": 4.48540100000082,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "journey-first-chapter-end",
+      "options": {
+        "kind": "journey",
+        "index": 9
+      },
+      "generateMs": 65.33128899999974,
+      "layoutKey": "14ezvae-stj7es",
+      "quality": {
+        "grid": "hex",
+        "W": 5,
+        "H": 6,
+        "ropes": 5,
+        "coverage": 1,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 4,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 4,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          4,
+          0,
+          1,
+          0,
+          2,
+          3
+        ],
+        "nodes": 7
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          4,
+          0,
+          1,
+          0,
+          2,
+          3
+        ],
+        "nodes": 4
+      },
+      "searchMs": 0.9620939999995244,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-first-chapter-end",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 4,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 4.921875,
+            "meanExcessTaps": 0.921875,
+            "meanSteps": 4.921875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.921875
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 416,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          }
+        },
+        "provenOptimalTaps": 4
+      },
+      "simulationMs": 4.438788000000386,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "square-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 54.02709799999957,
+      "layoutKey": "123lgfr-ontcg1",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 19,
+        "coverage": 0.953125,
+        "quadrantCoverage": [
+          1,
+          0.875,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 16,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 16,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 15,
+        "upperBound": 16,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 0
+      },
+      "searchMs": 180.92993300000035,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 16,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.59375,
+            "meanExcessTaps": 1.59375,
+            "meanSteps": 17.59375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 27,
+            "losses": 37,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.421875,
+            "winRate95": {
+              "low": 0.30869782474345486,
+              "high": 0.5438996845991709
+            },
+            "completedWinRate": 0.421875,
+            "meanManualTaps": 21.74074074074074,
+            "meanExcessTaps": 5.7407407407407405,
+            "meanSteps": 19.171875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.609375,
+            "meanExcessTaps": 1.609375,
+            "meanSteps": 17.609375,
+            "screenedChoices": 3360,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 140.83189500000026,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "hex-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 15.57908800000041,
+      "layoutKey": "1h4wdg2-cljtz8",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 9,
+        "coverage": 0.96875,
+        "quadrantCoverage": [
+          0.9375,
+          1,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 6,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 6,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 6,
+        "upperBound": 6,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 28
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 24
+      },
+      "searchMs": 3.5005080000000817,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 6,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9.484375,
+            "meanExcessTaps": 3.484375,
+            "meanSteps": 9.484375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3.484375
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 1080,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          }
+        },
+        "provenOptimalTaps": 6
+      },
+      "simulationMs": 14.751194999999825,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "square-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 74.87127600000076,
+      "layoutKey": "10spa6e-17ecea4",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 17,
+        "coverage": 0.921875,
+        "quadrantCoverage": [
+          0.9375,
+          0.8125,
+          0.9375,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 18,
+        "nonExitMoves": 2
+      },
+      "declaredPar": 18,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 8,
+        "upperBound": 18,
+        "bestPlan": [
+          15,
+          14,
+          13,
+          9,
+          8,
+          16,
+          12,
+          7,
+          6,
+          5,
+          2,
+          1,
+          2,
+          10,
+          3,
+          4,
+          0,
+          7,
+          11
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 2,
+        "upperBound": 2,
+        "bestPlan": [
+          15,
+          14,
+          13,
+          9,
+          8,
+          16,
+          12,
+          7,
+          6,
+          5,
+          2,
+          1,
+          2,
+          10,
+          3,
+          4,
+          0,
+          7,
+          11
+        ],
+        "nodes": 226
+      },
+      "searchMs": 273.0939099999996,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 18,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 42,
+            "losses": 22,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.65625,
+            "winRate95": {
+              "low": 0.5340364020991819,
+              "high": 0.7607685792155665
+            },
+            "completedWinRate": 0.65625,
+            "meanManualTaps": 20.166666666666668,
+            "meanExcessTaps": 2.166666666666668,
+            "meanSteps": 17.46875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 15,
+            "losses": 49,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.234375,
+            "winRate95": {
+              "low": 0.1474989559392414,
+              "high": 0.35133257582568644
+            },
+            "completedWinRate": 0.234375,
+            "meanManualTaps": 26.533333333333335,
+            "meanExcessTaps": 8.533333333333335,
+            "meanSteps": 16.171875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 47,
+            "losses": 17,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.734375,
+            "winRate95": {
+              "low": 0.6151712627143486,
+              "high": 0.8270362092577739
+            },
+            "completedWinRate": 0.734375,
+            "meanManualTaps": 19.829787234042552,
+            "meanExcessTaps": 1.829787234042552,
+            "meanSteps": 17.796875,
+            "screenedChoices": 5252,
+            "fatalChoices": 17,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 370.2321830000001,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "hex-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 828.6187220000002,
+      "layoutKey": "ut6qu2-1hbt0nw",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 10,
+        "coverage": 0.890625,
+        "quadrantCoverage": [
+          0.9375,
+          0.8125,
+          0.9375,
+          0.875
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 9,
+        "nonExitMoves": 2
+      },
+      "declaredPar": 9,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 9,
+        "upperBound": 9,
+        "bestPlan": [
+          3,
+          2,
+          4,
+          1,
+          9,
+          8,
+          0,
+          5,
+          1,
+          3,
+          6,
+          7
+        ],
+        "nodes": 166
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 2,
+        "upperBound": 2,
+        "bestPlan": [
+          3,
+          2,
+          4,
+          1,
+          9,
+          8,
+          0,
+          5,
+          1,
+          3,
+          6,
+          7
+        ],
+        "nodes": 30
+      },
+      "searchMs": 13.72526199999993,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 9,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 13.03125,
+            "meanExcessTaps": 4.03125,
+            "meanSteps": 13.03125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 4.03125
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 14.859375,
+            "meanExcessTaps": 5.859375,
+            "meanSteps": 14.859375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 5.859375
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 13.15625,
+            "meanExcessTaps": 4.15625,
+            "meanSteps": 13.15625,
+            "screenedChoices": 2218,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 4.15625
+          }
+        },
+        "provenOptimalTaps": 9
+      },
+      "simulationMs": 36.21188400000028,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "journey-level-62",
+      "options": {
+        "kind": "journey",
+        "index": 61
+      },
+      "generateMs": 242.53472899999997,
+      "layoutKey": "1t2ifsa-1c3z2fc",
+      "quality": {
+        "grid": "square",
+        "W": 12,
+        "H": 12,
+        "ropes": 21,
+        "coverage": 0.9305555555555556,
+        "quadrantCoverage": [
+          0.9722222222222222,
+          0.9166666666666666,
+          0.9166666666666666,
+          0.9166666666666666
+        ],
+        "mirrors": 2,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 20,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 20,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 7,
+        "upperBound": 20,
+        "bestPlan": [
+          20,
+          19,
+          17,
+          9,
+          15,
+          7,
+          6,
+          4,
+          10,
+          5,
+          14,
+          12,
+          8,
+          11,
+          0,
+          1,
+          13,
+          18,
+          2,
+          16,
+          3
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          20,
+          19,
+          17,
+          9,
+          15,
+          7,
+          6,
+          4,
+          10,
+          5,
+          14,
+          12,
+          8,
+          11,
+          0,
+          1,
+          13,
+          18,
+          2,
+          16,
+          3
+        ],
+        "nodes": 0
+      },
+      "searchMs": 540.8026470000004,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-62",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 20,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 19.671875,
+            "meanExcessTaps": -0.328125,
+            "meanSteps": 19.671875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 33,
+            "losses": 31,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.515625,
+            "winRate95": {
+              "low": 0.39581601478580125,
+              "high": 0.6336644833456737
+            },
+            "completedWinRate": 0.515625,
+            "meanManualTaps": 30.09090909090909,
+            "meanExcessTaps": 10.09090909090909,
+            "meanSteps": 27.859375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 19.546875,
+            "meanExcessTaps": -0.453125,
+            "meanSteps": 19.546875,
+            "screenedChoices": 6533,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 1256.027763,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "90b522e",
+        "ref": "90b522e14d576bf7334c7e6e1b54c213e30be90b"
+      },
+      "id": "journey-level-67",
+      "options": {
+        "kind": "journey",
+        "index": 66
+      },
+      "generateMs": 415.5150369999992,
+      "layoutKey": "11et7ln-1ma7a59",
+      "quality": {
+        "grid": "hex",
+        "W": 12,
+        "H": 13,
+        "ropes": 22,
+        "coverage": 0.9294871794871795,
+        "quadrantCoverage": [
+          0.9047619047619048,
+          0.9285714285714286,
+          0.9444444444444444,
+          0.9444444444444444
+        ],
+        "mirrors": 3,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 19,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 19,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 10,
+        "upperBound": 19,
+        "bestPlan": [
+          21,
+          19,
+          11,
+          9,
+          6,
+          5,
+          2,
+          4,
+          8,
+          20,
+          3,
+          7,
+          18,
+          15,
+          14,
+          16,
+          13,
+          0,
+          10,
+          17,
+          12,
+          1
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          21,
+          19,
+          11,
+          9,
+          6,
+          5,
+          2,
+          4,
+          8,
+          20,
+          3,
+          7,
+          18,
+          15,
+          14,
+          16,
+          13,
+          0,
+          10,
+          17,
+          12,
+          1
+        ],
+        "nodes": 0
+      },
+      "searchMs": 461.5733930000006,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-67",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 19,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 19.359375,
+            "meanExcessTaps": 0.359375,
+            "meanSteps": 19.359375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 0,
+            "losses": 64,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0,
+            "winRate95": {
+              "low": 0,
+              "high": 0.05662405979280534
+            },
+            "completedWinRate": 0,
+            "meanManualTaps": null,
+            "meanExcessTaps": null,
+            "meanSteps": 19.0625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 19.34375,
+            "meanExcessTaps": 0.34375,
+            "meanSteps": 19.34375,
+            "screenedChoices": 7349,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 878.9492449999998,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "journey-opening",
+      "options": {
+        "kind": "journey",
+        "index": 0
+      },
+      "generateMs": 28.941259999999602,
+      "layoutKey": "1vd9cy1-rqv90v",
+      "quality": {
+        "grid": "hex",
+        "W": 4,
+        "H": 5,
+        "ropes": 3,
+        "coverage": 1,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 1,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 1,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "searchMs": 0.06986200000028475,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-opening",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 1,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.640625,
+            "meanExcessTaps": 0.640625,
+            "meanSteps": 1.640625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.640625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 157,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          }
+        },
+        "provenOptimalTaps": 1
+      },
+      "simulationMs": 1.2224889999997686,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "journey-first-chapter-end",
+      "options": {
+        "kind": "journey",
+        "index": 9
+      },
+      "generateMs": 68.60484200000064,
+      "layoutKey": "14ezvae-stj7es",
+      "quality": {
+        "grid": "hex",
+        "W": 5,
+        "H": 6,
+        "ropes": 5,
+        "coverage": 1,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 4,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 4,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          4,
+          0,
+          1,
+          0,
+          2,
+          3
+        ],
+        "nodes": 7
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          4,
+          0,
+          1,
+          0,
+          2,
+          3
+        ],
+        "nodes": 4
+      },
+      "searchMs": 0.5035139999999956,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-first-chapter-end",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 4,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 4.921875,
+            "meanExcessTaps": 0.921875,
+            "meanSteps": 4.921875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.921875
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 416,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          }
+        },
+        "provenOptimalTaps": 4
+      },
+      "simulationMs": 4.343041000000085,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "square-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 55.73640399999931,
+      "layoutKey": "123lgfr-ontcg1",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 19,
+        "coverage": 0.953125,
+        "quadrantCoverage": [
+          1,
+          0.875,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 16,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 16,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 15,
+        "upperBound": 16,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 0
+      },
+      "searchMs": 171.51507799999854,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 16,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.59375,
+            "meanExcessTaps": 1.59375,
+            "meanSteps": 17.59375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 27,
+            "losses": 37,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.421875,
+            "winRate95": {
+              "low": 0.30869782474345486,
+              "high": 0.5438996845991709
+            },
+            "completedWinRate": 0.421875,
+            "meanManualTaps": 21.74074074074074,
+            "meanExcessTaps": 5.7407407407407405,
+            "meanSteps": 19.171875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.609375,
+            "meanExcessTaps": 1.609375,
+            "meanSteps": 17.609375,
+            "screenedChoices": 3360,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 150.09298800000033,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "hex-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 19.82571800000005,
+      "layoutKey": "1h4wdg2-cljtz8",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 9,
+        "coverage": 0.96875,
+        "quadrantCoverage": [
+          0.9375,
+          1,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 6,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 6,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 6,
+        "upperBound": 6,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 28
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 24
+      },
+      "searchMs": 3.3697959999990417,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 6,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9.484375,
+            "meanExcessTaps": 3.484375,
+            "meanSteps": 9.484375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3.484375
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 1080,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          }
+        },
+        "provenOptimalTaps": 6
+      },
+      "simulationMs": 13.463633999999729,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "square-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 96.64104599999882,
+      "layoutKey": "6myhtq-1tyeeuc",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 12,
+        "coverage": 0.875,
+        "quadrantCoverage": [
+          0.875,
+          0.9375,
+          0.75,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 14,
+        "nonExitMoves": 4
+      },
+      "declaredPar": 14,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 13,
+        "upperBound": 14,
+        "bestPlan": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          11,
+          10,
+          9,
+          8,
+          5,
+          6,
+          4,
+          2,
+          3,
+          7
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          11,
+          10,
+          9,
+          8,
+          5,
+          6,
+          4,
+          2,
+          3,
+          7
+        ],
+        "nodes": 56
+      },
+      "searchMs": 118.51306699999986,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 14,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 3,
+            "losses": 61,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.046875,
+            "winRate95": {
+              "low": 0.016069016786292974,
+              "high": 0.12899653740093686
+            },
+            "completedWinRate": 0.046875,
+            "meanManualTaps": 19.333333333333332,
+            "meanExcessTaps": 5.333333333333332,
+            "meanSteps": 7.359375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 3,
+            "losses": 61,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.046875,
+            "winRate95": {
+              "low": 0.016069016786292974,
+              "high": 0.12899653740093686
+            },
+            "completedWinRate": 0.046875,
+            "meanManualTaps": 23,
+            "meanExcessTaps": 9,
+            "meanSteps": 7.890625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 23,
+            "losses": 41,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.359375,
+            "winRate95": {
+              "low": 0.25288402291451745,
+              "high": 0.48179149390220904
+            },
+            "completedWinRate": 0.359375,
+            "meanManualTaps": 18.956521739130434,
+            "meanExcessTaps": 4.956521739130434,
+            "meanSteps": 11.265625,
+            "screenedChoices": 2578,
+            "fatalChoices": 99,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 146.54684400000042,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "hex-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 236.62412699999913,
+      "layoutKey": "tnqaza-11gsy10",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 9,
+        "coverage": 0.96875,
+        "quadrantCoverage": [
+          1,
+          1,
+          0.875,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 11,
+        "nonExitMoves": 4
+      },
+      "declaredPar": 11,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 11,
+        "upperBound": 11,
+        "bestPlan": [
+          8,
+          6,
+          5,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          3,
+          2,
+          4,
+          7
+        ],
+        "nodes": 213
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          8,
+          6,
+          5,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          3,
+          2,
+          4,
+          7
+        ],
+        "nodes": 84
+      },
+      "searchMs": 18.039362999999867,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 11,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 15.390625,
+            "meanExcessTaps": 4.390625,
+            "meanSteps": 15.390625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 4.390625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 16.890625,
+            "meanExcessTaps": 5.890625,
+            "meanSteps": 16.890625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 5.890625
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 15.21875,
+            "meanExcessTaps": 4.21875,
+            "meanSteps": 15.21875,
+            "screenedChoices": 2570,
+            "fatalChoices": 2,
+            "restarts": 0,
+            "meanTapRegret": 4.21875
+          }
+        },
+        "provenOptimalTaps": 11
+      },
+      "simulationMs": 48.87228999999934,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "journey-level-62",
+      "options": {
+        "kind": "journey",
+        "index": 61
+      },
+      "generateMs": 329.9229830000004,
+      "layoutKey": "hw41ip-1y4il47",
+      "quality": {
+        "grid": "hex",
+        "W": 12,
+        "H": 16,
+        "ropes": 24,
+        "coverage": 0.875,
+        "quadrantCoverage": [
+          0.8958333333333334,
+          0.7083333333333334,
+          0.9375,
+          0.9583333333333334
+        ],
+        "mirrors": 4,
+        "springs": 2,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 29,
+        "nonExitMoves": 6
+      },
+      "declaredPar": 29,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 7,
+        "upperBound": 29,
+        "bestPlan": [
+          23,
+          22,
+          20,
+          18,
+          17,
+          15,
+          7,
+          21,
+          0,
+          1,
+          3,
+          2,
+          3,
+          2,
+          3,
+          4,
+          2,
+          11,
+          14,
+          12,
+          6,
+          13,
+          9,
+          19,
+          16,
+          8,
+          0,
+          1,
+          5,
+          10
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 3,
+        "upperBound": 6,
+        "bestPlan": [
+          23,
+          22,
+          20,
+          18,
+          17,
+          15,
+          7,
+          21,
+          0,
+          1,
+          3,
+          2,
+          3,
+          2,
+          3,
+          4,
+          2,
+          11,
+          14,
+          12,
+          6,
+          13,
+          9,
+          19,
+          16,
+          8,
+          0,
+          1,
+          5,
+          10
+        ],
+        "nodes": 2000
+      },
+      "searchMs": 1698.5212659999997,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-62",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 29,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 44,
+            "losses": 20,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.6875,
+            "winRate95": {
+              "low": 0.5660766429725185,
+              "high": 0.7876893346051795
+            },
+            "completedWinRate": 0.6875,
+            "meanManualTaps": 32.06818181818182,
+            "meanExcessTaps": 3.06818181818182,
+            "meanSteps": 32.484375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 2,
+            "losses": 62,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.03125,
+            "winRate95": {
+              "low": 0.008612138346171874,
+              "high": 0.10697291770958313
+            },
+            "completedWinRate": 0.03125,
+            "meanManualTaps": 38.5,
+            "meanExcessTaps": 9.5,
+            "meanSteps": 31.234375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 41,
+            "losses": 23,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.640625,
+            "winRate95": {
+              "low": 0.518208506097791,
+              "high": 0.7471159770854825
+            },
+            "completedWinRate": 0.640625,
+            "meanManualTaps": 31.878048780487806,
+            "meanExcessTaps": 2.8780487804878057,
+            "meanSteps": 32.4375,
+            "screenedChoices": 8984,
+            "fatalChoices": 24,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 2855.382670000001,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "ee2ec69",
+        "ref": "ee2ec694d2c0f40d7b2a5be7e3e831c628a8425a"
+      },
+      "id": "journey-level-67",
+      "options": {
+        "kind": "journey",
+        "index": 66
+      },
+      "generateMs": 291.12037899999814,
+      "layoutKey": "1dgve36-bz1rho",
+      "quality": {
+        "grid": "square",
+        "W": 12,
+        "H": 16,
+        "ropes": 24,
+        "coverage": 0.9114583333333334,
+        "quadrantCoverage": [
+          0.9375,
+          0.8541666666666666,
+          0.875,
+          0.9791666666666666
+        ],
+        "mirrors": 5,
+        "springs": 2,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 30,
+        "nonExitMoves": 7
+      },
+      "declaredPar": 30,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 7,
+        "upperBound": 30,
+        "bestPlan": [
+          18,
+          21,
+          17,
+          9,
+          11,
+          19,
+          10,
+          6,
+          5,
+          4,
+          23,
+          7,
+          0,
+          22,
+          1,
+          1,
+          16,
+          14,
+          3,
+          2,
+          3,
+          2,
+          3,
+          0,
+          2,
+          3,
+          8,
+          12,
+          20,
+          13,
+          15
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 2,
+        "upperBound": 7,
+        "bestPlan": [
+          18,
+          21,
+          17,
+          9,
+          11,
+          19,
+          10,
+          6,
+          5,
+          4,
+          23,
+          7,
+          0,
+          22,
+          1,
+          1,
+          16,
+          14,
+          3,
+          2,
+          3,
+          2,
+          3,
+          0,
+          2,
+          3,
+          8,
+          12,
+          20,
+          13,
+          15
+        ],
+        "nodes": 2000
+      },
+      "searchMs": 1435.381186999999,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-67",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 30,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 18,
+            "losses": 46,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.28125,
+            "winRate95": {
+              "low": 0.18593372333727837,
+              "high": 0.40133930282207403
+            },
+            "completedWinRate": 0.28125,
+            "meanManualTaps": 32.388888888888886,
+            "meanExcessTaps": 2.3888888888888857,
+            "meanSteps": 27.5625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 13,
+            "losses": 51,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.203125,
+            "winRate95": {
+              "low": 0.12273417819183653,
+              "high": 0.3171363573101416
+            },
+            "completedWinRate": 0.203125,
+            "meanManualTaps": 37.84615384615385,
+            "meanExcessTaps": 7.846153846153847,
+            "meanSteps": 29.453125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 28,
+            "losses": 36,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.4375,
+            "winRate95": {
+              "low": 0.3229400970440308,
+              "high": 0.5591379104300699
+            },
+            "completedWinRate": 0.4375,
+            "meanManualTaps": 32.392857142857146,
+            "meanExcessTaps": 2.392857142857146,
+            "meanSteps": 28.65625,
+            "screenedChoices": 8731,
+            "fatalChoices": 68,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 2439.5465220000006,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "journey-opening",
+      "options": {
+        "kind": "journey",
+        "index": 0
+      },
+      "generateMs": 22.41037900000083,
+      "layoutKey": "x8lnhx-19zy8hf",
+      "quality": {
+        "grid": "hex",
+        "W": 4,
+        "H": 5,
+        "ropes": 3,
+        "coverage": 1,
+        "quadrantCoverage": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 1,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 1,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          0,
+          1,
+          2
+        ],
+        "nodes": 0
+      },
+      "searchMs": 0.06918599999698927,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-opening",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 1,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.640625,
+            "meanExcessTaps": 0.640625,
+            "meanSteps": 1.640625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.640625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 1.453125,
+            "meanExcessTaps": 0.453125,
+            "meanSteps": 1.453125,
+            "screenedChoices": 157,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.453125
+          }
+        },
+        "provenOptimalTaps": 1
+      },
+      "simulationMs": 3.6842539999997825,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "journey-first-chapter-end",
+      "options": {
+        "kind": "journey",
+        "index": 9
+      },
+      "generateMs": 71.55261899999823,
+      "layoutKey": "wk6wap-n5fdaf",
+      "quality": {
+        "grid": "hex",
+        "W": 6,
+        "H": 7,
+        "ropes": 5,
+        "coverage": 0.9761904761904762,
+        "quadrantCoverage": [
+          0.9166666666666666,
+          1,
+          1,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 4,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 4,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          3,
+          0,
+          1,
+          0,
+          2,
+          4
+        ],
+        "nodes": 7
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          3,
+          0,
+          1,
+          0,
+          2,
+          4
+        ],
+        "nodes": 4
+      },
+      "searchMs": 0.5651619999989634,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-first-chapter-end",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 4,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 4.90625,
+            "meanExcessTaps": 0.90625,
+            "meanSteps": 4.90625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 0.90625
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 5,
+            "meanExcessTaps": 1,
+            "meanSteps": 5,
+            "screenedChoices": 416,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 1
+          }
+        },
+        "provenOptimalTaps": 4
+      },
+      "simulationMs": 4.861371999999392,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "square-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 61.959827000002406,
+      "layoutKey": "123lgfr-ontcg1",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 19,
+        "coverage": 0.953125,
+        "quadrantCoverage": [
+          1,
+          0.875,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 16,
+        "nonExitMoves": 0
+      },
+      "declaredPar": 16,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 15,
+        "upperBound": 16,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "bestPlan": [
+          18,
+          17,
+          14,
+          12,
+          2,
+          10,
+          15,
+          1,
+          7,
+          0,
+          8,
+          16,
+          3,
+          4,
+          9,
+          13,
+          5,
+          6,
+          11
+        ],
+        "nodes": 0
+      },
+      "searchMs": 171.06494800000291,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 16,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.59375,
+            "meanExcessTaps": 1.59375,
+            "meanSteps": 17.59375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 27,
+            "losses": 37,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.421875,
+            "winRate95": {
+              "low": 0.30869782474345486,
+              "high": 0.5438996845991709
+            },
+            "completedWinRate": 0.421875,
+            "meanManualTaps": 21.74074074074074,
+            "meanExcessTaps": 5.7407407407407405,
+            "meanSteps": 19.171875,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 17.609375,
+            "meanExcessTaps": 1.609375,
+            "meanSteps": 17.609375,
+            "screenedChoices": 3360,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 143.56589099999837,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "hex-small-medium",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 40,
+        "max": 40,
+        "count": 1,
+        "seed": "BENCHMED"
+      },
+      "generateMs": 21.35008999999991,
+      "layoutKey": "1h4wdg2-cljtz8",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 9,
+        "coverage": 0.96875,
+        "quadrantCoverage": [
+          0.9375,
+          1,
+          1,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 6,
+        "nonExitMoves": 1
+      },
+      "declaredPar": 6,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 6,
+        "upperBound": 6,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 28
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 1,
+        "upperBound": 1,
+        "bestPlan": [
+          7,
+          2,
+          4,
+          0,
+          1,
+          0,
+          3,
+          5,
+          6,
+          8
+        ],
+        "nodes": 24
+      },
+      "searchMs": 2.7524109999976645,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-medium",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 6,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9.484375,
+            "meanExcessTaps": 3.484375,
+            "meanSteps": 9.484375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3.484375
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 9,
+            "meanExcessTaps": 3,
+            "meanSteps": 9,
+            "screenedChoices": 1080,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 3
+          }
+        },
+        "provenOptimalTaps": 6
+      },
+      "simulationMs": 15.210274999997637,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "square-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "square",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 101.18171300000176,
+      "layoutKey": "6myhtq-1tyeeuc",
+      "quality": {
+        "grid": "square",
+        "W": 8,
+        "H": 8,
+        "ropes": 12,
+        "coverage": 0.875,
+        "quadrantCoverage": [
+          0.875,
+          0.9375,
+          0.75,
+          0.9375
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 14,
+        "nonExitMoves": 4
+      },
+      "declaredPar": 14,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 13,
+        "upperBound": 14,
+        "bestPlan": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          11,
+          10,
+          9,
+          8,
+          5,
+          6,
+          4,
+          2,
+          3,
+          7
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          11,
+          10,
+          9,
+          8,
+          5,
+          6,
+          4,
+          2,
+          3,
+          7
+        ],
+        "nodes": 56
+      },
+      "searchMs": 124.98641900000075,
+      "players": {
+        "seed": "MONKEY-BENCH-1/square-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 14,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 3,
+            "losses": 61,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.046875,
+            "winRate95": {
+              "low": 0.016069016786292974,
+              "high": 0.12899653740093686
+            },
+            "completedWinRate": 0.046875,
+            "meanManualTaps": 19.333333333333332,
+            "meanExcessTaps": 5.333333333333332,
+            "meanSteps": 7.359375,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 3,
+            "losses": 61,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.046875,
+            "winRate95": {
+              "low": 0.016069016786292974,
+              "high": 0.12899653740093686
+            },
+            "completedWinRate": 0.046875,
+            "meanManualTaps": 23,
+            "meanExcessTaps": 9,
+            "meanSteps": 7.890625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 23,
+            "losses": 41,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.359375,
+            "winRate95": {
+              "low": 0.25288402291451745,
+              "high": 0.48179149390220904
+            },
+            "completedWinRate": 0.359375,
+            "meanManualTaps": 18.956521739130434,
+            "meanExcessTaps": 4.956521739130434,
+            "meanSteps": 11.265625,
+            "screenedChoices": 2578,
+            "fatalChoices": 99,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 164.16607000000295,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "hex-small-hard",
+      "options": {
+        "revision": 3,
+        "grid": "hex",
+        "width": 8,
+        "height": 8,
+        "min": 100,
+        "max": 100,
+        "count": 1,
+        "seed": "REPEAT"
+      },
+      "generateMs": 235.558057000002,
+      "layoutKey": "tnqaza-11gsy10",
+      "quality": {
+        "grid": "hex",
+        "W": 8,
+        "H": 8,
+        "ropes": 9,
+        "coverage": 0.96875,
+        "quadrantCoverage": [
+          1,
+          1,
+          0.875,
+          1
+        ],
+        "mirrors": 0,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 11,
+        "nonExitMoves": 4
+      },
+      "declaredPar": 11,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 11,
+        "upperBound": 11,
+        "bestPlan": [
+          8,
+          6,
+          5,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          3,
+          2,
+          4,
+          7
+        ],
+        "nodes": 213
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "optimal",
+        "solved": true,
+        "exact": true,
+        "lowerBound": 4,
+        "upperBound": 4,
+        "bestPlan": [
+          8,
+          6,
+          5,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          3,
+          2,
+          4,
+          7
+        ],
+        "nodes": 84
+      },
+      "searchMs": 17.222367000002123,
+      "players": {
+        "seed": "MONKEY-BENCH-1/hex-small-hard",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 11,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 15.390625,
+            "meanExcessTaps": 4.390625,
+            "meanSteps": 15.390625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 4.390625
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 16.890625,
+            "meanExcessTaps": 5.890625,
+            "meanSteps": 16.890625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": 5.890625
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 15.21875,
+            "meanExcessTaps": 4.21875,
+            "meanSteps": 15.21875,
+            "screenedChoices": 2570,
+            "fatalChoices": 2,
+            "restarts": 0,
+            "meanTapRegret": 4.21875
+          }
+        },
+        "provenOptimalTaps": 11
+      },
+      "simulationMs": 56.994973000000755,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "journey-level-62",
+      "options": {
+        "kind": "journey",
+        "index": 61
+      },
+      "generateMs": 272.39026100000046,
+      "layoutKey": "aum7cg-1iq04gm",
+      "quality": {
+        "grid": "square",
+        "W": 12,
+        "H": 16,
+        "ropes": 27,
+        "coverage": 0.875,
+        "quadrantCoverage": [
+          0.7916666666666666,
+          0.9166666666666666,
+          0.9166666666666666,
+          0.875
+        ],
+        "mirrors": 6,
+        "springs": 2,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 30,
+        "nonExitMoves": 6
+      },
+      "declaredPar": 30,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 6,
+        "upperBound": 30,
+        "bestPlan": [
+          25,
+          23,
+          26,
+          21,
+          7,
+          11,
+          5,
+          4,
+          0,
+          1,
+          3,
+          2,
+          16,
+          3,
+          2,
+          3,
+          17,
+          20,
+          2,
+          10,
+          9,
+          6,
+          18,
+          24,
+          0,
+          12,
+          13,
+          8,
+          15,
+          19,
+          22,
+          14,
+          1
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 2,
+        "upperBound": 6,
+        "bestPlan": [
+          25,
+          23,
+          26,
+          21,
+          7,
+          11,
+          5,
+          4,
+          0,
+          1,
+          3,
+          2,
+          16,
+          3,
+          2,
+          3,
+          17,
+          20,
+          2,
+          10,
+          9,
+          6,
+          18,
+          24,
+          0,
+          12,
+          13,
+          8,
+          15,
+          19,
+          22,
+          14,
+          1
+        ],
+        "nodes": 2000
+      },
+      "searchMs": 2081.2659099999983,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-62",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 30,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 36.5625,
+            "meanExcessTaps": 6.5625,
+            "meanSteps": 36.5625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 21,
+            "losses": 43,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.328125,
+            "winRate95": {
+              "low": 0.22570557904469185,
+              "high": 0.45000894150908505
+            },
+            "completedWinRate": 0.328125,
+            "meanManualTaps": 40.666666666666664,
+            "meanExcessTaps": 10.666666666666664,
+            "meanSteps": 32.015625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 64,
+            "losses": 0,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 1,
+            "winRate95": {
+              "low": 0.9433759402071946,
+              "high": 1
+            },
+            "completedWinRate": 1,
+            "meanManualTaps": 36.53125,
+            "meanExcessTaps": 6.53125,
+            "meanSteps": 36.53125,
+            "screenedChoices": 10945,
+            "fatalChoices": 24,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 4345.612036999999,
+      "status": "evaluated"
+    },
+    {
+      "source": {
+        "id": "a094047",
+        "ref": "a0940474ef88c527e9da56cee44c7c03206ad44c"
+      },
+      "id": "journey-level-67",
+      "options": {
+        "kind": "journey",
+        "index": 66
+      },
+      "generateMs": 215.15313100000276,
+      "layoutKey": "yqxirb-1i2nfr5",
+      "quality": {
+        "grid": "hex",
+        "W": 11,
+        "H": 14,
+        "ropes": 20,
+        "coverage": 0.9155844155844156,
+        "quadrantCoverage": [
+          0.8333333333333334,
+          0.9714285714285714,
+          0.9285714285714286,
+          0.9428571428571428
+        ],
+        "mirrors": 6,
+        "springs": 0,
+        "initiallyAllFree": false,
+        "moderate": true
+      },
+      "certificate": {
+        "manualTaps": 23,
+        "nonExitMoves": 4
+      },
+      "declaredPar": 23,
+      "manualTaps": {
+        "objective": "manualTaps",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 9,
+        "upperBound": 23,
+        "bestPlan": [
+          18,
+          14,
+          17,
+          9,
+          6,
+          0,
+          16,
+          1,
+          19,
+          5,
+          4,
+          3,
+          4,
+          3,
+          4,
+          7,
+          3,
+          15,
+          12,
+          11,
+          10,
+          8,
+          2,
+          13
+        ],
+        "nodes": 2000
+      },
+      "nonExitMoves": {
+        "objective": "nonExitMoves",
+        "status": "budget-exhausted",
+        "solved": true,
+        "exact": false,
+        "lowerBound": 3,
+        "upperBound": 4,
+        "bestPlan": [
+          18,
+          14,
+          17,
+          9,
+          6,
+          0,
+          16,
+          1,
+          19,
+          5,
+          4,
+          3,
+          4,
+          3,
+          4,
+          7,
+          3,
+          15,
+          12,
+          11,
+          10,
+          8,
+          2,
+          13
+        ],
+        "nodes": 2000
+      },
+      "searchMs": 932.8265119999996,
+      "players": {
+        "seed": "MONKEY-BENCH-1/journey-level-67",
+        "trials": 64,
+        "maxSteps": 200,
+        "lookaheadBudget": 64,
+        "referenceTaps": 23,
+        "winRateMeaning": "Observed wins within the step/repeat limits; loops and timeouts are censored, not proven losses.",
+        "referenceMeaning": "Tap count of a replayed certificate, not a claim of optimal par.",
+        "policies": {
+          "exitFirst": {
+            "description": "Choose a random exit when available; otherwise choose any legal move.",
+            "wins": 22,
+            "losses": 42,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.34375,
+            "winRate95": {
+              "low": 0.23923142078443355,
+              "high": 0.46596359790081815
+            },
+            "completedWinRate": 0.34375,
+            "meanManualTaps": 24.318181818181817,
+            "meanExcessTaps": 1.3181818181818166,
+            "meanSteps": 19,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "randomLegal": {
+            "description": "Choose uniformly among all legal moves.",
+            "wins": 3,
+            "losses": 61,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.046875,
+            "winRate95": {
+              "low": 0.016069016786292974,
+              "high": 0.12899653740093686
+            },
+            "completedWinRate": 0.046875,
+            "meanManualTaps": 28.333333333333332,
+            "meanExcessTaps": 5.333333333333332,
+            "meanSteps": 18.140625,
+            "screenedChoices": 0,
+            "fatalChoices": 0,
+            "restarts": 0,
+            "meanTapRegret": null
+          },
+          "cautious": {
+            "description": "Exit-first after screening choices that immediately leave no legal move.",
+            "wins": 36,
+            "losses": 28,
+            "timeouts": 0,
+            "loops": 0,
+            "censored": 0,
+            "winRate": 0.5625,
+            "winRate95": {
+              "low": 0.4408620895699301,
+              "high": 0.6770599029559693
+            },
+            "completedWinRate": 0.5625,
+            "meanManualTaps": 24.22222222222222,
+            "meanExcessTaps": 1.2222222222222214,
+            "meanSteps": 20.796875,
+            "screenedChoices": 5082,
+            "fatalChoices": 49,
+            "restarts": 0,
+            "meanTapRegret": null
+          }
+        },
+        "provenOptimalTaps": null
+      },
+      "simulationMs": 744.9325339999996,
+      "status": "evaluated"
+    }
+  ],
+  "summary": {
+    "evaluated": 28,
+    "unsupported": 4
+  }
+}

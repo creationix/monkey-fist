@@ -50,10 +50,10 @@ the fifth on revision 4, and the sixth on revision 5, which applies sections
    mirror-aware tracks, the restored knot and trap budget, honest par and
    selection by play, every mirror-only level in chapters 2 to 6 now forces
    slides (16 of 16, against 0 of 13), levels the casual player cannot lose fall
-   from 58 to 41, no par can be shortened by postponing exits (against 93), and
+   from 58 to 45, no par can be shortened by postponing exits (against 93), and
    only 5 levels use the full 12 × 16 grid (against 46). Measured challenge now
-   rises in every chapter but two. The mean casual win rate is unchanged at 75 %,
-   and spinner levels, still built by routed circuits, are not improved
+   rises in every chapter but two. The mean casual win rate barely moves (75 % to
+   73 %), and spinner levels, still built by routed circuits, are not improved
    (section 5.7).
 
 ## 1. Introduction
@@ -586,7 +586,8 @@ Revision 5 applies sections 6.1 to 6.5 and the mirror half of 6.3:
   and bounces of their par solution plus `6 × (1 − casual win rate)`, against a
   target set by the difficulty.
 - **A seeded, curated Journey** (section 6.4): all 120 levels, the introductions
-  included, come from seeds derived from the master seed. Each position tries
+  included, come from seeds derived from the master seed (combining this branch
+  with the seeding interface published in `a094047`). Each position tries
   several seeds and keeps the one closest to a target challenge that rises
   smoothly; chapters keep the revision 4 quotas, shifted from four to three mirror
   levels against two spinner levels.
@@ -596,34 +597,35 @@ The same independent measurements as before, over levels 11 to 120:
 | Measure | Revision 3 | Revision 4 | Revision 5 |
 | --- | --- | --- | --- |
 | Forced non-exit moves, all levels | 84 | 401 | 436 |
-| Levels the casual player cannot lose | 81 | 58 | 41 |
-| Mean casual win rate | 89 % | 75 % | 75 % |
+| Levels the casual player cannot lose | 81 | 58 | 45 |
+| Mean casual win rate | 89 % | 75 % | 73 % |
 | Pars beaten by postponing unneeded exits | 69 | 93 | 0 |
-| Levels with par above the rope count after that check | 9 | 45 | 59 |
+| Levels with par above the rope count after that check | 9 | 45 | 57 |
 | Mirror-only levels in chapters 2 to 6 that force a slide | 0 of 19 | 0 of 13 | 16 of 16 |
 | Mirror-only levels, mean ropes turned by a mirror | 1.9 | 3.9 | 5.5 |
 | Levels on the full 12 × 16 grid | 1 | 46 | 5 |
-| Mean generation time per level | | 137 ms | 211 ms |
+| Mean generation time per level | | 137 ms | 219 ms |
 
 Measured challenge (forced moves plus six times the casual loss rate) by chapter:
 
 | Chapter | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Revision 4 | 0.3 | 0.5 | 1.2 | 1.6 | 2.2 | 2.7 | 8.3 | 7.2 | 7.2 | 9.1 | 8.8 | 7.8 |
-| Revision 5 | 1.7 | 1.6 | 2.3 | 2.9 | 4.1 | 4.9 | 6.6 | 6.3 | 6.4 | 7.7 | 8.5 | 8.9 |
+| Revision 5 | 1.6 | 1.7 | 2.1 | 3.3 | 3.6 | 4.3 | 7.1 | 7.1 | 6.7 | 7.6 | 8.3 | 9.4 |
 
-The step at chapter 7 is now a ramp, and the last chapter is the hardest. The
-trade is that chapters 7 to 10 are somewhat gentler than revision 4's: only 2
-late levels hold the casual player to 15 % or less, against 7. The target
-curve, not the generator, sets that balance.
+The early chapters now ramp instead of staying near zero, and the last chapter
+is the hardest. A smaller step remains at chapter 7, where the late
+specifications start requiring repeated slides. Chapters 7 to 10 are slightly
+gentler than revision 4's (6 late levels hold the casual player to 15 % or
+less, against 7). The target curve, not the generator, sets that balance.
 
 What did not improve:
 
 - **Spinner levels.** They still come from routed circuits with the repeated
   core. In the late chapters they make most of their slides in that core and
   remain the least losable featured kind.
-- **The casual win rate overall.** It is flat at 75 %. Early chapters are more
-  often losable than before; chapters 7 to 9 are less so.
+- **The casual win rate overall.** It moves only from 75 % to 73 %. Early
+  chapters are more often losable than before; chapters 7 to 9 are about the same.
 - **Proofs.** 42 of 120 pars are proven minimal; the rest are the best solution
   found after postponement.
 

@@ -254,7 +254,10 @@ builder plans each position's kind, size and difficulty (rising smoothly from
 candidate that fails the checks above, re-measures the rest with more casual
 games, and keeps the one closest to the position's target challenge. Within a
 chapter, levels run from lowest to highest measured challenge. If no seed works
-at the planned size, the board steps toward 12 × 16.
+at the planned size, the board steps toward 12 × 16. Each level records its
+`slot`, `journeySeed` and `seedAttempt`, and its map seed is a hash of those
+alone, so `--seed` builds a different deterministic campaign and no layout or
+seed is listed in the source.
 
 From chapter 4, enabled mechanics require at least three actually turning
 mirrors or two distinct actually used spinners. The checks inspect the final

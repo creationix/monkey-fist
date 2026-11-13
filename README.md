@@ -7,11 +7,12 @@ No build step, dependencies, accounts, or network requests during play.
 
 ## One journey, both grids
 
-The default journey has 120 deterministic, procedurally generated levels:
+The default journey has 120 deterministic, procedurally generated levels. Every
+level, including the opening ten, is derived from the `MONKEYFIST` seed; none is
+hand-picked:
 
-- Every level, the opening ten included, is built from a seed derived from the
-  Journey's master seed; none is hand-picked. Opening puzzles mix square and Hex
-  grids, use at most five ropes, and gradually add partial-slide dependencies.
+- Opening puzzles mix square and Hex grids, use at most five ropes, and
+  gradually add partial-slide dependencies.
 - Later boards remain moderate, at most 12 columns by 16 rows. Difficulty comes
   from interacting blocking dependencies, not steadily larger boards or longer
   single chains. Boards stay packed instead of growing sparse strips.
@@ -73,8 +74,10 @@ searches label an unproved optimum as best known.
 
 `grid-journey.js` stores only seed/settings/score metadata, not maps or solutions.
 Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
-generator; this orders the default campaign without generating all 120 maps on
-each visit. The builder checks exact dimensions, replayed tap counts, overall
+generator. For experiments, `--seed YOURSEED --out /tmp/journey.js` builds a
+different deterministic campaign; `--plan` inspects the seeded schedule. The
+opening uses quality constraints rather than a list of pinned maps. The builder
+orders the default campaign without generating all 120 maps on each visit. The builder checks exact dimensions, replayed tap counts, overall
 rope coverage, coverage in each quarter of the board, and the minimum tap-to-rope
 ratio. Each displayed chapter has a mechanics quota, so challenge sorting cannot
 push every spinner into the middle of the Journey. Within each chapter, ordering
@@ -266,3 +269,7 @@ exercise custom grid/feature combinations and tiny random seeds, verify mirror
 geometry and generator certificates, and play real pointer taps on laptop and
 phone layouts. They cover chapter unlocks, concurrent animation, hints, undo,
 audio gains, legacy bookmarks, worker fallback, persistence, and offline reloads.
+
+The [generator benchmark](docs/research/puzzle-benchmark.md) compares Git revisions
+or independent generators under common movement rules, with separate tap/slide
+searches and seeded player policies. It runs offline and does not change gameplay.

@@ -6,11 +6,27 @@
 // for it; every candidate is replay-checked, measured by play (forced slides and
 // bounces in the par solution, and how often a casual player loses), and the one
 // closest to the position's target challenge is kept. See docs/research.
+//
+// Options: --seed SEED builds a different deterministic campaign, --out FILE
+// writes it elsewhere, and --plan prints the seeded schedule without building.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { createHash } = require('node:crypto');
-const { execFileSync } = require('node:child_process'), { createRequire } = require('node:module');
+const { execFileSync } = require('node:child_process');
 const G = require('../game-engine'), F = require('../grid-generator'), L = require('../levels');
-const MASTER = 'MONKEYFIST', BUILD = 'journey/5/' + MASTER;
+function argumentsOf(argv) {
+  const result = { seed: 'MONKEYFIST', out: path.join(__dirname, '../grid-journey.js'), plan: false };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--plan') result.plan = true;
+    else if (['--seed', '--out'].includes(argv[i]) && argv[i + 1] && !argv[i + 1].startsWith('--')) { const key = argv[i].slice(2); result[key] = argv[++i]; }
+    else throw Error('Unknown or incomplete option: ' + argv[i]);
+  }
+  result.seed = G.cleanSeed(result.seed);
+  result.out = path.resolve(result.out);
+  return result;
+}
+const options = argumentsOf(process.argv.slice(2)), BUILD = 'journey/5/' + options.seed;
+// A map seed is a function of the master seed, the position and the attempt only.
+const mapSeed = (spec, attempt) => L.hashString(BUILD + '/map/' + spec.chapter + '/' + spec.slot + '/' + attempt).toString(36).toUpperCase();
 const coverage = b => b.ropes.reduce((sum, rope) => sum + rope.length, 0) / (b.W * b.H);
 const pick = (rng, min, max) => min + Math.floor(rng() * (max - min + 1));
 const kindOf = b => b.mirrors && b.springs ? 'B' : b.mirrors ? 'M' : b.springs ? 'S' : 'P';
@@ -53,14 +69,15 @@ function plan() {
       const [W, H] = sizeFor(chapter, slot, kind, grid), difficulty = Number(difficultyAt(i).toFixed(3));
       if (W > 12 || H > 16) throw Error('Journey exceeds moderate grid bounds');
       const latePlain = kind === 'P' && chapter >= 5, routedLate = (kind === 'S' || kind === 'B') && chapter >= 7, wovenLate = kind === 'M' && chapter >= 7;
-      specs.push({ grid, W, H, difficulty, mirrors, springs, chapter,
+      const spec = { grid, W, H, difficulty, mirrors, springs, chapter, slot, journeySeed: options.seed, seedAttempt: 0,
         // The three hardest introductions must demonstrate a partial slide.
         ...(chapter === 1 && (slot === 4 || slot >= 8) ? { requireSlide: true } : {}),
         ...(mirrors ? { minMirrors: chapter === 2 ? kind === 'B' ? 2 : 1 : chapter === 3 ? 2 : 3 } : {}),
         ...(springs ? { minSprings: chapter < 4 ? 1 : 2, coreRopes: chapter >= 7 ? 3 : chapter >= 3 ? 2 : 1 } : {}),
         ...(latePlain ? { minParRatio: 1.05, minPartialSlides: 3, minRepeatedRopes: 1, minInterleavedRopes: 1 } : {}),
         ...(routedLate ? { minParRatio: 1.05, minPartialSlides: 3, minRepeatedRopes: 2, minInterleavedRopes: 1 } : {}),
-        ...(wovenLate ? { minPartialSlides: 3 } : {}), seed: '' });
+        ...(wovenLate ? { minPartialSlides: 3 } : {}) };
+      spec.seed = mapSeed(spec, 0); specs.push(spec);
     }
   }
   return specs;
@@ -110,8 +127,9 @@ function measure(b) {
   const rng = L.mulberry32(L.hashString(BUILD + '/measure/' + b.seed)), wins = F.casualRate(b, G, rng, b.springs.length ? 24 : 96);
   return { casualWins: Number(wins.toFixed(4)), work: b.play.work, challenge: Number(F.challengeOf(b.play.work, wins).toFixed(3)) };
 }
-function acceptable(spec, candidate, usage) {
-  const replayed = G.replay(candidate, candidate.plan), filled = coverage(candidate), tutorial = spec.chapter === 1;
+function acceptable(spec, candidate, usage, levels) {
+  const replayed = G.replay(candidate, candidate.plan), filled = coverage(candidate), tutorial = spec.chapter === 1, key = G.layoutKey(candidate);
+  if (levels.some(level => level.layoutKey === key)) return false; // never the same map twice
   const minimum = spec.mirrors || spec.springs || spec.W * spec.H <= 48 && usage.manualSlides ? .8 : .85;
   return candidate.W === spec.W && candidate.H === spec.H && replayed.solved && replayed.taps === candidate.par && candidate.par * 3 >= candidate.ropes.length &&
     !(spec.requireSlide && !usage.manualSlides) && !(tutorial && candidate.ropes.length > 5) && !oneTapClears(candidate) && filled >= minimum && balanced(candidate) &&
@@ -132,27 +150,25 @@ function orderChapter(chapter, cards) {
   featured.splice(3 + chapter % 4, 0, plain[0]); return featured;
 }
 const specs = plan();
-if (process.argv.includes('--plan')) {
+if (options.plan) {
   console.log(JSON.stringify(Array.from({ length: 12 }, (_, i) => ({ chapter: i + 1, ...specs.slice(i * 10, i * 10 + 10).reduce((out, b) => {
     const kind = kindOf(b); out[kind] = (out[kind] || 0) + 1; return out;
   }, {}), specs: specs.slice(i * 10, i * 10 + 10) })), null, 2)); process.exit(0);
 }
-// Match the last published campaigns by logical geometry, not by their old index.
-// Scores saved since GRID_VERSION 4 carry layout keys; older untagged scores use
-// the previous index into the GRID_VERSION 3 campaign.
+// Match the last published campaign (GRID_VERSION 5) by logical geometry, not by
+// its old index. Tagged scores follow layout keys; this map serves untagged ones.
 function previousLayouts() {
-  const reference = '93688c4', cache = path.join(os.tmpdir(), 'monkey-old-layout-keys.json');
+  const reference = '866c74c', cache = path.join(os.tmpdir(), 'monkey-old-layout-keys-' + reference + '.json');
   if (fs.existsSync(cache)) {
     const saved = JSON.parse(fs.readFileSync(cache, 'utf8'));
     if (saved.reference === reference) return new Map(saved.entries.map(e => [e.layoutKey, e.index]));
   }
-  const cwd = path.join(__dirname, '..'), requireAt = createRequire(path.join(cwd, 'grid-generator.js'));
-  const load = filename => {
-    const source = execFileSync('git', ['show', reference + ':' + filename], { cwd, encoding: 'utf8' }), m = { exports: {} };
-    new Function('require', 'module', 'exports', source)(requireAt, m, m.exports); return m.exports;
-  };
-  const oldGenerator = load('grid-generator.js');
-  const entries = load('grid-journey.js').map((metadata, index) => ({ index, layoutKey: G.layoutKey(oldGenerator.generate(metadata, G)) }));
+  const source = execFileSync('git', ['show', reference + ':grid-journey.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' }), m = { exports: {} };
+  new Function('module', 'exports', source)(m, m.exports);
+  const entries = m.exports.map((metadata, index) => {
+    if (!metadata.layoutKey) throw Error('Published baseline lacks layout identity');
+    return { index, layoutKey: metadata.layoutKey };
+  });
   fs.writeFileSync(cache, JSON.stringify({ reference, entries }, null, 2));
   return new Map(entries.map(e => [e.layoutKey, e.index]));
 }
@@ -174,11 +190,11 @@ for (const [i, source] of specs.entries()) {
   for (let size = [source.W, source.H], step = 0; !chosen && step < 3; size = [Math.min(12, size[0] + 1), Math.min(16, size[1] + 2)], step++) {
    if (step && size[0] === source.W && size[1] === source.H) break;
    for (let local = 0; local < wanted + extra && (tried < wanted || !chosen); local++, attempt++) {
-    const spec = { ...source, W: size[0], H: size[1], seed: L.hashString(BUILD + '/map/' + i + '/' + attempt).toString(36).toUpperCase() };
+    const spec = { ...source, W: size[0], H: size[1], seedAttempt: attempt, seed: mapSeed(source, attempt) };
     let candidate, usage;
     try { candidate = F.generate(spec, G); usage = inspectPlan(candidate); }
     catch (error) { process.stderr.write(`  ${i + 1}/${attempt + 1}: ${error.message}\n`); continue; }
-    if (!acceptable(spec, candidate, usage)) { process.stderr.write(`  ${i + 1}/${attempt + 1}: rejected (${candidate.ropes.length} ropes / ${candidate.par} taps, ${JSON.stringify(usage)})\n`); continue; }
+    if (!acceptable(spec, candidate, usage, levels)) { process.stderr.write(`  ${i + 1}/${attempt + 1}: rejected (${candidate.ropes.length} ropes / ${candidate.par} taps, ${JSON.stringify(usage)})\n`); continue; }
     tried++;
     const play = measure(candidate), miss = Math.abs(play.challenge - target);
     if (!chosen || miss < chosen.miss) chosen = { spec, candidate, usage, play, miss };
@@ -191,7 +207,7 @@ for (const [i, source] of specs.entries()) {
     ...(board.mechanicStats ? { mechanicStats: board.mechanicStats } : {}) };
   metadata.layoutKey = G.layoutKey(board);
   if (previous.has(metadata.layoutKey)) metadata.previousIndex = previous.get(metadata.layoutKey);
-  if (spec.chapter === 1) metadata.introChallenge = play.challenge;
+  if (spec.chapter === 1) metadata.openingChallenge = play.challenge;
   levels.push(metadata); cached[sourceKey] = metadata; fs.writeFileSync(cacheFile, JSON.stringify(cached));
   process.stderr.write(`${i + 1}: ${kindOf(spec)} ${board.grid} ${spec.W}×${spec.H}, ${board.ropes.length} ropes / ${board.par} taps, challenge ${play.challenge} (target ${target.toFixed(2)}), casual ${(play.casualWins * 100).toFixed(0)}%, M${usage.mirrors}/S${usage.springs}, slides ${usage.manualSlides}, bounces ${usage.manualBounces}\n`);
 }
@@ -205,7 +221,7 @@ for (let chapter = 1; chapter <= 12; chapter++) {
   report.push({ chapter, kinds, meanChallenge: mean(b => b.play.challenge), meanCasualWins: mean(b => b.play.casualWins), meanWork: mean(b => b.play.work),
     aboveRopePar: cards.filter(b => b.par > b.ropeCount).length, meanArea: mean(b => b.W * b.H) });
 }
-const output = '// Generated by scripts/build-grid-journey.cjs. Metadata only; maps are built from seeds.\n' +
+const output = '// Generated by scripts/build-grid-journey.cjs from seed ' + options.seed + '. Metadata only; maps are built from seeds.\n' +
   '(function(root){const levels=' + JSON.stringify(levels, null, 2) + ';if(typeof module!=="undefined"&&module.exports)module.exports=levels;else root.MFGridJourney=levels;})(globalThis);\n';
-fs.writeFileSync(path.join(__dirname, '../grid-journey.js'), output);
-process.stderr.write(JSON.stringify(report, null, 2) + '\nBuilt 120 levels.\n');
+fs.writeFileSync(options.out, output);
+process.stderr.write(JSON.stringify(report, null, 2) + '\nBuilt 120 levels from seed ' + options.seed + '.\n');
