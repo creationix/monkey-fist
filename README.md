@@ -65,6 +65,8 @@ board’s screen rotation.
 Other ropes remain tappable while animations run, including on mirror and spring
 boards. Movement commits logically at the tap; each rope keeps its own visual
 route. Undo restores the previous full board and cancels in-flight animations.
+Queued moves yield at shared paths until the earlier rope's tail clears them;
+independent routes still animate together. Swishes start when a queued rope moves.
 
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic

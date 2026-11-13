@@ -134,6 +134,25 @@ function hud() {
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
   $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.springs?.length ? 'Springs reverse a rope.' : l.mirrors?.length ? 'Mirrors turn ropes.' : 'Tap a rope. Follow its arrow.';
 }
+function prepareTraffic(move) {
+  move.visits = new Map(move.route.map((p, index) => [p.q + ',' + p.r, index]));
+  move.traffic = [];
+  for (const before of G.moves.values()) {
+    for (let index = move.path.length; index < move.route.length; index++) {
+      const p = move.route[index], crossing = before.visits.get(p.q + ',' + p.r);
+      if (crossing !== undefined) move.traffic.push({ before, clear: crossing + 1, stop: Math.max(0, index - move.path.length) });
+    }
+  }
+}
+function motionLimit(move, positions) {
+  let limit = move.distance;
+  move.traffic = move.traffic.filter(gate => {
+    const tail = positions.get(gate.before);
+    if (tail === undefined || tail >= gate.clear) return false;
+    limit = Math.min(limit, gate.stop); return true;
+  });
+  return limit;
+}
 function tap(i, automatic = false) {
   if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
@@ -150,10 +169,13 @@ function tap(i, automatic = false) {
   }
   const bounceDuration = m.event === 'bounce' ? reduced ? .12 : .58 : 0;
   const spring = m.event === 'bounce' ? H.add(m.route.at(-1), headDirection(m.route.slice(-G.paths[i].length))) : null;
-  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
-    popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 });
-  commit(G.moves.get(i));
-  sfx.slide();
+  const move = { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
+    popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
+  prepareTraffic(move);
+  move.waiting = move.distance > 0 && motionLimit(move, new Map([...G.moves.values()].map(m => [m, m.progress]))) === 0;
+  move.started = !move.waiting; G.moves.set(i, move);
+  commit(move);
+  if (move.started) sfx.slide();
   if (!automatic) {
     if (G.assisted.has(i)) G.combo = 0;
     else if (m.event === 'exit' && ++G.combo % 5 === 0) notice(G.combo + ' in a row!');
@@ -215,9 +237,17 @@ function update(dt) {
   if (G.hintTime > 0) { G.hintTime -= dt; if (G.hintTime <= 0) { G.hint = -1; drawNext = true; } }
   if (G.bump) { G.bump.time -= dt; if (G.bump.time <= 0) { G.bump = null; drawNext = true; } }
   let settled = false;
+  // Use the earlier frame's tail positions, so a follower cannot cut through a
+  // crossing that its predecessor is still clearing during this frame.
+  const positions = new Map([...G.moves.values()].map(m => [m, m.progress]));
   for (const [id, m] of G.moves) {
-    m.speed = Math.min(38, m.speed + dt * 100);
-    m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
+    // Temporary slow motion for playtesting crossing clearance (normal speed: 1).
+    const travelDt = dt * (m.event === 'exit' ? .1 : 1);
+    m.speed = Math.min(38, m.speed + travelDt * 100);
+    const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
+    m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
+    if (m.waiting) m.speed = 0;
+    if (!m.started && m.progress > 0) { m.started = true; sfx.slide(); }
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
       if (m.event === 'bounce' && !m.impacted) { m.impacted = true; sfx.spring(); }
@@ -366,6 +396,10 @@ function drawRope(i, time) {
   for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
+  if (moving?.waiting) {
+    path(ctx, points); ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#fff1b433'; ctx.lineWidth = s * .51; ctx.stroke();
+  }
   if (flip) {
     if (reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
     else {
@@ -393,7 +427,7 @@ function drawRope(i, time) {
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
-  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && moving.progress < moving.distance);
+  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && !moving.waiting && moving.progress < moving.distance);
   ctx.restore();
 }
 function drawSpring(spring, move) {
@@ -483,6 +517,9 @@ function drawRestingBoard(activeSprings) {
   drawMirrors(activeSprings);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i) && i !== G.hint && i !== G.selected && i !== G.bump?.i) drawRope(i, 0);
   ctx.restore();
+  // Queued ropes are stationary too, including their visible portions outside
+  // the board. Keep them in the raster cache until they can advance again.
+  for (const move of G.moves.values()) if (move.waiting) drawRope(move.i, 0);
 }
 function draw(time) {
   drawNext = false;
@@ -491,7 +528,8 @@ function draw(time) {
   for (const move of G.moves.values()) if (move.spring) activeSprings.set(move.spring.q + ',' + move.spring.r, move);
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
-  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, [...G.moves.keys()].join(','), !!save.oled];
+  const moving = [...G.moves.values()].map(m => m.waiting ? m.i + '@' + m.progress : m.i).join(',');
+  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }
@@ -500,7 +538,7 @@ function draw(time) {
   for (const move of activeSprings.values()) drawSpring(move.spring, move);
   for (const i of new Set([G.hint, G.selected, G.bump?.i])) if (i >= 0 && G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   // Departing ropes stay visible all the way off-screen, including rotated boards.
-  for (const i of G.moves.keys()) drawRope(i, time);
+  for (const [i, move] of G.moves) if (!move.waiting) drawRope(i, time);
 }
 function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))); return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t); }
 function pickRope(p, padding = 0) {

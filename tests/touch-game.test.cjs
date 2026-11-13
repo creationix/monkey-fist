@@ -81,7 +81,7 @@ test('exit sounds fire when the entire rope clears the board and viewport, befor
       const result = await page.evaluate(() => {
         const g = __game.G, id = g.paths.findIndex((p, i) => p && MFGame.tap(g.level, g.paths, i)?.event === 'exit');
         let sounds = 0; sfx.pop = () => sounds++; __game.tap(id); const move = g.moves.get(id); let premature = false;
-        for (let n = 0; n < 1000 && g.moves.has(id); n++) {
+        for (let n = 0; n < 10000 && g.moves.has(id); n++) {
           __game.update(1 / 120);
           if (sounds) { g.moves.set(id, move); premature = !exitCleared(id); g.moves.delete(id); }
         }

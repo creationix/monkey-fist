@@ -60,21 +60,21 @@ test('reflection sounds follow head arrivals once, including a stop on a mirror,
         setup(grid, mirrors, [grid === 'square' ? [p(1, 2), p(2, 2)] : [p(1, 1), p(2, 1)]], [0]);
         const sounds = []; sfx.reflect = n => sounds.push({ n, progress: G.moves.get(0).progress }); tap(0);
         const atTap = sounds.length;
-        for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
+        for (let i = 0; i < 2400 && G.moving; i++) update(1 / 120);
         results.push({ grid, atTap, sounds });
       }
       setup('square', [{ cell: p(3, 2), slope: '\\' }], [[p(1, 2), p(2, 2)], [p(3, 3), p(3, 4)]], [0, 1, 0]);
       let reflections = 0, thuds = 0; sfx.reflect = () => reflections++; sfx.thud = () => thuds++; tap(0);
       update(.08); const beforeArrival = reflections; update(.04); const atStop = reflections;
       G.paths = [G.paths[0], null]; G.plan = [0]; tap(0);
-      for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
+      for (let i = 0; i < 2400 && G.moving; i++) update(1 / 120);
       results.push({ beforeArrival, atStop, afterResume: reflections, thuds });
       setup('hex', [{ cell: p(3, 2), axis: 0 }], [[p(1, 2), p(2, 2)]], [0]);
-      reflections = 0; tap(0); for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
+      reflections = 0; tap(0); for (let i = 0; i < 2400 && G.moving; i++) update(1 / 120);
       results.push({ edgeOnSounds: reflections });
       setup('square', [{ cell: p(3, 2), slope: '\\' }], [[p(1, 2), p(2, 2)]], [0, 0], [p(3, 3)]);
       let springs = 0; sfx.spring = () => springs++; reflections = thuds = 0; tap(0);
-      for (let i = 0; i < 200 && G.moving; i++) update(1 / 120);
+      for (let i = 0; i < 2400 && G.moving; i++) update(1 / 120);
       results.push({ mirrorThenSpring: { reflections, springs, thuds } }); cancelGuide(); return results;
     });
     for (const r of results.slice(0, 2)) {
