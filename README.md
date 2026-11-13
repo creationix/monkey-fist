@@ -24,7 +24,7 @@ Old `/hex/` bookmarks redirect to the shared app with Hex custom settings.
 
 ## Custom sets
 
-Open **Levels → Custom** to choose:
+Open **Menu → Custom** to choose:
 
 - Square + Hex, square only, or Hex only.
 - Mirrors and springs, independently.
@@ -190,7 +190,7 @@ Mirror turns make a low, hollow pluck tuned to the current music, timed to the
 head reaching each mirror. Sliding away from a mirror does not repeat its sound.
 Spring impacts make a low, damped boing when the coil compresses.
 
-In **Levels**, toggle **Dark mode** for a black page background and nearly black
+In **Menu**, toggle **Dark mode** for a black page background and nearly black
 board and menu surfaces. It preserves rope colors, works on both grids, and
 remembers the setting across sessions, including offline play.
 

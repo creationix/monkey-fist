@@ -60,7 +60,7 @@ That one rule lets the builder do two useful things on purpose. It can lay a rop
 
 Board size follows from difficulty: Easy sets are small boards, and the top of Extreme is 12x16.
 
-**Bigger boards** (a Levels option, `B` in the share code) allows straight-track boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off. Twists also supports this option, targeting larger tangles while keeping rope counts and routed-solver work bounded.
+**Bigger boards** (a legacy custom-set option, `B` in the share code) allows straight-track boards up to 16x22 and doubles the top of each generated range, at the cost of small cells on a phone. The default set leaves it off. Twists also supports this option, targeting larger tangles while keeping rope counts and routed-solver work bounded.
 
 **Cost.** For `R` ropes on a `W x H` board:
 
