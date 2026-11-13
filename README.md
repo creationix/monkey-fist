@@ -92,7 +92,7 @@ The underlying engines remain specialized:
 | `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation, compact track solver |
 | `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
-| `rope-art.js` | Cached diagonal braid texture, tracer strands, and cylindrical shading |
+| `rope-art.js` | Cached braid geometry that follows rounded bends, matching arrowheads, and reduced detail at small sizes |
 | `audio.js`, `music.js`, `sounds.js` | Shared Web Audio session, arrangements, and effects |
 
 Straight ropes only advance along fixed tracks, so their solver can store small

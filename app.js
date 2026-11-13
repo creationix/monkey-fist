@@ -230,13 +230,6 @@ function focusRope(i) {
   }
 }
 function path(ctx, points, close = false) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (close) ctx.closePath(); }
-function shade(hex, amount) {
-  const n = parseInt(hex.slice(1), 16), channel = x => Math.round(amount < 0 ? x * (1 + amount) : x + (255 - x) * amount);
-  return `rgb(${channel(n >> 16)},${channel(n >> 8 & 255)},${channel(n & 255)})`;
-}
-// One continuous strand treatment. Dash phase follows
-// the material as a rope slides, rather than restarting at every hex-grid segment.
-function cord(points, width, col, phase = 0) { MFRopeArt.draw(ctx, points, width, col, phase); }
 function pointAt(route, t) {
   const i = Math.min(route.length - 2, Math.floor(t)), f = t - i, a = route[i], b = route[i + 1];
   return { q: a.q + (b.q - a.q) * f, r: a.r + (b.r - a.r) * f };
@@ -248,7 +241,7 @@ function visiblePath(i) {
   points.push(pointAt(m.route, end)); return points;
 }
 function drawRope(i, time) {
-  const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i), dark = shade(col, -.55);
+  const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i);
   ctx.save();
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
@@ -265,12 +258,9 @@ function drawRope(i, time) {
     const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
     path(ctx, points); ctx.strokeStyle = '#fff1b4'; ctx.lineWidth = s * .56; ctx.stroke(); arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
   }
-  // Match the square game's colored contour, woven ribs, and soft central light.
-  cord(points, s * .4, col, (G.moves.get(i)?.progress || 0) * s);
-  arrow(s * .065, dark); arrow(0, col);
-  // Carry the central highlight into the arrow so its head and body read as one rope.
-  ctx.strokeStyle = shade(col, .7); ctx.lineWidth = s * .10; ctx.globalAlpha = .35;
-  path(ctx, [{ x: tip.x - dx * s * .16, y: tip.y - dy * s * .16 }, { x: tip.x + dx * s * .22, y: tip.y + dy * s * .22 }]); ctx.stroke(); ctx.globalAlpha = 1;
+  // Texture coordinates start at the moving tail. Adding an animation phase
+  // here would make the weave slip relative to the rope itself.
+  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving);
   ctx.restore();
 }
 function drawMirrors() {
