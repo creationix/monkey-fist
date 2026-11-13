@@ -58,7 +58,15 @@ test('unused features fade, in-flight bounces and queued tails retain them, and 
           plan: [0, 0], moves: new Map(), history: [], auto: false, ended: false, loading: false, usedAutoSolve: false, camera: { zoom: 1, x: 0, y: 0 } });
         resetFeatures(); resize();
       }, grid); await checked();
-      assert.deepEqual(await page.evaluate(() => { update(.2); draw(0); return [featureOpacity({ q: 5, r: 3 }), featureOpacity({ q: 0, r: 0 })]; }), [1, 0]);
+      const fadeRates = await page.evaluate(() => {
+        const samples = [];
+        for (const [speed, factor] of [['normal', 1], ['fast', 2], ['slow', .5]]) {
+          save.moveSpeed = speed; G.featureStates.get('0,0').alpha = 1; update(.5 / factor); samples.push(featureOpacity({ q: 0, r: 0 }));
+        }
+        save.moveSpeed = 'normal'; return samples;
+      });
+      for (const alpha of fadeRates) assert.ok(Math.abs(alpha - .5) < 1e-8, 'one-second fade follows movement speed');
+      assert.deepEqual(await page.evaluate(() => { update(1.1); draw(0); return [featureOpacity({ q: 5, r: 3 }), featureOpacity({ q: 0, r: 0 })]; }), [1, 0]);
       const result = await page.evaluate(() => {
         autoSolve(); const bounce = G.moves.get(0), coil = { q: 5, r: 3 };
         while (!bounce.impacted) update(.002);

@@ -104,7 +104,7 @@ function updateFeatureVisibility(dt) {
   G.featuresFading = false;
   for (const [key, state] of G.featureStates) {
     state.target = live.has(key) ? 1 : 0;
-    const next = reduced ? state.target : state.alpha + Math.sign(state.target - state.alpha) * Math.min(Math.abs(state.target - state.alpha), dt / .18);
+    const next = reduced ? state.target : state.alpha + Math.sign(state.target - state.alpha) * Math.min(Math.abs(state.target - state.alpha), dt);
     if (next !== state.alpha) { state.alpha = next; drawNext = true; }
     if (state.alpha !== state.target) G.featuresFading = true;
   }
@@ -363,7 +363,7 @@ function update(dt) {
       }
     }
   }
-  updateFeatureVisibility(dt);
+  updateFeatureVisibility(motionDt);
   if (!G.ended && G.paths.every(p => !p) && !G.moving && !G.featuresFading) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
   if (settled) hud();
