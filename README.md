@@ -74,7 +74,7 @@ boards. Movement commits logically at the tap; each rope keeps its own visual
 route. Tap a bouncing rope again to queue its next move before the flip finishes.
 Auto-solve queues the complete solution immediately, hides the HUD and notices
 until the animation finishes, and awards zero stars. Its empty grid fades for
-two seconds at Normal speed (four on Slow, one on Fast), then the result appears
+one second at Normal speed (two on Slow, half a second on Fast), then the result appears
 with a soft bass resolution. That tone also replaces the manual victory jingle.
 Earned scores take precedence over auto-solved clears. Undo restores the previous full board and cancels in-flight animations.
 Queued moves yield at shared paths until the earlier rope's tail clears them;
@@ -85,6 +85,11 @@ speed to keep the clearance readable.
 Boards with up to twelve ropes use a bounded shortest-tap search for par,
 including mirrors and springs. It stops charging taps when automatic release
 becomes available; unfinished searches retain the verified construction target.
+
+Graphics can switch between braided Rope and translucent Tiles. Tiles use
+beveled panels, clear rims, and subtle ribs anchored to the moving tail. Mirrors
+match the glass-like panels; bouncers have a spinning gear profile in both styles.
+The setting is shared by square and Hex and saved across sessions.
 
 Permanently immobile ropes darken while keeping their braid and arrow readable.
 Detection is conservative: temporary blockers and search timeouts never mark a

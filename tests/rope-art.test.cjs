@@ -63,3 +63,22 @@ test('activation outlines follow the same circular bends without protruding grey
     assert.ok(pixels.border > 0, 'the thin highlight still follows the curved cord');
   } finally { await browser.close(); }
 });
+
+test('Tiles have translucent panels, crisp rims, and tail-anchored texture that moves with the cord', async () => {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage(); await page.addScriptTag({ path: path.join(__dirname, '../rope-art.js') });
+    const result = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 128; const ctx = c.getContext('2d', { willReadFrequently: true });
+      const head = { x: 1, y: 0 };
+      MFRopeArt.draw(ctx, [{ x: 60, y: 64 }, { x: 280, y: 64 }], 32, '#58b7ef', head, false, 'tiles');
+      const middle = ctx.getImageData(140, 64, 1, 1).data[3], rim = ctx.getImageData(140, 48, 1, 1).data[3];
+      const before = ctx.getImageData(80, 44, 150, 40).data; ctx.clearRect(0, 0, 512, 128);
+      MFRopeArt.draw(ctx, [{ x: 92, y: 64 }, { x: 312, y: 64 }], 32, '#58b7ef', head, true, 'tiles');
+      const after = ctx.getImageData(112, 44, 150, 40).data;
+      return { middle, rim, attached: before.every((v, i) => v === after[i]) };
+    });
+    assert.ok(result.middle > 60 && result.middle < 190, 'the panel lets the grid show through');
+    assert.ok(result.rim > 210, 'the frame stays clear and sharp'); assert.equal(result.attached, true);
+  } finally { await browser.close(); }
+});

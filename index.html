@@ -35,7 +35,7 @@
 <dialog id="chooser">
   <div class="dialog-head"><div><div class="eyebrow">MONKEY FIST</div><h2>Your next tangle</h2></div><button class="close" id="closeLevels" aria-label="Close level chooser">×</button></div>
   <div class="set-tabs" aria-label="Level set"><button id="journey" aria-pressed="true">Journey <span>120 levels</span></button><button id="custom" aria-pressed="false">Custom <span>Make it yours</span></button></div>
-  <div id="audioControls" aria-label="Sound, display and movement settings"><button id="sound" class="quiet" aria-label="Sound effects: Low" aria-pressed="true">Sound: Low</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button><button id="oled" class="quiet" aria-pressed="false" title="Use black backgrounds and dimmer panels">Dark mode: off</button><button id="moveSpeed" class="quiet" title="Rope speed: Slow ½×, Normal 1×, Fast 2×">Speed: Normal</button></div>
+  <div id="audioControls" aria-label="Sound, display and movement settings"><button id="sound" class="quiet" aria-label="Sound effects: Low" aria-pressed="true">Sound: Low</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button><button id="oled" class="quiet" aria-pressed="false" title="Use black backgrounds and dimmer panels">Dark mode: off</button><button id="moveSpeed" class="quiet" title="Rope speed: Slow ½×, Normal 1×, Fast 2×">Speed: Normal</button><button id="graphics" class="quiet" title="Choose braided rope or translucent geometric tiles">Graphics: Rope</button></div>
   <div id="customSettings" class="settings" hidden>
     <label class="seed-setting">Seed or set code<div class="seed-row"><input id="seed" maxlength="48" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
     <label>Grid<select id="gridChoice"><option value="mixed">Square + hex</option><option value="square">Square only</option><option value="hex">Hex only</option></select></label>
@@ -60,11 +60,11 @@
 <script src="hex/engine.js?v=6"></script>
 <script src="hex/mirrors.js?v=5"></script>
 <script src="game-engine.js?v=7"></script>
-<script src="rope-art.js?v=4"></script>
+<script src="rope-art.js?v=5"></script>
 <script src="music.js?v=32"></script>
 <script src="sounds.js?v=5"></script>
 <script src="audio.js?v=2"></script>
 <script src="input.js?v=2"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>

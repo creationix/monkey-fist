@@ -27,7 +27,9 @@ save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
 const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
 if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
+if (save.graphics !== 'tiles') save.graphics = 'rope';
 function syncDisplay() {
+  $('graphics').textContent = 'Graphics: ' + (save.graphics === 'tiles' ? 'Tiles' : 'Rope');
   const speed = save.moveSpeed[0].toUpperCase() + save.moveSpeed.slice(1);
   $('moveSpeed').textContent = 'Speed: ' + speed; $('moveSpeed').setAttribute('aria-label', 'Rope speed: ' + speed);
   document.documentElement.classList.toggle('oled', !!save.oled);
@@ -242,7 +244,7 @@ function tap(i, automatic = false, solveFast = false) {
   const bounceDuration = m.event === 'bounce' ? reduced ? .12 : 1 : 0;
   const spring = m.event === 'bounce' ? m.route.at(-1) : null;
   const move = { ...m, serial: ++motionNo, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
-    bounceLength: spring ? MFRopeArt.trace(m.route.slice(-G.paths[i].length).map(screen), G.view.scale * .4).length / G.view.scale : 0,
+    bounceLength: spring ? MFRopeArt.trace(m.route.slice(-G.paths[i].length).map(screen), G.view.scale * .4, save.graphics).length / G.view.scale : 0,
     popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
   prepareTraffic(move);
   move.waiting = move.distance > 0 && motionLimit(move, new Map(allMotions().map(m => [m, m.progress]))) === 0;
@@ -340,7 +342,7 @@ function update(dt) {
       let remaining = motionDt;
       if (m.event === 'bounce' && !m.impacted) {
         m.progress = m.distance;
-        const track = MFRopeArt.trace(ropeDrawing(id).points, G.view.scale * .4);
+        const track = MFRopeArt.trace(ropeDrawing(id).points, G.view.scale * .4, save.graphics);
         // Carry the incoming velocity through the reflection. An already
         // adjacent rope starts its return at the normal cruising speed.
         const speed = m.distance ? m.speed : 38;
@@ -365,8 +367,8 @@ function update(dt) {
   }
   updateFeatureVisibility(motionDt);
   if (!G.ended && G.paths.every(p => !p) && !G.moving) {
-    if (G.usedAutoSolve) { G.clearOutro = Math.min(2, (G.clearOutro ?? 0) + motionDt); drawNext = true; }
-    if (!G.featuresFading && (!G.usedAutoSolve || G.clearOutro >= 2)) finish();
+    if (G.usedAutoSolve) { G.clearOutro = Math.min(1, (G.clearOutro ?? 0) + motionDt); drawNext = true; }
+    if (!G.featuresFading && (!G.usedAutoSolve || G.clearOutro >= 1)) finish();
   } else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
   if (settled) hud();
 }
@@ -486,8 +488,8 @@ function springDrawing(i, flip) {
   if (reduced) return flip.reversed ? to : from;
   if (flip.turn <= 0) return from;
   if (flip.turn >= 1) return to;
-  const move = G.moves.get(i), s = G.view.scale, key = [G.view.ox, G.view.oy, s, G.view.rotated].join(',');
-  if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4) };
+  const move = G.moves.get(i), s = G.view.scale, key = [G.view.ox, G.view.oy, s, G.view.rotated, save.graphics].join(',');
+  if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4, save.graphics) };
   const track = move.springTrace.from, length = track.length;
   const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const t = flip.turn, progress = length * t;
@@ -497,6 +499,7 @@ function springDrawing(i, flip) {
   const count = Math.max(2, Math.ceil(length / (s * .12))), samples = [progress, progress + length];
   for (let n = 1; n < count; n++) samples.push(progress + length * n / count);
   if (progress > 0 && progress < length) samples.push(length);
+  for (const anchor of track.breaks || []) for (const at of [anchor, 2 * length - anchor]) if (at > progress && at < progress + length) samples.push(at);
   samples.sort((a, b) => a - b);
   const points = samples.map(at), tip = points.at(-1), before = track.at(length - progress + .01);
   let angle = Math.atan2(tip.y - before.y, tip.x - before.x);
@@ -518,7 +521,7 @@ function drawRope(i, time) {
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
   if (moving?.waiting) {
-    MFRopeArt.stroke(ctx, points, s * .4, s * .51, '#fff1b433');
+    MFRopeArt.stroke(ctx, points, s * .4, s * .51, '#fff1b433', false, save.graphics);
   }
   if (flip && reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
@@ -532,17 +535,17 @@ function drawRope(i, time) {
   };
   if (G.hint === i || G.selected === i) {
     const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
-    MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting); arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
+    MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting, save.graphics); arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
   const animated = !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip && !reduced);
   if (drawing.foldIndex > 0 && drawing.foldIndex < points.length - 1) {
-    MFRopeArt.draw(ctx, points.slice(0, drawing.foldIndex + 1), s * .4, col, null, animated);
+    MFRopeArt.draw(ctx, points.slice(0, drawing.foldIndex + 1), s * .4, col, null, animated, save.graphics);
     // Paint the entire returning strand over the outgoing strand, including
     // its opaque cord and texture, then the arrowhead on top of both.
-    MFRopeArt.draw(ctx, points.slice(drawing.foldIndex), s * .4, col, { x: dx, y: dy }, animated);
-  } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated);
+    MFRopeArt.draw(ctx, points.slice(drawing.foldIndex), s * .4, col, { x: dx, y: dy }, animated, save.graphics);
+  } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated, save.graphics);
   ctx.restore();
 }
 function springSpin(move) {
@@ -551,7 +554,29 @@ function springSpin(move) {
   const returned = (springFlip(move)?.turn || 0) * move.bounceLength;
   return Math.PI * (approach + returned) / (1 + move.bounceLength);
 }
+function gearPath(s, hole = false) {
+  const gear = new Path2D();
+  for (let i = 0; i < 32; i++) {
+    const angle = i * Math.PI / 16, radius = s * (i % 4 < 2 ? .36 : .285), x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+    if (i) gear.lineTo(x, y); else gear.moveTo(x, y);
+  }
+  gear.closePath();
+  if (hole) { gear.moveTo(s * .245, 0); gear.arc(0, 0, s * .245, 0, Math.PI * 2, true); }
+  return gear;
+}
+function drawTileSpring(spring, move) {
+  const s = G.view.scale, p = screen(spring), alpha = ctx.globalAlpha;
+  ctx.save(); ctx.translate(p.x, p.y);
+  if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
+  const gear = gearPath(s); ctx.globalAlpha = alpha * .28; ctx.fillStyle = '#ffc169'; ctx.fill(gear);
+  ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#daa05e'; ctx.lineWidth = s * .035; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
+  ctx.globalAlpha = alpha * .3; ctx.strokeStyle = '#fff4cf'; ctx.lineWidth = s * .01; ctx.stroke(gear);
+  ctx.globalAlpha = alpha * .85; path(ctx, [{ x: -s * .14, y: s * .11 }, { x: -s * .14, y: -s * .11 }, { x: s * .14, y: -s * .11 }, { x: s * .14, y: s * .07 }]);
+  ctx.strokeStyle = '#ffd293'; ctx.lineWidth = s * .038; ctx.stroke();
+  path(ctx, [{ x: s * .065, y: s * .015 }, { x: s * .14, y: s * .12 }, { x: s * .215, y: s * .015 }]); ctx.stroke(); ctx.restore();
+}
 function drawSpring(spring, move) {
+  if (save.graphics === 'tiles') return drawTileSpring(spring, move);
   const s = G.view.scale, p = screen(spring);
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.beginPath(); ctx.arc(0, s * .025, s * .34, 0, Math.PI * 2); ctx.fillStyle = '#00000055'; ctx.fill();
@@ -561,6 +586,7 @@ function drawSpring(spring, move) {
   // Rotate the braided rim with the coil so the spin stays visible even
   // while the rope covers the center of the spring.
   if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
+  const gear = gearPath(s, true); ctx.fillStyle = '#887349'; ctx.fill(gear, 'evenodd'); ctx.strokeStyle = '#d6ba7a'; ctx.lineWidth = s * .025; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
   const rim = Array.from({ length: 25 }, (_, i) => ({ x: Math.cos(i * Math.PI / 12) * s * .285, y: Math.sin(i * Math.PI / 12) * s * .285 }));
   MFRopeArt.draw(ctx, rim, s * .085, '#b69b6c', null);
   const coil = new Path2D();
@@ -583,6 +609,14 @@ function drawMirrors(activeSprings, dynamic = false) {
     const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
     const a = screen(H.add(mirror.cell, d, -.37)), b = screen(H.add(mirror.cell, d, .37));
     const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (save.graphics === 'tiles') {
+      ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+      const alpha = ctx.globalAlpha, glass = new Path2D(); glass.rect(-length / 2, -s * .08, length, s * .16);
+      ctx.globalAlpha = alpha * .3; ctx.fillStyle = '#8edce0'; ctx.fill(glass);
+      ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#9ad7d4'; ctx.lineWidth = s * .03; ctx.lineJoin = 'bevel'; ctx.stroke(glass);
+      ctx.clip(glass); ctx.globalAlpha = alpha * .2; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = s * .012; ctx.beginPath();
+      for (let x = -length / 2; x < length; x += s * .14) { ctx.moveTo(x, -s * .08); ctx.lineTo(x + s * .1, s * .08); } ctx.stroke(); ctx.restore(); continue;
+    }
     ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
     ctx.lineCap = ctx.lineJoin = 'round';
     // Soft glass in a rounded, cord-bound frame. Both faces remain identical.
@@ -626,7 +660,7 @@ function drawGrid() {
     }
     v.grid = { ox: v.ox, oy: v.oy, scale: s, lines, dots };
   }
-  ctx.save(); ctx.globalAlpha *= G.clearOutro == null ? 1 : 1 - G.clearOutro / 2;
+  ctx.save(); ctx.globalAlpha *= G.clearOutro == null ? 1 : 1 - G.clearOutro;
   ctx.strokeStyle = save.oled ? '#b3d7d940' : '#b3d7d913';
   ctx.lineWidth = Math.max(.6, Math.min(1, s * .025)); ctx.stroke(v.grid.lines);
   ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots); ctx.restore();
@@ -656,7 +690,7 @@ function draw(time) {
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
   const moving = [...G.moves.values()].map(m => m.waiting ? m.serial + '@' + m.progress : m.serial).join(',');
   const features = G.featureLevel === G.level ? [...G.featureStates].map(([key, s]) => key + ':' + (s.alpha === 1 ? 1 : s.alpha === 0 ? 0 : 'fade')).join(';') : '';
-  const key = [G.level, G.paths, G.frozen, features, G.clearOutro, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
+  const key = [G.level, G.paths, G.frozen, features, G.clearOutro, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled, save.graphics];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }
@@ -777,6 +811,7 @@ $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); }
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
 $('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
+$('graphics').onclick = () => { save.graphics = save.graphics === 'tiles' ? 'rope' : 'tiles'; persist(); syncDisplay(); restingKey = []; drawNext = true; };
 $('moveSpeed').onclick = () => { const choices = ['normal', 'fast', 'slow']; save.moveSpeed = choices[(choices.indexOf(save.moveSpeed) + 1) % choices.length]; persist(); syncDisplay(); };
 $('oled').onclick = () => {
   save.oled = !save.oled; persist(); syncDisplay(); drawNext = true;

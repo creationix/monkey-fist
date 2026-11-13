@@ -41,11 +41,55 @@
     }
     return { line, length, at };
   }
+  function polyline(input) {
+    const points = input.filter((p, i) => !i || Math.hypot(p.x - input[i - 1].x, p.y - input[i - 1].y) > .0001);
+    const line = new Path2D(), segments = [], breaks = [0]; let length = 0; line.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i], n = Math.hypot(b.x - a.x, b.y - a.y);
+      segments.push({ a, x: (b.x - a.x) / n, y: (b.y - a.y) / n, start: length, end: length + n });
+      length += n; breaks.push(length); line.lineTo(b.x, b.y);
+    }
+    const at = (s, normal = 0) => {
+      if (!segments.length) return { ...points[0] };
+      let lo = 0, hi = segments.length - 1;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (segments[m].end < s) lo = m + 1; else hi = m; }
+      const p = segments[lo], d = s - p.start;
+      return { x: p.a.x + d * p.x - normal * p.y, y: p.a.y + d * p.y + normal * p.x };
+    };
+    return { points, line, length, at, breaks, segments };
+  }
+  function tileGeometry(points, width, moving) {
+    const origin = points[0], normalized = points.map(p => ({ x: (p.x - origin.x) / width, y: (p.y - origin.y) / width }));
+    const key = 'tiles/' + normalized.map(p => p.x.toFixed(3) + ',' + p.y.toFixed(3)).join(';');
+    if (!moving && cache.has(key)) return cache.get(key);
+    const g = polyline(normalized), left = [], right = [], outline = new Path2D(), ribs = new Path2D();
+    for (let i = 0; i < g.points.length; i++) {
+      const p = g.points[i], incoming = g.segments[Math.max(0, i - 1)], outgoing = g.segments[Math.min(i, g.segments.length - 1)];
+      if (!incoming || !outgoing) continue;
+      const cross = incoming.x * outgoing.y - incoming.y * outgoing.x, dot = incoming.x * outgoing.x + incoming.y * outgoing.y;
+      for (const [sign, side] of [[1, left], [-1, right]]) {
+        if (i > 0 && i < g.points.length - 1 && cross * sign > .001 && dot > -.999) {
+          const scale = sign * .5 / (1 + dot);
+          side.push({ x: p.x - (incoming.y + outgoing.y) * scale, y: p.y + (incoming.x + outgoing.x) * scale });
+        } else {
+          side.push({ x: p.x - incoming.y * sign * .5, y: p.y + incoming.x * sign * .5 });
+          if (Math.abs(cross) > .001) side.push({ x: p.x - outgoing.y * sign * .5, y: p.y + outgoing.x * sign * .5 });
+        }
+      }
+    }
+    if (left.length) polygon(outline, left.concat(right.reverse()));
+    if (width >= 5) for (let s = -.9; s < g.length + .9; s += .9) {
+      const a = g.at(s - .18, -.5), b = g.at(s + .18, .5); ribs.moveTo(a.x, a.y); ribs.lineTo(b.x, b.y);
+    }
+    const result = { ...g, outline, ribs };
+    if (!moving) { cache.set(key, result); if (cache.size > 240) cache.delete(cache.keys().next().value); }
+    return result;
+  }
   // Screen-space sampling of the same centerline used by the braid. Springs
   // follow it in reverse instead of cutting across a bent rope's shape.
-  function trace(points, width) {
-    const origin = points[0], body = curve(points.map(p => ({ x: (p.x - origin.x) / width, y: (p.y - origin.y) / width })));
-    return { length: body.length * width, at(s, normal = 0) {
+  function trace(points, width, style = 'rope') {
+    const origin = points[0], body = (style === 'tiles' ? polyline : curve)(points.map(p => ({ x: (p.x - origin.x) / width, y: (p.y - origin.y) / width })));
+    return { length: body.length * width, breaks: body.breaks?.map(s => s * width), at(s, normal = 0) {
       const p = body.at(s / width, normal / width); return { x: origin.x + p.x * width, y: origin.y + p.y * width };
     } };
   }
@@ -76,14 +120,16 @@
   function ink(ctx, paths, color) {
     for (const [i, path] of paths.entries()) { ctx.fillStyle = i === 1 ? shade(color, .38) : i === 2 ? shade(color, -.35) : shade(color, .12); ctx.fill(path); }
   }
-  function stroke(ctx, points, width, strokeWidth, color, moving = false) {
+  function stroke(ctx, points, width, strokeWidth, color, moving = false, style = 'rope') {
     if (points.length < 2) return;
-    const g = geometry(points, width, 0, moving);
+    const g = style === 'tiles' ? tileGeometry(points, width, moving) : geometry(points, width, 0, moving);
     ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width);
     ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.lineWidth = strokeWidth / width;
-    ctx.stroke(g.line); ctx.restore();
+    if (style === 'tiles') { ctx.lineWidth = Math.max(.08, (strokeWidth - width) / width); ctx.stroke(g.outline); }
+    else ctx.stroke(g.line); ctx.restore();
   }
-  function draw(ctx, points, width, color, head, moving = false) {
+  function draw(ctx, points, width, color, head, moving = false, style = 'rope') {
+    if (style === 'tiles') return drawTiles(ctx, points, width, color, head, moving);
     if (points.length < 2) return;
     // At Fit on mega maps, color and silhouette matter more than tiny stitches.
     const detail = width < 7 ? 0 : width < 14 ? 1 : 2, g = geometry(points, width, detail, moving);
@@ -104,6 +150,27 @@
     ctx.save(); ctx.translate(tip.x, tip.y); ctx.rotate(Math.atan2(head.y, head.x)); ctx.scale(width, width);
     ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49);
     ctx.strokeStyle = shade(color, -.55); ctx.lineWidth = .13; ctx.lineJoin = 'round'; ctx.stroke(); ctx.restore();
+  }
+  function drawTiles(ctx, points, width, color, head, moving) {
+    if (points.length < 2) return;
+    const g = tileGeometry(points, width, moving), alpha = ctx.globalAlpha;
+    ctx.save(); ctx.translate(points[0].x, points[0].y); ctx.scale(width, width); ctx.lineJoin = 'bevel';
+    ctx.globalAlpha = alpha * .42; ctx.fillStyle = color; ctx.fill(g.outline);
+    ctx.globalAlpha = alpha * .9; ctx.strokeStyle = shade(color, -.25); ctx.lineWidth = .11; ctx.stroke(g.outline);
+    ctx.save(); ctx.clip(g.outline); ctx.globalAlpha = alpha * .18; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035; ctx.stroke(g.ribs);
+    ctx.globalAlpha = alpha * .06; ctx.lineWidth = .42; ctx.stroke(g.line); ctx.restore();
+    ctx.globalAlpha = alpha * .35; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .025; ctx.stroke(g.outline); ctx.restore();
+    if (!head) return;
+    const tip = points.at(-1), triangle = new Path2D(); polygon(triangle, [{ x: -.3, y: -.77 }, { x: 1.1, y: 0 }, { x: -.3, y: .77 }]);
+    ctx.save(); ctx.translate(tip.x, tip.y); ctx.rotate(Math.atan2(head.y, head.x)); ctx.scale(width, width); ctx.lineJoin = 'bevel';
+    ctx.globalAlpha = alpha * .42; ctx.fillStyle = color; ctx.fill(triangle);
+    ctx.save(); ctx.clip(triangle); ctx.globalAlpha = alpha * .18; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .035;
+    ctx.beginPath(); for (let c = Math.floor((g.length - 1) / .9); c <= Math.ceil((g.length + 2) / .9); c++) {
+      const x = c * .9 - g.length; ctx.moveTo(x - .18, -.8); ctx.lineTo(x + .18, .8);
+    } ctx.stroke(); ctx.restore();
+    ctx.globalAlpha = alpha * .95; ctx.strokeStyle = shade(color, -.25); ctx.lineWidth = .11;
+    ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49); ctx.stroke();
+    ctx.restore();
   }
   root.MFRopeArt = { draw, trace, stroke };
 })(globalThis);
