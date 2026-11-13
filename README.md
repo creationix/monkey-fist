@@ -141,7 +141,7 @@ Mirror turns make a low, hollow pluck tuned to the current music, timed to the
 head reaching each mirror. Sliding away from a mirror does not repeat its sound.
 Spring impacts make a low, damped boing when the coil compresses.
 
-In **Levels**, toggle **OLED** for a black page background and nearly black
+In **Levels**, toggle **Dark mode** for a black page background and nearly black
 board and menu surfaces. It preserves rope colors, works on both grids, and
 remembers the setting across sessions, including offline play.
 

@@ -40,7 +40,7 @@ dialog{overscroll-behavior:contain;touch-action:pan-y;user-select:none;-webkit-u
 .menu-footer{border-top:1px solid var(--line);margin-top:26px;padding-top:15px}#chooser #audioControls{position:static;display:flex;gap:8px;margin:-8px 0 18px}#chooser #audioControls button{font-size:12px;padding:9px 12px}.menu-footer p{font-size:11px;color:var(--muted);margin:0}
 #unlocked{color:var(--accent);font-size:14px}#unlocked:empty{display:none}
 #chooser #audioControls{flex-wrap:wrap}
-/* OLED keeps the ropes vivid while the surrounding surfaces approach black. */
+/* Dark mode keeps the ropes vivid while the surrounding surfaces approach black. */
 :root.oled{background:#000}
 .oled body{background:#000}
 .oled .brand,.oled .readout,.oled #tip{background:#030708ed}

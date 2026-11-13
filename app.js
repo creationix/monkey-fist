@@ -27,7 +27,7 @@ save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
 function syncDisplay() {
   document.documentElement.classList.toggle('oled', !!save.oled);
-  $('oled').setAttribute('aria-pressed', !!save.oled); $('oled').textContent = 'OLED ' + (save.oled ? 'on' : 'off');
+  $('oled').setAttribute('aria-pressed', !!save.oled); $('oled').textContent = 'Dark mode: ' + (save.oled ? 'on' : 'off');
   document.querySelector('meta[name="theme-color"]').content = save.oled ? '#000000' : '#0b1f2a';
 }
 syncDisplay();
@@ -458,7 +458,7 @@ function drawRestingBoard(activeSprings) {
   surface.addColorStop(0, save.oled ? '#ffffff04' : '#ffffff0c'); surface.addColorStop(1, save.oled ? '#ffffff02' : '#ffffff06');
   ctx.fillStyle = surface; ctx.fill(board); ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1.5; ctx.stroke(board);
   ctx.save(); ctx.clip(board);
-  ctx.fillStyle = '#b3d7d91c';
+  ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c';
   for (const p of H.cells(G.level)) { const at = screen(p); ctx.beginPath(); ctx.arc(at.x, at.y, Math.max(1.2, s * .035), 0, Math.PI * 2); ctx.fill(); }
   drawMirrors(activeSprings);
   for (let i = 0; i < G.paths.length; i++) if (G.paths[i] && !G.moves.has(i) && i !== G.hint && i !== G.selected && i !== G.bump?.i) drawRope(i, 0);
