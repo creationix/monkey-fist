@@ -66,17 +66,18 @@ test('Journey springs have varied approaches and require clearing another rope o
   const distances = { square: new Set(), hex: new Set() };
   for (let index = 0; index < G.DEFAULT.count; index++) {
     if (!G.spec(G.DEFAULT, index).springs) continue;
-    const b = G.generate({ ...G.DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0;
+    const b = G.generate({ ...G.DEFAULT, index }); let paths = b.ropes, blocked = 0, bounces = 0; const users = new Map();
     for (const i of b.plan) {
       const move = G.tap(b, paths, i);
       if (move.event === 'bounce') {
         distances[b.grid].add(move.distance); bounces++;
+        const spring = JSON.stringify(move.route.at(-1)); if (!users.has(spring)) users.set(spring, new Set()); users.get(spring).add(i);
         if (G.tap(b, b.ropes, i)?.event !== 'bounce') blocked++;
       }
       paths = move.paths;
     }
     assert.ok(paths.every(p => !p)); assert.ok(bounces >= b.springs.length);
-    assert.ok(blocked > 0, `level ${index + 1} needs a dependency before a spring`);
+    assert.ok(blocked > 0 || [...users.values()].some(ids => ids.size > 1), `level ${index + 1} needs an approach or shared-bouncer dependency`);
   }
   for (const grid of ['square', 'hex']) {
     assert.ok(distances[grid].size >= 3, grid + ' needs varied run-up lengths');
@@ -117,4 +118,41 @@ test('the small Hex spring regression gets a proven four-tap par, counting auto 
   assert.equal(bounded.exact, false); assert.equal(bounded.par, 6);
   assert.equal(G.replay(b, bounded.plan).solved, true);
   assert.throws(() => G.minimumTaps(b, [], 5000), /complete solution/);
+});
+
+test('the pictured Hex bounce vacates the blue exit while parking the green tail in the spinner', () => {
+  const b = G.generate({ ...G.parseCode('U1-H-1-1-1-S-FLIP0'), index: 0 });
+  const paths = b.ropes.map((p, i) => [0, 2, 4].includes(i) ? p : null);
+  assert.equal(G.tap(b, paths, 4), null);
+  // Independent expected occupancy: three forward steps, then reverse the
+  // twelve material points. The vacated cell is blue's first step (-1,4).
+  const expected = paths[0].slice(3).concat([{ q: 2, r: 2 }, { q: 1, r: 3 }, { q: 0, r: 4 }]).reverse();
+  const bounced = G.tap(b, paths, 0);
+  assert.deepEqual(bounced.paths[0], expected);
+  assert.deepEqual(expected[0], b.springs[0]);
+  assert.ok(paths[0].some(p => p.q === -1 && p.r === 4));
+  assert.ok(!expected.some(p => p.q === -1 && p.r === 4));
+  assert.equal(G.tap(b, bounced.paths, 4).event, 'exit');
+});
+
+test('generated square and Hex ropes share bouncers and must clear an occupying tail before using them', () => {
+  for (const index of [82, 117]) {
+    const b = G.generate({ ...G.DEFAULT, index }), users = new Map(); let paths = b.ropes;
+    for (const id of b.plan) {
+      const move = G.tap(b, paths, id);
+      if (move.event === 'bounce') {
+        const key = JSON.stringify(move.route.at(-1)); if (!users.has(key)) users.set(key, new Set()); users.get(key).add(id);
+      }
+      paths = move.paths;
+    }
+    assert.ok(paths.every(p => !p));
+    const shared = [...users.values()].find(ids => ids.size > 1); assert.ok(shared, b.grid + ' needs a shared bouncer');
+    const [first, second] = [...shared], held = b.ropes.map((p, i) => i === first || i === second ? p : null);
+    const parked = G.tap(b, held, first); assert.equal(parked.event, 'bounce');
+    const at = parked.route.at(-1); assert.deepEqual(parked.paths[first][0], at);
+    assert.notEqual(G.tap(b, parked.paths, second)?.event, 'bounce', 'an occupied bouncer is unavailable');
+    const cleared = G.tap(b, parked.paths, first); assert.equal(cleared.event, 'exit');
+    const reused = G.tap(b, cleared.paths, second); assert.equal(reused.event, 'bounce');
+    assert.deepEqual(reused.route.at(-1), at, 'the second rope uses the same bouncer after it clears');
+  }
 });

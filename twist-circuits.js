@@ -18,15 +18,18 @@
     }
     return { states, firstUse, steps, solved: paths.every(p => !p) };
   }
-  function hook(rng) {
+  function hook(rng, sharing = false) {
     const gap = 1 + Math.floor(rng() * 4), length = 2 + Math.floor(rng() * 3), path = [];
-    for (let x = length; x >= -1; x--) path.push({ x, y: -gap - 1 });
-    for (let y = -gap; y <= 1; y++) path.push({ x: -1, y });
-    path.push({ x: 0, y: 1 }, { x: 0, y: 0 });
+    const side = sharing ? 1 + Math.floor(rng() * 4) : 1, cap = sharing ? 1 + Math.floor(rng() * 4) : 1;
+    for (let x = length; x >= -side; x--) path.push({ x, y: -gap - cap });
+    for (let y = -gap - cap + 1; y <= 1; y++) path.push({ x: -side, y });
+    for (let x = 1 - side; x <= 0; x++) path.push({ x, y: 1 });
+    path.push({ x: 0, y: 0 });
     return { path, spring: { x: 0, y: -gap } };
   }
-  function spawn(b, rng, spring) {
-    const local = spring ? hook(rng) : { path: Array.from({ length: 3 + Math.floor(rng() * 3) }, (_, x) => ({ x, y: 0 })) };
+  function spawn(b, rng, spring, share) {
+    const sharing = share && b.springs.length && (share === 2 || rng() < .8);
+    const local = spring ? hook(rng, sharing) : { path: Array.from({ length: 3 + Math.floor(rng() * 3) }, (_, x) => ({ x, y: 0 })) };
     const turn = Math.floor(rng() * 4), rotate = p => {
       let { x, y } = p; for (let k = 0; k < turn; k++) [x, y] = [-y, x]; return { x, y };
     };
@@ -34,7 +37,9 @@
     const x0 = Math.min(...all.map(p => p.x)), y0 = Math.min(...all.map(p => p.y));
     const w = Math.max(...all.map(p => p.x)) - x0 + 1, h = Math.max(...all.map(p => p.y)) - y0 + 1;
     if (w > b.W - 1 || h > b.H - 1) return null;
-    const ox = Math.floor(rng() * (b.W - w + 1)) - x0, oy = Math.floor(rng() * (b.H - h + 1)) - y0;
+    const shared = sharing ? pick(b.springs, rng) : null;
+    const ox = shared !== null ? shared % b.W - s.x : Math.floor(rng() * (b.W - w + 1)) - x0;
+    const oy = shared !== null ? Math.floor(shared / b.W) - s.y : Math.floor(rng() * (b.H - h + 1)) - y0;
     const point = p => ({ x: p.x + ox, y: p.y + oy });
     return { path: pts.map(point), spring: s && cell(point(s), b.W) };
   }
@@ -68,11 +73,11 @@
     for (let i = 0; i < count; i++) {
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
-        const s = spawn(b, rng, kinds.includes('springs')); if (!s) continue;
+        const s = spawn(b, rng, kinds.includes('springs'), kinds.includes('gates') ? false : i && b.springs.length === i && attempt < 150 ? 2 : true); if (!s) continue;
         const body = s.path.map(p => cell(p, W)), tiles = [...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)];
-        if (body.some(c => taken.has(c) || reserved.has(c) || tiles.includes(c)) ||
-            s.spring !== undefined && s.spring !== null && (taken.has(s.spring) || reserved.has(s.spring) || tiles.includes(s.spring))) continue;
-        let v = { ...b, ropes: b.ropes.concat([s.path]), springs: s.spring === undefined || s.spring === null ? b.springs : b.springs.concat(s.spring) };
+        if (s.path.some(p => !inside(p, b)) || body.some(c => taken.has(c) || reserved.has(c) || tiles.includes(c)) ||
+            s.spring !== undefined && s.spring !== null && (!b.springs.includes(s.spring) && (taken.has(s.spring) || reserved.has(s.spring) || tiles.includes(s.spring)))) continue;
+        let v = { ...b, ropes: b.ropes.concat([s.path]), springs: s.spring === undefined || s.spring === null || b.springs.includes(s.spring) ? b.springs : b.springs.concat(s.spring) };
         const paths = Array(i).fill(null).concat([s.path]), actions = [];
         if (kinds.includes('springs') && M.solve({ ...v, springs: [], mirrors: [], gates: [] }, paths, 100).solved !== false) continue;
         let current = s.path;
@@ -153,6 +158,7 @@
   }
   function generate(rng, W, H, kinds) {
     const count = Math.max(2, Math.min(5, 1 + Math.floor(W * H / 70)));
+    let fallback = null;
     for (let attempt = 0; attempt < 8; attempt++) {
       const b = skeleton(rng, W, H, kinds, count);
       if (!b) continue;
@@ -160,10 +166,12 @@
       // Count only exits strictly between the first and last mechanic moves;
       // ordinary ropes following other ordinary ropes in the opening do not qualify.
       if (quality && quality.interleaved >= Math.min(6, count * 2 - 2)) {
-        puzzle.circuit.interleaved = quality.interleaved; return puzzle;
+        puzzle.circuit.interleaved = quality.interleaved;
+        if (kinds.includes('springs') && !kinds.includes('gates') && puzzle.springs.length === count) { fallback ||= puzzle; continue; }
+        return puzzle;
       }
     }
-    return null;
+    return fallback;
   }
   function audit(b, moves = b.solution) {
     const t = trace(b, moves); if (!t || !t.solved) return null;

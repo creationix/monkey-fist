@@ -124,27 +124,34 @@
     }
     return body.length >= minimum ? body.reverse() : null;
   }
-  function springStrand(level, rng, maxGap) {
+  function springStrand(level, rng, maxGap, forceShared, allowShared) {
+    const sharing = allowShared && level.springs.length && (forceShared || rng() < .8);
     const gap = 1 + Math.floor(rng() * maxGap), length = 2 + Math.floor(rng() * 3), path = [];
-    for (let q = length; q >= -1; q--) path.push({ q, r: -gap - 1 });
-    for (let r = -gap; r <= 1; r++) path.push({ q: -1, r });
-    path.push({ q: 0, r: 1 }, { q: 0, r: 0 });
-    const turn = Math.floor(rng() * 6), origin = pick(rng, H.cells(level));
+    const side = sharing ? 1 + Math.floor(rng() * 4) : 1, cap = sharing ? 1 + Math.floor(rng() * 4) : 1;
+    for (let q = length; q >= -side; q--) path.push({ q, r: -gap - cap });
+    for (let r = -gap - cap + 1; r <= 1; r++) path.push({ q: -side, r });
+    for (let q = 1 - side; q <= 0; q++) path.push({ q, r: 1 });
+    path.push({ q: 0, r: 0 });
+    const turn = Math.floor(rng() * 6); let origin = pick(rng, H.cells(level));
+    if (sharing) {
+      let q = 0, r = -gap; for (let j = 0; j < turn; j++) [q, r] = [-r, q + r];
+      const target = pick(rng, level.springs); origin = { q: target.q - q, r: target.r - r };
+    }
     const transform = p => { let { q, r } = p; for (let j = 0; j < turn; j++) [q, r] = [-r, q + r]; return { q: q + origin.q, r: r + origin.r }; };
     return { path: path.map(transform), spring: transform({ q: 0, r: -gap }) };
   }
-  function skeleton(rng, W, height, count, wanted, springs, maxGap) {
+  function skeleton(rng, W, height, count, wanted, springs, maxGap, allowShared) {
     let level = { W, H: height, ropes: [], mirrors: [], springs: [], locks: [], plan: [] };
     const cells = H.cells(level), occupied = new Set(), reserved = new Set();
     for (let i = 0; i < count; i++) {
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
         const tiles = new Set([...reserved, ...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
-        const spring = springs ? springStrand(level, rng, maxGap) : null;
+        const spring = springs ? springStrand(level, rng, maxGap, i > 0 && level.springs.length === i && attempt < 150, allowShared) : null;
         const path = spring ? spring.path : strand(level, pick(rng, cells), Math.floor(rng() * 6), occupied, tiles, rng, 4 + Math.floor(rng() * 9));
         if (!path || path.some(p => !inside(level, p) || occupied.has(key(p)) || tiles.has(key(p)))) continue;
-        if (spring && (!inside(level, spring.spring) || occupied.has(key(spring.spring)) || tiles.has(key(spring.spring)) || path.some(p => key(p) === key(spring.spring)))) continue;
-        let variant = { ...level, ropes: level.ropes.concat([path]), springs: spring ? level.springs.concat(spring.spring) : level.springs };
+        if (spring && (!inside(level, spring.spring) || occupied.has(key(spring.spring)) || tiles.has(key(spring.spring)) && !level.springs.some(p => key(p) === key(spring.spring)) || path.some(p => key(p) === key(spring.spring)))) continue;
+        let variant = { ...level, ropes: level.ropes.concat([path]), springs: spring && !level.springs.some(p => key(p) === key(spring.spring)) ? level.springs.concat(spring.spring) : level.springs };
         const alone = Array(i).fill(null).concat([path]);
         if (spring && solve({ ...variant, mirrors: [], springs: [] }, alone, 100).solved !== false) continue;
         const bounce = spring && tap(variant, alone, i);
@@ -196,11 +203,12 @@
     const count = Math.min(5, 1 + Math.floor(stage / 10)), wanted = opts.mirrors ? stage < 3 ? 1 : stage < 30 ? 2 : 3 : 0;
     let best = null;
     for (let attempt = 0; attempt < (springs ? 16 : 8); attempt++) {
-      const core = skeleton(rng, W, height, count, wanted, springs, attempt < 8 ? 4 : 2); if (!core) continue;
+      const core = skeleton(rng, W, height, count, wanted, springs, attempt < 8 ? 4 : 2, attempt < 8); if (!core) continue;
       const candidate = populate(core, rng, stage);
       if (springs && count > 1 && candidate.ropes.slice(0, candidate.core).every((p, i) => tap(candidate, candidate.ropes, i)?.event === 'bounce')) continue;
-      if (!best || candidate.stats.coverage > best.stats.coverage) best = candidate;
-      if (candidate.stats.coverage >= .65) break;
+      const shared = springs && candidate.springs.length < count, bestShared = springs && best && best.springs.length < count;
+      if (!best || shared && !bestShared || shared === !!bestShared && candidate.stats.coverage > best.stats.coverage) best = candidate;
+      if (candidate.stats.coverage >= .65 && (!springs || count === 1 || shared)) break;
     }
     if (!best) throw Error('Could not weave a mirror tangle');
     const replayed = replay(best, best.plan);

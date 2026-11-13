@@ -59,7 +59,9 @@ and slides back directly over its own rope, ending at the old tail. The return c
 or easing. The arrowhead is drawn on top of the overlapping body. Spring
 approaches have varied run-up lengths, and ordinary
 ropes can block the approach until cleared. Their removal is included in the
-generated solution certificate. Other ropes remain tappable. Reduced motion uses a brief fade
+generated solution certificate. Generators also prefer shared bouncers: multiple
+ropes can use one spring, but a parked tail occupies that cell until it leaves.
+Every generated plan is replayed with that occupancy rule. Other ropes remain tappable. Reduced motion uses a brief fade
 between directions.
 
 On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled
