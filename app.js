@@ -167,15 +167,15 @@ function tap(i, automatic = false) {
     for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
     m.distance += extra;
   }
-  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : .58 : 0;
+  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : Math.min(1.6, .7 + G.paths[i].length * .035) : 0;
   const spring = m.event === 'bounce' ? H.add(m.route.at(-1), headDirection(m.route.slice(-G.paths[i].length))) : null;
   const move = { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
     popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
   prepareTraffic(move);
   move.waiting = move.distance > 0 && motionLimit(move, new Map([...G.moves.values()].map(m => [m, m.progress]))) === 0;
-  move.started = !move.waiting; G.moves.set(i, move);
+  G.moves.set(i, move);
   commit(move);
-  if (move.started) sfx.slide();
+  sfx.slide();
   if (!automatic) {
     if (G.assisted.has(i)) G.combo = 0;
     else if (m.event === 'exit' && ++G.combo % 5 === 0) notice(G.combo + ' in a row!');
@@ -241,13 +241,12 @@ function update(dt) {
   // crossing that its predecessor is still clearing during this frame.
   const positions = new Map([...G.moves.values()].map(m => [m, m.progress]));
   for (const [id, m] of G.moves) {
-    // Temporary slow motion for playtesting crossing clearance (normal speed: 1).
-    const travelDt = dt * (m.event === 'exit' ? .1 : 1);
+    // Half-speed departures keep the shared-path clearance readable.
+    const travelDt = dt * (m.event === 'exit' ? .5 : 1);
     m.speed = Math.min(38, m.speed + travelDt * 100);
     const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
     if (m.waiting) m.speed = 0;
-    if (!m.started && m.progress > 0) { m.started = true; sfx.slide(); }
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
       if (m.event === 'bounce' && !m.impacted) { m.impacted = true; sfx.spring(); }
@@ -371,9 +370,38 @@ function ropeDrawing(i, settled = false) {
 function springFlip(move) {
   if (!move?.impacted || !move.bounceDuration) return null;
   const t = Math.max(0, Math.min(1, 1 - move.hold / move.bounceDuration));
-  const turn = reduced ? t : Math.max(0, (t - .16) / .84);
-  return { t, turn, reversed: turn >= .5, squash: reduced ? 1 : Math.max(.015, Math.abs(Math.cos(Math.PI * turn))),
-    lift: reduced ? 0 : Math.sin(Math.PI * turn) * G.view.scale * .45 };
+  const turn = reduced ? t : Math.max(0, (t - .1) / .9);
+  return { t, turn, reversed: turn >= .5 };
+}
+function springDrawing(i, flip) {
+  const from = ropeDrawing(i), to = ropeDrawing(i, true);
+  if (reduced) return flip.reversed ? to : from;
+  if (flip.turn <= 0) return from;
+  if (flip.turn >= 1) return to;
+  const move = G.moves.get(i), s = G.view.scale, key = [G.view.ox, G.view.oy, s, G.view.rotated].join(',');
+  if (move.springTrace?.key !== key) move.springTrace = { key, from: MFRopeArt.trace(from.points, s * .4), to: MFRopeArt.trace(to.points, s * .4) };
+  const track = move.springTrace.from, target = move.springTrace.to, length = track.length;
+  const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const t = flip.turn, settle = ease((t - .86) / .14), radius = s * .27 * ease(t / .08) * (1 - settle), loop = Math.PI * radius;
+  const progress = t < .18 ? loop * ease(t / .18) : loop + length * ease((t - .18) / .68);
+  const end = track.at(length), before = track.at(length - .01), d = Math.hypot(end.x - before.x, end.y - before.y), dx = (end.x - before.x) / d, dy = (end.y - before.y) / d;
+  // Slide through a half-circle at the spring, then back along the same rope.
+  // Separate the outgoing and returning strands while folded; they settle
+  // back onto the original cells once the old tail has passed the U-turn.
+  function at(distance) {
+    if (distance <= length) return track.at(distance, -radius);
+    if (distance >= length + loop) return track.at(2 * length + loop - distance, radius);
+    const angle = (distance - length) / radius;
+    return { x: end.x + radius * (dx * Math.sin(angle) + dy * Math.cos(angle)), y: end.y + radius * (dy * Math.sin(angle) - dx * Math.cos(angle)) };
+  }
+  const count = Math.max(2, Math.ceil(length / (s * .12))), points = [];
+  for (let n = 0; n <= count; n++) {
+    const p = at(progress + length * n / count), q = target.at(target.length * n / count);
+    points.push({ x: p.x + (q.x - p.x) * settle, y: p.y + (q.y - p.y) * settle });
+  }
+  const tip = points.at(-1), prior = at(progress + length - .01), targetPrior = target.at(target.length - .01);
+  const bx = prior.x + (targetPrior.x - prior.x) * settle, by = prior.y + (targetPrior.y - prior.y) * settle, size = Math.hypot(tip.x - bx, tip.y - by);
+  return { points, head: size > .0001 ? { x: (tip.x - bx) / size, y: (tip.y - by) / size } : to.head };
 }
 function exitCleared(i) {
   const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
@@ -383,11 +411,11 @@ function exitCleared(i) {
   return outside({ x: 0, y: 0, w: width, h: height }) && outside(G.view.panel);
 }
 function drawRope(i, time) {
-  const moving = G.moves.get(i), flip = springFlip(moving), drawing = ropeDrawing(i, flip?.reversed); if (!drawing) return;
+  const moving = G.moves.get(i), flip = springFlip(moving), drawing = flip ? springDrawing(i, flip) : ropeDrawing(i); if (!drawing) return;
   const { points, head } = drawing, s = G.view.scale, col = color(i);
   if (moving?.spring && !reduced && !flip?.reversed) {
     const tip = points.at(-1), spring = screen(moving.spring);
-    const reach = moving.impacted ? Math.max(0, 1 - flip.t / .16) : Math.max(0, 1 - (moving.distance - moving.progress) / .35);
+    const reach = moving.impacted ? Math.max(0, 1 - flip.t / .1) : Math.max(0, 1 - (moving.distance - moving.progress) / .35);
     const gap = ((spring.x - tip.x) * head.x + (spring.y - tip.y) * head.y) / s - .78;
     const stretch = s * Math.max(0, Math.min(.2 * reach, gap));
     tip.x += head.x * stretch; tip.y += head.y * stretch;
@@ -403,13 +431,9 @@ function drawRope(i, time) {
   if (flip) {
     if (reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
     else {
-      // The cached board remains untouched. Only this rope turns edge-on; the
-      // reverse face is revealed while it is thin, then lands on the same cells.
+      ctx.save(); ctx.translate(0, Math.sin(Math.PI * flip.turn) * s * .08);
       path(ctx, points); ctx.lineCap = ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#00000014'; ctx.lineWidth = s * .6; ctx.stroke();
-      ctx.strokeStyle = '#00000024'; ctx.lineWidth = s * .46; ctx.stroke();
-      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, lift = Math.sin(Math.PI * flip.turn);
-      ctx.translate(cx, cy - flip.lift); ctx.rotate(lift * .04); ctx.scale(1 + lift * .03, flip.squash); ctx.translate(-cx, -cy);
+      ctx.strokeStyle = '#00000020'; ctx.lineWidth = s * .5; ctx.stroke(); ctx.restore();
     }
   }
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
@@ -427,7 +451,7 @@ function drawRope(i, time) {
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
-  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && !moving.waiting && moving.progress < moving.distance);
+  MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip && !reduced));
   ctx.restore();
 }
 function drawSpring(spring, move) {

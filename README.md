@@ -53,9 +53,10 @@ rounded frames, and cord bindings. Both sides reflect; there is no triangle
 implying a non-reflective side. Arrowheads curve into their reflected direction
 when resting on a mirror.
 Springs have a copper coil and braided rim. On impact they compress, and the
-rope lifts into a vertical turnover before landing in the same cells with its
-direction reversed. Other ropes remain tappable. Reduced motion uses a brief
-fade between directions instead of the turnover.
+arrow makes a visible U-turn and slides back alongside its own rope. The two
+strands separate during the fold, then settle into the same cells with the arrow
+at the old tail. Other ropes remain tappable. Reduced motion uses a brief fade
+between directions.
 
 On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled
 approach turns 120°; an edge-on approach continues straight. Springs work from
@@ -66,7 +67,9 @@ Other ropes remain tappable while animations run, including on mirror and spring
 boards. Movement commits logically at the tap; each rope keeps its own visual
 route. Undo restores the previous full board and cancels in-flight animations.
 Queued moves yield at shared paths until the earlier rope's tail clears them;
-independent routes still animate together. Swishes start when a queued rope moves.
+independent routes still animate together. Every accepted tap gets an immediate
+swish, even while its animation waits. Departures run at half their original
+speed to keep the clearance readable.
 
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic

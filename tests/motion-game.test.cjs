@@ -49,7 +49,7 @@ test('queued exits yield at crossings while separate routes remain concurrent on
       });
       for (const r of results) {
         assert.equal(r.accepted, true, JSON.stringify(r)); assert.equal(r.queued, true, JSON.stringify(r));
-        assert.equal(r.initialSwishes, 2, 'the waiting rope stays quiet'); assert.equal(r.swishes, 3, JSON.stringify(r));
+        assert.equal(r.initialSwishes, 3, 'every accepted tap gets an immediate swish'); assert.equal(r.swishes, 3, JSON.stringify(r));
         assert.equal(r.separateAdvances, true);
         if (reducedMotion !== 'reduce') assert.equal(r.resumedBeforeExit, true, 'release as soon as the shared path clears: ' + JSON.stringify(r));
         assert.ok(r.closest > .25, 'visible strokes stay apart: ' + JSON.stringify(r)); assert.equal(r.drained, true);

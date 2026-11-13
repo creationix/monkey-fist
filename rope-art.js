@@ -6,30 +6,48 @@
     const n = parseInt(hex.slice(1), 16), c = x => Math.round(amount < 0 ? x * (1 + amount) : x + (255 - x) * amount);
     return `rgb(${c(n >> 16)},${c(n >> 8 & 255)},${c(n & 255)})`;
   }
-  function curve(points) {
-    const out = [points[0]];
+  function curve(input) {
+    const points = input.filter((p, i) => !i || Math.hypot(p.x - input[i - 1].x, p.y - input[i - 1].y) > .0001);
+    const segments = [], line = new Path2D(); let length = 0, end = points[0]; line.moveTo(end.x, end.y);
+    function straight(b) {
+      const n = Math.hypot(b.x - end.x, b.y - end.y);
+      if (n > .0001) { segments.push({ a: end, x: (b.x - end.x) / n, y: (b.y - end.y) / n, start: length, end: length + n }); length += n; line.lineTo(b.x, b.y); }
+      end = b;
+    }
     for (let i = 1; i < points.length - 1; i++) {
       const a = points[i - 1], b = points[i], c = points[i + 1], before = Math.hypot(b.x - a.x, b.y - a.y), after = Math.hypot(c.x - b.x, c.y - b.y);
-      if (before < .001 || after < .001) continue;
       const u = { x: (b.x - a.x) / before, y: (b.y - a.y) / before }, v = { x: (c.x - b.x) / after, y: (c.y - b.y) / after };
-      if (u.x * v.x + u.y * v.y > .999) continue;
-      const radius = Math.min(.7, before * .48, after * .48), p = { x: b.x - u.x * radius, y: b.y - u.y * radius }, q = { x: b.x + v.x * radius, y: b.y + v.y * radius };
-      out.push(p);
-      for (let j = 1; j <= 6; j++) { const t = j / 6, s = 1 - t; out.push({ x: s * s * p.x + 2 * s * t * b.x + t * t * q.x, y: s * s * p.y + 2 * s * t * b.y + t * t * q.y }); }
+      const turn = Math.atan2(u.x * v.y - u.y * v.x, u.x * v.x + u.y * v.y);
+      if (Math.abs(turn) < .001) continue;
+      if (Math.abs(turn) > Math.PI - .001) { straight(b); continue; }
+      // A true circular fillet: the same radius for square and hex turns.
+      // Short endpoint segments constrain the radius without overshooting them.
+      const tangent = Math.tan(Math.abs(turn) / 2), cut = Math.min(.7 * tangent, before * .48, after * .48), radius = cut / tangent, sign = Math.sign(turn);
+      const entry = { x: b.x - u.x * cut, y: b.y - u.y * cut }, exit = { x: b.x + v.x * cut, y: b.y + v.y * cut };
+      straight(entry);
+      const center = { x: entry.x - u.y * sign * radius, y: entry.y + u.x * sign * radius }, angle = Math.atan2(entry.y - center.y, entry.x - center.x), n = radius * Math.abs(turn);
+      segments.push({ center, radius, angle, sign, start: length, end: length + n }); length += n;
+      line.arc(center.x, center.y, radius, angle, angle + turn, turn < 0); end = exit;
     }
-    out.push(points.at(-1));
-    const segments = [], line = new Path2D(); line.moveTo(out[0].x, out[0].y); let length = 0;
-    for (let i = 1; i < out.length; i++) {
-      const a = out[i - 1], b = out[i], n = Math.hypot(b.x - a.x, b.y - a.y); if (n < .0001) continue;
-      segments.push({ a, x: (b.x - a.x) / n, y: (b.y - a.y) / n, start: length, end: length + n }); length += n; line.lineTo(b.x, b.y);
-    }
-    function at(s, normal) {
+    straight(points.at(-1));
+    function at(s, normal = 0) {
+      if (!segments.length) return { ...points[0] };
       let lo = 0, hi = segments.length - 1;
       while (lo < hi) { const mid = (lo + hi) >> 1; if (segments[mid].end < s) lo = mid + 1; else hi = mid; }
       const p = segments[lo], along = s - p.start;
-      return { x: p.a.x + along * p.x - normal * p.y, y: p.a.y + along * p.y + normal * p.x };
+      if (!p.center) return { x: p.a.x + along * p.x - normal * p.y, y: p.a.y + along * p.y + normal * p.x };
+      const angle = p.angle + p.sign * along / p.radius, radius = p.radius - p.sign * normal;
+      return { x: p.center.x + radius * Math.cos(angle), y: p.center.y + radius * Math.sin(angle) };
     }
     return { line, length, at };
+  }
+  // Screen-space sampling of the same centerline used by the braid. Springs
+  // follow it in reverse instead of cutting across a bent rope's shape.
+  function trace(points, width) {
+    const origin = points[0], body = curve(points.map(p => ({ x: (p.x - origin.x) / width, y: (p.y - origin.y) / width })));
+    return { length: body.length * width, at(s, normal = 0) {
+      const p = body.at(s / width, normal / width); return { x: origin.x + p.x * width, y: origin.y + p.y * width };
+    } };
   }
   function polygon(path, points) { path.moveTo(points[0].x, points[0].y); for (let i = 1; i < points.length; i++) path.lineTo(points[i].x, points[i].y); path.closePath(); }
   function weave(at, length, detail, offset = 0, head = false) {
@@ -80,5 +98,5 @@
     ctx.beginPath(); ctx.moveTo(-.3, -.49); ctx.lineTo(-.3, -.77); ctx.lineTo(1.1, 0); ctx.lineTo(-.3, .77); ctx.lineTo(-.3, .49);
     ctx.strokeStyle = shade(color, -.55); ctx.lineWidth = .13; ctx.lineJoin = 'round'; ctx.stroke(); ctx.restore();
   }
-  root.MFRopeArt = { draw };
+  root.MFRopeArt = { draw, trace };
 })(globalThis);
