@@ -151,10 +151,14 @@
     if (size.W * size.H >= 70 && (kinds.length >= 2 || kinds.includes('springs') || d.index >= 20)) {
       let circuit = C.generate(rng, size.W, size.H, kinds);
       if (!circuit) circuit = C.generate(rng, Math.max(size.W, 10), Math.max(size.H, 14), kinds);
-      if (!circuit) throw Error('Could not construct a connected Twists circuit');
-      const par = M.score(circuit, circuit.solution);
-      if (par === null || !M.replay(circuit, circuit.solution).solved) throw Error('Unverified Twists circuit');
-      return { ...circuit, par, parExact: false };
+      if (circuit) {
+        const par = M.score(circuit, circuit.solution);
+        if (par === null || !M.replay(circuit, circuit.solution).solved) throw Error('Unverified Twists circuit');
+        return { ...circuit, par, parExact: false };
+      }
+      // Stricter circuit checks (every mirror and spring used) can exhaust the
+      // attempts for a few seeds. Fall back to the verified woven construction
+      // below instead of failing a whole shared set.
     }
     let searches = 0;
     for (let attempt = 0; attempt < 12 && searches < 45; attempt++) {
