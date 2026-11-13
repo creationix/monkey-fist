@@ -331,7 +331,7 @@ function finish() {
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
   $('resultText').textContent = G.usedAutoSolve ? 'Auto-solved · 0 stars' : G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
   $('unlocked').textContent = chaptersFor(opts) > previous ? 'Levels ' + (previous * 10 + 1) + '–' + (chaptersFor(opts) * 10) + ' unlocked!' : opts.kind === 'journey' && G.index === 119 ? 'Journey complete. Make a new tangle in Custom.' : '';
-  $('next').hidden = G.index + 1 >= H.available(opts, chaptersFor(opts)); $('result').showModal(); syncMusic(); sfx.win();
+  $('next').hidden = G.index + 1 >= H.available(opts, chaptersFor(opts)); $('result').showModal(); syncMusic(); sfx.win(stars);
 }
 function update(dt) {
   if (!G.level || $('chooser').open) return;

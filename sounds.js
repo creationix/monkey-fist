@@ -1,7 +1,7 @@
 // The same synthesized effects for square and hex Monkey Fist.
 (function (root) {
   'use strict';
-  const GAPS = { click: 50, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 };
+  const GAPS = { click: 50, slide: 45, reflect: 40, spring: 80, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 150, lose: 1500 };
   function createSoundPlayer(context, destination, options = {}) {
     const bus = context.createGain(); bus.connect(destination);
     const active = new Set(), lastAt = {}, now = options.now || (() => context.currentTime * 1000);
@@ -9,6 +9,14 @@
     function track(source, nodes) {
       active.add(source);
       source.onended = () => { active.delete(source); source.disconnect(); nodes.forEach(n => n.disconnect()); };
+    }
+    function reserveVoices(count) {
+      // A burst of automatic releases can fill the voice cap just before the
+      // result appears. Retire the oldest tails so the finale is always heard.
+      for (const source of [...active].slice(0, Math.max(0, active.size + count - 40))) {
+        try { source.stop(); } catch { /* Already ended. */ }
+        source.onended();
+      }
     }
     function tone(frequency, duration, type, volume, delay = 0, to, attack = .008) {
       if (active.size >= 40) return;
@@ -63,9 +71,41 @@
       thud() { tone(170, .14, 'sine', .3, 0, 90); noise(.07, .14, 420, 160); },
       undo() { tone(620, .16, 'sine', .2, 0, 330); },
       hint() { pluck(880, .35, 0, .25); pluck(1318.5, .35, .09, .4); },
-      win() {
-        // A quiet bass resolution with a soft onset and a lingering fifth.
+      win(stars = 0) {
+        stars = Math.max(0, Math.min(3, Math.floor(Number(stars) || 0)));
         const bass = Math.max(50, Math.min(85, options.getChord?.().bass || 65.41));
+        if (stars) {
+          // A warm major-key celebration: a small rising phrase, a longer
+          // pickup, then a fanfare with a full upper triad for a perfect clear.
+          const phrases = [null,
+            [[0, 1], [.13, 1.25], [.26, 1.5], [.44, 2]],
+            [[0, .75], [.11, 1], [.24, 1.25], [.38, 1.5], [.57, 2]],
+            [[0, 1], [.09, 1.25], [.18, 1.5], [.32, 2], [.46, 1.5], [.61, 2]],
+          ];
+          const phrase = phrases[stars], root = bass * 4, end = phrase.at(-1)[0];
+          reserveVoices([0, 11, 14, 18][stars]);
+          tone(bass, 1.05, 'sine', .16, 0, undefined, .025);
+          tone(bass * 2, .8, 'sine', .055, .015, undefined, .02);
+          for (const [index, [delay, ratio]] of phrase.entries()) {
+            const final = index === phrase.length - 1, pitch = root * ratio;
+            tone(pitch, final ? .75 + stars * .08 : .32, 'triangle', .16, delay, undefined, .012);
+            tone(pitch * 2, final ? .6 : .16, 'sine', .025, delay, undefined, .018);
+          }
+          if (stars === 1) tone(root, .72, 'sine', .045, end, undefined, .03);
+          if (stars === 2) {
+            tone(root * 1.25, .85, 'sine', .055, end, undefined, .025);
+            tone(root * 1.5, .85, 'sine', .045, end, undefined, .025);
+          }
+          if (stars === 3) {
+            tone(bass * 3, .95, 'sine', .045, end, undefined, .03);
+            tone(root, .95, 'sine', .045, end, undefined, .025);
+            tone(root * 2.5, .95, 'triangle', .065, end, undefined, .025);
+            tone(root * 3, .95, 'sine', .05, end, undefined, .03);
+          }
+          return;
+        }
+        // Zero stars keeps the calm bass resolution for the auto-solve fade.
+        reserveVoices(5);
         tone(bass * 1.08, 1.1, 'sine', .18, 0, bass, .045);
         tone(bass * 1.5, 1.35, 'sine', .055, .06, undefined, .07);
         tone(bass * 2, .8, 'sine', .025, .02, undefined, .035);
