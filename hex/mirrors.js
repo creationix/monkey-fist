@@ -31,6 +31,7 @@
       }
       if (occupied.has(cell)) break;
       if (springs.has(cell)) {
+        route.push(next); distance++;
         const result = paths.slice(); result[i] = route.slice(-path.length).reverse();
         return { paths: result, event: 'bounce', distance, route, turns };
       }

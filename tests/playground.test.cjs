@@ -55,7 +55,7 @@ test('default-motion mirror and spring animations finish and can be undone mid-m
     assert.equal(await page.evaluate(() => __mfSandbox.game.taps), 0);
     await page.evaluate(() => __mfSandbox.tap(0));
     await page.waitForFunction(() => !__mfSandbox.game.animation);
-    assert.deepEqual(await page.evaluate(() => MFSandbox.direction(__mfSandbox.level, __mfSandbox.game.paths[0])), [-1, 0]);
+    assert.deepEqual(await page.evaluate(() => MFSandbox.direction(__mfSandbox.level, __mfSandbox.game.paths[0])), [0, 1], 'entering the spring advances one more cell before reversing the bent rope');
     await page.evaluate(() => __mfSandbox.tap(0));
     await page.waitForFunction(() => !__mfSandbox.game.animation);
     assert.equal(await page.evaluate(() => __mfSandbox.game.paths[0]), null);

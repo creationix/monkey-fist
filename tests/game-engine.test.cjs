@@ -83,3 +83,17 @@ test('Journey springs have varied approaches and require clearing another rope o
     assert.ok([...distances[grid]].some(n => n >= 2), grid + ' needs space between rope and spring');
   }
 });
+
+test('spring reflections enter the tile completely and reverse with the tail on that tile', () => {
+  const p = (q, r) => ({ q, r });
+  for (const grid of ['square', 'hex']) {
+    const b = { grid, W: 8, H: 8, springs: [p(5, 3)], mirrors: [], locks: [] };
+    const paths = [[p(2, 3), p(3, 3)]];
+    const move = G.tap(b, paths, 0);
+    assert.equal(move.event, 'bounce'); assert.equal(move.distance, 2);
+    assert.deepEqual(move.route.at(-1), p(5, 3));
+    assert.deepEqual(move.paths[0], [p(5, 3), p(4, 3)]);
+    assert.equal(G.replay({ ...b, ropes: paths }, [0, 0]).solved, true);
+    assert.equal(G.tap(b, [paths[0], [p(5, 3), p(5, 4)]], 0).event, 'slide', 'occupied spring tiles still block entry');
+  }
+});

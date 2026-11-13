@@ -181,8 +181,7 @@
       }
       if (hit.size >= 2) turned.add(step.i);
       if (step.event === 'bounce') {
-        const p = step.route.at(-1), [dx, dy] = M.direction(b, step.route);
-        springs.add(cell({ x: p.x + dx, y: p.y + dy }, b.W)); bounced.add(step.i);
+        springs.add(cell(step.route.at(-1), b.W)); bounced.add(step.i);
       }
     }
     const keyRopes = new Set(b.gates.map(g => g.key));

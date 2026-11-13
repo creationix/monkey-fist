@@ -32,8 +32,8 @@
       }
       const key = gates.get(c);
       if (occupied.has(c) || walls.has(c) || (key !== undefined && paths[key])) break;
-      if (springs.has(c)) { event = 'bounce'; break; }
       x = nx; y = ny; route.push({ x, y }); distance++;
+      if (springs.has(c)) { event = 'bounce'; break; }
       if (mirrors.get(c) === '/') [dx, dy] = [-dy, -dx];
       else if (mirrors.get(c) === '\\') [dx, dy] = [dy, dx];
     }

@@ -32,6 +32,8 @@ function syncDisplay() {
 }
 syncDisplay();
 const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
+const springRotations = new WeakMap();
+const springKey = p => p.q + ',' + p.r;
 const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
 let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null;
@@ -60,7 +62,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=3');
+    const worker = new Worker('generator-worker.js?v=4');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -91,7 +93,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=3');
+    guideWorker = new Worker('generator-worker.js?v=4');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -107,7 +109,7 @@ async function start(index) {
   $('chooser').close(); $('result').close(); updateURL(); hud(); syncMusic(); gameAudio.music?.setLevel(G.index + 1); draw(0);
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
-    G.level = level; G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
+    G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
     Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resize(); hud(); draw(0);
   } catch {
@@ -168,8 +170,9 @@ function tap(i, automatic = false) {
     m.distance += extra;
   }
   const bounceDuration = m.event === 'bounce' ? reduced ? .12 : 1 : 0;
-  const spring = m.event === 'bounce' ? H.add(m.route.at(-1), headDirection(m.route.slice(-G.paths[i].length))) : null;
+  const spring = m.event === 'bounce' ? m.route.at(-1) : null;
   const move = { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
+    bounceLength: spring ? MFRopeArt.trace(m.route.slice(-G.paths[i].length).map(screen), G.view.scale * .4).length / G.view.scale : 0,
     popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
   prepareTraffic(move);
   move.waiting = move.distance > 0 && motionLimit(move, new Map([...G.moves.values()].map(m => [m, m.progress]))) === 0;
@@ -200,7 +203,7 @@ function commit(m) {
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
-  cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
+  cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); springRotations.delete(G.level); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
   if (!G.plan.length && !G.lost) seekPlan();
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
@@ -247,6 +250,7 @@ function update(dt) {
     const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
     if (m.waiting) m.speed = 0;
+    if (m.spring && m.progress >= m.distance - 1) m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
     while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
     if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
       let remaining = dt;
@@ -259,10 +263,15 @@ function update(dt) {
         m.speed = speed;
         m.hold = m.bounceDuration = reduced ? .12 : track.length / G.view.scale / speed;
         remaining = m.distance ? Math.max(0, (proposed - m.distance) / (reduced ? m.distance * 12 : speed)) : dt;
+        m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
         m.impacted = true; sfx.spring();
       }
       m.hold -= remaining;
       if (m.hold <= 0) {
+        if (m.spring && !reduced) {
+          if (!springRotations.has(G.level)) springRotations.set(G.level, new Map());
+          springRotations.get(G.level).set(springKey(m.spring), m.rotation + Math.PI);
+        }
         G.moves.delete(id); settled = true;
         if (m.event === 'exit') sfx.pop(m.popNote);
         else if (m.event !== 'bounce' && m.reflections.at(-1) !== m.distance) sfx.thud();
@@ -449,18 +458,22 @@ function drawRope(i, time) {
   } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated);
   ctx.restore();
 }
+function springSpin(move) {
+  if (!move || reduced) return 0;
+  const approach = Math.min(1, Math.max(0, move.progress - (move.distance - 1)));
+  const returned = (springFlip(move)?.turn || 0) * move.bounceLength;
+  return Math.PI * (approach + returned) / (1 + move.bounceLength);
+}
 function drawSpring(spring, move) {
-  const s = G.view.scale, p = screen(spring), flip = springFlip(move);
+  const s = G.view.scale, p = screen(spring);
   ctx.save(); ctx.translate(p.x, p.y);
-  if (flip && !reduced) {
-    const from = screen(move.route.at(-1)), angle = Math.atan2(p.y - from.y, p.x - from.x);
-    const squash = Math.sin(flip.t * Math.PI * 3) * Math.exp(-flip.t * 3) * .4;
-    ctx.rotate(angle); ctx.scale(1 - squash, 1 + squash * .22); ctx.rotate(-angle);
-  }
   ctx.beginPath(); ctx.arc(0, s * .025, s * .34, 0, Math.PI * 2); ctx.fillStyle = '#00000055'; ctx.fill();
   const cushion = ctx.createRadialGradient(-s * .1, -s * .12, s * .02, 0, 0, s * .32);
   cushion.addColorStop(0, '#6c5138'); cushion.addColorStop(1, '#2d3029');
   ctx.beginPath(); ctx.arc(0, 0, s * .3, 0, Math.PI * 2); ctx.fillStyle = cushion; ctx.fill();
+  // Rotate the braided rim with the coil so the spin stays visible even
+  // while the rope covers the center of the spring.
+  if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
   const rim = Array.from({ length: 25 }, (_, i) => ({ x: Math.cos(i * Math.PI / 12) * s * .285, y: Math.sin(i * Math.PI / 12) * s * .285 }));
   MFRopeArt.draw(ctx, rim, s * .085, '#b69b6c', null);
   const coil = new Path2D();

@@ -110,7 +110,9 @@
       if (details.grid === 'hex') {
         const index = Math.max(attempt >= 12 ? 2 : 0, Math.round((d - 1) / 99 * 59));
         const opts = { seed, index, count: 60, big: d >= 80, mirrors: details.mirrors, springs: details.springs };
-        const raw = (details.mirrors || details.springs ? R : H).generate(opts);
+        let raw;
+        try { raw = (details.mirrors || details.springs ? R : H).generate(opts); }
+        catch (error) { if (error.message === 'Could not weave a mirror tangle') continue; throw error; }
         // The per-level spec contains feature flags; the generated board contains tiles.
         b = { ...raw, ...details, mirrors: raw.mirrors || [], springs: raw.springs || [] };
       } else if (details.mirrors || details.springs) {

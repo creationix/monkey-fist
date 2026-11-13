@@ -9,14 +9,19 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
       page.on('pageerror', e => errors.push(e.message)); await page.addInitScript(() => { requestAnimationFrame = () => 0; });
       await page.goto(base); await ready(page);
       const result = await page.evaluate(grid => {
-        const p = (q, r) => ({ q, r }), paths = [[p(2, 5), p(1, 5), p(1, 4), p(2, 4), p(2, 3), p(3, 3)], [p(1, 6), p(2, 6)], [p(6, 2), p(6, 1)]];
+        const p = (q, r) => ({ q, r }), paths = [[p(2, 5), p(1, 5), p(1, 4), p(2, 4), p(2, 3), p(3, 3)], [p(0, 4), p(0, 5)], [p(6, 2), p(6, 1)]];
         const level = { grid, W: 8, H: 8, mirrors: [], springs: [p(5, 3)], par: 4 };
         Object.assign(G, { level, paths, plan: [0, 2, 1, 0], moves: new Map(), auto: false, ended: false, lost: false, loading: false, history: [], camera: { zoom: 1, x: 0, y: 0 } }); resize();
         const expected = MFGame.tap(level, paths, 0).paths[0], poses = [];
         let hits = 0, rebuilds = 0; sfx.spring = () => hits++;
         const original = drawRestingBoard; drawRestingBoard = (...args) => { rebuilds++; return original(...args); };
         tap(0); const move = G.moves.get(0), beforeImpact = hits, committed = JSON.stringify(G.paths[0]) === JSON.stringify(expected);
+        const checkpoint = move.progress;
+        move.progress = move.distance - 1; const spinAtDot = springSpin(move);
+        move.progress += .5; const spinApproaching = springSpin(move);
+        move.progress = checkpoint;
         while (!move.impacted) update(1 / 1000);
+        const spinAtImpact = springSpin(move);
         const oldEnd = ropeDrawing(0).points.at(-1), newEnd = ropeDrawing(0, true).points.at(-1), travel = [];
         for (let i = 0; i <= 240; i++) {
           const drawing = springDrawing(0, { turn: i / 240, reversed: i >= 120 });
@@ -37,11 +42,12 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
         draw(0); const firstBuilds = rebuilds;
         for (const t of [.2, .4, .58, .8]) {
           update(Math.max(0, move.hold - move.bounceDuration * (1 - t)));
-          poses.push(springFlip(move)); draw(0);
+          poses.push({ ...springFlip(move), spin: springSpin(move) }); draw(0);
         }
         const animationRebuilds = rebuilds - firstBuilds;
         tap(2); const concurrent = G.moves.has(0) && G.moves.has(2);
         update(move.hold + .001); draw(0);
+        const settledSpin = springRotations.get(G.level)?.get(springKey(move.spring)) || 0;
         const landed = !G.moves.has(0) && JSON.stringify(G.paths[0]) === JSON.stringify(expected);
         drawRestingBoard = original; cancelGuide();
         // Undo is allowed during a U-turn, and clears the spring animation.
@@ -49,12 +55,12 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
         tap(0); while (!G.moves.get(0).impacted) update(.001); update(.02); undo(); draw(0);
         const hitsBeforeUndo = hits - 1, undone = !G.moving && JSON.stringify(G.paths) === JSON.stringify(paths);
         G.paths = [paths[0].concat(p(4, 3)), paths[1], paths[2]]; G.plan = [0, 2, 1, 0];
-        tap(0); update(.001); const adjacent = G.moves.get(0);
+        tap(0); const adjacent = G.moves.get(0); while (!adjacent.impacted) update(.001);
         const adjacentBefore = springDrawing(0, springFlip(adjacent)).points.at(-1);
         update(.005); const adjacentAfter = springDrawing(0, springFlip(adjacent)).points.at(-1);
         const adjacentSpeed = Math.hypot(adjacentAfter.x - adjacentBefore.x, adjacentAfter.y - adjacentBefore.y) / G.view.scale / .005;
         return { committed, beforeImpact, hitsBeforeUndo, poses, animationRebuilds, concurrent, landed, oldEnd, newEnd, travel, constantSpeed, incomingSpeed, scale: G.view.scale,
-          undone, adjacentSpeed };
+          undone, spinAtDot, spinApproaching, spinAtImpact, settledSpin, adjacentSpeed, adjacentIncoming: adjacent.speed };
       }, grid);
       assert.equal(result.committed, true); assert.equal(result.beforeImpact, 0); assert.equal(result.hitsBeforeUndo, 1);
       assert.equal(result.concurrent, true); assert.equal(result.landed, true); assert.equal(result.undone, true);
@@ -64,7 +70,12 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
       assert.ok(distance(result.travel[0].head, result.oldEnd) < .001);
       assert.ok(distance(result.travel.at(-1).head, result.newEnd) < .001);
       if (reducedMotion !== 'reduce') {
-        assert.ok(Math.abs(result.adjacentSpeed - 38) < .001, 'an adjacent rope starts its return at cruising speed');
+        assert.equal(result.spinAtDot, 0);
+        assert.ok(result.spinApproaching > 0 && result.spinApproaching < result.spinAtImpact);
+        assert.ok(result.spinAtImpact < result.poses[0].spin);
+        for (let i = 1; i < result.poses.length; i++) assert.ok(result.poses[i].spin > result.poses[i - 1].spin);
+        assert.ok(Math.abs(result.settledSpin - Math.PI) < 1e-8, 'coil keeps its final orientation');
+        assert.ok(Math.abs(result.adjacentSpeed - result.adjacentIncoming) < .001, 'an adjacent rope enters the spring and preserves its arrival speed');
         for (const speed of result.constantSpeed) assert.ok(Math.abs(speed - result.incomingSpeed) < .001, 'reflection carries incoming speed immediately');
         for (const pose of result.poses) assert.ok(Math.abs(pose.turn - pose.t) < 1e-8, 'no pause at impact');
         assert.ok(distance(result.travel[120].head, result.oldEnd) > result.scale * .3);
