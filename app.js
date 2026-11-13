@@ -253,7 +253,7 @@ function tap(i, automatic = false, solveFast = false) {
   sfx.slide();
   if (!automatic) {
     if (G.assisted.has(i)) G.combo = 0;
-    else if (m.event === 'exit' && ++G.combo % 5 === 0) notice(G.combo + ' in a row!');
+    else if (m.event === 'exit') G.combo++;
   }
   hud();
 }

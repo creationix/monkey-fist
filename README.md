@@ -87,7 +87,7 @@ including mirrors and springs. It stops charging taps when automatic release
 becomes available; unfinished searches retain the verified construction target.
 
 Graphics can switch between braided Rope and translucent Tiles. Tiles use
-beveled panels, clear rims, and subtle ribs anchored to the moving tail. Mirrors
+flat, beveled panels with clear rims. Mirrors
 match the glass-like panels; bouncers have a spinning gear profile in both styles.
 The setting is shared by square and Hex and saved across sessions.
 
@@ -107,8 +107,7 @@ a hint costs two. Once everything can leave, remaining releases are automatic
 and free. Par is a replay-verified target; larger routed boards use a known
 solution rather than claiming a globally optimal proof. Three stars means par
 or better, two means within two taps, and one means completion. There is no hard
-tap budget. Hints, undo, and blocked taps break the combo; a hinted rope stays
-assisted until restart, even after the highlight expires or an undo.
+tap budget.
 
 Small boards stay centered with zoom and panning disabled. On larger boards,
 scroll or pinch to zoom, drag to explore the overflowing area, and press **Fit**
