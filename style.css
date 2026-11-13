@@ -39,4 +39,16 @@ dialog{overscroll-behavior:contain;touch-action:pan-y;user-select:none;-webkit-u
 #grid{grid-template-columns:repeat(10,minmax(0,1fr));gap:7px}#grid h3{grid-column:1/-1;color:var(--muted);font-size:12px;font-weight:500;margin:17px 0 4px}#grid button{font-size:16px;position:relative;padding:12px 3px 7px}#grid button:disabled{opacity:.25}.level-icon{display:block;font-size:16px;color:var(--muted);line-height:1;margin-bottom:5px}#grid small{font-size:9px;letter-spacing:0}
 .menu-footer{border-top:1px solid var(--line);margin-top:26px;padding-top:15px}#chooser #audioControls{position:static;display:flex;gap:8px;margin:-8px 0 18px}#chooser #audioControls button{font-size:12px;padding:9px 12px}.menu-footer p{font-size:11px;color:var(--muted);margin:0}
 #unlocked{color:var(--accent);font-size:14px}#unlocked:empty{display:none}
+#chooser #audioControls{flex-wrap:wrap}
+/* OLED keeps the ropes vivid while the surrounding surfaces approach black. */
+:root.oled{background:#000}
+.oled body{background:#000}
+.oled .brand,.oled .readout,.oled #tip{background:#030708ed}
+.oled .actions button,.oled #zoomControls button,.oled #chooser #audioControls button{background:#0d171b}
+.oled dialog{background:#050a0c}
+.oled dialog::backdrop{background:#000c}
+.oled .settings,.oled input,.oled select,.oled .set-tabs button{background:#010304}
+.oled .set-tabs button[aria-pressed=true],.oled #grid button.current{background:#1a272b}
+.oled #grid button{background:#101a1e}
+.oled #notice{background:#c1ccc8}
 @media(max-width:600px){#grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.settings{padding:13px;gap:12px}.settings .check{padding:0}.feature-options{gap:24px}.brand small{font-size:14px}#zoomControls span{font-size:9px}.set-tabs button{padding:12px}}

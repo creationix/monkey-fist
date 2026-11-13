@@ -34,6 +34,15 @@ test('muting immediately stops and disconnects effects, and cannot queue hidden 
   assert.equal(player.slide(), false); assert.equal(player.pop(5), false); assert.equal(sources.length, count);
   player.setEnabled(true); assert.equal(player.slide(), true);
 });
+test('mirror reflections use the current harmony, stay in the lower register, and respect mute and throttling', () => {
+  const { context, sources, filters } = device(), player = createSoundPlayer(context, {}, { getChord: () => ({ bass: 55 }) });
+  assert.equal(player.reflect(0), true);
+  assert.deepEqual(sources.filter(s => s.frequency).map(s => s.frequency.value), [220, 440, 330]);
+  assert.equal(filters[0].type, 'bandpass');
+  assert.equal(player.reflect(1), false); context.currentTime = .05; assert.equal(player.reflect(1), true);
+  assert.equal(sources.filter(s => s.frequency)[3].frequency.value, 275);
+  player.setEnabled(false); assert.equal(player.reflect(2), false); assert.equal(player.state.voices, 0);
+});
 test('exit notes follow the selected song and concurrent sound voices stay bounded', () => {
   const { context, sources } = device(), player = createSoundPlayer(context, {}, { getChord: () => ({ melody: [300, 400, 500] }) });
   player.pop(2); assert.equal(sources[0].frequency.value, 400);

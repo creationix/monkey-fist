@@ -48,8 +48,10 @@ future purchase entitlement; no payment or entitlement code is included yet.
 
 Tap a rope to slide it in its arrow’s direction. It stops at another rope or
 leaves the board. Two-sided mirrors turn its route; springs reverse the rope
-end-for-end. There are no locks in generated levels. The pale mirror blade is
-symmetric, with no triangle implying a non-reflective side.
+end-for-end. There are no locks in generated levels. Mirrors have muted glass,
+rounded frames, and cord bindings. Both sides reflect; there is no triangle
+implying a non-reflective side. Arrowheads curve into their reflected direction
+when resting on a mirror.
 
 On Hex, mirrors lie along the three grid axes (0°, 60°, 120°). An angled
 approach turns 120°; an edge-on approach continues straight. Springs work from
@@ -131,6 +133,12 @@ visible viewport; animation does not wait for an invisible extended route.
 The sound-effects button cycles **Off → Low → Full**; Low is the default and
 uses one quarter of Full’s gain. Music has a separate toggle. Audio initializes
 on the first gesture, pauses in the background, and music pauses in menus.
+Mirror turns make a low, hollow pluck tuned to the current music, timed to the
+head reaching each mirror. Sliding away from a mirror does not repeat its sound.
+
+In **Levels**, toggle **OLED** for a black page background and nearly black
+board and menu surfaces. It preserves rope colors, works on both grids, and
+remembers the setting across sessions, including offline play.
 
 The shared save key is `monkey-fist-unified-v1`. It stores chapter unlocks,
 best scores by set code, custom preferences, audio, and the current level.

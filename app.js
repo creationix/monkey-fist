@@ -25,6 +25,12 @@ if (save.gen !== H.VERSION) {
 }
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
+function syncDisplay() {
+  document.documentElement.classList.toggle('oled', !!save.oled);
+  $('oled').setAttribute('aria-pressed', !!save.oled); $('oled').textContent = 'OLED ' + (save.oled ? 'on' : 'off');
+  document.querySelector('meta[name="theme-color"]').content = save.oled ? '#000000' : '#0b1f2a';
+}
+syncDisplay();
 const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
@@ -135,13 +141,14 @@ function tap(i, automatic = false) {
   if (!m) { G.bump = { i, time: .25 }; G.combo = 0; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
   if (!automatic) G.history.push({ paths: G.paths, plan: G.plan.slice(), lost: G.lost });
   if (G.bump?.i === i) G.bump = null;
+  const reflections = mirrorCrossings(m.route, G.paths[i].length);
   if (m.event === 'exit') {
     const last = m.route.at(-1), previous = m.route.at(-2), d = [last.q - previous.q, last.r - previous.r];
     const extra = Math.ceil(Math.max(width, height) * 2 / G.view.scale) + 4;
     for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
     m.distance += extra;
   }
-  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: m.event === 'bounce' ? .16 : 0, popNote: m.event === 'exit' ? ++G.clearNo : 0 });
+  G.moves.set(i, { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: m.event === 'bounce' ? .16 : 0, popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 });
   commit(G.moves.get(i));
   sfx.slide();
   if (!automatic) {
@@ -208,7 +215,15 @@ function update(dt) {
   for (const [id, m] of G.moves) {
     m.speed = Math.min(38, m.speed + dt * 100);
     m.progress = Math.min(m.distance, m.progress + (reduced ? m.distance * dt * 12 : m.speed * dt));
-    if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) { m.hold -= dt; if (m.hold <= 0) { G.moves.delete(id); settled = true; if (m.event === 'exit') sfx.pop(m.popNote); else sfx.thud(); } }
+    while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) sfx.reflect(m.nextReflection++);
+    if (m.progress >= m.distance - .001 || m.event === 'exit' && exitCleared(id)) {
+      m.hold -= dt;
+      if (m.hold <= 0) {
+        G.moves.delete(id); settled = true;
+        if (m.event === 'exit') sfx.pop(m.popNote);
+        else if (m.event === 'bounce' || m.reflections.at(-1) !== m.distance) sfx.thud();
+      }
+    }
   }
   if (!G.ended && G.paths.every(p => !p) && !G.moving) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
@@ -279,6 +294,46 @@ function visiblePath(i) {
   for (let k = Math.floor(start) + 1; k < end; k++) points.push(m.route[k]);
   points.push(pointAt(m.route, end)); return points;
 }
+function mirrorTurn(route, index) {
+  const p = route[index], before = route[index - 1];
+  if (!p || !before || !G.level.mirrors.some(m => m.cell.q === p.q && m.cell.r === p.r)) return null;
+  const incoming = [p.q - before.q, p.r - before.r], outgoing = headDirection([before, p]);
+  return incoming[0] === outgoing[0] && incoming[1] === outgoing[1] ? null : { incoming, outgoing };
+}
+function mirrorCrossings(route, length) {
+  const crossings = [];
+  // A head already resting on a mirror has reflected on its previous move.
+  for (let i = length; i < route.length; i++) if (mirrorTurn(route, i)) crossings.push(i - length + 1);
+  return crossings;
+}
+function ropeDrawing(i) {
+  const rope = visiblePath(i); if (!rope) return null;
+  const points = rope.map(screen), tip = points.at(-1), moving = G.moves.get(i);
+  const end = moving ? moving.progress + moving.path.length - 1 : rope.length - 1, route = moving?.route || rope;
+  const previous = moving ? screen(pointAt(route, end - .001)) : screen(H.add(rope.at(-1), headDirection(rope), -1));
+  const length = Math.hypot(tip.x - previous.x, tip.y - previous.y);
+  let head = { x: (tip.x - previous.x) / length, y: (tip.y - previous.y) / length };
+  const index = Math.round(end), turn = mirrorTurn(route, index), proximity = Math.abs(end - index);
+  if (turn && proximity < .5) {
+    const center = screen(route[index]), a = screen(H.add(route[index], turn.incoming)), b = screen(H.add(route[index], turn.outgoing));
+    const ax = a.x - center.x, ay = a.y - center.y, bx = b.x - center.x, by = b.y - center.y;
+    const t = Math.max(0, Math.min(1, (end - index + .35) / .35)), ease = t * t * (3 - 2 * t);
+    const angle = Math.atan2(ay, ax) + Math.atan2(ax * by - ay * bx, ax * bx + ay * by) * ease;
+    head = { x: Math.cos(angle), y: Math.sin(angle) };
+    // Lead the arrow out of the bend so its neck follows the reflected cord.
+    // The lead fades on either side, keeping stopped and moving poses continuous.
+    const next = H.add(route[index], turn.outgoing), neighbor = G.paths.find((p, j) => j !== i && p && p.at(-1).q === next.q && p.at(-1).r === next.r);
+    let clearance = .26;
+    if (neighbor) {
+      const at = screen(next), toward = screen(H.add(next, headDirection(neighbor))), nx = toward.x - at.x, ny = toward.y - at.y;
+      // Leave room for the arrowhead of a facing neighbor, not just its cord.
+      if ((nx * bx + ny * by) / (Math.hypot(nx, ny) * Math.hypot(bx, by)) < .51) clearance = .03;
+    }
+    const lead = G.view.scale * clearance * (1 - proximity / .5);
+    points.push({ x: tip.x + head.x * lead, y: tip.y + head.y * lead });
+  }
+  return { points, head };
+}
 function exitCleared(i) {
   const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
   const minX = Math.min(...points.map(p => p.x)) - margin, maxX = Math.max(...points.map(p => p.x)) + margin;
@@ -287,7 +342,8 @@ function exitCleared(i) {
   return outside({ x: 0, y: 0, w: width, h: height }) && outside(G.view.panel);
 }
 function drawRope(i, time) {
-  const rope = visiblePath(i); if (!rope) return; const s = G.view.scale, points = rope.map(screen), col = color(i);
+  const drawing = ropeDrawing(i); if (!drawing) return;
+  const { points, head } = drawing, s = G.view.scale, col = color(i);
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
@@ -295,9 +351,7 @@ function drawRope(i, time) {
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
   const tip = points.at(-1), moving = G.moves.get(i);
-  const ahead = screen(moving ? pointAt(moving.route, Math.min(moving.route.length - 1, moving.progress + moving.path.length - 1) - .001) : H.add(rope.at(-1), headDirection(rope)));
-  if (moving) { ahead.x = 2 * tip.x - ahead.x; ahead.y = 2 * tip.y - ahead.y; }
-  const len = Math.hypot(ahead.x - tip.x, ahead.y - tip.y), dx = (ahead.x - tip.x) / len, dy = (ahead.y - tip.y) / len;
+  const { x: dx, y: dy } = head;
   const arrow = (grow, fill) => {
     const reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
     path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
@@ -317,12 +371,25 @@ function drawMirrors() {
   for (const mirror of G.level.mirrors || []) {
     const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
     const a = screen(H.add(mirror.cell, d, -.37)), b = screen(H.add(mirror.cell, d, .37));
-    ctx.save(); ctx.lineCap = 'round';
-    // A thin, symmetric silver/cyan blade: visibly reflective on both sides.
-    path(ctx, [a, b]); ctx.strokeStyle = '#092631'; ctx.lineWidth = s * .22; ctx.stroke();
-    ctx.strokeStyle = '#408c9a'; ctx.lineWidth = s * .15; ctx.stroke();
-    ctx.strokeStyle = '#b5f4f1'; ctx.lineWidth = s * .075; ctx.stroke();
-    for (const p of [a, b]) { ctx.beginPath(); ctx.arc(p.x, p.y, s * .075, 0, Math.PI * 2); ctx.fillStyle = '#e1ffff'; ctx.fill(); }
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    ctx.save(); ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+    ctx.lineCap = ctx.lineJoin = 'round';
+    // Soft glass in a rounded, cord-bound frame. Both faces remain identical.
+    path(ctx, [{ x: -length / 2, y: 0 }, { x: length / 2, y: 0 }]);
+    ctx.strokeStyle = '#091e27'; ctx.lineWidth = s * .22; ctx.stroke();
+    ctx.strokeStyle = '#766f58'; ctx.lineWidth = s * .17; ctx.stroke();
+    const glass = ctx.createLinearGradient(0, -s * .06, 0, s * .06);
+    glass.addColorStop(0, '#688c87'); glass.addColorStop(.45, '#a1b7a5'); glass.addColorStop(1, '#517d7d');
+    ctx.strokeStyle = glass; ctx.lineWidth = s * .105; ctx.stroke();
+    for (const sign of [-1, 1]) {
+      const x = sign * (length / 2 - s * .035);
+      path(ctx, [{ x: x - s * .04, y: -s * .06 }, { x: x + s * .04, y: s * .06 }]);
+      ctx.strokeStyle = '#b4a17c'; ctx.lineWidth = s * .055; ctx.stroke();
+      if (s > 24) {
+        path(ctx, [{ x: x - s * .06, y: -s * .02 }, { x: x + s * .02, y: s * .07 }]);
+        ctx.strokeStyle = '#dcc49a88'; ctx.lineWidth = s * .018; ctx.stroke();
+      }
+    }
     ctx.restore();
   }
   for (const spring of G.level.springs || []) {
@@ -339,7 +406,7 @@ function drawRestingBoard() {
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
   board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
   const surface = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-  surface.addColorStop(0, '#ffffff0c'); surface.addColorStop(1, '#ffffff06');
+  surface.addColorStop(0, save.oled ? '#ffffff04' : '#ffffff0c'); surface.addColorStop(1, save.oled ? '#ffffff02' : '#ffffff06');
   ctx.fillStyle = surface; ctx.fill(board); ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1.5; ctx.stroke(board);
   ctx.save(); ctx.clip(board);
   ctx.fillStyle = '#b3d7d91c';
@@ -353,7 +420,7 @@ function draw(time) {
   if (!G.level) { ctx.clearRect(0, 0, width, height); return; }
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
-  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, [...G.moves.keys()].join(',')];
+  const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, [...G.moves.keys()].join(','), !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(); restingKey = key; } finally { ctx = mainContext; }
@@ -469,6 +536,9 @@ $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); }
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
 $('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
 $('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
+$('oled').onclick = () => {
+  save.oled = !save.oled; persist(); syncDisplay(); drawNext = true;
+};
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
 function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }

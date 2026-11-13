@@ -1,7 +1,7 @@
 // The same synthesized effects for square and hex Monkey Fist.
 (function (root) {
   'use strict';
-  const GAPS = { click: 50, slide: 45, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 };
+  const GAPS = { click: 50, slide: 45, reflect: 40, pop: 45, bump: 110, thud: 60, undo: 80, hint: 250, win: 1500, lose: 1500 };
   function createSoundPlayer(context, destination, options = {}) {
     const bus = context.createGain(); bus.connect(destination);
     const active = new Set(), lastAt = {}, now = options.now || (() => context.currentTime * 1000);
@@ -37,6 +37,14 @@
     const effects = {
       click() { tone(520, .06, 'sine', .22, 0, 700); },
       slide() { noise(.3, .3, 500, 2400); tone(260, .2, 'sine', .1, 0, 520); },
+      reflect(turn = 0) {
+        // A hollow, low pluck with a soft answering note, tuned to the music.
+        const bass = options.getChord?.().bass || 65.41, frequency = bass * [4, 5, 6][Math.abs(turn | 0) % 3];
+        tone(frequency, .22, 'sine', .23, 0, frequency * .96);
+        tone(frequency * 2, .07, 'sine', .035);
+        tone(frequency * 1.5, .14, 'triangle', .07, .035);
+        noise(.045, .06, 750, 260);
+      },
       pop(streak) {
         streak = Math.max(1, streak | 0);
         const chord = options.getChord?.() || { bass: 65.41, melody: [523.25, 587.33, 659.25, 783.99] };
