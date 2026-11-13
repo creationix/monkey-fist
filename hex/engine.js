@@ -142,6 +142,50 @@
     }
     return { plan: fallback, par: replay(level, fallback).taps, exact: false };
   }
+  // Exact manual-prefix search on compact offsets. Unlike greedily clearing
+  // exits, this keeps useful temporary stoppers until the search chooses them.
+  function fewestPlayerTaps(level, fallback, budget = 6000) {
+    const verified = replay(level, fallback);
+    if (!verified.solved) throw Error('Par requires a replayable Hex solution');
+    const b = compile(level), moves = [], tried = new Map(), rank = new Int32Array(b.lengths.length).fill(1000000), later = new Int32Array(b.lengths.length).fill(1000000);
+    fallback.forEach((id, step) => { if (rank[id] === 1000000) rank[id] = step; later[id] = step; });
+    let nodes = 0, exhausted = false;
+    const bound = () => {
+      const blockers = new Uint8Array(b.lengths.length); let count = 0;
+      for (let i = 0; i < b.lengths.length; i++) if (b.offsets[i] >= 0) {
+        for (let k = b.offsets[i] + b.lengths[i]; k < b.tracks[i].length; k++) {
+          const owner = b.occupied[b.tracks[i][k]];
+          if (owner >= 0 && !blockers[owner]) { blockers[owner] = 1; count++; }
+        }
+      }
+      return count;
+    };
+    function search(remaining) {
+      if (b.free()) return true;
+      if (!remaining || bound() > remaining) return false;
+      if (++nodes > budget) { exhausted = true; return false; }
+      const state = Array.from(b.offsets).join(',');
+      if (tried.get(state) >= remaining) return false;
+      if (b.dead()) { tried.set(state, 1000000); return false; }
+      const choices = [];
+      for (let i = 0; i < b.lengths.length; i++) {
+        const to = b.to(i); if (to !== -2 && to !== b.offsets[i]) choices.push({ i, to });
+      }
+      choices.sort((a, c) => (b.offsets[a.i] ? later[a.i] : rank[a.i]) - (b.offsets[c.i] ? later[c.i] : rank[c.i]) || a.i - c.i);
+      for (const { i, to } of choices) {
+        const from = b.offsets[i]; b.place(i, to); moves.push(i);
+        if (search(remaining - 1)) return true;
+        moves.pop(); b.place(i, from); if (exhausted) return false;
+      }
+      tried.set(state, remaining); return false;
+    }
+    for (let taps = Math.max(1, bound()); taps < verified.taps && !exhausted; taps++) if (search(taps)) {
+      const manual = moves.length;
+      for (let i = 0; i < b.lengths.length; i++) if (b.offsets[i] >= 0) moves.push(i);
+      return { plan: moves.slice(), par: manual, exact: true, nodes };
+    }
+    return { plan: fallback.slice(), par: verified.taps, exact: !exhausted, nodes };
+  }
   // Replay exact slide destinations. Cell-release layers measure how deeply
   // ropes wait on one another, so candidate selection rewards connected tangles.
   function intentions(level, stops, certificate) {
@@ -149,7 +193,7 @@
     const moves = []; let cost = 0, depth = 0, slides = 0;
     function step(i) {
       const from = b.offsets[i], target = b.to(i); if (target === -2 || target === from) return false;
-      const stop = done[i] ? null : stops[i];
+      const expected = stops[i], stop = Array.isArray(expected) ? expected[done[i]] : done[i] ? null : expected;
       if (stop != null ? target < 0 || b.tracks[i][target + b.lengths[i] - 1] !== stop : target !== -1) return false;
       let layer = movedAt[i];
       const track = b.tracks[i], end = target < 0 ? track.length : target + b.lengths[i];
@@ -160,7 +204,7 @@
       if (target >= 0) { const owner = b.occupied[track[end]]; if (owner >= 0) layer = Math.max(layer, movedAt[owner]); slides++; }
       layer++; movedAt[i] = layer; depth = Math.max(depth, layer);
       for (let j = from; j < (target < 0 ? from + b.lengths[i] : Math.min(from + b.lengths[i], target)); j++) released[track[j]] = layer;
-      b.place(i, target); done[i] = 1; moves.push(i); if (target < 0) cost += layer;
+      b.place(i, target); done[i]++; moves.push(i); if (target < 0) cost += layer;
       return true;
     }
     if (certificate) { for (const i of certificate) if (!step(i)) return null; }
@@ -199,6 +243,20 @@
       }
       if (body.length < minimum) return null;
       return { path: body.reverse().map(c => points[c]), ids: body, ray: ahead };
+    }
+    // Optional repeated-slide core, replayed before any gap-filling additions.
+    if (cfg.initialRopes?.length) {
+      const used = new Set();
+      for (const path of cfg.initialRopes) {
+        if (path.length < 2 || path.some(p => !inside(level, p) || used.has(key(p)))) return null;
+        path.forEach(p => used.add(key(p))); level.ropes.push(path.map(p => ({ ...p })));
+      }
+      const core = compile(level);
+      for (let i = 0; i < level.ropes.length; i++) stops.push((cfg.initialStops?.[i] || []).map(offset => core.tracks[i][offset + core.lengths[i] - 1]));
+      result = intentions(level, stops, cfg.initialPlan);
+      if (!result) return null;
+      level.ropes.forEach((path, i) => path.forEach(p => occupied[cell(p, W)] = i));
+      covered = used.size; knots = stops.filter(stop => stop.length).length;
     }
     // Each accepted pair has a true mutual wait: at least one rope must slide.
     // Their long tails then become blockers for the rest of the generated board.
@@ -266,7 +324,7 @@
     cache.set(identity, result); if (cache.size > 24) cache.delete(cache.keys().next().value);
     return result;
   }
-  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, generate, code, parseCode, cleanSeed, profile, build, compile };
+  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, fewestPlayerTaps, generate, code, parseCode, cleanSeed, profile, build, compile };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MFHex = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

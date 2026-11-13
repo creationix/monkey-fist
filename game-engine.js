@@ -12,7 +12,7 @@
   const J = node ? require('./journey.js') : root.MFJourney;
   const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
   const K = node ? require('./grid-journey.js') : root.MFGridJourney;
-  const VERSION = 1, GRID_VERSION = 3;
+  const VERSION = 1, GRID_VERSION = 4;
   const LEGACY_DEFAULT = { kind: 'journey', revision: 1, seed: 'MONKEYFIST', grid: 'mixed', count: 120, min: 1, max: 100, mirrors: true, springs: true };
   const ROPE_DEFAULT = { ...LEGACY_DEFAULT, revision: 2, sizeMin: 4, sizeMax: 60 };
   const DEFAULT = { ...LEGACY_DEFAULT, revision: 3, width: 10, height: 14 };
@@ -216,9 +216,16 @@
     }
     return { ...best, exact: true, nodes: queue.length };
   }
+  function layoutKey(board) {
+    const data = JSON.stringify([board.grid, board.W, board.H,
+      board.ropes.map(path => path.map(p => [p.q, p.r])),
+      (board.mirrors || []).map(m => [m.cell.q, m.cell.r, m.axis ?? m.slope]),
+      (board.springs || []).map(p => [p.q, p.r])]);
+    return L.hashString(data).toString(36) + '-' + L.hashString('layout:' + data).toString(36);
+  }
   function generate(options = {}) {
     const o = normalize(options), details = spec(o, options.index), d = details.difficulty;
-    if (o.revision === 3) return F.generate(details, api);
+    if (o.revision === 3) { const board = F.generate(details, api); return { ...board, layoutKey: layoutKey(board) }; }
     if (o.revision === 2) return D.generate(details, api);
     for (let attempt = 0; attempt < 24; attempt++) {
       const seed = details.seed + attempt.toString(36).toUpperCase(); let b;
@@ -255,6 +262,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, GRID_VERSION, DEFAULT, LEGACY_DEFAULT, ROPE_DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, GRID_VERSION, DEFAULT, LEGACY_DEFAULT, ROPE_DEFAULT, normalize, code, parseCode, spec, generate, layoutKey, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

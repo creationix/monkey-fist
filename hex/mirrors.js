@@ -142,15 +142,20 @@
     const transform = p => { let { q, r } = p; for (let j = 0; j < turn; j++) [q, r] = [-r, q + r]; return { q: q + origin.q, r: r + origin.r }; };
     return { path: path.map(transform), spring: transform({ q: 0, r: -gap }) };
   }
-  function skeleton(rng, W, height, count, wanted, springs, maxGap, allowShared) {
+  function skeleton(rng, W, height, count, wanted, springs, maxGap, allowShared, options = {}) {
     let level = { W, H: height, ropes: [], mirrors: [], springs: [], locks: [], plan: [] };
+    const minDistinctSprings = Math.min(count, Math.max(0, options.minDistinctSprings | 0));
     const cells = H.cells(level), occupied = new Set(), reserved = new Set();
     for (let i = 0; i < count; i++) {
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
         const tiles = new Set([...reserved, ...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
-        const spring = springs ? springStrand(level, rng, maxGap, i > 0 && level.springs.length === i && attempt < 150, allowShared) : null;
+        // Meet the distinct-spinner target before allowing subsequent ropes
+        // to share the established cells.
+        const sharingAllowed = allowShared && level.springs.length >= minDistinctSprings;
+        const spring = springs ? springStrand(level, rng, maxGap, i > 0 && level.springs.length === i && attempt < 150, sharingAllowed) : null;
         const shared = spring && level.springs.some(p => key(p) === key(spring.spring));
+        if (level.springs.length < minDistinctSprings && shared) continue;
         const bodyTiles = shared ? new Set([...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]) : tiles;
         const path = spring ? spring.path : strand(level, pick(rng, cells), Math.floor(rng() * 6), occupied, tiles, rng, 4 + Math.floor(rng() * 9));
         if (!path || path.some(p => !inside(level, p) || occupied.has(key(p)) || bodyTiles.has(key(p)))) continue;

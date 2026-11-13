@@ -26,17 +26,26 @@ if (save.gen !== H.VERSION) {
   if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
   save.sets = {}; save.chapters = 1; save.gen = H.VERSION;
 }
-// Keep earned results for unchanged introductions and low-difficulty custom
-// boards. Archive results only where the generator or Journey layout changed.
+// Keep earned scores attached to the same board when Journey is rebalanced.
+// Earlier saves lack layout keys, so the builder records their previous index.
 if (save.gridGen !== H.GRID_VERSION) {
   const old = {}, previousGrid = save.gridGen || 1;
-  const introPositions = new Map(Array.from({ length: 10 }, (_, index) => [H.spec(H.DEFAULT, index).introSource ?? index, index]));
+  const journey = Array.from({ length: H.DEFAULT.count }, (_, index) => H.spec(H.DEFAULT, index));
+  const introPositions = new Map(journey.slice(0, 10).map((level, index) => [level.introSource ?? index, index]));
+  const previousPositions = new Map(journey.flatMap((level, index) => level.previousIndex == null ? [] : [[level.previousIndex, index]]));
+  const layoutPositions = new Map(journey.flatMap((level, index) => level.layoutKey ? [[level.layoutKey, index]] : []));
   for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
     const kept = {}, changed = {}, options = H.parseCode(code);
     for (const [index, score] of Object.entries(save.sets[code] || {})) {
       const difficulty = options?.min + (options?.max - options?.min) * Number(index) / Math.max(1, (options?.count || 1) - 1);
-      const unchanged = previousGrid === 2 && (code === 'J3-MONKEYFIST' ? Number(index) < 10 : !options?.colossal && difficulty <= 40);
-      if (unchanged) kept[code === 'J3-MONKEYFIST' ? introPositions.get(Number(index)) : index] = score; else changed[index] = score;
+      let destination;
+      if (code === 'J3-MONKEYFIST') {
+        if (score.layoutKey) destination = layoutPositions.get(score.layoutKey);
+        else if (previousGrid === 3) destination = previousPositions.get(Number(index));
+        else if (previousGrid === 2 && Number(index) < 10) destination = introPositions.get(Number(index));
+      } else if ((previousGrid === 3 && (options?.colossal || difficulty < 60)) ||
+                 (previousGrid === 2 && !options?.colossal && difficulty <= 40)) destination = index;
+      if (destination != null) kept[destination] = score; else changed[index] = score;
     }
     if (Object.keys(changed).length) old[code] = changed;
     if (Object.keys(kept).length) save.sets[code] = kept; else delete save.sets[code];
@@ -114,7 +123,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=13');
+    featureWorker = new Worker('generator-worker.js?v=14');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -170,7 +179,7 @@ function weave(options) {
       if (settled) return;
       retryTimer = null; attempts++;
       try {
-        const url = 'generator-worker.js?v=13' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const url = 'generator-worker.js?v=14' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
@@ -214,7 +223,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=13');
+    guideWorker = new Worker('generator-worker.js?v=14');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -364,7 +373,7 @@ function finish() {
   document.body.classList.remove('auto-solving');
   cancelGuide(); G.ended = true; const stars = G.usedAutoSolve ? 0 : G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
-  if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
+  if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars, layoutKey: G.level.layoutKey || H.layoutKey(G.level) };
   const previous = chaptersFor(opts);
   if (opts.kind === 'journey') {
     const opened = H.unlock(previous, G.index);

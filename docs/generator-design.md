@@ -1,10 +1,10 @@
 # Generator design: goals and current techniques
 
 This document separates the game we want from the methods currently used to
-build it. The implementation baseline below is the published `93688c4` revision.
-Work on more frequent Journey mechanics and required repeated slides is in
-progress and is identified separately; it is not a claim that those goals have
-already been met.
+build it. The implementation described here is the grid-size generator used by
+`J3` Journey and `U3` Custom sets, with generation revision 4. Older shared set
+codes retain their legacy generators. Goals describe intended player experience;
+techniques describe implemented rules and heuristics, including their limits.
 
 ## 1. Desired goals
 
@@ -101,9 +101,9 @@ specification. Custom grid width and height are independent of difficulty.
 it stores neither hand-authored maps nor solution paths. Boards are constructed
 when opened.
 
-`grid-generator.js` chooses a seeded rope style once per level, preserving the
-original short/medium/twisty mixture. It then tries a bounded pool of candidates
-inside the exact requested dimensions.
+`grid-generator.js` chooses a seeded short/medium/twisty style once per ordinary
+square level. Hex uses its own strand-building rules. Both try a bounded pool of
+candidates inside the exact requested dimensions.
 
 For ordinary square boards, `levels.js` constructs ropes together with a
 replayable sequence of intermediate stops and exits, then packs remaining gaps.
@@ -116,6 +116,20 @@ core ropes first. Ordinary ropes are inserted at positions in that certificate
 where they can legally leave before a route needs their occupied cells. This
 can create dependencies both before and after a mechanic move. The routed
 solver tracks full rope paths because mirrors and reversals change them.
+
+Hard ordinary boards can begin with a procedural two-rope mutual-wait core that
+requires several successive blocking stops. Depth, orientation, placement and
+noncritical body details vary. Core depth is capped relative to the shorter grid
+dimension to leave room for surrounding dependencies. The remaining grid is
+densely woven around the core while preserving its intermediate stops. Hard featured boards can combine
+this pair with routed core ropes before population. These are families of
+constructive motifs, rather than an unrestricted search over all possible maps.
+
+The final selected solution is replayed to measure manual partial slides, ropes
+slid more than once, and ordinary filler ropes moved between core actions. Late
+Journey specifications require minimum amounts of this work and a reported
+par above rope count. The constraint checks the selected solution; necessity is
+proven only when the corresponding minimum-tap search finishes.
 
 A normal rope tap travels until an obstruction, a spinner, or an exit. A solver
 cannot invent an arbitrary intermediate stopping point. Any proposed stop must
@@ -154,18 +168,19 @@ depth, and ropes revisited after another rope actually unblocked them.
 The analysis collapses strongly connected groups and removes transitive
 shortcut edges before evaluating branching. A plain chain does not become a
 complex join merely because its graph also contains redundant shortcut edges.
-One-key fans, unrelated moves, disconnected copies of a small puzzle, and
-additional viewport padding do not receive artificial complexity bonuses.
+One-key fans and unrelated moves do not supply join or revisit evidence.
+Disconnected dependency groups are discounted according to the largest coupled
+group. Additional viewport padding does not increase these interaction metrics.
 
-Hard candidates favor these interaction measures and fewer initially clear
-exits. Journey ordering also includes absolute tap workload, rope count and
-area. These are heuristics for human difficulty, not a proof that every later
-level is harder for every player.
+Hard candidates favor these interaction measures, repeated partial-slide work,
+and fewer initially clear exits. Journey ordering also includes absolute tap
+workload, rope count and area. These are heuristics for human difficulty, not a
+proof that every later level is harder for every player.
 
 ### Counting taps and interpreting par
 
-Par counts only player actions in an ideal solution. Once every remaining rope
-can exit, the automatic suffix is free. Passing through several mirrors in one
+Par counts player actions in the selected verified solution. Once every
+remaining rope can exit, the automatic suffix is free. Passing through several mirrors in one
 uninterrupted move still costs one tap. A spinner reversal or a partial stop is
 a separate move and can require another tap later.
 
@@ -185,29 +200,64 @@ interesting.
 Small boards receive bounded minimum-tap searches. Larger boards retain the best
 verified solution found, which is an **upper bound** on the true minimum. Current
 acceptance enforces the 1/3 floor against that reported target and independently
-checks that no single legal first tap can auto-clear more than three ropes.
-It does not prove a global minimum-ratio bound for every large board.
+rejects complete one-tap clears on boards containing more than three ropes.
+It does not limit partial cascades or prove a global minimum-ratio bound for
+every large board.
 
-### Present limitations and work in progress
+### Chapter quotas and meaningful feature use
 
-The current implementation still has specific gaps:
+Journey builds and orders each displayed group of ten separately, so sorting
+cannot move every mechanic level into the middle of the campaign.
 
-1. **Too few forced slides.** Normal straight-track construction generally gives
-   a rope at most one prescribed intermediate stop. More dependency depth can
-   therefore produce a deeper exit order without requiring repeated slides.
-2. **Mechanics are under-distributed.** The published Journey has 53 mirror
-   levels but only 12 spinner levels. Its first 30 and final ten levels have no
-   mechanics: selecting feature flags before a global sort did not preserve
-   their distribution afterward.
-3. **Spinner construction falls back too far.** In the audited Journey, every
-   spinner level ended up with one spinner and one bounce. The core-count
-   formula, shared-spinner policy, and fallback to one core rope all contribute.
-4. **Par quality varies by board size.** A longer certificate is not evidence
-   that the extra taps are necessary. Construction and small-board solver
-   checks must distinguish required partial work from optional wasted taps.
+| Displayed chapter | Featured levels | Mirror levels | Spinner levels |
+| --- | ---: | ---: | ---: |
+| 1 | 0 | 0 | 0 |
+| 2 | 6 | 5 | 2 |
+| 3 | 8 | 6 | 5 |
+| 4–12 | 9 | 7 | 7 |
 
-The current experiments address those gaps with multi-stop mutual-wait cores
-followed by dense certificate-preserving packing, explicit minimum distinct
-spinner counts, and displayed-chapter mechanic quotas. These techniques are
-under verification; they should be judged by actual solution traces, solver
-bounds, density and reproducibility before being treated as finished behavior.
+A level with both mechanics counts in both columns. Later chapters keep one
+plain-rules interlude and finish on a featured puzzle. For this revision, the opening ten maps keep
+their established geometry and mixed ordering as a temporary regression baseline.
+Freezing those particular layouts is not a product goal; future generators should
+reproduce the same quality of small, dense, varied and nontrivial openings.
+
+From chapter 4, enabled mechanics require at least three actually turning
+mirrors or two distinct actually used spinners. The checks inspect the final
+solution's manual prefix as well as its full replay. Requested distinct
+spinners are established before allowing further core ropes to share them;
+shared occupancy still follows normal collision rules.
+
+From chapter 7, featured levels also require at least three manual partial
+slides, two repeatedly slid ropes, an intervening filler move, and reported
+par/rope count of at least 1.05. Late plain levels have similar sliding and ratio
+requirements. The builder retries bounded seed alternatives if a specification
+cannot be satisfied; it never substitutes a sparse or unsolved map.
+
+### Reproducibility and progress migration
+
+The Journey builder regenerates its seed/settings index and records measurements,
+feature usage and a layout hash. Maps and solutions are still generated, not
+stored as a fixed collection of hand-authored levels. Runtime generation computes
+the hash again from grid dimensions, rope paths and mechanic tiles.
+
+Saved results carry a layout hash. During a generator revision change, unchanged
+Journey layouts keep their results even if their displayed positions move.
+Earlier results without hashes use the builder's previous-index mapping. Results
+for changed boards are archived; chapter access and preferences are retained.
+
+### Remaining limitations
+
+- Construction starts from a limited family of sliding and routed cores. Dense
+  packing and random transformations add variety, but this does not explore every
+  possible dependency structure.
+- Slide counts and interleaving describe the selected solution. On larger boards,
+  a shorter solution may exist; reported par is an upper bound when `exact` is
+  false. A higher reported par alone does not prove higher difficulty.
+- Dependency metrics describe demonstrated causal relationships in one solution,
+  rather than every possible player choice. Their weighting is a practical
+  approximation to human difficulty.
+- Candidate pools and solver work are bounded. An overconstrained seed can fail;
+  bounded retries improve reliability without relaxing correctness or density.
+- Colossal boards deliberately use a faster construction path. They do not get
+  the same repeated-core search or minimum-tap proof effort as moderate boards.
