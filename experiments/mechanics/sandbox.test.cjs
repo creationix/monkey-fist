@@ -23,10 +23,16 @@ test('a rope can stop on a mirror, resume, bounce, and follow the mirror in reve
   assert.equal(S.tap(level, first.paths, 0), null, 'gate remains closed');
   const key = S.tap(level, first.paths, 1);
   assert.equal(key.event, 'exit');
+  // A rope enters the spring cell, then reverses: its tail now holds the spring
+  // and its new head points back down the route it came up.
   const bounced = S.tap(level, key.paths, 0);
   assert.equal(bounced.event, 'bounce');
-  assert.deepEqual(S.direction(level, bounced.paths[0]), [-1, 0]);
-  assert.equal(S.tap(level, bounced.paths, 0).event, 'exit');
+  assert.deepEqual(bounced.paths[0][0], { x: 3, y: 1 }, 'the reversed tail occupies the spring');
+  assert.deepEqual(S.direction(level, bounced.paths[0]), [0, 1]);
+  // Its next move meets the mirror from the other side and turns left to leave.
+  const out = S.tap(level, bounced.paths, 0), after = out.route.slice(bounced.paths[0].length);
+  assert.equal(out.event, 'exit');
+  assert.deepEqual(after.slice(0, 2), [{ x: 3, y: 4 }, { x: 2, y: 4 }]);
   assert.deepEqual(before, level.ropes, 'pre-move snapshots are immutable for undo');
 });
 test('exiting ropes retain an animation route until their entire body clears the grid', () => {
