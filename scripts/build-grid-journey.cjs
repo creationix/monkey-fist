@@ -11,11 +11,28 @@ function balanced(b) {
   }
   return true;
 }
+function hasSlide(b) {
+  let paths = b.ropes;
+  for (const i of b.plan) {
+    const moved = G.tap(b, paths, i); if (!moved) return false;
+    if (moved.event === 'slide') return true;
+    paths = moved.paths;
+  }
+  return false;
+}
+function oneTapClears(b) {
+  return b.ropes.length > 3 && b.ropes.some((_, i) => {
+    const moved = G.tap(b, b.ropes, i);
+    return moved && G.allFree(b, moved.paths);
+  });
+}
 for (let i = 0; i < 120; i++) {
   const rng = L.mulberry32(L.hashString('journey/3/dimensions/' + i));
-  const tutorial = i < 10, basic = i < 30, small = [[4,5],[5,5],[5,6],[6,6],[6,8]];
+  const tutorial = i < 10, basic = i < 30;
+  const intro = [[4,5],[4,5],[4,5],[4,5],[4,7],[4,5],[4,5],[5,6],[5,6],[6,7]];
+  const introDifficulty = [1,8,22,22,30,1,8,22,30,40];
   let W, H;
-  if (tutorial) [W, H] = small[i % 5];
+  if (tutorial) [W, H] = intro[i];
   else if (basic) { W = 8 + Math.floor(rng() * 5); H = 8 + Math.floor(rng() * 5); }
   else {
     const widths = [8,9,10,12,12,14,14,16,16,18]; W = widths[Math.floor(rng() * widths.length)];
@@ -23,17 +40,18 @@ for (let i = 0; i < 120; i++) {
     if (rng() < .1) { W = 20 + Math.floor(rng() * 5); H = 18 + Math.floor(rng() * 7); }
   }
   const spec = { grid: i < 5 ? 'square' : i < 10 ? 'hex' : i % 2 ? 'hex' : 'square', W, H,
-    difficulty: tutorial ? 1 : basic ? 22 + 23 * (i - 10) / 19 : 35 + 65 * (i - 30) / 89,
-    mirrors: i >= 35 && i % 10 >= 4, springs: i >= 60 && [2, 7].includes(i % 10),
+    difficulty: tutorial ? introDifficulty[i] : basic ? 22 + 23 * (i - 10) / 19 : 35 + 65 * (i - 30) / 89,
+    mirrors: i >= 35 && i % 10 >= 4, springs: i >= 60 && [2, 7].includes(i % 10), requireSlide: tutorial && i >= 7,
     seed: '' };
   let board;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < (tutorial ? 24 : 6); attempt++) {
     spec.seed = L.hashString('journey/3/map/' + i + '/' + attempt).toString(36).toUpperCase();
     try {
       const candidate = F.generate(spec, G), replayed = G.replay(candidate, candidate.plan);
-      const filled = coverage(candidate), minimum = spec.mirrors || spec.springs ? .8 : .85;
-      if (candidate.W !== W || candidate.H !== H || !replayed.solved || replayed.taps !== candidate.par || filled < minimum || !balanced(candidate)) {
-        process.stderr.write(`Retry ${i + 1}/${attempt + 1}: density ${(filled * 100).toFixed(1)}%, replay ${replayed.solved}\n`); continue;
+      const filled = coverage(candidate), slide = hasSlide(candidate);
+      const minimum = spec.mirrors || spec.springs || W * H <= 48 && slide ? .8 : .85;
+      if (candidate.W !== W || candidate.H !== H || !replayed.solved || replayed.taps !== candidate.par || candidate.par * 3 < candidate.ropes.length || spec.requireSlide && !slide || tutorial && candidate.ropes.length > 5 || oneTapClears(candidate) || filled < minimum || !balanced(candidate)) {
+        process.stderr.write(`Retry ${i + 1}/${attempt + 1}: density ${(filled * 100).toFixed(1)}%, ${candidate.ropes.length} ropes / ${candidate.par} taps, slide ${slide}, replay ${replayed.solved}\n`); continue;
       }
       board = candidate; break;
     } catch (error) { process.stderr.write(`Retry ${i + 1}/${attempt + 1}: ${error.message}\n`); }

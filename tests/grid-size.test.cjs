@@ -13,11 +13,15 @@ function verify(board, width, height, minimumCoverage) {
   assert.equal(board.W, width, 'the requested columns must survive generation');
   assert.equal(board.H, height, 'the requested rows must survive generation');
   assert.ok(board.ropes.length >= 2);
+  assert.ok(board.par * 3 >= board.ropes.length, 'every fixed-grid target needs at least one tap per three ropes');
   assert.equal(G.allFree(board, board.ropes), false, 'a full grid must still contain a dependency');
-  assert.ok(coverage(board) >= minimumCoverage, `${board.grid} ${width} × ${height}: ${(coverage(board) * 100).toFixed(1)}% rope coverage`);
   const replayed = G.replay(board, board.plan);
   assert.equal(replayed.solved, true);
   assert.equal(replayed.taps, board.par, 'the tap target includes only the manual prefix');
+  // A tiny sliding puzzle needs real travel space; permit it only when the
+  // accepted solution actually uses a partial slide.
+  const minimum = width * height <= 48 && replayed.events.includes('slide') ? Math.min(.8, minimumCoverage) : minimumCoverage;
+  assert.ok(coverage(board) >= minimum, `${board.grid} ${width} × ${height}: ${(coverage(board) * 100).toFixed(1)}% rope coverage`);
   const directions = board.grid === 'hex' ? H.DIRS : [[1, 0], [-1, 0], [0, 1], [0, -1]];
   function check(paths) {
     const occupied = new Set();
@@ -37,14 +41,18 @@ function verify(board, width, height, minimumCoverage) {
 }
 
 test('fixed grid sizes stay packed while difficulty changes the unlocking challenge', { timeout: 120000 }, () => {
-  for (const grid of ['square', 'hex']) for (const [width, height] of [[8, 8], [12, 14], [14, 10]]) {
-    const easy = G.generate(options(grid, width, height, 1));
-    const hard = G.generate(options(grid, width, height, 100));
-    verify(easy, width, height, .85); verify(hard, width, height, .85);
-    const easyRatio = easy.par / easy.ropes.length, hardRatio = hard.par / hard.ropes.length;
-    assert.ok(easyRatio < .25, `${grid}: easy boards should unlock most ropes automatically`);
-    assert.ok(hardRatio > .5, `${grid}: hard boards need many individual unlocking taps`);
-    assert.ok(hardRatio > easyRatio + .3);
+  for (const grid of ['square', 'hex']) {
+    let easyTotal = 0, hardTotal = 0;
+    for (const [width, height] of [[8, 8], [12, 14], [14, 10]]) {
+      const easy = G.generate(options(grid, width, height, 1));
+      const hard = G.generate(options(grid, width, height, 100));
+      verify(easy, width, height, .85); verify(hard, width, height, .85);
+      const easyRatio = easy.par / easy.ropes.length, hardRatio = hard.par / hard.ropes.length;
+      assert.ok(easyRatio >= 1 / 3, `${grid}: even the easiest setting must retain meaningful unlocking`);
+      assert.ok(hardRatio > .5, `${grid}: hard boards need many individual unlocking taps`);
+      easyTotal += easyRatio; hardTotal += hardRatio;
+    }
+    assert.ok(hardTotal > easyTotal + .6, `${grid}: the hard range adds unlocking work at the same dimensions`);
   }
 });
 

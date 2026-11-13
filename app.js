@@ -26,6 +26,16 @@ if (save.gen !== H.VERSION) {
   if (Object.keys(save.sets).length) (save.archives ||= {})['gen-' + (save.gen || 1)] = save.sets;
   save.sets = {}; save.chapters = 1; save.gen = H.VERSION;
 }
+// The denser woven layouts replace the initial band puzzles. Archive only
+// scores whose boards changed; keep legacy scores, settings, and chapter access.
+if (save.gridGen !== H.GRID_VERSION) {
+  const old = {};
+  for (const code of Object.keys(save.sets)) if (/^[JU]3-/.test(code)) {
+    old[code] = save.sets[code]; delete save.sets[code];
+  }
+  if (Object.keys(old).length) (save.archives ||= {})['grid-gen-' + (save.gridGen || 1)] = old;
+  save.gridGen = H.GRID_VERSION;
+}
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.chapterSets ||= { 'J1-MONKEYFIST': save.chapters };
 save.chapterSets['J3-MONKEYFIST'] ??= save.chapterSets['J2-MONKEYFIST'] || 1;
@@ -96,7 +106,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=11');
+    featureWorker = new Worker('generator-worker.js?v=12');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -125,7 +135,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=11');
+    const worker = new Worker('generator-worker.js?v=12');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -162,7 +172,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=11');
+    guideWorker = new Worker('generator-worker.js?v=12');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });

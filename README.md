@@ -10,7 +10,9 @@ No build step, dependencies, accounts, or network requests during play.
 The default journey has 120 deterministic, procedurally generated levels:
 
 - The first five small square puzzles introduce movement, followed by five
-  small Hex puzzles. The following twenty boards stay at or below 12 × 12.
+  small Hex puzzles. They retain the original introduction’s dimensions and
+  gradual unlocking and sliding, with at most five ropes each. The following
+  twenty boards stay at or below 12 × 12.
 - Later boards vary in size, mostly from 8 to 18 cells per side, with occasional
   larger puzzles. Boards stay packed instead of growing sparse strips.
 - Later levels combine unlocking taps per rope with total taps, rope count, and
@@ -48,18 +50,22 @@ settings open the corrected grid-based version in the app; previous scores
 remain stored separately, and Journey chapter unlocks carry over.
 
 Size means grid dimensions. A 10 × 14 board remains 10 × 14 at every difficulty;
-rope count and rope shapes adapt to fill it. Easy boards can free their packed
-ropes after a small number of key taps. Harder boards weave more blocking and
-sliding dependencies into the same space. Mirrors and springs are optional.
-Every generated board starts blocked and has a replayed solution. Par is a
-verified target; bounded searches label an unproved optimum as best known.
+rope count and rope shapes adapt to fill it. Every plain board uses the original
+dense weaving approach, including the small introductions. Difficulty changes
+blocking and sliding dependencies within the same space. Packing preserves the
+small gaps required for sliding instead of filling the solution’s movement lanes.
+Par must be at least one tap for every three ropes; boards with more than three ropes cannot clear
+after one player tap. Mirrors and springs are optional. Every generated board
+starts blocked and has a replayed solution. Par is a verified target; bounded
+searches label an unproved optimum as best known.
 
 `grid-journey.js` stores only seed/settings/score metadata, not maps or solutions.
 Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
 generator; this orders the default campaign without generating all 120 maps on
 each visit. The builder checks exact dimensions, replayed tap counts, overall
-rope coverage, and coverage in each quarter of the board. The old `journey.js`
-and its builder remain for compatibility with the earlier format.
+rope coverage, coverage in each quarter of the board, and the minimum tap-to-rope
+ratio. It also checks that larger boards cannot auto-release after one tap. The
+old `journey.js` and its builder remain for compatibility with the earlier format.
 
 Custom sets are free. The single Custom entry point is a natural place for a
 future purchase entitlement; no payment or entitlement code is included yet.
