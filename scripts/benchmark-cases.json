@@ -1,0 +1,10 @@
+[
+  {"id":"journey-opening","options":{"kind":"journey","index":0}},
+  {"id":"journey-first-chapter-end","options":{"kind":"journey","index":9}},
+  {"id":"square-small-medium","options":{"revision":3,"grid":"square","width":8,"height":8,"min":40,"max":40,"count":1,"seed":"BENCHMED"}},
+  {"id":"hex-small-medium","options":{"revision":3,"grid":"hex","width":8,"height":8,"min":40,"max":40,"count":1,"seed":"BENCHMED"}},
+  {"id":"square-small-hard","options":{"revision":3,"grid":"square","width":8,"height":8,"min":100,"max":100,"count":1,"seed":"REPEAT"}},
+  {"id":"hex-small-hard","options":{"revision":3,"grid":"hex","width":8,"height":8,"min":100,"max":100,"count":1,"seed":"REPEAT"}},
+  {"id":"journey-level-62","options":{"kind":"journey","index":61}},
+  {"id":"journey-level-67","options":{"kind":"journey","index":66}}
+]
