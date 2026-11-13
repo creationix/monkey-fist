@@ -1,25 +1,20 @@
-// Six-neighbour sliding ropes. Axial coordinates are independent of the view.
+// Hex boards without spinners: the woven builder (build) and the compact offset kernels
+// that replay, check and search them, as levels.js does for square boards. Axial q/r
+// coordinates are independent of the view. Taps and spinners are in mechanics.js.
 (function (root) {
   'use strict';
-  const { mulberry32 } = typeof module !== 'undefined' && module.exports ? require('../random.js') : root.MFRandom;
-  const VERSION = 3, DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
+  const DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
   const key = p => p.q + ',' + p.r;
   const add = (p, d, n = 1) => ({ q: p.q + d[0] * n, r: p.r + d[1] * n });
   const direction = path => { const a = path.at(-2), b = path.at(-1); return [b.q - a.q, b.r - a.r]; };
   const inside = (level, p) => p.r >= 0 && p.r < level.H && p.q + Math.floor(p.r / 2) >= 0 && p.q + Math.floor(p.r / 2) < level.W;
   const project = p => ({ x: p.q + p.r / 2, y: p.r * Math.sqrt(3) / 2 });
   const cells = level => Array.from({ length: level.W * level.H }, (_, i) => ({ q: i % level.W - Math.floor(Math.floor(i / level.W) / 2), r: Math.floor(i / level.W) }));
-  function random(seed) {
-    // Retain Hex's original code-point iteration, including for callers passing
-    // non-ASCII text. Generated board identities themselves are normalized ASCII.
-    let h = 2166136261; for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
-    return mulberry32(h >>> 0);
-  }
   const pick = (rng, list) => list[Math.floor(rng() * list.length)];
   const cell = (p, W) => p.r * W + p.q + Math.floor(p.r / 2);
   const point = (c, W) => ({ q: c % W - Math.floor(Math.floor(c / W) / 2), r: Math.floor(c / W) });
   // Fixed mirrors (level.mirrors, { cell, axis }) bend a moving head exactly as in
-  // hex/mirrors.js: entering a mirror cell, direction d becomes 2 * axis - d
+  // hex/mechanics.js: entering a mirror cell, direction d becomes 2 * axis - d
   // (unchanged when met edge-on). A rope's future cells stay one fixed sequence.
   const reflect = (d, axis) => ((2 * axis - d) % 6 + 6) % 6;
   const dirIndex = v => DIRS.findIndex(d => d[0] === v[0] && d[1] === v[1]);
@@ -49,8 +44,7 @@
   // Search stores one offset per rope, instead of copying every body at every node.
   function compile(level, paths = level.ropes) {
     const n = paths.length, N = level.W * level.H, tracks = [], lengths = new Int32Array(n), offsets = new Int32Array(n).fill(-1);
-    const occupied = new Int32Array(N).fill(-1), at = new Int32Array(N), gates = new Int32Array(N).fill(-1);
-    for (const g of level.locks) gates[cell(g.cell, level.W)] = g.key;
+    const occupied = new Int32Array(N).fill(-1), at = new Int32Array(N);
     const bent = mirrorCells(level);
     let left = 0;
     paths.forEach((path, i) => {
@@ -64,7 +58,7 @@
     function to(i) {
       if (!Number.isInteger(i) || i < 0 || i >= n || offsets[i] < 0) return -2;
       const track = tracks[i], length = lengths[i]; let p = offsets[i] + length;
-      while (p < track.length && occupied[track[p]] < 0 && (gates[track[p]] < 0 || offsets[gates[track[p]]] < 0)) p++;
+      while (p < track.length && occupied[track[p]] < 0) p++;
       return p === track.length ? -1 : p - length;
     }
     function place(i, target) {
@@ -87,8 +81,8 @@
           for (;;) {
             const j = next + length;
             if (j >= track.length) { next = -1; break; }
-            const c = track[j], owner = occupied[c], gate = gates[c];
-            if ((gate >= 0 && reach[gate] >= 0) || (owner >= 0 && reach[owner] >= 0 && (owner === i ? next : reach[owner]) <= at[c])) break;
+            const c = track[j], owner = occupied[c];
+            if ((owner >= 0 && reach[owner] >= 0 && (owner === i ? next : reach[owner]) <= at[c])) break;
             next++;
           }
           if (next !== reach[i]) { reach[i] = next; changed = true; }
@@ -98,29 +92,8 @@
     }
     const dead = () => relaxed().some(o => o >= 0);
     const frozen = () => Array.from(relaxed()).flatMap((o, i) => offsets[i] >= 0 && o === offsets[i] ? [i] : []);
-    return { tracks, lengths, offsets, occupied, gates, to, place, free, pathsNow, dead, frozen, get left() { return left; } };
+    return { tracks, lengths, offsets, occupied, to, place, free, pathsNow, dead, frozen, get left() { return left; } };
   }
-  function tap(level, paths, i) {
-    const path = paths[i]; if (!path) return null;
-    const occupied = new Set(paths.filter(Boolean).flat().map(key));
-    const locked = new Set(level.locks.filter(g => paths[g.key]).map(g => key(g.cell)));
-    const route = path.slice(), d = direction(path); let p = path.at(-1), distance = 0;
-    for (;;) {
-      const next = add(p, d);
-      if (!inside(level, next)) {
-        // Animate the entire tail out, including along diagonal board edges.
-        for (let j = 0; j < path.length + 2; j++) { p = add(p, d); route.push(p); distance++; }
-        const result = paths.slice(); result[i] = null;
-        return { paths: result, event: 'exit', distance, route };
-      }
-      if (occupied.has(key(next)) || locked.has(key(next))) break;
-      p = next; route.push(p); distance++;
-    }
-    if (!distance) return null;
-    const result = paths.slice(); result[i] = route.slice(-path.length);
-    return { paths: result, event: 'slide', distance, route };
-  }
-  const allFree = (level, paths) => compile(level, paths).free();
   function replay(level, moves, paths = level.ropes) {
     const board = compile(level, paths), events = []; let taps = 0, automatic = false;
     for (const i of moves) {
@@ -154,22 +127,6 @@
     }
     const solved = search(prefer);
     return { solved: solved ? true : exhausted ? null : false, moves: solved ? moves.slice() : [], nodes };
-  }
-  function minimum(level, fallback, budget = 800) {
-    const queue = [{ paths: level.ropes, moves: [] }], seen = new Set([JSON.stringify(level.ropes)]);
-    for (let n = 0; n < queue.length && n < budget; n++) {
-      const { paths, moves } = queue[n];
-      if (allFree(level, paths)) {
-        const plan = moves.concat(paths.flatMap((p, i) => p ? [i] : []));
-        return { plan, par: Math.max(1, moves.length), exact: true };
-      }
-      for (let i = 0; i < paths.length; i++) {
-        const m = tap(level, paths, i); if (!m) continue;
-        const k = JSON.stringify(m.paths); if (seen.has(k)) continue;
-        seen.add(k); queue.push({ paths: m.paths, moves: moves.concat(i) });
-      }
-    }
-    return { plan: fallback, par: replay(level, fallback).taps, exact: false };
   }
   // Exact manual-prefix search on compact offsets. Unlike greedily clearing
   // exits, this keeps useful temporary stoppers until the search chooses them.
@@ -257,10 +214,7 @@
       if (stop != null ? target < 0 || b.tracks[i][target + b.lengths[i] - 1] !== stop : target !== -1) return false;
       let layer = movedAt[i];
       const track = b.tracks[i], end = target < 0 ? track.length : target + b.lengths[i];
-      for (let j = from + b.lengths[i]; j < end; j++) {
-        const c = track[j]; layer = Math.max(layer, released[c]);
-        if (b.gates[c] >= 0) layer = Math.max(layer, movedAt[b.gates[c]]);
-      }
+      for (let j = from + b.lengths[i]; j < end; j++) layer = Math.max(layer, released[track[j]]);
       if (target >= 0) { const owner = b.occupied[track[end]]; if (owner >= 0) layer = Math.max(layer, movedAt[owner]); slides++; }
       layer++; movedAt[i] = layer; depth = Math.max(depth, layer);
       for (let j = from; j < (target < 0 ? from + b.lengths[i] : Math.min(from + b.lengths[i], target)); j++) released[track[j]] = layer;
@@ -271,19 +225,11 @@
     else for (let changed = true; changed && b.left;) { changed = false; for (let i = level.ropes.length - 1; i >= 0; i--) if (step(i)) changed = true; }
     return b.left ? null : { moves, cost, depth, slides };
   }
-  function profile(index, count, big) {
-    const stage = Math.round(index * 59 / Math.max(1, count - 1)), t = stage / 59, growth = Math.pow(t, 1.18);
-    const W = Math.max(stage >= 4 ? 6 : stage >= 2 ? 5 : 4, 4 + Math.round((big ? 36 : 20) * growth));
-    const H = Math.max(stage >= 4 ? 7 : stage >= 2 ? 6 : 5, 5 + Math.round((big ? 49 : 27) * growth)), area = W * H;
-    return { stage, W, H, length: 6 + Math.round(t * (big ? 58 : 40)),
-      knots: stage < 2 ? 0 : Math.max(1, Math.round(area / 65 * (.3 + .7 * t))),
-      coverage: .79 + .07 * t };
-  }
   function build(rng, cfg) {
     const { W, H, stage } = cfg, area = W * H, points = cells({ W, H });
     const neighbours = points.map(p => DIRS.map(d => { const q = add(p, d); return inside({ W, H }, q) ? cell(q, W) : -1; }));
     const occupied = new Int32Array(area).fill(-1), seen = new Int32Array(area), forward = new Int32Array(area);
-    const level = { W, H, ropes: [], locks: [], ...(cfg.mirrors?.length ? { mirrors: cfg.mirrors } : {}) }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
+    const level = { W, H, ropes: [], ...(cfg.mirrors?.length ? { mirrors: cfg.mirrors } : {}) }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
     const bent = mirrorCells(level), tile = new Uint8Array(area); for (const c of bent.keys()) tile[c] = 1;
     const kept = new Uint8Array(area); // empty gaps in front of traps, which no rope may fill
     const free = c => c >= 0 && occupied[c] < 0 && !tile[c] && !kept[c];
@@ -411,30 +357,7 @@
       stats: { cells: area, coverage: covered / area, depth: certified.depth, averageDepth: certified.cost / level.ropes.length,
         averageLength: covered / level.ropes.length, longest: Math.max(...level.ropes.map(p => p.length)), bends: bends.reduce((a, b) => a + b, 0), longestBends: Math.max(...bends) } };
   }
-  const cleanSeed = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'MONKEYFIST';
-  function code(opts) { return 'H' + opts.count + (opts.big ? 'B' : '') + (opts.mirrors ? 'M' : '') + '-' + cleanSeed(opts.seed); }
-  function parseCode(text) {
-    const m = /^H(10|30|60|120)(B?)(M?)-([A-Z0-9]{1,12})$/.exec(String(text).trim().toUpperCase());
-    return m ? { count: +m[1], big: !!m[2], ...(m[3] ? { mirrors: true } : {}), seed: m[4] } : null;
-  }
-  const cache = new Map();
-  function generate({ seed = 'MONKEYFIST', index = 0, count = 60, big = false } = {}) {
-    seed = cleanSeed(seed); count = [10, 30, 60, 120].includes(count) ? count : 60; index = Math.max(0, Math.min(count - 1, Math.floor(index)));
-    const identity = [VERSION, seed, index, count, big].join('/'); if (cache.has(identity)) return cache.get(identity);
-    const rng = random(identity), cfg = profile(index, count, big), stage = cfg.stage;
-    let best = null;
-    for (let attempt = 0; attempt < (stage < 10 ? 8 : 3); attempt++) {
-      const b = build(rng, cfg);
-      const quality = Math.min(b.slides, b.wantedSlides) * 20 + b.stats.averageDepth + b.stats.coverage * 20;
-      if (!best || quality > best.quality) best = { ...b, quality };
-      if (b.slides >= b.wantedSlides && b.stats.coverage >= .8) break;
-    }
-    const result = { ...best, ...minimum(best, best.plan, best.ropes.length <= 10 ? 1500 : 0), seed, index, stage };
-    if (!replay(result, result.plan).solved) throw Error('Hex certificate failed');
-    cache.set(identity, result); if (cache.size > 24) cache.delete(cache.keys().next().value);
-    return result;
-  }
-  const api = { VERSION, DIRS, key, add, direction, inside, project, cells, random, tap, allFree, replay, solve, minimum, fewestPlayerTaps, postponeExits, casualWins, turningMirrors, cellIndex: cell, reflect, generate, code, parseCode, cleanSeed, profile, build, compile };
+  const api = { DIRS, key, add, direction, inside, project, cells, replay, solve, fewestPlayerTaps, postponeExits, casualWins, turningMirrors, cellIndex: cell, reflect, build, compile };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MFHex = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

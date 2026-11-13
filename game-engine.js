@@ -6,20 +6,21 @@
   const L = node ? require('./levels.js') : MFLevels;
   const M = node ? require('./mechanics.js') : root.MFMechanics;
   const H = node ? require('./hex/engine.js') : root.MFHex;
-  const R = node ? require('./hex/mirrors.js') : root.MFHexMirrors;
+  const R = node ? require('./hex/mechanics.js') : root.MFHexMechanics;
   const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
   const K = node ? require('./grid-journey.js') : root.MFGridJourney;
   // Bump when generated boards change, so saved scores no longer apply.
-  const GRID_VERSION = 7;
+  const GRID_VERSION = 8;
   const DEFAULT = { kind: 'journey', seed: 'MONKEYFIST', grid: 'mixed', count: 120, min: 1, max: 100, width: 10, height: 14, mirrors: true, springs: true };
   const GRIDS = { square: 'S', hex: 'H', mixed: 'M' }, GRID_NAMES = { S: 'square', H: 'hex', M: 'mixed' };
+  const cleanSeed = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'MONKEYFIST';
   const clamp = (v, lo, hi, fallback) => Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : fallback;
   // Mechanics need room to turn and bounce; colossal maps allow larger grids.
   const sizeLimits = o => [o.mirrors || o.springs ? 8 : 4, o.colossal ? 48 : 24];
   function normalize(opts = {}) {
     if (opts.kind === 'journey') return { ...DEFAULT };
     const min = clamp(opts.min, 1, 100, 1), max = clamp(opts.max, min, 100, 100), [lo, hi] = sizeLimits(opts);
-    return { kind: 'custom', seed: H.cleanSeed(opts.seed), grid: GRIDS[opts.grid] ? opts.grid : 'mixed', count: clamp(opts.count, 1, 200, 120), min, max,
+    return { kind: 'custom', seed: cleanSeed(opts.seed), grid: GRIDS[opts.grid] ? opts.grid : 'mixed', count: clamp(opts.count, 1, 200, 120), min, max,
       width: clamp(opts.width, lo, hi, 10), height: clamp(opts.height, lo, hi, 14), mirrors: !!opts.mirrors, springs: !!opts.springs, ...(opts.colossal ? { colossal: true } : {}) };
   }
   function code(input) {
@@ -45,29 +46,23 @@
   }
   const xy = paths => paths.map(path => path && path.map(p => ({ x: p.q, y: p.r })));
   const qr = paths => paths.map(path => path && path.map(p => ({ q: p.x, r: p.y })));
-  const featured = b => !!(b.mirrors?.length || b.springs?.length);
-  // Without spinners every rope keeps one fixed track, mirrors included, so the
-  // compact offset kernels (with their dead-board pruning) apply. Woven boards
-  // never have a track that enters a cell twice; older routed mirror boards can,
-  // across separate moves, so those keep the full-geometry rules.
-  const simpleTracks = new WeakMap();
+  // Spinners reverse ropes, so boards with them run on the full-geometry kernels
+  // (mechanics.js for square, hex/mechanics.js for Hex). Without spinners every rope
+  // keeps one fixed track, mirrors included, so replays, searches and checks run on
+  // the compact offset kernels (levels.js, hex/engine.js). Those need each track to
+  // be a simple path; generated boards always are, but a hand-made board whose way
+  // out meets a cell twice also uses the full-geometry kernels. Taps, which also
+  // give the animated route, always come from the full-geometry kernels.
+  const simple = new WeakMap();
   function tracked(b) {
     if (b.springs?.length) return false;
-    if (!b.mirrors?.length) return true;
-    if (!simpleTracks.has(b)) {
-      let simple = true;
-      try { if (b.grid === 'hex') H.compile({ ...b, locks: b.locks || [] }, b.ropes); else L.tracksOf(xy(b.ropes), b.W, b.H, squareMirrors(b)); }
-      catch { simple = false; }
-      simpleTracks.set(b, simple);
+    if (!simple.has(b)) {
+      try { if (b.grid === 'hex') H.compile(b, b.ropes); else L.tracksOf(xy(b.ropes), b.W, b.H, squareMirrors(b)); simple.set(b, true); }
+      catch { simple.set(b, false); }
     }
-    return simpleTracks.get(b);
+    return simple.get(b);
   }
   const squareMirrors = b => new Map((b.mirrors || []).map(m => [m.cell.r * b.W + m.cell.q, m.slope]));
-  // The square offset kernels index ropes densely; drop ropes that have left.
-  function compact(paths) {
-    const ids = paths.flatMap((p, i) => p ? [i] : []);
-    return { ids, paths: xy(ids.map(i => paths[i])), local: new Map(ids.map((id, k) => [id, k])) };
-  }
   const nativeCache = new WeakMap();
   function native(b) {
     if (!nativeCache.has(b)) nativeCache.set(b, { W: b.W, H: b.H,
@@ -76,18 +71,20 @@
     return nativeCache.get(b);
   }
   function tap(b, paths, i) {
-    if (b.grid === 'hex') return (featured(b) ? R : H).tap(b, paths, i);
+    if (b.grid === 'hex') return R.tap(b, paths, i);
     const move = M.tap(native(b), xy(paths), i);
     return move && { ...move, paths: qr(move.paths), route: move.route.map(p => ({ q: p.x, r: p.y })) };
   }
   function allFree(b, paths) {
-    if (b.grid === 'hex') return (featured(b) ? R : H).allFree(b, paths);
-    return featured(b) ? M.allFree(native(b), xy(paths)) : L.nothingBlocked(xy(paths).filter(Boolean), b.W, b.H);
+    if (tracked(b)) return b.grid === 'hex' ? H.compile(b, paths).free() : L.free(xy(paths), b.W, b.H, squareMirrors(b));
+    return b.grid === 'hex' ? R.allFree(b, paths) : M.allFree(native(b), xy(paths));
   }
   function replay(b, moves, paths = b.ropes) {
-    // Keep the compact track replay on mega Hex boards; rebuilding every route
-    // after every move makes checking an alternate tap unnecessarily expensive.
-    if (b.grid === 'hex' && tracked(b)) return H.replay(b, moves, paths);
+    if (tracked(b)) {
+      if (b.grid === 'hex') return H.replay(b, moves, paths);
+      const result = L.replay(xy(paths), b.W, b.H, moves, squareMirrors(b));
+      return { ...result, paths: qr(result.paths) };
+    }
     let taps = 0, automatic = false; const events = [];
     for (const i of moves) {
       const move = tap(b, paths, i); if (!move) return { solved: false, paths, taps, events };
@@ -97,10 +94,8 @@
     return { solved: paths.every(p => !p), paths, taps, events };
   }
   function solve(b, paths = b.ropes, budget = 900, prefer = []) {
-    if (b.grid === 'hex') return (tracked(b) ? H : R).solve(b, paths, budget, prefer);
-    if (!tracked(b)) return M.solve(native(b), xy(paths), budget, prefer);
-    const c = compact(paths), result = L.solve(c.paths, b.W, b.H, budget, prefer.filter(i => c.local.has(i)).map(i => c.local.get(i)), squareMirrors(b));
-    return { ...result, moves: result.moves.map(k => c.ids[k]) };
+    if (!tracked(b)) return b.grid === 'hex' ? R.solve(b, paths, budget, prefer) : M.solve(native(b), xy(paths), budget, prefer);
+    return b.grid === 'hex' ? H.solve(b, paths, budget, prefer) : L.solve(xy(paths), b.W, b.H, budget, prefer, squareMirrors(b));
   }
   function guide(b, paths, budget = 900, prefer = []) {
     // An earlier exit can make later taps of the same rope redundant. Trim those
@@ -115,8 +110,7 @@
     return solve(b, paths, budget, prefer);
   }
   function direction(b, path) {
-    if (b.grid === 'hex') return featured(b) ? R.direction(b, path) : H.direction(path);
-    return M.direction(native(b), xy([path])[0]);
+    return b.grid === 'hex' ? R.direction(b, path) : M.direction(native(b), xy([path])[0]);
   }
   function reachableFeatures(b, paths = b.ropes, budget = 10000) {
     const key = H.key, mirrors = new Map((b.mirrors || []).map(m => [key(m.cell), m])), springs = new Set((b.springs || []).map(key));
@@ -155,11 +149,7 @@
     return [...live];
   }
   function frozenRopes(b, paths = b.ropes) {
-    if (tracked(b)) {
-      if (b.grid === 'hex') return H.compile(b, paths).frozen();
-      const c = compact(paths);
-      return L.frozenRopes(c.paths, b.W, b.H, squareMirrors(b)).map(i => c.ids[i]);
-    }
+    if (tracked(b)) return b.grid === 'hex' ? H.compile(b, paths).frozen() : L.frozenRopes(xy(paths), b.W, b.H, squareMirrors(b));
     // Optimistically erase any rope that has a legal first move, even if that
     // move would only slide or reverse it. Repeat as blockers disappear. Every
     // survivor is still unable to move with all those ropes removed: none of
@@ -216,6 +206,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { GRID_VERSION, DEFAULT, normalize, code, parseCode, spec, generate, layoutKey, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { GRID_VERSION, DEFAULT, normalize, code, parseCode, spec, generate, layoutKey, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

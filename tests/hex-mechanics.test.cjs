@@ -1,5 +1,5 @@
 const test = require('node:test'), assert = require('node:assert/strict');
-const H = require('../hex/engine'), M = require('../hex/mirrors');
+const H = require('../hex/engine'), M = require('../hex/mechanics');
 const p = (q, r) => ({ q, r });
 
 test('all six approaches reflect geometrically on both sides of all three mirror axes', () => {
@@ -28,21 +28,4 @@ test('a head stopped on a mirror resumes in the reflected direction; loops are b
   assert.equal(M.solve(loop, loop.ropes, 1).solved, null, 'budget exhaustion is not a proven loss');
   let paths = loop.ropes;
   for (let i = 0; i < 20; i++) { const move = M.tap(loop, paths, 0); if (!move) break; paths = move.paths; assert.equal(new Set(paths[0].map(H.key)).size, paths[0].length); }
-});
-test('mirror sets are opt-in, deterministic, filled with used mirrors, and have replayable tap scores', () => {
-  for (const count of [10, 30, 60, 120]) for (const big of [false, true]) {
-    const plain = { count, big, seed: 'ALPHA' }, mirrors = { ...plain, mirrors: true };
-    assert.deepEqual(H.parseCode(H.code(plain)), plain); assert.deepEqual(H.parseCode(H.code(mirrors)), mirrors);
-    assert.notEqual(H.code(plain), H.code(mirrors));
-  }
-  for (let seed = 0; seed < 16; seed++) for (const index of [0, 4, 20, 59]) {
-    const opts = { seed: 'MIRROR' + seed, index, big: !!(seed % 2) }, b = M.generate(opts), trace = M.trace(b, b.plan);
-    assert.equal(trace.solved, true); assert.deepEqual(b.locks, []);
-    assert.equal(trace.turns.size, b.mirrors.length, 'every mirror actually redirects a solution route');
-    assert.equal(new Set(b.ropes.flat().map(H.key)).size, b.ropes.flat().length);
-    assert.ok(b.stats.coverage > .6); assert.equal(M.replay(b, b.plan).taps, b.par);
-    assert.equal(M.solve(b, b.ropes, b.ropes.length + 2, b.plan).solved, true);
-    if (index === 59) { assert.ok(b.mirrors.length >= 10 && b.stats.multiTurn >= 5); assert.ok(b.W * b.H >= 252); }
-    if (seed === 0) { delete require.cache[require.resolve('../hex/mirrors')]; assert.deepEqual(require('../hex/mirrors').generate(opts), b); }
-  }
 });

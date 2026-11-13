@@ -22,13 +22,12 @@ hand-picked:
   the Journey. Mirrors and spring spinners start after the opening ten and recur
   throughout. Mirror and spinner levels are sliding puzzles in their own right:
   ropes are woven around the mirrors with knots and traps, and spinners are added
-  only where the solution must bounce off them. From chapter 4, levels are chosen
-  so that a careless slide can lose them.
+  only where the solution must bounce off them after another rope moves. Harder
+  levels are chosen so that a careless slide can lose them.
 - Most later puzzles use mirrors, spinners, or both, with a plain-rules interlude
   in each chapter. Late mirror maps use at least three mirrors; late spinner maps
   use at least two distinct spinners. Their verified solutions must use them
-  during manual play. Late featured puzzles also require repeated partial slides
-  on multiple ropes, with other ropes interleaved between the core moves.
+  during manual play.
 - The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
   21–30, and so on. Every level in an open group is immediately playable, so
   players can jump to the group’s last level to progress faster.
@@ -46,7 +45,8 @@ Open **Menu → Custom** to choose:
 - Independent grid width and height, from 4 to 24 cells each. Mirrors or springs
   require at least an 8 × 8 grid.
 - Optional **Colossal** boards, only in Custom, extend the limits to 48 × 48.
-  These use a separate bounded generation path and never appear in Journey.
+  They use the same woven generator with longer ropes, skip the slower par
+  search, and never appear in Journey.
 - A level-count slider from 1 to 200.
 - A seed, with dice to randomize it and a reset button for `MONKEYFIST`.
 
@@ -150,8 +150,8 @@ and undo restores the earlier features.
 
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic
-and free. Par is a replay-verified target; larger routed boards use a known
-solution rather than claiming a globally optimal proof. Three stars means par
+and free. Par is a replay-verified target; where the bounded search does not
+finish, it is the best known solution rather than a proven optimum. Three stars means par
 or better, two means within two taps, and one means completion. There is no hard
 tap budget.
 
@@ -182,32 +182,33 @@ The underlying engines remain specialized:
 | --- | --- |
 | `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the sorted Journey metadata |
 | `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
-| `levels.js` | Square geometry, long woven ropes, sliding knots and traps, fixed tracks that bend on mirrors, fast solver, par search and casual playouts |
-| `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
-| `twist-circuits.js` | Procedural square circuits for colossal maps, with multi-turn routes, interleaved blockers, and verified certificates |
-| `hex/engine.js` | Axial coordinates, six-way sliding, dense long-rope generation with or without mirrors, compact track solver |
-| `hex/mirrors.js` | Hex mirrors and springs, routed generation and bounded full-path solving |
+| `levels.js` | Square woven builder (long ropes, sliding knots and traps, fixed tracks that bend on mirrors) and the compact offset kernels: replay, solver, par search and casual playouts |
+| `mechanics.js` | Square full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |
+| `hex/engine.js` | Hex woven builder (mutual-wait pairs, long strands, traps, mirrors) and the compact offset kernels |
+| `hex/mechanics.js` | Hex full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
 | `input.js` | Independent touch contacts, intentional pan/pinch recognition, and centered camera bounds |
 | `rope-art.js` | Cached braid geometry that follows rounded bends, matching arrowheads, and reduced detail at small sizes |
 | `audio.js`, `music.js`, `sounds.js` | Shared Web Audio session, arrangements, and effects |
 
-Without spinners, every rope only advances along a fixed track (its body, then
-its way out as fixed mirrors bend it), so solvers store small offset states and
-prune boards a relaxation proves lost. Springs reverse ropes and can revisit
-states, so their routed solvers store full rope geometry and enforce search budgets. Exhausting
+Each grid has two kernels, and both grids use them the same way. Without
+spinners, every rope only advances along a fixed track (its body, then its way
+out as fixed mirrors bend it), so replays, checks and solvers use the compact
+offset kernels (`levels.js`, `hex/engine.js`) and prune boards a relaxation
+proves lost. Spinners reverse ropes and can revisit states, so spinner boards
+replay and search on the full-geometry kernels (`mechanics.js`,
+`hex/mechanics.js`), which store full rope geometry and enforce search budgets.
+Every tap, and the route it animates, comes from the full-geometry kernels. Exhausting
 a budget means unknown, not a false declaration that a board is lost. A valid
 remaining certificate is reused before attempting another search.
 Checks after off-certificate moves and hint searches run in a cancellable worker,
 so the next tap and animations do not wait for search. New moves, undo, and restart
 discard stale results. The workerless fallback uses a much smaller search budget.
 
-For colossal maps, Hex routed generation constructs core escape paths, then interleaves long
-follower ropes whose removal fits the certificate. Every placed mirror must
-actually turn a route. Square circuits similarly weave blockers through routed
-paths. Difficulty changes blocking depth, sliding, circuit count, and turns
-while keeping the chosen dimensions fixed. Packing continues into small gaps
-while preserving the solution certificate.
+Every board, colossal maps included, is woven the same way. Difficulty changes
+blocking depth, knots, traps and sliding while keeping the chosen dimensions
+fixed, and packing continues into small gaps while preserving the solution
+certificate.
 
 The historical [`mechanics playground`](https://creationix.github.io/monkey-fist/experiments/mechanics/)
 is still available as a separate sandbox. Its older gate/wall fixtures and pure
@@ -258,8 +259,7 @@ MF_TEST_URL=http://127.0.0.1:4173/ node --test tests/*.test.cjs experiments/mech
 ```
 
 Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`.
-[`tests/index.html`](tests/index.html) also runs the original square generator’s
-browser suite. The current automated tests replay all 120 journey levels,
+The automated tests replay all 120 journey levels,
 exercise custom grid/feature combinations and tiny random seeds, verify mirror
 geometry and generator certificates, and play real pointer taps on laptop and
 phone layouts. They cover chapter unlocks, concurrent animation, hints, undo,

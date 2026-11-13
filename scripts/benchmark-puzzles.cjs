@@ -88,7 +88,7 @@ function sources(args) {
 }
 async function run(args) {
   const settings={nodeBudget:args.nodes,trials:args.trials,maxSteps:args.steps,maxArea:args['max-area'],seed:args.seed};
-  const report={schema:1,rules:{ref:gitHead(),hash:digest(['game-engine.js','mechanics.js','hex/engine.js','hex/mirrors.js'])},settings,results:[]};
+  const report={schema:1,rules:{ref:gitHead(),hash:digest(['game-engine.js','mechanics.js','hex/engine.js','hex/mechanics.js'])},settings,results:[]};
   let jobs;
   if(args.boards) {
     const filename=path.resolve(args.boards), input=JSON.parse(fs.readFileSync(filename,'utf8'));

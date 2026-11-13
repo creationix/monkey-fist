@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const R = require('../random.js'), L = require('../levels.js'), H = require('../hex/engine.js');
+const R = require('../random.js'), L = require('../levels.js');
 
 test('shared randomness preserves the sequences used by existing level codes', () => {
   for (const [seed, expected] of [
@@ -11,11 +11,6 @@ test('shared randomness preserves the sequences used by existing level codes', (
   assert.equal(L.mulberry32, R.mulberry32);
   assert.equal(L.hashString, R.hashString);
   for (const [text, hash] of [['', 2166136261], ['MONKEYFIST', 179956478], ['hello', 1335831723], ['🌴Cañopy', 2911282810]]) assert.equal(R.hashString(text), hash);
-  for (const seed of ['MONKEYFIST', '3/RIVER/59/60/true']) {
-    assert.deepEqual(Array.from({ length: 100 }, H.random(seed)), Array.from({ length: 100 }, R.mulberry32(R.hashString(seed))));
-  }
-  // Hex historically hashes code points differently from square; keep that public helper stable too.
-  assert.deepEqual(Array.from({ length: 4 }, H.random('🌴Cañopy')), [0.9000729848630726, 0.11992175178602338, 0.07039905316196382, 0.8326984141021967]);
 });
 
 test('shuffle keeps its in-place contract and consumes only the original random draws', () => {
