@@ -81,10 +81,19 @@ Screen pinning is the consumer option and remains user-exitable. Stronger
 requires device-policy-controller allowlisting on managed devices. Ordinary
 apps cannot permanently hide all system navigation.
 
-## Recommended next step
+## Follow-up experiments after the current web version
 
-If device testing still shows unacceptable accidental exits, prototype a small
-Swift `WKWebView` host and Kotlin Android WebView host around the existing game.
+Reminder for the next development milestone: when this web version is considered
+done, revisit these experiments with the user, in this order:
+
+1. Try a separate web app using WebAssembly, possibly written in MoonBit.
+   MoonBit is a candidate, not a decided toolchain. Compare performance on the
+   same devices and representative levels; WASM still uses browser gesture APIs.
+2. Then try native iOS and Android apps to measure whether they perform better
+   or offer better gesture control. Neither improvement is assumed in advance.
+
+For the native experiment, a small Swift `WKWebView` host and Kotlin Android
+WebView host around the existing game can provide an initial gesture comparison.
 They can expose native controller/window gesture preferences while retaining
 the shared generators, rendering, and audio. Test lifecycle, audio activation,
 safe areas, and touch cancellation in each host. A wrapper does not inherently
