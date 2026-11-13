@@ -22,7 +22,7 @@ if (save.gen !== H.VERSION) {
 }
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.sound = MFAudio.soundSetting(save.sound).id;
-const G = { level: null, loading: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
+const G = { level: null, loading: false, solving: false, paths: [], plan: [], moves: new Map(), get moving() { return this.moves.size > 0; }, taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, selected: -1, view: {}, camera: { zoom: 1, x: 0, y: 0 }, bump: null };
 const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
 let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true;
@@ -51,7 +51,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=1');
+    const worker = new Worker('generator-worker.js?v=2');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -63,8 +63,34 @@ function weave(options) {
     worker.postMessage(options);
   });
 }
+let guideVersion = 0, guideWorker = null;
+function cancelGuide() { guideVersion++; guideWorker?.terminate(); guideWorker = null; G.solving = false; G.hintRequested = false; }
+function seekPlan(prefer = [], budget = 900, wantHint = false) {
+  cancelGuide(); const request = guideVersion, level = G.level, paths = G.paths;
+  G.solving = true; G.hintRequested = wantHint;
+  const done = answer => {
+    if (request !== guideVersion || paths !== G.paths) return;
+    guideWorker?.terminate(); guideWorker = null; G.solving = false;
+    G.plan = answer.moves; G.lost = answer.solved === false;
+    if (G.lost) sfx.bump(); hud();
+    if (G.hintRequested) {
+      G.hintRequested = false;
+      if (G.plan.length) hint(); else notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.');
+    }
+  };
+  if (typeof Worker === 'undefined') {
+    // Keep the optional main-thread fallback bounded much more tightly.
+    setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
+  } else {
+    guideWorker = new Worker('generator-worker.js?v=2');
+    guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
+    guideWorker.onerror = () => done({ solved: null, moves: [] });
+    guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
+  }
+}
 async function start(index) {
   const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
+  cancelGuide();
   pointers.clear(); gesture = null;
   G.index = Math.max(0, Math.min(H.available(opts, save.chapters) - 1, Math.floor(Number(index) || 0)));
   G.level = null; G.loading = true; G.paths = []; G.plan = []; G.auto = false;
@@ -123,41 +149,39 @@ function tap(i, automatic = false) {
   hud();
 }
 function commit(m) {
-  const wasLost = G.lost;
+  const wasLost = G.lost, previousPlan = G.plan; cancelGuide();
   G.paths = m.paths;
   if (!m.automatic) {
-    if (G.plan[0] === m.i) G.plan.shift();
-    else {
-      // Keep a still-valid certificate; only search after a move changes it.
-      const plan = G.plan.filter(i => G.paths[i]);
-      if (rules().replay(G.level, plan, G.paths).solved) G.plan = plan;
-      else { const answer = rules().solve(G.level, G.paths, 900, plan); G.plan = answer.moves; G.lost = answer.solved === false; }
-    }
+    G.plan = previousPlan[0] === m.i ? previousPlan.slice(1) : [];
+    G.lost = false;
     G.auto = rules().allFree(G.level, G.paths);
   }
   if (G.level.grid === 'hex' && !G.level.mirrors.length && !G.level.springs.length) {
     const board = MFHex.compile(G.level, G.paths);
     if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
   } else if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
+  if (!m.automatic && !G.auto && !G.lost && !G.plan.length) seekPlan(previousPlan.filter(i => G.paths[i]));
   if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
-  const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
+  cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
+  if (!G.plan.length && !G.lost) seekPlan();
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
 function hint() {
   if (G.loading || !G.level || G.auto || G.ended || G.lost || G.moves.has(G.plan[0])) return;
   if (!G.plan.length) {
-    const answer = rules().solve(G.level, G.paths, G.level.mirrors?.length ? 900 : 5000); G.plan = answer.moves;
-    if (!G.plan.length) { if (answer.solved === false) G.lost = true; notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.'); hud(); return; }
+    if (G.solving) G.hintRequested = true;
+    else seekPlan([], 900, true);
+    notice('Finding a route…'); return;
   }
   if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; focusRope(G.hint); return; }
   G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; G.combo = 0; G.assisted.add(G.hint); focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
 }
 function finish() {
-  G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
+  cancelGuide(); G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
   if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
   const previous = save.chapters;

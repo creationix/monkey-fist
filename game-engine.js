@@ -87,6 +87,18 @@
     if (b.grid === 'hex') return (featured(b) ? R : H).solve(b, paths, budget, prefer);
     return featured(b) ? M.solve(native(b), xy(paths), budget, prefer) : L.solve(xy(paths), b.W, b.H, budget, prefer);
   }
+  function guide(b, paths, budget = 900, prefer = []) {
+    // An earlier exit can make later taps of the same rope redundant. Trim those
+    // before searching again; the old certificate often still contains a solution.
+    let current = paths; const moves = [];
+    for (const i of prefer) {
+      if (!current[i]) continue;
+      const move = tap(b, current, i); if (!move) break;
+      moves.push(i); current = move.paths;
+    }
+    if (current.every(p => !p)) return { solved: true, moves, nodes: 0 };
+    return solve(b, paths, budget, prefer);
+  }
   function direction(b, path) {
     if (b.grid === 'hex') return featured(b) ? R.direction(b, path) : H.direction(path);
     return M.direction(native(b), xy([path])[0]);
@@ -123,6 +135,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, tap, replay, solve, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

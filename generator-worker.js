@@ -1,7 +1,7 @@
 /* global MFGame */
 'use strict';
-importScripts('random.js?v=1', 'levels.js?v=31', 'mechanics.js?v=30', 'twist-circuits.js?v=31', 'twists.js?v=32', 'hex/engine.js?v=5', 'hex/mirrors.js?v=1', 'game-engine.js?v=1');
+importScripts('random.js?v=1', 'levels.js?v=31', 'mechanics.js?v=30', 'twist-circuits.js?v=31', 'twists.js?v=32', 'hex/engine.js?v=5', 'hex/mirrors.js?v=1', 'game-engine.js?v=2');
 onmessage = ({ data }) => {
-  try { postMessage({ level: MFGame.generate(data) }); }
+  try { postMessage(data.type === 'guide' ? { solution: MFGame.guide(data.level, data.paths, data.budget, data.prefer) } : { level: MFGame.generate(data) }); }
   catch (error) { postMessage({ error: error.message }); }
 };

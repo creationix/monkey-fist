@@ -100,6 +100,9 @@ offset states. Mirrors and springs change paths and can revisit states, so
 routed solvers store full rope geometry and enforce search budgets. Exhausting
 a budget means unknown, not a false declaration that a board is lost. A valid
 remaining certificate is reused before attempting another search.
+Checks after off-certificate moves and hint searches run in a cancellable worker,
+so the next tap and animations do not wait for search. New moves, undo, and restart
+discard stale results. The workerless fallback uses a much smaller search budget.
 
 Hex routed generation constructs core escape paths, then interleaves long
 follower ropes whose removal fits the certificate. Every placed mirror must
