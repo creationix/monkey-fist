@@ -89,6 +89,12 @@ Detection is conservative: temporary blockers and search timeouts never mark a
 rope as frozen. Results are computed when the board changes, cached for drawing,
 and restored on undo. Mirrors and bouncers use the same movement rules as play.
 
+Mirrors and bouncers fade once no remaining rope can ever reach them. A bounded
+background check explores optimistic routes with blockers removed, including
+future reversals; uncertain results keep features visible. Queued animations and
+occupied cells retain them until their tails clear. This changes drawing only,
+and undo restores the earlier features.
+
 Scoring counts player taps. Blocked taps and each of the three undos cost one;
 a hint costs two. Once everything can leave, remaining releases are automatic
 and free. Par is a replay-verified target; larger routed boards use a known

@@ -66,6 +66,50 @@ function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
 }
+let featureVersion = 0, featureWorker = null;
+const featureKeys = level => [...(level?.mirrors || []).map(m => springKey(m.cell)), ...(level?.springs || []).map(springKey)];
+function cancelFeatureCheck() { featureVersion++; featureWorker?.terminate(); featureWorker = null; }
+function resetFeatures() {
+  cancelFeatureCheck(); G.featureLevel = G.level;
+  G.liveFeatures = new Set(featureKeys(G.level));
+  G.featureStates = new Map([...G.liveFeatures].map(key => [key, { alpha: 1, target: 1 }])); G.featuresFading = false;
+  requestFeatureCheck();
+}
+function requestFeatureCheck() {
+  if (!G.level) return;
+  if (G.featureLevel !== G.level) { resetFeatures(); return; }
+  cancelFeatureCheck(); const request = featureVersion, level = G.level, paths = G.paths;
+  const done = features => {
+    if (request !== featureVersion || level !== G.level || paths !== G.paths) return;
+    featureWorker?.terminate(); featureWorker = null; G.liveFeatures = new Set(features); drawNext = true;
+  };
+  if (!G.featureStates.size || !paths.some(Boolean)) { done([]); return; }
+  // Coalesce rapid taps and auto-solve's entire queue into one background check.
+  queueMicrotask(() => {
+    if (request !== featureVersion) return;
+    if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
+    featureWorker = new Worker('generator-worker.js?v=8');
+    featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
+    featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
+    featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
+  });
+}
+function updateFeatureVisibility(dt) {
+  if (G.featureLevel !== G.level) return;
+  const live = new Set(G.liveFeatures);
+  // A feature stays while a cord occupies it or any queued animation will pass
+  // through it, even when the logical board has already advanced past that move.
+  for (const path of G.paths) if (path) for (const p of path) live.add(springKey(p));
+  for (const move of allMotions()) for (let k = Math.floor(move.progress); k < move.route.length; k++) live.add(springKey(move.route[k]));
+  G.featuresFading = false;
+  for (const [key, state] of G.featureStates) {
+    state.target = live.has(key) ? 1 : 0;
+    const next = reduced ? state.target : state.alpha + Math.sign(state.target - state.alpha) * Math.min(Math.abs(state.target - state.alpha), dt / .18);
+    if (next !== state.alpha) { state.alpha = next; drawNext = true; }
+    if (state.alpha !== state.target) G.featuresFading = true;
+  }
+}
+const featureOpacity = p => G.featureLevel === G.level ? G.featureStates.get(springKey(p))?.alpha ?? 1 : 1;
 let generation = 0, pendingGeneration = null;
 const levelCache = new Map();
 function weave(options) {
@@ -73,7 +117,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=7');
+    const worker = new Worker('generator-worker.js?v=8');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -110,14 +154,14 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=7');
+    guideWorker = new Worker('generator-worker.js?v=8');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
   }
 }
 async function start(index) {
-  document.body.classList.remove('auto-solving');
+  document.body.classList.remove('auto-solving'); cancelFeatureCheck();
   const request = ++generation; pendingGeneration?.(); pendingGeneration = null;
   cancelGuide();
   resetInput(); cameraTween = null;
@@ -129,7 +173,7 @@ async function start(index) {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
     Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
-    resize(); hud(); draw(0);
+    resetFeatures(); resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
     G.loading = false; hud(); notice('Couldn’t weave this board. Restart or try another seed.');
@@ -224,14 +268,14 @@ function commit(m) {
     if (board.left && !G.paths.some((p, i) => p && board.to(i) !== board.offsets[i])) G.lost = true;
   } else if (G.paths.some(Boolean) && !G.paths.some((p, i) => p && H.tap(G.level, G.paths, i))) G.lost = true;
   if (!m.automatic && !G.auto && !G.lost && !G.plan.length) seekPlan(previousPlan.filter(i => G.paths[i]));
-  refreshFrozen();
+  refreshFrozen(); requestFeatureCheck();
   if (G.lost && !wasLost) sfx.bump();
   hud();
 }
 function undo() {
   if (G.loading || !G.undos || !G.history.length || G.auto || G.ended) return;
   cancelGuide(); const state = G.history.pop(); Object.assign(G, state); G.moves.clear(); springRotations.delete(G.level); G.bump = null; G.undos--; G.taps++; G.hint = -1; G.combo = 0;
-  refreshFrozen();
+  refreshFrozen(); resetFeatures();
   if (!G.plan.length && !G.lost) seekPlan();
   sfx.undo(); notice('Undo · +1 tap'); hud(); draw(0);
 }
@@ -319,7 +363,8 @@ function update(dt) {
       }
     }
   }
-  if (!G.ended && G.paths.every(p => !p) && !G.moving) finish();
+  updateFeatureVisibility(dt);
+  if (!G.ended && G.paths.every(p => !p) && !G.moving && !G.featuresFading) finish();
   else if (G.auto && !G.ended) tap(G.paths.findIndex((p, i) => p && !G.moves.has(i)), true);
   if (settled) hud();
 }
@@ -529,13 +574,15 @@ function drawSpring(spring, move) {
   ctx.translate(-s * .008, -s * .012); ctx.strokeStyle = '#ffe0aa66'; ctx.lineWidth = s * .016; ctx.stroke(coil);
   ctx.restore();
 }
-function drawMirrors(activeSprings) {
+function drawMirrors(activeSprings, dynamic = false) {
   const s = G.view.scale;
   for (const mirror of G.level.mirrors || []) {
+    const opacity = featureOpacity(mirror.cell);
+    if (opacity <= 0 || (dynamic ? opacity === 1 : opacity < 1)) continue;
     const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
     const a = screen(H.add(mirror.cell, d, -.37)), b = screen(H.add(mirror.cell, d, .37));
     const length = Math.hypot(b.x - a.x, b.y - a.y);
-    ctx.save(); ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+    ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
     ctx.lineCap = ctx.lineJoin = 'round';
     // Soft glass in a rounded, cord-bound frame. Both faces remain identical.
     path(ctx, [{ x: -length / 2, y: 0 }, { x: length / 2, y: 0 }]);
@@ -555,7 +602,11 @@ function drawMirrors(activeSprings) {
     }
     ctx.restore();
   }
-  for (const spring of G.level.springs || []) if (!activeSprings.has(spring.q + ',' + spring.r)) drawSpring(spring);
+  for (const spring of G.level.springs || []) {
+    const opacity = featureOpacity(spring), move = activeSprings.get(springKey(spring));
+    if (opacity <= 0 || (dynamic ? opacity === 1 && !move : opacity < 1 || move)) continue;
+    ctx.save(); ctx.globalAlpha *= opacity; drawSpring(spring, move); ctx.restore();
+  }
 }
 function drawGrid() {
   const v = G.view, s = v.scale;
@@ -602,13 +653,14 @@ function draw(time) {
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
   const moving = [...G.moves.values()].map(m => m.waiting ? m.serial + '@' + m.progress : m.serial).join(',');
-  const key = [G.level, G.paths, G.frozen, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
+  const features = G.featureLevel === G.level ? [...G.featureStates].map(([key, s]) => key + ':' + (s.alpha === 1 ? 1 : s.alpha === 0 ? 0 : 'fade')).join(';') : '';
+  const key = [G.level, G.paths, G.frozen, features, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
     try { drawRestingBoard(activeSprings); restingKey = key; } finally { ctx = mainContext; }
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(restingCanvas, 0, 0); ctx.restore();
-  for (const move of activeSprings.values()) drawSpring(move.spring, move);
+  drawMirrors(activeSprings, true);
   for (const i of new Set([G.hint, G.selected, G.bump?.i])) if (i >= 0 && G.paths[i] && !G.moves.has(i)) drawRope(i, time);
   // Departing ropes stay visible all the way off-screen, including rotated boards.
   for (const [i, move] of G.moves) if (!move.waiting) drawRope(i, time);

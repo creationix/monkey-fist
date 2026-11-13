@@ -103,6 +103,42 @@
     if (b.grid === 'hex') return featured(b) ? R.direction(b, path) : H.direction(path);
     return M.direction(native(b), xy([path])[0]);
   }
+  function reachableFeatures(b, paths = b.ropes, budget = 10000) {
+    const key = H.key, mirrors = new Map((b.mirrors || []).map(m => [key(m.cell), m])), springs = new Set((b.springs || []).map(key));
+    const all = new Set([...mirrors.keys(), ...springs]), live = new Set(); let visited = 0;
+    if (!all.size) return [];
+    // Remove other ropes and allow stopping after every unit step. This is a
+    // superset of actual play, including pauses on mirrors and later reversals.
+    // A rope's trajectory is otherwise deterministic. Only a feature absent
+    // from every optimistic trajectory can safely disappear. Budget exhaustion
+    // keeps everything, rather than treating an unfinished search as proof.
+    for (const original of paths) {
+      if (!original) continue;
+      let path = original; const seen = new Set();
+      for (;;) {
+        if (visited++ >= budget) return [...all];
+        const cells = path.map(key), state = cells.join(';'); if (seen.has(state)) break; seen.add(state);
+        const head = path.at(-1), previous = path.at(-2), mirror = mirrors.get(key(head));
+        let dq = head.q - previous.q, dr = head.r - previous.r;
+        if (mirror) {
+          live.add(key(head));
+          if (b.grid === 'hex') {
+            const incoming = H.DIRS.findIndex(d => d[0] === dq && d[1] === dr);
+            [dq, dr] = H.DIRS[(2 * mirror.axis - incoming + 6) % 6];
+          } else if (mirror.slope === '/') [dq, dr] = [-dr, -dq];
+          else [dq, dr] = [dr, dq];
+        }
+        const next = { q: head.q + dq, r: head.r + dr }, at = key(next);
+        const inside = b.grid === 'hex' ? H.inside(b, next) : next.q >= 0 && next.r >= 0 && next.q < b.W && next.r < b.H;
+        if (!inside || cells.includes(at)) break;
+        if (all.has(at)) live.add(at);
+        if (live.size === all.size) return [...all];
+        path = path.slice(1).concat(next);
+        if (springs.has(at)) path.reverse();
+      }
+    }
+    return [...live];
+  }
   function frozenRopes(b, paths = b.ropes) {
     if (!featured(b)) {
       if (b.grid === 'hex') return H.compile(b, paths).frozen();
@@ -185,6 +221,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
