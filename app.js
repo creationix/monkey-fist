@@ -36,7 +36,7 @@ const springRotations = new WeakMap();
 const springKey = p => p.q + ',' + p.r;
 const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
-let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null;
+let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null, motionNo = 0;
 const gameAudio = MFAudio.createAudio(() => ({
   sound: save.sound, music: !!save.music && !document.hidden && !$('chooser').open && !$('result').open, level: G.index + 1,
 }));
@@ -75,7 +75,7 @@ function weave(options) {
   });
 }
 let guideVersion = 0, guideWorker = null;
-function cancelGuide() { guideVersion++; guideWorker?.terminate(); guideWorker = null; G.solving = false; G.hintRequested = false; }
+function cancelGuide() { G.autoSolveRequested = false; guideVersion++; guideWorker?.terminate(); guideWorker = null; G.solving = false; G.hintRequested = false; }
 function seekPlan(prefer = [], budget = 900, wantHint = false) {
   cancelGuide(); const request = guideVersion, level = G.level, paths = G.paths;
   G.solving = true; G.hintRequested = wantHint;
@@ -84,6 +84,11 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     guideWorker?.terminate(); guideWorker = null; G.solving = false;
     G.plan = answer.moves; G.lost = answer.solved === false;
     if (G.lost) sfx.bump(); hud();
+    if (G.autoSolveRequested) {
+      G.autoSolveRequested = false; hud();
+      if (G.plan.length) autoSolve(); else notice(G.lost ? 'Knotted. Undo or restart.' : 'No route found yet. Try again.');
+      return;
+    }
     if (G.hintRequested) {
       G.hintRequested = false;
       if (G.plan.length) hint(); else notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.');
@@ -110,7 +115,7 @@ async function start(index) {
   try {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
-    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
+    Object.assign(G, { taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
     resize(); hud(); draw(0);
   } catch {
     if (request !== generation) return;
@@ -123,6 +128,7 @@ function hud() {
   $('levelName').innerHTML = 'Level ' + (G.index + 1) + ' <span>/ ' + opts.count + '</span>';
   $('loading').hidden = !G.loading; $('boardWrap').setAttribute('aria-busy', G.loading);
   $('zoomControls').hidden = !l;
+  $('autoSolve').disabled = G.loading || !l || G.ended || G.usedAutoSolve || G.autoSolveRequested || G.paths.every(p => !p);
   if (!l) {
     $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Weaving long ropes…' : 'Try another seed or restart.';
     $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; $('tip').textContent = 'Every seed weaves a different puzzle.'; return;
@@ -136,10 +142,15 @@ function hud() {
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
   $('tip').textContent = G.lost ? 'Knotted. Undo or restart.' : G.auto ? 'All clear!' : l.springs?.length ? 'Springs reverse a rope.' : l.mirrors?.length ? 'Mirrors turn ropes.' : 'Tap a rope. Follow its arrow.';
 }
+const allMotions = () => {
+  const motions = []; for (let move of G.moves.values()) for (; move; move = move.queued) motions.push(move);
+  return motions;
+};
 function prepareTraffic(move) {
   move.visits = new Map(move.route.map((p, index) => [p.q + ',' + p.r, index]));
   move.traffic = [];
-  for (const before of G.moves.values()) {
+  for (const before of allMotions()) {
+    if (before.i === move.i) continue;
     for (let index = move.path.length; index < move.route.length; index++) {
       const p = move.route[index], crossing = before.visits.get(p.q + ',' + p.r);
       if (crossing !== undefined) move.traffic.push({ before, clear: crossing + 1, stop: Math.max(0, index - move.path.length) });
@@ -155,8 +166,10 @@ function motionLimit(move, positions) {
   });
   return limit;
 }
-function tap(i, automatic = false) {
-  if (G.loading || !G.paths[i] || G.moves.has(i) || G.ended || (G.auto && !automatic)) return;
+function tap(i, automatic = false, solveFast = false) {
+  let previous = G.moves.get(i);
+  if (solveFast) while (previous?.queued) previous = previous.queued;
+  if (G.loading || !G.paths[i] || !solveFast && previous && (previous.event !== 'bounce' || previous.queued) || G.ended || (G.auto && !automatic)) return;
   if (!automatic) { audio(); G.taps++; G.hint = -1; }
   const m = rules().tap(G.level, G.paths, i);
   if (!m) { G.bump = { i, time: .25 }; G.combo = 0; sfx.thud(); if (!automatic) notice('Blocked'); hud(); return; }
@@ -171,12 +184,12 @@ function tap(i, automatic = false) {
   }
   const bounceDuration = m.event === 'bounce' ? reduced ? .12 : 1 : 0;
   const spring = m.event === 'bounce' ? m.route.at(-1) : null;
-  const move = { ...m, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
+  const move = { ...m, serial: ++motionNo, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
     bounceLength: spring ? MFRopeArt.trace(m.route.slice(-G.paths[i].length).map(screen), G.view.scale * .4).length / G.view.scale : 0,
     popNote: m.event === 'exit' ? ++G.clearNo : 0, reflections, nextReflection: 0 };
   prepareTraffic(move);
-  move.waiting = move.distance > 0 && motionLimit(move, new Map([...G.moves.values()].map(m => [m, m.progress]))) === 0;
-  G.moves.set(i, move);
+  move.waiting = move.distance > 0 && motionLimit(move, new Map(allMotions().map(m => [m, m.progress]))) === 0;
+  if (previous) previous.queued = move; else G.moves.set(i, move);
   commit(move);
   sfx.slide();
   if (!automatic) {
@@ -217,15 +230,25 @@ function hint() {
   if (G.hint === G.plan[0] && G.hintTime > 0) { G.hintTime = 3; focusRope(G.hint); return; }
   G.hint = G.plan[0]; G.hintTime = 3; G.taps += 2; G.combo = 0; G.assisted.add(G.hint); focusRope(G.hint); sfx.hint(); notice('Hint · +2 taps'); hud();
 }
+function autoSolve() {
+  if (G.loading || !G.level || G.ended || G.usedAutoSolve || G.autoSolveRequested || G.paths.every(p => !p)) return;
+  const plan = H.allFree(G.level, G.paths) ? G.paths.flatMap((p, i) => p ? [i] : []) : G.plan.slice();
+  if (!plan.length || !H.replay(G.level, plan, G.paths).solved) {
+    seekPlan([], 5000); G.autoSolveRequested = true; notice('Finding a route…'); hud(); return;
+  }
+  cancelGuide(); audio(); G.usedAutoSolve = true; G.combo = 0; G.hint = -1;
+  for (const i of plan) if (G.paths[i]) tap(i, true, true);
+  G.plan = []; G.auto = true; G.lost = false; notice('Auto-solve · 0 stars'); hud(); draw(0);
+}
 function finish() {
-  cancelGuide(); G.ended = true; const stars = G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
+  cancelGuide(); G.ended = true; const stars = G.usedAutoSolve ? 0 : G.taps <= G.level.par ? 3 : G.taps <= G.level.par + 2 ? 2 : 1;
   const code = H.code(opts), scores = save.sets[code] ||= {}, old = scores[G.index];
-  if (!old || G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
+  if (!old || stars > old.stars || stars === old.stars && G.taps < old.taps) scores[G.index] = { taps: G.taps, stars };
   const previous = save.chapters;
   if (opts.kind === 'journey') save.chapters = H.unlock(save.chapters, G.index);
   persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
-  $('resultText').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
+  $('resultText').textContent = G.usedAutoSolve ? 'Auto-solved · 0 stars' : G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
   $('unlocked').textContent = save.chapters > previous ? 'Levels ' + (previous * 10 + 1) + '–' + (save.chapters * 10) + ' unlocked!' : opts.kind === 'journey' && G.index === 119 ? 'Journey complete. Make a new tangle in Custom.' : '';
   $('next').hidden = G.index + 1 >= H.available(opts, save.chapters); $('result').showModal(); syncMusic(); sfx.win();
 }
@@ -242,7 +265,7 @@ function update(dt) {
   let settled = false;
   // Use the earlier frame's tail positions, so a follower cannot cut through a
   // crossing that its predecessor is still clearing during this frame.
-  const positions = new Map([...G.moves.values()].map(m => [m, m.progress]));
+  const positions = new Map(allMotions().map(m => [m, m.progress]));
   for (const [id, m] of G.moves) {
     // Half-speed departures keep the shared-path clearance readable.
     const travelDt = dt * (m.event === 'exit' ? .5 : 1);
@@ -272,7 +295,8 @@ function update(dt) {
           if (!springRotations.has(G.level)) springRotations.set(G.level, new Map());
           springRotations.get(G.level).set(springKey(m.spring), m.rotation + Math.PI);
         }
-        G.moves.delete(id); settled = true;
+        if (m.queued) G.moves.set(id, m.queued); else G.moves.delete(id);
+        settled = true;
         if (m.event === 'exit') sfx.pop(m.popNote);
         else if (m.event !== 'bounce' && m.reflections.at(-1) !== m.distance) sfx.thud();
       }
@@ -360,7 +384,7 @@ function mirrorCrossings(route, length) {
   return crossings;
 }
 function ropeDrawing(i, settled = false) {
-  const rope = settled ? G.paths[i] : visiblePath(i); if (!rope) return null;
+  const rope = settled ? G.moves.get(i)?.paths[i] || G.paths[i] : visiblePath(i); if (!rope) return null;
   const points = rope.map(screen), tip = points.at(-1), moving = settled ? null : G.moves.get(i);
   const end = moving ? moving.progress + moving.path.length - 1 : rope.length - 1, route = moving?.route || rope;
   const previous = moving ? screen(pointAt(route, end - .001)) : screen(H.add(rope.at(-1), headDirection(rope), -1));
@@ -557,10 +581,10 @@ function draw(time) {
   drawNext = false;
   if (!G.level) { ctx.clearRect(0, 0, width, height); return; }
   const activeSprings = new Map();
-  for (const move of G.moves.values()) if (move.spring) activeSprings.set(move.spring.q + ',' + move.spring.r, move);
+  for (const move of G.moves.values()) if (move.spring && !activeSprings.has(springKey(move.spring))) activeSprings.set(springKey(move.spring), move);
   // Reuse the rasterized stationary scene, not hundreds of texture paths on
   // every frame. Logical moves use fresh arrays, so undo/settling invalidate it.
-  const moving = [...G.moves.values()].map(m => m.waiting ? m.i + '@' + m.progress : m.i).join(',');
+  const moving = [...G.moves.values()].map(m => m.waiting ? m.serial + '@' + m.progress : m.serial).join(',');
   const key = [G.level, G.paths, G.view.ox, G.view.oy, G.view.scale, G.hint, G.selected, G.bump?.i, moving, !!save.oled];
   if (key.some((v, i) => v !== restingKey[i])) {
     ctx = restingContext;
@@ -576,7 +600,11 @@ function distanceTo(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = Math.ma
 function pickRope(p, padding = 0) {
   if (!G.level || G.auto) return -1;
   let best = -1, distance = Math.max(G.view.scale * .43, padding);
-  G.paths.forEach((rope, i) => { if (!rope || G.moves.has(i)) return; const points = rope.map(screen), d = headDirection(rope); points.push(screen(H.add(rope.at(-1), d, .35)));
+  G.paths.forEach((rope, i) => {
+    const move = G.moves.get(i);
+    if (!rope || move && (move.event !== 'bounce' || move.queued)) return;
+    const flip = springFlip(move), drawing = flip ? springDrawing(i, flip) : ropeDrawing(i), points = drawing.points.slice(), tip = points.at(-1);
+    points.push({ x: tip.x + drawing.head.x * G.view.scale * .35, y: tip.y + drawing.head.y * G.view.scale * .35 });
     for (let j = 1; j < points.length; j++) { const v = distanceTo(p, points[j - 1], points[j]); if (v < distance) { distance = v; best = i; } }
   });
   return best;
@@ -671,7 +699,7 @@ $('custom').onclick = () => { draft = H.normalize(save.custom || { seed: 'MONKEY
 $('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevels').click(); });
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);
-$('undo').onclick = undo; $('hint').onclick = hint;
+$('undo').onclick = undo; $('hint').onclick = hint; $('autoSolve').onclick = autoSolve;
 for (const id of ['seed', 'count', 'gridChoice', 'minDifficulty', 'maxDifficulty', 'mirrors', 'springs']) $(id).onchange = settings;
 $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
 $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };
@@ -686,4 +714,4 @@ start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && s
 function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-window.__game = { G, start, tap, undo, hint, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };
+window.__game = { G, start, tap, undo, hint, autoSolve, update, draw, screen, get options() { return opts; }, save, get sound() { return gameAudio.sound; }, get music() { return gameAudio.music; } };
