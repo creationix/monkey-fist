@@ -56,7 +56,7 @@ Springs have a copper coil and braided rim. The coil spins from the moment
 the arrow crosses the preceding dot until the tail settles, keeping its final
 orientation. The arrow enters the spring cell completely, then reflects 180°
 and slides back directly over its own rope, ending at the old tail. The return carries the incoming speed through contact without a pause
-or easing. The arrowhead is drawn on top of the overlapping body. Spring
+or easing. The arrowhead is drawn on top of the overlapping body. Starting arrows leave at least one grid space before a bouncer. Spring
 approaches have varied run-up lengths, and ordinary
 ropes can block the approach until cleared. Their removal is included in the
 generated solution certificate. Generators also prefer shared bouncers: multiple

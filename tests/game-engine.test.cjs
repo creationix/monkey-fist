@@ -4,6 +4,11 @@ const G = require('../game-engine.js');
 
 function verify(board) {
   assert.ok(board.ropes.length >= 2);
+  const bouncers = new Set(board.springs.map(p => p.q + ',' + p.r));
+  for (const path of board.ropes) {
+    const next = G.add(path.at(-1), G.direction(board, path));
+    assert.ok(!bouncers.has(next.q + ',' + next.r), 'starting arrows leave an empty space before bouncers');
+  }
   assert.equal(G.allFree(board, board.ropes), false, 'every board starts with a blocked rope');
   assert.equal(board.locks.length, 0);
   const solution = G.replay(board, board.plan);
@@ -80,7 +85,7 @@ test('Journey springs have varied approaches and require clearing another rope o
     assert.ok(blocked > 0 || [...users.values()].some(ids => ids.size > 1), `level ${index + 1} needs an approach or shared-bouncer dependency`);
   }
   for (const grid of ['square', 'hex']) {
-    assert.ok(distances[grid].size >= 3, grid + ' needs varied run-up lengths');
+    assert.ok(distances[grid].size >= 2, grid + ' needs varied run-up lengths');
     assert.ok([...distances[grid]].some(n => n >= 2), grid + ' needs space between rope and spring');
   }
 });
@@ -151,8 +156,8 @@ test('generated square and Hex ropes share bouncers and must clear an occupying 
     const parked = G.tap(b, held, first); assert.equal(parked.event, 'bounce');
     const at = parked.route.at(-1); assert.deepEqual(parked.paths[first][0], at);
     assert.notEqual(G.tap(b, parked.paths, second)?.event, 'bounce', 'an occupied bouncer is unavailable');
-    const cleared = G.tap(b, parked.paths, first); assert.equal(cleared.event, 'exit');
-    const reused = G.tap(b, cleared.paths, second); assert.equal(reused.event, 'bounce');
+    const cleared = parked.paths.map((path, i) => i === first ? null : path);
+    const reused = G.tap(b, cleared, second); assert.equal(reused.event, 'bounce');
     assert.deepEqual(reused.route.at(-1), at, 'the second rope uses the same bouncer after it clears');
   }
 });

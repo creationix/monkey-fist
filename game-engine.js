@@ -210,7 +210,9 @@
       }
       // Never publish a pre-solved board. This applies to every setting and seed,
       // including the smallest introductions; retries are deterministic and bounded.
-      if (b.ropes.length < 2 || allFree(b, b.ropes)) continue;
+      const springs = new Set((b.springs || []).map(H.key));
+      const adjacentBouncer = b.ropes.some(path => springs.has(H.key(H.add(path.at(-1), direction(b, path)))));
+      if (b.ropes.length < 2 || allFree(b, b.ropes) || adjacentBouncer) continue;
       const certificate = replay(b, b.plan); if (!certificate.solved) continue;
       const target = b.ropes.length <= 12 ? minimumTaps(b) : { plan: b.plan, par: certificate.taps, exact: b.exact && b.par === certificate.taps };
       return { ...b, ...target };

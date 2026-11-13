@@ -126,8 +126,10 @@
   }
   function springStrand(level, rng, maxGap, forceShared, allowShared) {
     const sharing = allowShared && level.springs.length && (forceShared || rng() < .8);
-    const gap = 1 + Math.floor(rng() * maxGap), length = 2 + Math.floor(rng() * 3), path = [];
+    const gap = Math.max(2, 1 + Math.floor(rng() * maxGap)), path = [];
+    let length = 2 + Math.floor(rng() * 3);
     const side = sharing ? 1 + Math.floor(rng() * 4) : 1, cap = sharing ? 1 + Math.floor(rng() * 4) : 1;
+    if (sharing) length = Math.max(length, gap + cap + Math.floor(rng() * 3));
     for (let q = length; q >= -side; q--) path.push({ q, r: -gap - cap });
     for (let r = -gap - cap + 1; r <= 1; r++) path.push({ q: -side, r });
     for (let q = 1 - side; q <= 0; q++) path.push({ q, r: 1 });
@@ -148,8 +150,10 @@
       for (let attempt = 0; attempt < 180; attempt++) {
         const tiles = new Set([...reserved, ...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
         const spring = springs ? springStrand(level, rng, maxGap, i > 0 && level.springs.length === i && attempt < 150, allowShared) : null;
+        const shared = spring && level.springs.some(p => key(p) === key(spring.spring));
+        const bodyTiles = shared ? new Set([...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]) : tiles;
         const path = spring ? spring.path : strand(level, pick(rng, cells), Math.floor(rng() * 6), occupied, tiles, rng, 4 + Math.floor(rng() * 9));
-        if (!path || path.some(p => !inside(level, p) || occupied.has(key(p)) || tiles.has(key(p)))) continue;
+        if (!path || path.some(p => !inside(level, p) || occupied.has(key(p)) || bodyTiles.has(key(p)))) continue;
         if (spring && (!inside(level, spring.spring) || occupied.has(key(spring.spring)) || tiles.has(key(spring.spring)) && !level.springs.some(p => key(p) === key(spring.spring)) || path.some(p => key(p) === key(spring.spring)))) continue;
         let variant = { ...level, ropes: level.ropes.concat([path]), springs: spring && !level.springs.some(p => key(p) === key(spring.spring)) ? level.springs.concat(spring.spring) : level.springs };
         const alone = Array(i).fill(null).concat([path]);
@@ -159,7 +163,12 @@
         const current = bounce ? bounce.paths[i] : path;
         const mirrors = route(variant, current, new Set([...reserved, ...occupied, ...path.map(key), ...(bounce?.route || []).map(key)]), rng, wanted); if (!mirrors) continue;
         variant = { ...variant, mirrors: level.mirrors.concat(mirrors), plan: level.plan.concat(spring ? [i, i] : [i]) };
-        const result = trace(variant, variant.plan); if (!result?.solved) continue;
+        let result = trace(variant, variant.plan);
+        if (!result?.solved && shared) {
+          const interleaved = solve(variant, variant.ropes, 2000, variant.plan);
+          if (interleaved.solved) { variant.plan = interleaved.moves; result = trace(variant, variant.plan); }
+        }
+        if (!result?.solved || result.turns.size !== variant.mirrors.length) continue;
         level = variant; path.forEach(p => occupied.add(key(p))); result.firstUse.forEach((v, c) => reserved.add(c));
         found = true; break;
       }

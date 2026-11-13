@@ -19,8 +19,10 @@
     return { states, firstUse, steps, solved: paths.every(p => !p) };
   }
   function hook(rng, sharing = false) {
-    const gap = 1 + Math.floor(rng() * 4), length = 2 + Math.floor(rng() * 3), path = [];
+    const gap = Math.max(2, 1 + Math.floor(rng() * 4)), path = [];
+    let length = 2 + Math.floor(rng() * 3);
     const side = sharing ? 1 + Math.floor(rng() * 4) : 1, cap = sharing ? 1 + Math.floor(rng() * 4) : 1;
+    if (sharing) length = Math.max(length, gap + cap + Math.floor(rng() * 3));
     for (let x = length; x >= -side; x--) path.push({ x, y: -gap - cap });
     for (let y = -gap - cap + 1; y <= 1; y++) path.push({ x: -side, y });
     for (let x = 1 - side; x <= 0; x++) path.push({ x, y: 1 });
@@ -74,8 +76,9 @@
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
         const s = spawn(b, rng, kinds.includes('springs'), kinds.includes('gates') ? false : i && b.springs.length === i && attempt < 150 ? 2 : true); if (!s) continue;
+        const shared = b.springs.includes(s.spring);
         const body = s.path.map(p => cell(p, W)), tiles = [...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)];
-        if (s.path.some(p => !inside(p, b)) || body.some(c => taken.has(c) || reserved.has(c) || tiles.includes(c)) ||
+        if (s.path.some(p => !inside(p, b)) || body.some(c => taken.has(c) || !shared && reserved.has(c) || tiles.includes(c)) ||
             s.spring !== undefined && s.spring !== null && (!b.springs.includes(s.spring) && (taken.has(s.spring) || reserved.has(s.spring) || tiles.includes(s.spring)))) continue;
         let v = { ...b, ropes: b.ropes.concat([s.path]), springs: s.spring === undefined || s.spring === null || b.springs.includes(s.spring) ? b.springs : b.springs.concat(s.spring) };
         const paths = Array(i).fill(null).concat([s.path]), actions = [];
@@ -100,8 +103,12 @@
           const open = M.tap({ ...v, gates: v.gates.slice(0, -1) }, held, i), closed = M.tap(v, held, i);
           if (!open || open.event !== 'exit' || closed && closed.event === 'exit') continue;
         }
-        const solution = b.solution.concat(actions, i);
-        const t = trace(v, solution); if (!t || !t.solved) continue;
+        let solution = b.solution.concat(actions, i), t = trace(v, solution);
+        if ((!t || !t.solved) && shared) {
+          const interleaved = M.solve(v, v.ropes, 2000, solution);
+          if (interleaved.solved) { solution = interleaved.moves; t = trace(v, solution); }
+        }
+        if (!t || !t.solved) continue;
         b = { ...v, solution }; for (const c of body) taken.add(c);
         for (const c of t.firstUse.keys()) reserved.add(c);
         found = true; break;
@@ -165,7 +172,7 @@
       const puzzle = populate(b, rng), quality = audit(puzzle);
       // Count only exits strictly between the first and last mechanic moves;
       // ordinary ropes following other ordinary ropes in the opening do not qualify.
-      if (quality && quality.interleaved >= Math.min(6, count * 2 - 2)) {
+      if (quality && quality.mirrors.size === puzzle.mirrors.length && quality.springs.size === puzzle.springs.length && quality.interleaved >= Math.min(6, count * 2 - 2)) {
         puzzle.circuit.interleaved = quality.interleaved;
         if (kinds.includes('springs') && !kinds.includes('gates') && puzzle.springs.length === count) { fallback ||= puzzle; continue; }
         return puzzle;

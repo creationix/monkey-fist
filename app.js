@@ -88,7 +88,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=8');
+    featureWorker = new Worker('generator-worker.js?v=9');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -117,7 +117,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=8');
+    const worker = new Worker('generator-worker.js?v=9');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -154,7 +154,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=8');
+    guideWorker = new Worker('generator-worker.js?v=9');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
