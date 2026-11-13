@@ -69,14 +69,19 @@
     }
     return walk(start, ...dir, 0, [], []);
   }
-  function skeleton(rng, W, H, kinds, count) {
+  function skeleton(rng, W, H, kinds, count, options = {}) {
     let b = { W, H, ropes: [], mirrors: [], springs: [], gates: [], solution: [] };
+    const minDistinctSprings = Math.min(count, Math.max(0, options.minDistinctSprings | 0));
     const reserved = new Set(), taken = new Set();
     for (let i = 0; i < count; i++) {
       let found = false;
       for (let attempt = 0; attempt < 180; attempt++) {
-        const s = spawn(b, rng, kinds.includes('springs'), kinds.includes('gates') ? false : i && b.springs.length === i && attempt < 150 ? 2 : true); if (!s) continue;
+        // First establish the requested number of distinct spinners. Later
+        // strands can still share them and must replay through their occupancy.
+        const share = b.springs.length < minDistinctSprings || kinds.includes('gates') ? false : i && b.springs.length === i && attempt < 150 ? 2 : true;
+        const s = spawn(b, rng, kinds.includes('springs'), share); if (!s) continue;
         const shared = b.springs.includes(s.spring);
+        if (b.springs.length < minDistinctSprings && shared) continue;
         const body = s.path.map(p => cell(p, W)), tiles = [...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)];
         if (s.path.some(p => !inside(p, b)) || body.some(c => taken.has(c) || !shared && reserved.has(c) || tiles.includes(c)) ||
             s.spring !== undefined && s.spring !== null && (!b.springs.includes(s.spring) && (taken.has(s.spring) || reserved.has(s.spring) || tiles.includes(s.spring)))) continue;

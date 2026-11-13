@@ -35,3 +35,97 @@ test('deeper-dependency revision keeps the unchanged introduction and gentle cus
  assert.equal(state.archives['grid-gen-2']['J3-MONKEYFIST'][30].stars,3);assert.equal(state.chapterSets['J3-MONKEYFIST'],5);
  }finally{await browser.close()}
 });
+
+async function seedSave(page, data) {
+  await page.addInitScript(data => {
+    const key = 'monkey-fist-unified-v1';
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));
+  }, data);
+}
+
+test('GRID_VERSION4 carries untagged Journey scores by the generated previous-index map', { timeout: 60000 }, async () => {
+  const journey = require('../grid-journey'), intro = journey.slice(0,10);
+  assert.ok(intro.every(level => Number.isInteger(level.previousIndex)), 'the unchanged introductions have published source positions');
+  const scores = Object.fromEntries(intro.map((level,index) => [level.previousIndex,{ taps:index+1,stars:1+index%3 }]));
+  const oldIndices = new Set(journey.flatMap(level => level.previousIndex == null ? [] : [level.previousIndex]));
+  const changedIndex = [...Array(120).keys()].find(index => !oldIndices.has(index)); assert.notEqual(changedIndex,undefined);
+  scores[changedIndex] = { taps:99,stars:2 };
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await seedSave(page,{ gen:1,gridGen:3,chapters:2,chapterSets:{'J3-MONKEYFIST':7},sets:{'J3-MONKEYFIST':scores},sound:'off',music:false });
+    await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
+    const state = await page.evaluate(() => __game.save);
+    assert.equal(state.gridGen,require('../game-engine').GRID_VERSION);
+    assert.equal(state.chapterSets['J3-MONKEYFIST'],7);
+    for (const [index,level] of intro.entries()) assert.deepEqual(state.sets['J3-MONKEYFIST'][index],scores[level.previousIndex]);
+    assert.deepEqual(state.archives['grid-gen-3']['J3-MONKEYFIST'][changedIndex],scores[changedIndex]);
+    assert.equal(Object.keys(state.sets['J3-MONKEYFIST']).length,10,'changed maps do not inherit a previous level number’s stars');
+    await page.click('#levels'); assert.equal(await page.locator('#grid button:enabled').count(),70);
+    await page.reload(); await ready(page);
+    assert.deepEqual(await page.evaluate(() => __game.save.sets),state.sets);
+    assert.deepEqual(await page.evaluate(() => __game.save.archives),state.archives);
+  } finally { await browser.close(); }
+});
+
+test('previousIndex migration follows a genuine metadata reorder rather than retaining old slot numbers', { timeout: 60000 }, async () => {
+  const journey = require('../grid-journey'), reordered = journey.slice();
+  [reordered[0],reordered[1]] = [reordered[1],reordered[0]];
+  const a = journey[0].previousIndex, b = journey[1].previousIndex;
+  assert.ok(Number.isInteger(a) && Number.isInteger(b) && a !== b);
+  const first = { taps:4,stars:2 }, second = { taps:5,stars:1 };
+  const browser = await launch();
+  try {
+    const context = await browser.newContext({ serviceWorkers:'block' });
+    await context.route('**/grid-journey.js*', route => route.fulfill({ contentType:'text/javascript',body:'globalThis.MFGridJourney='+JSON.stringify(reordered)+';' }));
+    const page = await context.newPage();
+    await seedSave(page,{ gen:1,gridGen:3,chapterSets:{'J3-MONKEYFIST':3},sets:{'J3-MONKEYFIST':{ [a]:first,[b]:second }} });
+    await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
+    const state = await page.evaluate(() => __game.save);
+    assert.deepEqual(state.sets['J3-MONKEYFIST'][0],second);
+    assert.deepEqual(state.sets['J3-MONKEYFIST'][1],first);
+    assert.equal(state.chapterSets['J3-MONKEYFIST'],3);
+    assert.equal(await page.evaluate(() => __game.G.level.layoutKey),reordered[0].layoutKey,'the remapped score belongs to the actual reordered board');
+  } finally { await browser.close(); }
+});
+
+test('tagged Journey scores follow layout identity even when their old index names a different map', { timeout: 60000 }, async () => {
+  const journey = require('../grid-journey'), destination = 0, level = journey[destination];
+  assert.equal(typeof level.layoutKey,'string');
+  const earned = { taps:5,stars:2,layoutKey:level.layoutKey }, obsolete = { taps:8,stars:3,layoutKey:'retired-layout-key' };
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await seedSave(page,{ gen:1,gridGen:3,chapterSets:{'J3-MONKEYFIST':6},sets:{'J3-MONKEYFIST':{ 119:earned,0:obsolete }} });
+    await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
+    const state = await page.evaluate(() => __game.save);
+    assert.deepEqual(state.sets['J3-MONKEYFIST'],{ [destination]:earned });
+    assert.deepEqual(state.archives['grid-gen-3']['J3-MONKEYFIST'][0],obsolete);
+    assert.equal(state.chapterSets['J3-MONKEYFIST'],6);
+  } finally { await browser.close(); }
+});
+
+test('GRID_VERSION4 keeps gentle and colossal custom scores while archiving changed hard layouts', { timeout: 60000 }, async () => {
+  const mixed = 'U3-S-1-100-10-14-100-N-MIGRATE', colossal = 'U3-H-80-100-32-40-20-C-COLOSSAL', hard = 'U3-S-80-100-10-14-10-N-HARD';
+  const legacy = 'U1-H-1-100-20-N-LEGACY', archive = { keep:'earlier migration' };
+  const sets = {
+    [mixed]:{ 0:{taps:3,stars:3},58:{taps:20,stars:2},59:{taps:21,stars:2},99:{taps:30,stars:3} },
+    [colossal]:{ 0:{taps:80,stars:1},19:{taps:100,stars:2} },
+    [hard]:{ 0:{taps:18,stars:3,layoutKey:'old-hard-layout'} },
+    [legacy]:{ 3:{taps:7,stars:3} },
+  };
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await seedSave(page,{ gen:1,gridGen:3,chapterSets:{'J3-MONKEYFIST':4},sets,archives:{'grid-gen-1':archive} });
+    await page.goto(base+'?set=J3-MONKEYFIST'); await ready(page);
+    const state = await page.evaluate(() => __game.save);
+    assert.deepEqual(state.sets[mixed],{ 0:sets[mixed][0],58:sets[mixed][58] });
+    assert.deepEqual(state.sets[colossal],sets[colossal]); assert.deepEqual(state.sets[legacy],sets[legacy]);
+    assert.equal(state.sets[hard],undefined);
+    assert.deepEqual(state.archives['grid-gen-3'][mixed],{ 59:sets[mixed][59],99:sets[mixed][99] });
+    assert.deepEqual(state.archives['grid-gen-3'][hard],sets[hard]);
+    assert.deepEqual(state.archives['grid-gen-1'],archive);
+    assert.equal(state.chapterSets['J3-MONKEYFIST'],4);
+  } finally { await browser.close(); }
+});

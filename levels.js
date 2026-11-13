@@ -990,6 +990,26 @@ const MFLevels = (() => {
     };
     const sMin = Math.ceil(cfg.lo), sMax = Math.ceil(cfg.hi) - 1; // the whole-number scores inside the slot
     const meanLen = (cfg.lenLo + cfg.lenHi) / 2 * 0.85, coverGoal = cfg.cover * N;
+    // Optional simultaneous core. Unlike the ordinary backwards additions, a
+    // core can prescribe several successive stops for the same strand.
+    if (cfg.initialRopes?.length) {
+      const occupied = new Set();
+      for (let i = 0; i < cfg.initialRopes.length; i++) {
+        const path = cfg.initialRopes[i];
+        if (path.length < 2 || path.some(p => p.x < 0 || p.y < 0 || p.x >= W || p.y >= H || occupied.has(p.y * W + p.x))) return null;
+        for (const p of path) occupied.add(p.y * W + p.x);
+        add(path.map(p => ({ x: p.x, y: p.y })), (cfg.initialStops?.[i] || []).slice());
+      }
+      order = cfg.initialPlan?.slice() || paths.map((_, i) => i);
+      if (!replay(order, -1)) return null;
+      total0 = costSum; bendSum = paths.reduce((sum, path) => sum + bendsOf(path), 0);
+      covered = occupied.size; knots = stops.filter(stop => stop.length).length;
+      for (let i = 0; i < paths.length; i++) {
+        for (const p of paths[i]) occ[p.y * W + p.x] = i;
+        for (const offset of stops[i]) for (let j = b.len[i]; j < b.len[i] + offset; j++) if (occ[b.seq[i][j]] === -1) rest[b.seq[i][j]] = i;
+      }
+      order = [...new Set(taps)];
+    }
     // Lay ropes, steering exactly as the original builder does: pace the score to arrive in its
     // slot about when the board is full, keep the average block cost up near wantAvg, never add
     // more than the slot allows, never add a rope the depth floor could not afford.
@@ -1071,7 +1091,7 @@ const MFLevels = (() => {
       const to = slideTo(fin, i);
       if (to > 0) { place(fin, i, to); if (relax(fin)) fatal++; place(fin, i, 0); }
     }
-    return { W: w, H: h, ropes, costs, score: total0 + bendSum, taps: solution, slides: solution.length - n, knots: tiedUp, traps: fatal };
+    return { W: w, H: h, ropes, costs, score: total0 + bendSum, taps: solution, slides: solution.length - n, knots: tiedUp, traps: fatal, ...(cfg.initialRopes?.length ? { seededRopes: cfg.initialRopes.length, seededSlides: cfg.initialStops.reduce((sum, stops) => sum + stops.length, 0) } : {}) };
   }
   // Each rope's block cost in a sliding level, given a solution: the layer of the tap that takes
   // it off the board (see weave). Null if the taps do not clear the board.

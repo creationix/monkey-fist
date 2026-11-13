@@ -16,7 +16,13 @@ The default journey has 120 deterministic, procedurally generated levels:
   from interacting blocking dependencies, not steadily larger boards or longer
   single chains. Boards stay packed instead of growing sparse strips.
 - Later levels consider branching unlocks, shared blockers, mutual waits, and
-  repeated slides alongside tap counts. Mirrors and occasional springs join the mix.
+  repeated slides alongside tap counts. Mirrors and spring spinners start after the
+  opening ten and recur throughout the Journey.
+- Most later puzzles use mirrors, spinners, or both, with a plain-rules interlude
+  in each chapter. Late mirror maps use at least three mirrors; late spinner maps
+  use at least two distinct spinners. Their verified solutions must use them
+  during manual play. Late featured puzzles also require repeated partial slides
+  on multiple ropes, with other ropes interleaved between the core moves.
 - The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
   21–30, and so on. Every level in an open group is immediately playable, so
   players can jump to the group’s last level to progress faster.
@@ -67,8 +73,9 @@ Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
 generator; this orders the default campaign without generating all 120 maps on
 each visit. The builder checks exact dimensions, replayed tap counts, overall
 rope coverage, coverage in each quarter of the board, and the minimum tap-to-rope
-ratio. Later ordering uses causal interaction metrics rather than rewarding
-plain chain depth. The builder also checks that larger boards cannot auto-release
+ratio. Each displayed chapter has a mechanics quota, so challenge sorting cannot
+push every spinner into the middle of the Journey. Within each chapter, ordering
+uses causal interaction metrics rather than rewarding plain chain depth. The builder also checks that larger boards cannot auto-release
 after one tap. The
 old `journey.js` and its builder remain for compatibility with the earlier format.
 
@@ -151,6 +158,9 @@ browser supports it. [Touch input and platform limits](docs/touch-and-platforms.
 documents gesture handling, device testing, and native iOS/Android options.
 
 ## Generation and solving
+
+The [generator design note](docs/generator-design.md) separates the desired
+puzzle qualities from the techniques currently used to produce them.
 
 [`game-engine.js`](game-engine.js) is the common set format, progression schedule,
 and gameplay adapter. Every published board must have at least two ropes, at
