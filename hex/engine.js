@@ -181,7 +181,7 @@
     const occupied = new Int32Array(area).fill(-1), seen = new Int32Array(area), forward = new Int32Array(area);
     const level = { W, H, ropes: [], locks: [] }, stops = []; let stamp = 0, covered = 0, knots = 0, result = { moves: [], cost: 0, depth: 0 };
     const ray = (head, d) => { const out = []; for (let c = neighbours[head][d]; c >= 0; c = neighbours[c][d]) out.push(c); return out; };
-    function shape(want, minimum = 3) {
+    function shape(want, minimum = Math.max(2, cfg.minLength || 3)) {
       let head = -1;
       for (let n = 0; n < 24; n++) { const c = Math.floor(rng() * area); if (occupied[c] < 0) { head = c; break; } }
       if (head < 0) return null;

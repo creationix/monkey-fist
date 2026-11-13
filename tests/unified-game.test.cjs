@@ -52,14 +52,14 @@ test('custom controls, old bookmarks, worker fallback, and offline saves use the
     assert.equal(await page.evaluate(() => __game.G.level.grid), 'hex');
     assert.equal(await page.evaluate(() => __game.save.sound), 'off');
     await page.click('#levels'); await page.selectOption('#gridChoice', 'mixed');
-    await page.fill('#count', '35'); await page.locator('#count').press('Tab');
-    await page.fill('#minDifficulty', '20'); await page.locator('#minDifficulty').press('Tab');
-    await page.fill('#maxDifficulty', '85'); await page.locator('#maxDifficulty').press('Tab');
+    await page.locator('#count').evaluate(input => { input.value = 35; input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.locator('#minDifficulty').evaluate(input => { input.value = 20; input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.locator('#maxDifficulty').evaluate(input => { input.value = 85; input.dispatchEvent(new Event('input', { bubbles: true })); });
     await page.check('#springs'); await page.click('#dice'); assert.notEqual(await page.inputValue('#seed'), 'BRAID');
     await page.click('#defaultSeed'); assert.equal(await page.inputValue('#seed'), 'MONKEYFIST');
     assert.equal(await page.locator('#grid button:enabled').count(), 35);
     await page.click('[data-level="35"]'); await ready(page);
-    assert.deepEqual(await page.evaluate(() => __game.options), { revision: 2, sizeMin: 6, sizeMax: 40, kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
+    assert.deepEqual(await page.evaluate(() => __game.options), { revision: 3, width: 10, height: 14, kind: 'custom', seed: 'MONKEYFIST', grid: 'mixed', count: 35, min: 20, max: 85, mirrors: true, springs: true });
     const before = await page.evaluate(() => JSON.stringify(__game.G.level));
     await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { polling: 50 });
     await context.setOffline(true); await page.reload(); await ready(page);

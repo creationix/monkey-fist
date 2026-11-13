@@ -10,26 +10,37 @@
   const R = node ? require('./hex/mirrors.js') : root.MFHexMirrors;
   const D = node ? require('./difficulty.js') : root.MFDifficulty;
   const J = node ? require('./journey.js') : root.MFJourney;
+  const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
+  const K = node ? require('./grid-journey.js') : root.MFGridJourney;
   const VERSION = 1;
   const LEGACY_DEFAULT = { kind: 'journey', revision: 1, seed: 'MONKEYFIST', grid: 'mixed', count: 120, min: 1, max: 100, mirrors: true, springs: true };
-  const DEFAULT = { ...LEGACY_DEFAULT, revision: 2, sizeMin: 4, sizeMax: 60 };
+  const ROPE_DEFAULT = { ...LEGACY_DEFAULT, revision: 2, sizeMin: 4, sizeMax: 60 };
+  const DEFAULT = { ...LEGACY_DEFAULT, revision: 3, width: 10, height: 14 };
   const clamp = (v, lo, hi, fallback) => Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : fallback;
   function normalize(opts = {}) {
-    if (opts.kind === 'journey') return { ...(opts.revision === 1 ? LEGACY_DEFAULT : DEFAULT) };
+    if (opts.kind === 'journey') return { ...(opts.revision === 1 ? LEGACY_DEFAULT : opts.revision === 2 ? ROPE_DEFAULT : DEFAULT) };
     const min = clamp(opts.min, 1, 100, 1), max = clamp(opts.max, min, 100, 100);
-    const sized = opts.revision === 2 || opts.sizeMin != null;
+    const fixed = opts.revision === 3, minimum = opts.mirrors || opts.springs ? 8 : 4;
+    const sized = !fixed && (opts.revision === 2 || opts.sizeMin != null);
     const sizeMin = clamp(opts.sizeMin, 2, 200, 6), sizeMax = clamp(opts.sizeMax, sizeMin, 200, Math.max(sizeMin, 40));
-    return { ...(sized ? { revision: 2, sizeMin, sizeMax } : {}), kind: 'custom', seed: H.cleanSeed(opts.seed), grid: ['square', 'hex', 'mixed'].includes(opts.grid) ? opts.grid : 'mixed',
-      count: clamp(opts.count, 1, 500, 120), min, max, mirrors: !!opts.mirrors, springs: !!opts.springs };
+    return { ...(fixed ? { revision: 3, width: clamp(opts.width, minimum, 24, 10), height: clamp(opts.height, minimum, 24, 14) } : sized ? { revision: 2, sizeMin, sizeMax } : {}), kind: 'custom', seed: H.cleanSeed(opts.seed), grid: ['square', 'hex', 'mixed'].includes(opts.grid) ? opts.grid : 'mixed',
+      count: clamp(opts.count, 1, fixed ? 200 : 500, 120), min, max, mirrors: !!opts.mirrors, springs: !!opts.springs };
   }
   function code(input) {
     const o = normalize(input);
-    return o.kind === 'journey' ? 'J' + o.revision + '-MONKEYFIST' : [o.revision === 2 ? 'U2' : 'U1', { square: 'S', hex: 'H', mixed: 'M' }[o.grid], o.min, o.max, ...(o.revision === 2 ? [o.sizeMin, o.sizeMax] : []), o.count,
+    return o.kind === 'journey' ? 'J' + o.revision + '-MONKEYFIST' : [o.revision === 3 ? 'U3' : o.revision === 2 ? 'U2' : 'U1', { square: 'S', hex: 'H', mixed: 'M' }[o.grid], o.min, o.max, ...(o.revision === 3 ? [o.width, o.height] : o.revision === 2 ? [o.sizeMin, o.sizeMax] : []), o.count,
       (o.mirrors ? 'M' : '') + (o.springs ? 'S' : '') || 'N', o.seed].join('-');
   }
   function parseCode(text) {
     text = String(text || '').trim().toUpperCase(); if (text === 'J1-MONKEYFIST') return { ...LEGACY_DEFAULT };
-    if (text === 'J2-MONKEYFIST') return { ...DEFAULT };
+    if (text === 'J2-MONKEYFIST') return { ...ROPE_DEFAULT };
+    if (text === 'J3-MONKEYFIST') return { ...DEFAULT };
+    const v3 = /^U3-([SHM])-(\d{1,3})-(\d{1,3})-(\d{1,2})-(\d{1,2})-(\d{1,3})-(N|M|S|MS)-([A-Z0-9]{1,12})$/.exec(text);
+    if (v3) {
+      const minimum = v3[7] === 'N' ? 4 : 8;
+      if (+v3[2] < 1 || +v3[3] > 100 || +v3[2] > +v3[3] || +v3[4] < minimum || +v3[4] > 24 || +v3[5] < minimum || +v3[5] > 24 || +v3[6] < 1 || +v3[6] > 200) return null;
+      return normalize({ revision: 3, grid: { S: 'square', H: 'hex', M: 'mixed' }[v3[1]], min: +v3[2], max: +v3[3], width: +v3[4], height: +v3[5], count: +v3[6], mirrors: v3[7].includes('M'), springs: v3[7].includes('S'), seed: v3[8] });
+    }
     const v2 = /^U2-([SHM])-(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})-(N|M|S|MS)-([A-Z0-9]{1,12})$/.exec(text);
     if (v2) {
       if (+v2[2] < 1 || +v2[3] > 100 || +v2[2] > +v2[3] || +v2[4] < 2 || +v2[5] > 200 || +v2[4] > +v2[5] || +v2[6] < 1 || +v2[6] > 500) return null;
@@ -49,6 +60,8 @@
   }
   function spec(input, index) {
     const o = normalize(input), i = clamp(index, 0, o.count - 1, 0), journey = o.kind === 'journey';
+    if (o.revision === 3 && journey) return { ...K[i], index: i };
+    if (o.revision === 3) return { grid: o.grid === 'mixed' ? i % 2 ? 'hex' : 'square' : o.grid, difficulty: o.min + (o.max - o.min) * i / Math.max(1, o.count - 1), W: o.width, H: o.height, seed: L.hashString('grid/3/' + code(o) + '/' + i).toString(36).toUpperCase(), index: i, mirrors: o.mirrors, springs: o.springs };
     if (o.revision === 2 && journey) return { ...J[i], index: i };
     if (o.revision === 2) {
       const seed = L.hashString('independent/2/' + code(o) + '/' + i).toString(36).toUpperCase();
@@ -205,6 +218,7 @@
   }
   function generate(options = {}) {
     const o = normalize(options), details = spec(o, options.index), d = details.difficulty;
+    if (o.revision === 3) return F.generate(details, api);
     if (o.revision === 2) return D.generate(details, api);
     for (let attempt = 0; attempt < 24; attempt++) {
       const seed = details.seed + attempt.toString(36).toUpperCase(); let b;
@@ -241,6 +255,6 @@
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
   const unlock = (chapters, index) => index % 10 === 9 ? Math.min(12, Math.max(chapters, Math.floor(index / 10) + 2)) : chapters;
-  const api = { VERSION, DEFAULT, LEGACY_DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
+  const api = { VERSION, DEFAULT, LEGACY_DEFAULT, ROPE_DEFAULT, normalize, code, parseCode, spec, generate, minimumTaps, frozenRopes, reachableFeatures, tap, replay, solve, guide, allFree, direction, project, cells, available, unlock, add: H.add, DIRS: H.DIRS, cleanSeed: H.cleanSeed };
   if (node) module.exports = api; else root.MFGame = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

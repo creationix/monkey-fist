@@ -9,11 +9,12 @@ No build step, dependencies, accounts, or network requests during play.
 
 The default journey has 120 deterministic, procedurally generated levels:
 
-- Small square and Hex puzzles introduce the movement rules.
-- Sizes vary throughout; later levels need more unlocking taps per rope,
-  rather than simply adding more ropes.
-- Levels are sorted by their verified tap target divided by rope count, with
-  rope count breaking ties. Mirrors and occasional springs join the mix.
+- The first five small square puzzles introduce movement, followed by five
+  small Hex puzzles. The following twenty boards stay at or below 12 × 12.
+- Later boards vary in size, mostly from 8 to 18 cells per side, with occasional
+  larger puzzles. Boards stay packed instead of growing sparse strips.
+- Later levels combine unlocking taps per rope with total taps, rope count, and
+  grid area when ordering difficulty. Mirrors and occasional springs join the mix.
 - The first ten levels are open. Clear level 10 to open 11–20, level 20 to open
   21–30, and so on. Every level in an open group is immediately playable, so
   players can jump to the group’s last level to progress faster.
@@ -28,32 +29,37 @@ Open **Menu → Custom** to choose:
 
 - Square + Hex, square only, or Hex only.
 - Mirrors and springs, independently.
-- A difficulty range from 1 to 100, targeting more player taps per rope.
-- An independent size range of 2–200 ropes per level.
-- 1–500 levels.
+- A difficulty range from 1 to 100, using two touch-friendly sliders.
+- Independent grid width and height, from 4 to 24 cells each. Mirrors or springs
+  require at least an 8 × 8 grid.
+- A level-count slider from 1 to 200.
 - A seed, with dice to randomize it and a reset button for `MONKEYFIST`.
 
 All custom levels are playable immediately. Set links include every setting and
 reproduce the same puzzles on every device. For example:
 
-`?set=U2-M-1-100-6-40-120-MS-MONKEYFIST&level=35`
+`?set=U3-M-1-100-10-14-120-MS-MONKEYFIST&level=35`
 
 The code encodes format version, grid (`S`/`H`/`M`), minimum and maximum
-difficulty, minimum and maximum rope count, level count, features (`N`/`M`/`S`/`MS`), and seed. The journey is
-`J2-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain their original boards
-and scores. The new Journey has separate chapter progress; selecting Journey in
-the menu opens it without deleting the previous save.
+difficulty, grid width and height, level count, features (`N`/`M`/`S`/`MS`), and
+seed. The journey is `J3-MONKEYFIST`. Existing `J1` and `U1` bookmarks retain
+their original boards and scores. The short-lived `J2` and `U2` rope-count
+settings open the corrected grid-based version in the app; previous scores
+remain stored separately, and Journey chapter unlocks carry over.
 
-The v2 generator combines randomly woven boards, fan dependencies, and repeated
-interleaved-tail unlocks. A small board can require many successive slides.
-Mirrors and springs are optional, and every generated board starts blocked and
-has a replayed solution. Par is a verified target; bounded searches label an
-unproved optimum as best known. Size means rope count, so long winding ropes and
-empty travel space can still change the board's dimensions.
+Size means grid dimensions. A 10 × 14 board remains 10 × 14 at every difficulty;
+rope count and rope shapes adapt to fill it. Easy boards can free their packed
+ropes after a small number of key taps. Harder boards weave more blocking and
+sliding dependencies into the same space. Mirrors and springs are optional.
+Every generated board starts blocked and has a replayed solution. Par is a
+verified target; bounded searches label an unproved optimum as best known.
 
-`journey.js` stores only seed/settings/score metadata, not maps or solutions.
-Rebuild it with `node scripts/build-journey.cjs` after changing the v2 generator;
-this sorts the default campaign without generating all 120 maps on each visit.
+`grid-journey.js` stores only seed/settings/score metadata, not maps or solutions.
+Rebuild it with `node scripts/build-grid-journey.cjs` after changing the grid
+generator; this orders the default campaign without generating all 120 maps on
+each visit. The builder checks exact dimensions, replayed tap counts, overall
+rope coverage, and coverage in each quarter of the board. The old `journey.js`
+and its builder remain for compatibility with the earlier format.
 
 Custom sets are free. The single Custom entry point is a natural place for a
 future purchase entitlement; no payment or entitlement code is included yet.
@@ -145,6 +151,7 @@ The underlying engines remain specialized:
 
 | Module | Responsibility |
 | --- | --- |
+| `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the sorted Journey metadata |
 | `levels.js` | Square geometry, long woven ropes, sliding knots, fast straight-track solver and small-board par search |
 | `mechanics.js` | Square routed movement, mirror/spring physics, bounded full-path solving |
 | `twist-circuits.js`, `twists.js` | Procedural square circuits with multi-turn routes, interleaved blockers, and verified certificates |
@@ -167,9 +174,10 @@ discard stale results. The workerless fallback uses a much smaller search budget
 Hex routed generation constructs core escape paths, then interleaves long
 follower ropes whose removal fits the certificate. Every placed mirror must
 actually turn a route. Square circuits similarly weave blockers through routed
-paths. Difficulty affects dimensions, rope length, dependencies, circuit count,
-and turns. Plain Hex boards can grow to 40 × 54 cells; routed Hex boards reach
-20 × 24 to keep path searches responsive.
+paths. In the grid-based format, difficulty changes blocking depth, sliding,
+circuit count, and turns while keeping the chosen dimensions fixed. Packing
+continues into small gaps while preserving the solution certificate. The older
+formats retain their original size schedules and limits.
 
 The historical [`mechanics playground`](https://creationix.github.io/monkey-fist/experiments/mechanics/)
 is still available as a separate sandbox. Its older gate/wall fixtures and pure
@@ -196,8 +204,10 @@ remembers the setting across sessions, including offline play.
 
 The shared save key is `monkey-fist-unified-v1`. It stores chapter unlocks,
 best scores by set code, custom preferences, audio, and the current level.
-This new journey starts fresh because its boards differ from the old campaigns.
-Old square and Hex saves remain untouched; their audio preferences are inherited.
+Each versioned set has separate scores because its boards can differ. Journey
+chapter unlocks carry over when replacing the rope-count campaign with packed
+grid-based boards. Old square and Hex saves remain untouched; their audio
+preferences are inherited.
 Only scores are persisted, so par always comes from the current generated board.
 
 The service worker caches the complete app, including worker dependencies, for

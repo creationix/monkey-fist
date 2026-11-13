@@ -120,7 +120,7 @@
   // Insert ordinary ropes where they can leave *during* the key sequence. Their
   // bodies may obstruct later routes but never an earlier certified move. This
   // preserves a proof while building dependencies in both directions.
-  function populate(b, rng, ropeCount) {
+  function populate(b, rng, ropeCount, options = {}) {
     const ropes = b.ropes.slice(), moves = b.solution.slice(), core = ropes.length;
     const occupied = new Set(ropes.flat().map(p => cell(p, b.W)));
     const tiles = new Set([...b.springs, ...b.mirrors.map(m => m.cell), ...b.gates.map(g => g.cell)]);
@@ -128,7 +128,7 @@
     // Give forward approaches their own dependencies, before the reversal.
     // Keep sampling the certified route: insertion deadlines preserve the proof.
     const approaches = t.steps.filter(step => step.event === 'bounce').flatMap(step => step.route.slice(b.ropes[step.i].length).map(p => cell(p, b.W)));
-    for (let attempt = 0; attempt < b.W * b.H * 14 && (!ropeCount || ropes.length < ropeCount) && occupied.size < b.W * b.H * .78; attempt++) {
+    for (let attempt = 0; attempt < b.W * b.H * (options.attemptsMultiplier ?? 14) && (!ropeCount || ropes.length < ropeCount) && occupied.size < b.W * b.H * (options.coverage ?? .78); attempt++) {
       const approach = approaches.length && (attempt < 100 || rng() < .5);
       const dependent = rng() < .85;
       let head, dir;
@@ -142,12 +142,12 @@
       const free = p => inside(p, b) && !occupied.has(cell(p, b.W)) && !tiles.has(cell(p, b.W)) && !backward.some(q => q.x === p.x && q.y === p.y);
       if (!inside(head, b) || occupied.has(cell(head, b.W)) || tiles.has(cell(head, b.W)) || !free(previous)) continue;
       backward.push(previous);
-      const want = 3 + Math.floor(rng() * 5);
+      const want = options.length == null ? 3 + Math.floor(rng() * 5) : Math.max(options.minLength || 2, Math.floor(options.length * (.5 + .5 * rng())));
       while (backward.length < want) {
         const p = backward.at(-1), options = dirs.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).filter(free);
         if (!options.length) break; backward.push(pick(options, rng));
       }
-      if (backward.length < (approach ? 2 : 3)) continue;
+      if (backward.length < (options.minLength ?? (approach ? 2 : 3))) continue;
       const path = backward.reverse(), deadline = Math.min(moves.length, ...path.map(p => t.firstUse.get(cell(p, b.W)) ?? moves.length));
       const i = ropes.length, v = { ...b, ropes: ropes.concat([path]) };
       let at = -1;
@@ -155,7 +155,7 @@
         const n = M.tap(v, t.states[k].concat([path]), i);
         if (n && n.event === 'exit') { at = k; break; }
       }
-      if (at < 0 || at === 0 && early >= Math.max(3, followers / 2)) continue;
+      if (at < 0 || !options.allowEarly && at === 0 && early >= Math.max(3, followers / 2)) continue;
       if (at) followers++; else early++;
       ropes.push(path); moves.splice(at, 0, i); for (const p of path) occupied.add(cell(p, b.W));
       b = { ...b, ropes, solution: moves }; t = trace(b, moves);

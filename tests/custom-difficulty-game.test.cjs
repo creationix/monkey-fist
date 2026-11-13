@@ -1,6 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { base, launch, ready } = require('./browser-helpers.cjs');
-test('custom size controls generate fixed-count difficult maps and their complete animation queues settle', { timeout: 120000 }, async () => {
+test('legacy rope-count links upgrade to dense fixed grids and their complete animation queues settle', { timeout: 120000 }, async () => {
   const browser = await launch();
   try {
     for (const [grid, viewport] of [['S',{width:1366,height:768}],['H',{width:390,height:844}]]) {
@@ -8,9 +8,9 @@ test('custom size controls generate fixed-count difficult maps and their complet
       await page.addInitScript(()=>{requestAnimationFrame=()=>0;});
       await page.goto(base + `?set=U2-${grid}-100-100-10-10-1-MS-KNOBS`); await ready(page);
       await page.click('#levels');
-      assert.equal(await page.inputValue('#minSize'),'10'); assert.equal(await page.inputValue('#maxSize'),'10');
+      assert.equal(await page.inputValue('#gridWidth'),'10'); assert.equal(await page.inputValue('#gridHeight'),'14');
       await page.click('#closeLevels');
-      assert.deepEqual(await page.evaluate(()=>[__game.G.paths.length,__game.G.level.par>=24]),[10,true]);
+      assert.deepEqual(await page.evaluate(()=>[__game.G.level.W,__game.G.level.H,__game.G.level.coverage >= .8]),[10,14,true]);
       await page.click('#autoSolve');
       assert.equal(await page.evaluate(()=>__game.G.paths.every(p=>!p)),true);
       assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('auto-solving')),true);

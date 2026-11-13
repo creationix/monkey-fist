@@ -9,7 +9,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <main id="game">
@@ -38,10 +38,17 @@
   <div id="audioControls" aria-label="Sound, display and movement settings"><button id="sound" class="quiet" aria-label="Sound effects: Low" aria-pressed="true">Sound: Low</button><button id="music" class="quiet" aria-pressed="false">♫ Music off</button><button id="oled" class="quiet" aria-pressed="false" title="Use black backgrounds and dimmer panels">Dark mode: off</button><button id="moveSpeed" class="quiet" title="Rope speed: Slow ½×, Normal 1×, Fast 2×">Speed: Normal</button><button id="graphics" class="quiet" title="Choose braided rope or translucent geometric tiles">Graphics: Rope</button></div>
   <div id="customSettings" class="settings" hidden>
     <label class="seed-setting">Seed or set code<div class="seed-row"><input id="seed" maxlength="48" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
-    <label>Grid<select id="gridChoice"><option value="mixed">Square + hex</option><option value="square">Square only</option><option value="hex">Hex only</option></select></label>
-    <label>Levels<input id="count" type="number" min="1" max="500" value="120" inputmode="numeric"></label>
-    <fieldset class="difficulty"><legend>Difficulty · 1 to 100</legend><label>From<input id="minDifficulty" type="number" min="1" max="100" value="1" inputmode="numeric"></label><span>→</span><label>To<input id="maxDifficulty" type="number" min="1" max="100" value="100" inputmode="numeric"></label></fieldset>
-    <fieldset class="difficulty"><legend>Size · ropes per level</legend><label>From<input id="minSize" type="number" min="2" max="200" value="6" inputmode="numeric"></label><span>→</span><label>To<input id="maxSize" type="number" min="2" max="200" value="40" inputmode="numeric"></label></fieldset>
+    <label class="grid-setting">Grid<select id="gridChoice"><option value="mixed">Square + hex</option><option value="square">Square only</option><option value="hex">Hex only</option></select></label>
+    <label class="slider-setting count-setting"><span>Levels<output id="countValue" for="count">120</output></span><input id="count" type="range" min="1" max="200" value="120" aria-label="Number of levels"></label>
+    <fieldset class="slider-group difficulty"><legend>Difficulty · 1 to 100</legend>
+      <label class="slider-setting"><span>From<output id="minDifficultyValue" for="minDifficulty">1</output></span><input id="minDifficulty" type="range" min="1" max="100" value="1" aria-label="Minimum difficulty"></label>
+      <label class="slider-setting"><span>To<output id="maxDifficultyValue" for="maxDifficulty">100</output></span><input id="maxDifficulty" type="range" min="1" max="100" value="100" aria-label="Maximum difficulty"></label>
+    </fieldset>
+    <fieldset class="slider-group board-size"><legend>Size · grid dimensions</legend>
+      <label class="slider-setting"><span>Width<output id="gridWidthValue" for="gridWidth">10</output></span><input id="gridWidth" type="range" min="4" max="24" value="10" aria-label="Grid width"></label>
+      <label class="slider-setting"><span>Height<output id="gridHeightValue" for="gridHeight">14</output></span><input id="gridHeight" type="range" min="4" max="24" value="14" aria-label="Grid height"></label>
+      <p id="gridSizeHint" class="settings-hint" hidden>Mirrors and springs need at least an 8 × 8 grid.</p>
+    </fieldset>
     <div class="feature-options"><label class="check"><input id="mirrors" type="checkbox"> Mirrors</label><label class="check"><input id="springs" type="checkbox"> Springs</label></div>
   </div>
   <div class="set-line"><span id="setSummary">120 tangles · square + hex</span><button id="share" class="quiet">Copy set link</button></div>
@@ -54,20 +61,22 @@
   <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
 </dialog>
 <script src="random.js?v=1"></script>
-<script src="levels.js?v=32"></script>
+<script src="levels.js?v=33"></script>
 <script src="mechanics.js?v=31"></script>
-<script src="twist-circuits.js?v=36"></script>
+<script src="twist-circuits.js?v=37"></script>
 <script src="twists.js?v=32"></script>
-<script src="hex/engine.js?v=7"></script>
-<script src="hex/mirrors.js?v=6"></script>
+<script src="hex/engine.js?v=8"></script>
+<script src="hex/mirrors.js?v=7"></script>
 <script src="difficulty.js?v=1"></script>
 <script src="journey.js?v=1"></script>
-<script src="game-engine.js?v=8"></script>
+<script src="grid-generator.js?v=1"></script>
+<script src="grid-journey.js?v=1"></script>
+<script src="game-engine.js?v=9"></script>
 <script src="rope-art.js?v=9"></script>
 <script src="music.js?v=32"></script>
 <script src="sounds.js?v=5"></script>
 <script src="audio.js?v=2"></script>
 <script src="input.js?v=2"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

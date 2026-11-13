@@ -35,7 +35,8 @@ test('sizes and counts are independent of the difficulty range and remain sharea
   for (let i = 0; i < 30; i++) assert.equal(G.spec(a, i).size, G.spec(b, i).size);
   assert.equal(G.code(G.parseCode('U1-H-1-1-1-S-FLIP0')), 'U1-H-1-1-1-S-FLIP0');
   assert.equal(G.code(G.parseCode('J1-MONKEYFIST')), 'J1-MONKEYFIST');
-  assert.equal(G.code(G.DEFAULT), 'J2-MONKEYFIST');
+  assert.equal(G.code(G.ROPE_DEFAULT), 'J2-MONKEYFIST');
+  assert.equal(G.code(G.DEFAULT), 'J3-MONKEYFIST');
   assert.equal(G.parseCode('U2-S-1-100-20-2-5-N-TEST'), null);
   assert.equal(G.normalize({ revision: 2, sizeMin: 150 }).sizeMax, 150);
 });
@@ -44,10 +45,10 @@ test('small, odd, and large counts all have safe solvable dependency paths', { t
     verify(G.generate({ revision: 2, grid, seed: 'ODDS', min: d, max: d, sizeMin: size, sizeMax: size, count: 1, mirrors: true, springs: true }), size);
   }
 });
-test('new Journey uses random sizes and is sorted by measured taps per rope, then rope count', { timeout: 180000 }, () => {
+test('legacy rope-count Journey uses random sizes and is sorted by measured taps per rope, then rope count', { timeout: 180000 }, () => {
   assert.equal(J.length, 120);
   for (let i = 0; i < 120; i++) {
-    const b = G.generate({ ...G.DEFAULT, index: i }); verify(b, J[i].size); assert.equal(b.par, J[i].par, 'metadata matches procedural replay');
+    const b = G.generate({ ...G.ROPE_DEFAULT, index: i }); verify(b, J[i].size); assert.equal(b.par, J[i].par, 'metadata matches procedural replay');
     if (i) { const prev = J[i - 1], next = J[i]; assert.ok(prev.par * next.size <= next.par * prev.size);
       if (prev.par * next.size === next.par * prev.size) assert.ok(prev.size <= next.size); }
   }

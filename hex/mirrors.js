@@ -176,7 +176,7 @@
     }
     return level;
   }
-  function populate(level, rng, stage, ropeCount) {
+  function populate(level, rng, stage, ropeCount, options = {}) {
     const core = level.ropes.length, occupied = new Set(level.ropes.flat().map(key)), tiles = new Set([...level.mirrors.map(m => key(m.cell)), ...level.springs.map(key)]);
     const cells = H.cells(level); let traced = trace(level, level.plan), followers = 0, early = 0;
     let paths = level.ropes; const approaches = [];
@@ -185,15 +185,16 @@
       if (move.event === 'bounce') approaches.push(...move.route.slice(paths[i].length));
       paths = move.paths;
     }
-    for (let attempt = 0; attempt < cells.length * 10 && (!ropeCount || level.ropes.length < ropeCount) && occupied.size < cells.length * .76; attempt++) {
+    for (let attempt = 0; attempt < cells.length * (options.attemptsMultiplier ?? 10) && (!ropeCount || level.ropes.length < ropeCount) && occupied.size < cells.length * (options.coverage ?? .76); attempt++) {
       const dir = Math.floor(rng() * 6), target = pick(rng, level.ropes.flat());
       const approach = approaches.length && (attempt < 100 || rng() < .5);
       const head = approach ? add(pick(rng, approaches), DIRS[dir]) : rng() < .8 ? add(target, DIRS[mod(dir + 3)]) : pick(rng, cells);
-      const path = strand(level, head, dir, occupied, tiles, rng, 5 + Math.floor(rng() * (8 + stage / 3)), approach ? 2 : 3); if (!path) continue;
+      const want = options.length == null ? 5 + Math.floor(rng() * (8 + stage / 3)) : Math.max(options.minLength || 2, Math.floor(options.length * (.5 + .5 * rng())));
+      const path = strand(level, head, dir, occupied, tiles, rng, want, options.minLength ?? (approach ? 2 : 3)); if (!path) continue;
       const deadline = Math.min(level.plan.length, ...path.map(p => traced.firstUse.get(key(p)) ?? level.plan.length));
       const i = level.ropes.length, variant = { ...level, ropes: level.ropes.concat([path]) }; let at = -1;
       for (let k = 0; k <= deadline; k++) if (tap(variant, traced.states[k].concat([path]), i)?.event === 'exit') { at = k; break; }
-      if (at < 0 || at === 0 && early >= Math.max(3, followers / 2)) continue;
+      if (at < 0 || !options.allowEarly && at === 0 && early >= Math.max(3, followers / 2)) continue;
       const plan = level.plan.slice(); plan.splice(at, 0, i); variant.plan = plan;
       const checked = trace(variant, plan); if (!checked?.solved) continue;
       if (at) followers++; else early++;

@@ -17,6 +17,9 @@ if (!save.gen) {
 const persist = () => { try { localStorage.setItem(STORAGE, JSON.stringify(save)); } catch { /* Play still works without storage. */ } };
 const params = new URLSearchParams(location.search);
 let opts = H.parseCode(params.get('set')) || H.parseCode(save.code) || { ...H.DEFAULT };
+// Replace the short-lived rope-count sets with the corrected grid-size controls.
+const gridCustom = input => H.normalize({ ...input, kind: 'custom', revision: 3 });
+if (opts.revision === 2) opts = opts.kind === 'journey' ? { ...H.DEFAULT } : gridCustom(opts);
 let draft = { ...opts };
 save.sets ||= {};
 if (save.gen !== H.VERSION) {
@@ -25,7 +28,8 @@ if (save.gen !== H.VERSION) {
 }
 save.chapters = Math.max(1, Math.min(12, Number(save.chapters) || 1));
 save.chapterSets ||= { 'J1-MONKEYFIST': save.chapters };
-const chaptersFor = options => options.revision === 2 ? save.chapterSets[H.code(options)] || 1 : save.chapters;
+save.chapterSets['J3-MONKEYFIST'] ??= save.chapterSets['J2-MONKEYFIST'] || 1;
+const chaptersFor = options => options.revision >= 2 ? save.chapterSets[H.code(options)] || 1 : save.chapters;
 save.sound = MFAudio.soundSetting(save.sound).id;
 const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
 if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
@@ -92,7 +96,7 @@ function requestFeatureCheck() {
   queueMicrotask(() => {
     if (request !== featureVersion) return;
     if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=10');
+    featureWorker = new Worker('generator-worker.js?v=11');
     featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
     featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
     featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
@@ -121,7 +125,7 @@ function weave(options) {
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    const worker = new Worker('generator-worker.js?v=10');
+    const worker = new Worker('generator-worker.js?v=11');
     pendingGeneration = () => { worker.terminate(); resolve(null); };
     worker.onmessage = ({ data }) => {
       worker.terminate(); pendingGeneration = null;
@@ -158,7 +162,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
     // Keep the optional main-thread fallback bounded much more tightly.
     setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
   } else {
-    guideWorker = new Worker('generator-worker.js?v=10');
+    guideWorker = new Worker('generator-worker.js?v=11');
     guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
     guideWorker.onerror = () => done({ solved: null, moves: [] });
     guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
@@ -311,7 +315,7 @@ function finish() {
   const previous = chaptersFor(opts);
   if (opts.kind === 'journey') {
     const opened = H.unlock(previous, G.index);
-    if (opts.revision === 2) save.chapterSets[H.code(opts)] = opened; else save.chapters = opened;
+    if (opts.revision >= 2) save.chapterSets[H.code(opts)] = opened; else save.chapters = opened;
   }
   persist();
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
@@ -778,11 +782,18 @@ function renderChooser() {
   $('journey').setAttribute('aria-pressed', journey); $('custom').setAttribute('aria-pressed', !journey); $('customSettings').hidden = journey;
   $('seed').value = draft.seed; $('count').value = draft.count; $('gridChoice').value = draft.grid;
   $('minDifficulty').value = draft.min; $('maxDifficulty').value = draft.max;
-  $('minSize').value = draft.sizeMin || 6; $('maxSize').value = draft.sizeMax || 40;
+  const minimumSize = draft.mirrors || draft.springs ? 8 : 4;
+  for (const id of ['gridWidth', 'gridHeight']) $(id).min = minimumSize;
+  $('gridWidth').value = draft.width || 10; $('gridHeight').value = draft.height || 14;
+  $('gridSizeHint').hidden = minimumSize === 4;
+  for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridHeight']) {
+    $(id + 'Value').value = $(id).value;
+    $(id).setAttribute('aria-valuetext', $(id).value + (id === 'gridWidth' ? ' columns' : id === 'gridHeight' ? ' rows' : id === 'count' ? ' levels' : ' out of 100'));
+  }
   $('mirrors').checked = draft.mirrors; $('springs').checked = draft.springs;
   $('share').textContent = 'Copy set link'; $('share').title = code;
-  $('setSummary').textContent = journey ? '120 tangles · square + hex' : draft.count + ' tangles · ' + ({ mixed: 'square + hex', square: 'square', hex: 'hex' }[draft.grid]);
-  $('unlockRule').textContent = journey ? 'Clear each group’s last level to open the next ten. Play any open level.' : 'Every level is open. Size sets the rope count; difficulty adds more unlocking taps per rope.';
+  $('setSummary').textContent = journey ? '120 tangles · square + hex' : draft.count + ' tangles · ' + draft.width + ' × ' + draft.height + ' · ' + ({ mixed: 'square + hex', square: 'square', hex: 'hex' }[draft.grid]);
+  $('unlockRule').textContent = journey ? 'Clear each group’s last level to open the next ten. Play any open level.' : 'Every level is open. Ropes fill the chosen grid; difficulty changes how much unlocking they need.';
   const scores = save.sets[code] || {}; $('grid').replaceChildren();
   for (let i = 0; i < draft.count; i++) {
     if (i % 10 === 0) {
@@ -798,20 +809,26 @@ function renderChooser() {
     button.onclick = () => { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }; $('grid').append(button);
   }
 }
-function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
-function settings() {
-  draft = H.parseCode($('seed').value) || H.normalize({ revision: 2, sizeMin: $('minSize').value, sizeMax: $('maxSize').value, seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value, min: $('minDifficulty').value, max: $('maxDifficulty').value, mirrors: $('mirrors').checked, springs: $('springs').checked });
+function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = opts.kind === 'custom' ? gridCustom(opts) : { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
+function settings(changed = '') {
+  let min = Number($('minDifficulty').value), max = Number($('maxDifficulty').value);
+  if (min > max) { if (changed === 'maxDifficulty') min = max; else max = min; }
+  const parsed = H.parseCode($('seed').value);
+  draft = parsed ? parsed.kind === 'journey' ? parsed.revision === 2 ? { ...H.DEFAULT } : parsed : gridCustom(parsed) :
+    H.normalize({ revision: 3, width: $('gridWidth').value, height: $('gridHeight').value, seed: $('seed').value, count: $('count').value, grid: $('gridChoice').value,
+      min, max, mirrors: $('mirrors').checked, springs: $('springs').checked });
   if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();
 }
 $('levels').onclick = chooser; $('resultLevels').onclick = chooser;
 $('closeLevels').onclick = () => { $('chooser').close(); syncMusic(); };
 $('journey').onclick = () => { draft = { ...H.DEFAULT }; renderChooser(); };
-$('custom').onclick = () => { const previous = draft.kind === 'custom' ? draft : save.custom; draft = H.normalize({ ...previous, revision: 2, seed: previous?.seed || 'MONKEYFIST', count: previous?.count || 120, grid: previous?.grid || 'mixed' }); renderChooser(); };
+$('custom').onclick = () => { const previous = draft.kind === 'custom' ? draft : save.custom; draft = gridCustom({ ...previous, seed: previous?.seed || 'MONKEYFIST', count: previous?.count || 120, grid: previous?.grid || 'mixed' }); renderChooser(); };
 $('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevels').click(); });
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);
 $('undo').onclick = undo; $('hint').onclick = hint; $('autoSolve').onclick = autoSolve;
-for (const id of ['seed', 'count', 'gridChoice', 'minDifficulty', 'maxDifficulty', 'minSize', 'maxSize', 'mirrors', 'springs']) $(id).onchange = settings;
+for (const id of ['seed', 'gridChoice', 'mirrors', 'springs']) $(id).onchange = () => settings(id);
+for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridHeight']) $(id).oninput = () => settings(id);
 $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
 $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };

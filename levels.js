@@ -1056,7 +1056,8 @@ const MFLevels = (() => {
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (const p of paths) for (const c of p) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
     let w = x1 - x0 + 1, h = y1 - y0 + 1;
-    const tall = h >= w;
+    if (cfg.keepBounds) { x0 = 0; y0 = 0; w = W; h = H; }
+    const tall = cfg.keepBounds || h >= w;
     const ropes = paths.map(p => p.map(c => (tall ? { x: c.x - x0, y: c.y - y0 } : { x: c.y - y0, y: c.x - x0 })));
     if (!tall) { const t = w; w = h; h = t; }
     if (!cfg.ropeCount && !goodEnough(ropes, w, h, costs, true)) return null;
