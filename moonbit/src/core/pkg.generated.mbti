@@ -1,0 +1,407 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "monkeyfist/mf/core"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const EV_BOUNCE : Int32 = 1
+
+pub const EV_EXIT : Int32 = 0
+
+pub const EV_SLIDE : Int32 = 2
+
+pub const GONE : Int32 = 32767
+
+pub fn all_gone(Array[Array[Pt]?]) -> Bool
+
+pub fn base36(UInt32) -> String
+
+pub fn bench_casual(Board, Int32) -> Double
+
+pub fn bench_par(Board) -> Int32
+
+pub fn bends_of(Array[Pt]) -> Int32
+
+pub fn contains(Array[Int32], Int32) -> Bool
+
+pub fn dmax(Double, Double) -> Double
+
+pub fn dmin(Double, Double) -> Double
+
+pub fn floor_div(Int32, Int32) -> Int32
+
+pub fn generate(SetOpts, Int32) -> Level?
+
+pub fn grid_generate(Spec) -> Level?
+
+pub let grid_version : Int32
+
+pub fn hash_string(String) -> UInt32
+
+pub fn head_dir(Array[Pt]) -> (Int32, Int32)
+
+pub fn hex_build(Rng, HexCfg) -> HexBuilt?
+
+pub fn hex_casual_wins(Int32, Int32, Array[Mirror], Array[Array[Pt]], Rng, Int32) -> Double
+
+pub fn hex_cell(Pt, Int32) -> Int32
+
+pub fn hex_compile(Int32, Int32, Array[Mirror], Array[Array[Pt]?]) -> HexBoard?
+
+pub fn hex_compile_exn(Int32, Int32, Array[Mirror], Array[Array[Pt]?]) -> HexBoard
+
+pub fn hex_dir_index(Int32, Int32) -> Int32
+
+pub let hex_dq : FixedArray[Int32]
+
+pub let hex_dr : FixedArray[Int32]
+
+pub fn hex_fewest_player_taps(Int32, Int32, Array[Mirror], Array[Array[Pt]], Array[Int32], Int32) -> Par
+
+pub fn hex_inside(Int32, Int32, Pt) -> Bool
+
+pub fn hex_mirrors(Int32, Int32, Array[Mirror]) -> SqMirrors
+
+pub fn hex_point(Int32, Int32) -> Pt
+
+pub fn hex_postpone_exits(Int32, Int32, Array[Mirror], Array[Array[Pt]], Array[Int32]) -> Array[Int32]?
+
+pub fn hex_reflect(Int32, Int32) -> Int32
+
+pub fn hex_replay(Int32, Int32, Array[Mirror], Array[Int32], Array[Array[Pt]?]) -> Replayed
+
+pub fn hex_solve(Int32, Int32, Array[Mirror], Array[Array[Pt]?], Int32, Array[Int32]) -> Solved
+
+pub fn hex_turning(Int32, Int32, Array[Mirror], Array[Array[Pt]]) -> Array[Int32]
+
+pub fn imax(Int32, Int32) -> Int32
+
+pub fn imin(Int32, Int32) -> Int32
+
+pub fn index_from(Array[Int32], Int32, Int32) -> Int32
+
+pub fn interaction(Board, Geo, Array[Int32], Int32) -> Double
+
+pub let journey : FixedArray[Spec]
+
+pub let journey_opts : SetOpts
+
+pub fn js_round(Double) -> Int32
+
+pub fn key_of(FixedArray[Int32]) -> String
+
+pub fn knots_for(Double) -> Int32
+
+pub fn knots_wanted(Double) -> Int32
+
+pub fn last(Array[Pt]) -> Pt
+
+pub fn layout_key(Board) -> String
+
+pub fn level_spec(SetOpts, Int32) -> Spec
+
+pub fn mulberry32(Int32) -> Rng
+
+pub fn parse_code(String) -> SetOpts?
+
+pub fn ray_cells(Int32, Int32, Int32, Int32, Int32, Int32, SqMirrors, Array[Int32]) -> Bool
+
+pub fn rng_of(String) -> Rng
+
+pub fn self_blocked(Array[Pt], Int32, Int32, SqMirrors) -> Bool
+
+pub fn set_code(SetOpts) -> String
+
+pub fn slice(Array[Pt], Int32, Int32) -> Array[Pt]
+
+pub fn some_paths(Array[Array[Pt]]) -> Array[Array[Pt]?]
+
+pub fn sq_board(Array[Array[Pt]?], Int32, Int32, SqMirrors) -> SqBoard?
+
+pub fn sq_board_exn(Array[Array[Pt]?], Int32, Int32, SqMirrors) -> SqBoard
+
+pub fn sq_casual_wins(Array[Array[Pt]?], Int32, Int32, Rng, Int32, SqMirrors) -> Double
+
+pub let sq_dx : FixedArray[Int32]
+
+pub let sq_dy : FixedArray[Int32]
+
+pub fn sq_fewest_player_taps(Array[Array[Pt]?], Int32, Int32, Array[Int32], Int32, SqMirrors) -> Par?
+
+pub fn sq_free(Array[Array[Pt]?], Int32, Int32, SqMirrors) -> Bool
+
+pub fn sq_frozen(Array[Array[Pt]?], Int32, Int32, SqMirrors) -> Array[Int32]
+
+pub fn sq_looped(SqBoard) -> FixedArray[Bool]
+
+pub fn sq_play(Array[Array[Pt]?], Int32, Int32, Array[Int32], SqMirrors) -> Array[Array[Pt]?]
+
+pub fn sq_player_taps(Array[Array[Pt]?], Int32, Int32, Array[Int32], SqMirrors) -> Int32?
+
+pub fn sq_postpone_exits(Array[Array[Pt]?], Int32, Int32, Array[Int32], SqMirrors) -> Array[Int32]?
+
+pub fn sq_replay(Array[Array[Pt]?], Int32, Int32, Array[Int32], SqMirrors) -> Replayed
+
+pub fn sq_solve(Array[Array[Pt]?], Int32, Int32, Int32, Array[Int32], SqMirrors) -> Solved
+
+pub fn sq_tracks(Array[Array[Pt]?], Int32, Int32, SqMirrors) -> Array[FixedArray[Int32]]?
+
+pub fn[T] ssort(Array[T], (T, T) -> Int32) -> Unit
+
+pub let styles : FixedArray[Style]
+
+pub fn target_challenge(Double) -> Double
+
+pub fn to_fixed(Double, Int32) -> Double
+
+pub fn unique(Array[Int32]) -> Array[Int32]
+
+pub fn weave(Rng, WeaveCfg) -> Woven?
+
+pub fn win_ceiling(Double) -> Double
+
+// Errors
+
+// Types and methods
+pub(all) struct Board {
+  hex : Bool
+  w : Int32
+  h : Int32
+  ropes : Array[Array[Pt]]
+  mirrors : Array[Mirror]
+  springs : Array[Pt]
+  mut plan : Array[Int32]
+}
+pub fn Board::all_free(Self, Geo, Array[Array[Pt]?]) -> Bool
+pub fn Board::frozen(Self, Geo, Array[Array[Pt]?]) -> Array[Int32]
+pub fn Board::geo(Self) -> Geo
+pub fn Board::minimum_taps(Self, Geo, Array[Int32], Int32) -> Par
+pub fn Board::replay(Self, Geo, Array[Int32], Array[Array[Pt]?]) -> Replayed
+pub fn Board::replay_plan(Self, Geo, Array[Int32]) -> Replayed
+pub fn Board::solve(Self, Geo, Array[Array[Pt]?], Int32, Array[Int32]) -> Solved
+pub fn Board::tracked(Self, Geo) -> Bool
+pub fn Board::with_plan(Self, Array[Int32]) -> Self
+pub fn Board::with_springs(Self, Array[Pt], Array[Int32]) -> Self
+
+type Cand
+
+pub(all) struct Geo {
+  hex : Bool
+  w : Int32
+  h : Int32
+  mirror : FixedArray[Int32]
+  spring : FixedArray[Bool]
+  nmirrors : Int32
+  nsprings : Int32
+  occ : FixedArray[Int32]
+  mut stamp : Int32
+  mut tracked : Int32
+  sqm : SqMirrors
+}
+pub fn Geo::all_free_full(Self, Array[Array[Pt]?]) -> Bool
+pub fn Geo::cell(Self, Pt) -> Int32
+pub fn Geo::direction(Self, Array[Pt]) -> (Int32, Int32)
+pub fn Geo::inside(Self, Pt) -> Bool
+pub fn Geo::new(Board) -> Self
+pub fn Geo::tap(Self, Array[Array[Pt]?], Int32) -> Move?
+
+pub(all) struct HexBoard {
+  w : Int32
+  n : Int32
+  tracks : Array[FixedArray[Int32]]
+  lengths : FixedArray[Int32]
+  offsets : FixedArray[Int32]
+  occupied : FixedArray[Int32]
+  at : FixedArray[Int32]
+  reach : FixedArray[Int32]
+  mut left : Int32
+}
+pub fn HexBoard::dead(Self) -> Bool
+pub fn HexBoard::free(Self) -> Bool
+pub fn HexBoard::frozen(Self) -> Array[Int32]
+pub fn HexBoard::paths(Self) -> Array[Array[Pt]?]
+pub fn HexBoard::place(Self, Int32, Int32) -> Unit
+pub fn HexBoard::to(Self, Int32) -> Int32
+
+pub(all) struct HexBuilt {
+  ropes : Array[Array[Pt]]
+  plan : Array[Int32]
+}
+
+pub(all) struct HexCfg {
+  w : Int32
+  h : Int32
+  stage : Int32
+  coverage : Double
+  length : Int32
+  tap_depth : Double
+  mirrors : Array[Mirror]
+  knots : Int32
+  traps : Int32
+  initial_ropes : Array[Array[Pt]]
+  initial_stops : Array[Array[Int32]]
+  initial_plan : Array[Int32]?
+}
+
+type HexIntent
+
+type HexShape
+
+type Intentions
+
+type Lane
+
+pub(all) struct Level {
+  board : Board
+  par : Int32
+  exact : Bool
+  coverage : Double
+  wins : Double
+  challenge : Double
+  layout_key : String
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Mirror {
+  cell : Pt
+  kind : Int32
+}
+
+pub(all) struct Move {
+  paths : Array[Array[Pt]?]
+  event : Int32
+  distance : Int32
+  route : Array[Pt]
+}
+
+pub(all) struct Par {
+  plan : Array[Int32]
+  par : Int32
+  exact : Bool
+}
+
+#derive(Eq, Hash, @debug.Debug)
+pub(all) struct Pt {
+  q : Int32
+  r : Int32
+}
+
+pub(all) struct Replayed {
+  solved : Bool
+  taps : Int32
+  events : Array[Int32]
+  paths : Array[Array[Pt]?]
+}
+
+pub(all) struct Rng {
+  mut a : Int32
+}
+pub fn Rng::below(Self, Int32) -> Int32
+pub fn Rng::next(Self) -> Double
+
+pub(all) struct SetOpts {
+  journey : Bool
+  grid : Char
+  min : Int32
+  max : Int32
+  w : Int32
+  h : Int32
+  count : Int32
+  mirrors : Bool
+  springs : Bool
+  colossal : Bool
+  seed : String
+}
+
+type Shaped
+
+pub(all) struct Solved {
+  solved : Bool?
+  moves : Array[Int32]
+  nodes : Int32
+}
+
+pub(all) struct Spec {
+  hex : Bool
+  w : Int32
+  h : Int32
+  difficulty : Double
+  mirrors : Bool
+  springs : Bool
+  seed : String
+  require_slide : Bool
+  min_mirrors : Int32
+  min_springs : Int32
+  colossal : Bool
+}
+
+type Spot
+
+pub(all) struct SqBoard {
+  mut n : Int32
+  mut left : Int32
+  occ : FixedArray[Int32]
+  at : FixedArray[Int32]
+  seq : Array[FixedArray[Int32]]
+  len : FixedArray[Int32]
+  off : FixedArray[Int32]
+  was : FixedArray[Int32]
+  now : FixedArray[Int32]
+}
+pub fn SqBoard::all_free(Self) -> Bool
+pub fn SqBoard::paths(Self, Int32) -> Array[Array[Pt]?]
+pub fn SqBoard::place(Self, Int32, Int32) -> Unit
+pub fn SqBoard::relax(Self) -> Int32
+pub fn SqBoard::slide_to(Self, Int32) -> Int32
+
+pub(all) struct SqMirrors {
+  slope : FixedArray[Int32]
+  keys : Array[Int32]
+}
+pub fn SqMirrors::empty() -> Self
+pub fn SqMirrors::get(Self, Int32) -> Int32
+pub fn SqMirrors::has(Self, Int32) -> Bool
+pub fn SqMirrors::of_board(Board) -> Self
+pub fn SqMirrors::set(Self, Int32, Int32) -> Unit
+pub fn SqMirrors::size(Self) -> Int32
+
+pub(all) struct Style {
+  name : String
+  min_len : Int32
+  straight : Double
+  len_lo : Int32
+  twisty : Bool
+}
+pub fn Style::len_hi(Self, Int32) -> Int32
+
+pub(all) struct WeaveCfg {
+  w : Int32
+  h : Int32
+  len_lo : Int32
+  len_hi : Int32
+  min_len : Int32
+  straight : Double
+  cover : Double
+  tap_depth : Double
+  tie : Int32
+  bait : Int32
+  pull : Int32
+  mirrors : SqMirrors
+  initial_ropes : Array[Array[Pt]]
+  initial_stops : Array[Array[Int32]]
+  initial_plan : Array[Int32]?
+}
+
+pub(all) struct Woven {
+  ropes : Array[Array[Pt]]
+  taps : Array[Int32]
+  knots : Int32
+  traps : Int32
+}
+
+// Type aliases
+pub type Path = Array[Pt]
+
+// Traits

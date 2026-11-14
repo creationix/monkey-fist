@@ -1,0 +1,4 @@
+warnings = "-79-4-7"
+import {
+  "moonbitlang/core/math",
+}
