@@ -62,6 +62,19 @@ function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
 }
+// Workers can exist and still fail to load or start (some older iPads). After the
+// first such failure, every background job runs on the main thread instead.
+let workersWork = typeof Worker !== 'undefined';
+const WORKER = 'generator-worker.js?v=21';
+function startWorker(message, receive, fallback) {
+  if (workersWork) try {
+    const worker = new Worker(WORKER);
+    worker.onmessage = ({ data }) => { if (!data?.ready) receive(data); };
+    worker.onerror = event => { event.preventDefault?.(); worker.terminate(); workersWork = false; fallback(); };
+    worker.postMessage(message); return worker;
+  } catch { workersWork = false; }
+  fallback(); return null;
+}
 let featureVersion = 0, featureWorker = null;
 const featureKeys = level => [...(level?.mirrors || []).map(m => springKey(m.cell)), ...(level?.springs || []).map(springKey)];
 function cancelFeatureCheck() { featureVersion++; featureWorker?.terminate(); featureWorker = null; }
@@ -83,11 +96,9 @@ function requestFeatureCheck() {
   // Coalesce rapid taps and auto-solve's entire queue into one background check.
   queueMicrotask(() => {
     if (request !== featureVersion) return;
-    if (typeof Worker === 'undefined') { done(H.reachableFeatures(level, paths, 500)); return; }
-    featureWorker = new Worker('generator-worker.js?v=20');
-    featureWorker.onmessage = ({ data }) => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } };
-    featureWorker.onerror = () => { if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }; // Keep uncertain features visible.
-    featureWorker.postMessage({ type: 'features', level, paths, budget: 10000 });
+    featureWorker = startWorker({ type: 'features', level, paths, budget: 10000 },
+      data => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }, // Keep uncertain features visible.
+      () => { if (request === featureVersion) done(H.reachableFeatures(level, paths, 500)); });
   });
 }
 function updateFeatureVisibility(dt) {
@@ -112,10 +123,9 @@ function weave(options) {
   const key = H.code(options) + '/' + options.index;
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
-    if (typeof Worker === 'undefined') { setTimeout(() => { try { resolve(H.generate(options)); } catch (e) { reject(e); } }, 0); return; }
-    let worker = null, retryTimer = null, attempts = 0, settled = false;
+    let worker = null, retryTimer = null, startTimer = null, attempts = 0, settled = false;
     const cleanup = () => {
-      clearTimeout(retryTimer); retryTimer = null;
+      clearTimeout(retryTimer); clearTimeout(startTimer); retryTimer = startTimer = null;
       if (worker) { worker.onmessage = worker.onerror = null; worker.terminate(); worker = null; }
     };
     const finish = (level, error) => {
@@ -127,35 +137,44 @@ function weave(options) {
     };
     const cancel = () => finish(null);
     pendingGeneration = cancel;
-    const failed = error => {
+    // Generate on the main thread: for every later board too if workers do not load.
+    const local = broken => {
+      cleanup(); if (broken) workersWork = false;
+      retryTimer = setTimeout(() => { if (settled) return; try { finish(H.generate(options)); } catch (e) { finish(null, e); } }, 0);
+    };
+    const failed = broken => {
       if (settled) return;
       cleanup();
-      if (attempts < 2) {
-        // A deploy or a brief asset load failure must not strand an otherwise
-        // valid seed. A fresh worker also reloads its dependency graph.
-        retryTimer = setTimeout(run, 180);
-      } else finish(null, error);
+      // A deploy or a brief asset load failure must not strand an otherwise
+      // valid seed. A fresh worker also reloads its dependency graph. A worker
+      // that keeps failing is replaced by the main thread, which reports any
+      // error the generator itself raises.
+      if (attempts < 2) retryTimer = setTimeout(run, 180);
+      else local(broken);
     };
     const run = () => {
       if (settled) return;
       retryTimer = null; attempts++;
       try {
-        const url = 'generator-worker.js?v=20' + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
+        const url = WORKER + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
+        // A worker that never starts (no ready message) is not retried.
+        startTimer = setTimeout(() => { if (!settled && worker === current) local(true); }, 10000);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
-          if (data?.error) { failed(Error(data.error)); return; }
-          if (!Array.isArray(data?.level?.ropes) || !Array.isArray(data.level.plan)) { failed(Error('Incomplete generator response')); return; }
+          if (data?.ready) { clearTimeout(startTimer); startTimer = null; return; }
+          if (data?.error) { failed(); return; }
+          if (!Array.isArray(data?.level?.ropes) || !Array.isArray(data.level.plan)) { failed(); return; }
           finish(data.level);
         };
         current.onerror = event => {
           if (settled || worker !== current) return;
-          event.preventDefault?.(); failed(Error(event.message || 'Could not load the generator worker'));
+          event.preventDefault?.(); failed(true);
         };
         current.postMessage(options);
-      } catch (error) { failed(error); }
+      } catch { failed(true); }
     };
-    run();
+    if (workersWork) run(); else local(true);
   });
 }
 
@@ -180,15 +199,9 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
       if (G.plan.length) hint(); else notice(G.lost ? 'Knotted. Try undo.' : 'No route found yet. Try undo.');
     }
   };
-  if (typeof Worker === 'undefined') {
-    // Keep the optional main-thread fallback bounded much more tightly.
-    setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0);
-  } else {
-    guideWorker = new Worker('generator-worker.js?v=20');
-    guideWorker.onmessage = ({ data }) => done(data.solution || { solved: null, moves: [] });
-    guideWorker.onerror = () => done({ solved: null, moves: [] });
-    guideWorker.postMessage({ type: 'guide', level, paths, prefer, budget });
-  }
+  // Keep the main-thread fallback bounded much more tightly.
+  guideWorker = startWorker({ type: 'guide', level, paths, prefer, budget }, data => done(data.solution || { solved: null, moves: [] }),
+    () => setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0));
 }
 async function start(index) {
   document.body.classList.remove('auto-solving'); cancelFeatureCheck();
@@ -207,7 +220,7 @@ async function start(index) {
   } catch (error) {
     if (request !== generation) return;
     console.error('Could not load Monkey Fist level', { set: H.code(opts), level: G.index + 1 }, error);
-    G.loading = false; hud(); notice('Couldn’t weave this board. Restart or try another seed.');
+    G.loading = false; hud(); notice('Couldn’t weave this board (' + error.message + '). Restart or try another seed.');
   }
 }
 function hud() {
