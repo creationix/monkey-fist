@@ -3,10 +3,10 @@ const fs = require('node:fs'), vm = require('node:vm');
 const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const weaveSource = source.slice(source.indexOf('function weave(options) {'), source.indexOf('\nlet guideVersion'));
 const level = { W: 4, H: 5, ropes: [[{q:0,r:0},{q:1,r:0}]], plan: [0] };
-function harness(behavior) {
-  const calls = [], context = {setTimeout,clearTimeout,Date,Array,Error,Promise,
-    H:{code:()=> 'J3-MONKEYFIST',generate:()=>{throw Error('Unexpected main-thread fallback')}},
-    levelCache:new Map(),pendingGeneration:null};
+function harness(behavior, generate = () => { throw Error('Unexpected main-thread fallback'); }) {
+  const calls = [], local = [], context = {setTimeout,clearTimeout,Date,Array,Error,Promise,
+    H:{code:()=> 'J3-MONKEYFIST',generate:options=>{local.push(options);return generate(options);}},
+    levelCache:new Map(),pendingGeneration:null,workersWork:true,WORKER:'generator-worker.js?v=21',local};
   context.Worker = class {
     constructor(url) {this.url=url;this.terminated=false;calls.push(this);behavior(this,calls.length,'construct');}
     postMessage(data) {this.data=data;behavior(this,calls.length,'post');}
@@ -38,10 +38,21 @@ test('cancellation during retry delay resolves quietly and never creates the sta
   assert.equal(await pending,null);await new Promise(resolve=>setTimeout(resolve,220));
   assert.equal(calls.length,1);assert.equal(context.pendingGeneration,null);assert.equal(context.levelCache.size,0);
 });
-test('deterministic errors stop after two attempts without poisoning the cache',async()=>{
-  const {context,calls}=harness((worker,attempt,stage)=>{if(stage==='post')setTimeout(()=>worker.onmessage?.({data:{error:'Unsatisfiable seed'}}),0)});
+test('deterministic errors stop after two worker attempts and one main-thread attempt without poisoning the cache',async()=>{
+  const {context,calls}=harness((worker,attempt,stage)=>{if(stage==='post')setTimeout(()=>worker.onmessage?.({data:{error:'Unsatisfiable seed'}}),0)},()=>{throw Error('Unsatisfiable seed')});
   await assert.rejects(context.weave({index:10}),/Unsatisfiable seed/);
-  assert.equal(calls.length,2);assert.equal(context.levelCache.size,0);assert.equal(context.pendingGeneration,null);
+  assert.equal(calls.length,2);assert.equal(context.local.length,1);assert.equal(context.levelCache.size,0);assert.equal(context.pendingGeneration,null);
+  assert.equal(context.workersWork,true,'a generator error does not disable workers');
+});
+for(const failure of ['load','construct']) test(`workers that keep failing to ${failure} fall back to the main thread, and later boards skip them`,async()=>{
+  const {context,calls}=harness((worker,attempt,stage)=>{
+    if(stage==='construct'&&failure==='construct')throw Error('Worker blocked');
+    if(stage==='post'&&failure==='load')setTimeout(()=>worker.onerror?.({message:'Failed import',preventDefault(){}}),0);
+  },()=>level);
+  assert.equal(await context.weave({index:10}),level);
+  assert.equal(calls.length,2);assert.equal(context.local.length,1);assert.equal(context.workersWork,false);
+  assert.equal(await context.weave({index:11}),level);
+  assert.equal(calls.length,2,'no new worker once workers failed');assert.equal(context.local.length,2);
 });
 test('service worker falls back to cached assets on 5xx, but preserves 404 and uncached server errors',async()=>{
   const handlers={},cacheHit={cached:true}; let response,hit;

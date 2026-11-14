@@ -1,6 +1,6 @@
 {
   "note": "Written by node scripts/code-metrics.cjs --update: current game code plus 2% headroom.",
   "gameTokens": 67814,
-  "gameDecisions": 2144,
+  "gameDecisions": 2145,
   "largestFunctionDecisions": 78
 }
