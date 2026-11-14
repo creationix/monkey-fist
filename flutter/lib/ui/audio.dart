@@ -64,6 +64,7 @@ class SfxPlayer {
 
   /// Render the common clips ahead of the first tap.
   Future<void> warmUp() async {
+    if (!enabled) return;
     await _init();
     for (final k in [Sfx.activate, Sfx.slide, Sfx.thud, Sfx.blocked, Sfx.pop, Sfx.reflect, Sfx.spring]) {
       await _file(k, 1);

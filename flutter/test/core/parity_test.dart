@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 // The Dart core must regenerate every Journey level and the custom sample exactly
 // as the JS reference: same layoutKey, par and rope count (and plan/exact for the
 // custom sample). Expected values: scripts/grid-journey-measurements.json (via

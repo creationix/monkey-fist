@@ -23,6 +23,9 @@ class Geo {
   final List<int> occ;
   int stamp = 0;
   int tracked = -1;
+  // Visited cells (Hex) or cell-and-direction states (square) of the current tap.
+  final List<int> _seen;
+  int _seenStamp = 0;
   final SqMirrors sqm;
 
   Geo(Board b)
@@ -34,6 +37,7 @@ class Geo {
         nmirrors = b.mirrors.length,
         nsprings = b.springs.length,
         occ = List<int>.filled(b.w * b.h, 0),
+        _seen = List<int>.filled(b.w * b.h * 9, 0),
         sqm = b.hex ? SqMirrors.empty() : SqMirrors.ofBoard(b) {
     for (final m in b.mirrors) {
       mirror[cell(m.cell)] = m.kind;
@@ -42,6 +46,8 @@ class Geo {
       spring[cell(p)] = true;
     }
   }
+
+  int _nextSeen() => ++_seenStamp;
 
   int cell(Pt p) => hex ? hexCell(p, w) : p.r * w + p.q;
 
@@ -89,7 +95,7 @@ class Geo {
     var p = lastPt(path);
     var distance = 0;
     if (hex) {
-      final seen = <int>[];
+      final seen = _nextSeen();
       var d = hexDirIndex(dq, dr);
       while (true) {
         final next = Pt(p.q + hexDq[d], p.r + hexDr[d]);
@@ -109,8 +115,8 @@ class Geo {
           final back = _tail(route, path.length).reversed.toList();
           return Move(_replace(paths, i, back), evBounce, distance, route);
         }
-        if (containsInt(seen, c)) return null;
-        seen.add(c);
+        if (_seen[c] == seen) return null;
+        _seen[c] = seen;
         p = next;
         route.add(p);
         distance++;
@@ -120,12 +126,12 @@ class Geo {
       if (distance == 0) return null;
       return Move(_replace(paths, i, _tail(route, path.length)), evSlide, distance, route);
     }
-    final seen = <int>[];
+    final seen = _nextSeen();
     var event = evSlide;
     while (true) {
       final state = ((p.r * w + p.q) * 3 + dq + 1) * 3 + dr + 1;
-      if (containsInt(seen, state)) return null;
-      seen.add(state);
+      if (_seen[state] == seen) return null;
+      _seen[state] = seen;
       final nq = p.q + dq, nr = p.r + dr;
       if (nq < 0 || nr < 0 || nq >= w || nr >= h) {
         event = evExit;

@@ -244,32 +244,40 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
             tooltip: 'Levels',
             icon: const Icon(Icons.grid_view_rounded, color: kText),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          _pill(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('JOURNEY · ${index ~/ 10 + 1} / 12',
-                    style: const TextStyle(fontSize: 10, letterSpacing: 1.2, color: kMuted, fontWeight: FontWeight.w600)),
-                Text('Level ${index + 1}${hex ? ' · Hex' : ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
-              ],
+          Flexible(
+            child: _pill(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('JOURNEY · ${index ~/ 10 + 1} / 12',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10, letterSpacing: 1.2, color: kMuted, fontWeight: FontWeight.w600)),
+                  Text('Level ${index + 1}${hex ? ' · Hex' : ''}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           if (g != null && !(g.usedAuto && !g.ended))
             _pill(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text.rich(TextSpan(children: [
-                    TextSpan(text: '${g.taps}', style: const TextStyle(fontWeight: FontWeight.w800, color: kAccent)),
-                    TextSpan(text: ' taps · par ${g.par}', style: const TextStyle(color: kText)),
-                  ])),
+                  Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: '${g.taps}', style: const TextStyle(fontWeight: FontWeight.w800, color: kAccent)),
+                        TextSpan(text: ' taps · par ${g.par}', style: const TextStyle(color: kText)),
+                      ]),
+                      maxLines: 1),
                   Text(g.lost ? 'Knotted' : '${g.ropesLeft} ${g.ropesLeft == 1 ? 'rope' : 'ropes'} left',
                       style: const TextStyle(fontSize: 11, color: kMuted)),
                 ],
