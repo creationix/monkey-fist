@@ -1,0 +1,314 @@
+{
+ "JS core replaced (9e69e3a)": {
+  "files": 8,
+  "lines": 2313,
+  "code": 1918,
+  "tokens": 36666,
+  "functions": 426,
+  "decisions": 1296,
+  "perFile": [
+   {
+    "file": "random.js",
+    "lines": 23,
+    "code": 20,
+    "tokens": 265,
+    "functions": 5,
+    "decisions": 5
+   },
+   {
+    "file": "levels.js",
+    "lines": 1005,
+    "code": 754,
+    "tokens": 13436,
+    "functions": 120,
+    "decisions": 523
+   },
+   {
+    "file": "mechanics.js",
+    "lines": 122,
+    "code": 118,
+    "tokens": 1718,
+    "functions": 22,
+    "decisions": 67
+   },
+   {
+    "file": "hex/engine.js",
+    "lines": 364,
+    "code": 332,
+    "tokens": 6922,
+    "functions": 82,
+    "decisions": 241
+   },
+   {
+    "file": "hex/mechanics.js",
+    "lines": 86,
+    "code": 77,
+    "tokens": 1187,
+    "functions": 18,
+    "decisions": 40
+   },
+   {
+    "file": "grid-generator.js",
+    "lines": 381,
+    "code": 324,
+    "tokens": 7041,
+    "functions": 87,
+    "decisions": 241
+   },
+   {
+    "file": "dependency-metrics.js",
+    "lines": 120,
+    "code": 108,
+    "tokens": 2530,
+    "functions": 45,
+    "decisions": 64
+   },
+   {
+    "file": "game-engine.js",
+    "lines": 212,
+    "code": 185,
+    "tokens": 3567,
+    "functions": 47,
+    "decisions": 115
+   }
+  ]
+ },
+ "MoonBit core (src/core, excl. journey table)": {
+  "files": 9,
+  "lines": 5898,
+  "code": 5345,
+  "tokens": 35382,
+  "functions": 262,
+  "decisions": 1286,
+  "perFile": [
+   {
+    "file": "src/core/engine.mbt",
+    "lines": 213,
+    "code": 191,
+    "tokens": 1187,
+    "functions": 7,
+    "decisions": 58
+   },
+   {
+    "file": "src/core/gridgen.mbt",
+    "lines": 1060,
+    "code": 996,
+    "tokens": 7061,
+    "functions": 42,
+    "decisions": 258
+   },
+   {
+    "file": "src/core/hex.mbt",
+    "lines": 1239,
+    "code": 1150,
+    "tokens": 7426,
+    "functions": 54,
+    "decisions": 265
+   },
+   {
+    "file": "src/core/mech.mbt",
+    "lines": 613,
+    "code": 555,
+    "tokens": 3520,
+    "functions": 25,
+    "decisions": 117
+   },
+   {
+    "file": "src/core/metrics.mbt",
+    "lines": 311,
+    "code": 291,
+    "tokens": 2062,
+    "functions": 18,
+    "decisions": 73
+   },
+   {
+    "file": "src/core/random.mbt",
+    "lines": 156,
+    "code": 105,
+    "tokens": 691,
+    "functions": 18,
+    "decisions": 12
+   },
+   {
+    "file": "src/core/square.mbt",
+    "lines": 949,
+    "code": 828,
+    "tokens": 5321,
+    "functions": 43,
+    "decisions": 178
+   },
+   {
+    "file": "src/core/types.mbt",
+    "lines": 71,
+    "code": 47,
+    "tokens": 282,
+    "functions": 7,
+    "decisions": 2
+   },
+   {
+    "file": "src/core/weave.mbt",
+    "lines": 1286,
+    "code": 1182,
+    "tokens": 7832,
+    "functions": 48,
+    "decisions": 323
+   }
+  ]
+ },
+ "JS Journey table (grid-journey.js)": {
+  "files": 1,
+  "lines": 125,
+  "code": 122,
+  "tokens": 4193,
+  "functions": 1,
+  "decisions": 2,
+  "perFile": [
+   {
+    "file": "grid-journey.js",
+    "lines": 125,
+    "code": 122,
+    "tokens": 4193,
+    "functions": 1,
+    "decisions": 2
+   }
+  ]
+ },
+ "MoonBit Journey table (journey.mbt)": {
+  "files": 1,
+  "lines": 1566,
+  "code": 1562,
+  "tokens": 5651,
+  "functions": 0,
+  "decisions": 0,
+  "perFile": [
+   {
+    "file": "src/core/journey.mbt",
+    "lines": 1566,
+    "code": 1562,
+    "tokens": 5651,
+    "functions": 0,
+    "decisions": 0
+   }
+  ]
+ },
+ "JS app layer (app.js, input.js, rope-art.js, audio.js, sounds.js, music.js)": {
+  "files": 6,
+  "lines": 1647,
+  "code": 1525,
+  "tokens": 30443,
+  "functions": 283,
+  "decisions": 832,
+  "perFile": [
+   {
+    "file": "app.js",
+    "lines": 903,
+    "code": 857,
+    "tokens": 17752,
+    "functions": 176,
+    "decisions": 516
+   },
+   {
+    "file": "input.js",
+    "lines": 74,
+    "code": 68,
+    "tokens": 1443,
+    "functions": 14,
+    "decisions": 57
+   },
+   {
+    "file": "rope-art.js",
+    "lines": 182,
+    "code": 169,
+    "tokens": 4175,
+    "functions": 29,
+    "decisions": 66
+   },
+   {
+    "file": "audio.js",
+    "lines": 65,
+    "code": 56,
+    "tokens": 896,
+    "functions": 19,
+    "decisions": 21
+   },
+   {
+    "file": "sounds.js",
+    "lines": 144,
+    "code": 130,
+    "tokens": 2326,
+    "functions": 13,
+    "decisions": 47
+   },
+   {
+    "file": "music.js",
+    "lines": 279,
+    "code": 245,
+    "tokens": 3851,
+    "functions": 32,
+    "decisions": 125
+   }
+  ]
+ },
+ "MoonBit game layer (src/game)": {
+  "files": 1,
+  "lines": 1219,
+  "code": 1065,
+  "tokens": 7405,
+  "functions": 47,
+  "decisions": 234,
+  "perFile": [
+   {
+    "file": "src/game/game.mbt",
+    "lines": 1219,
+    "code": 1065,
+    "tokens": 7405,
+    "functions": 47,
+    "decisions": 234
+   }
+  ]
+ },
+ "MoonBit export surface (src/api)": {
+  "files": 1,
+  "lines": 235,
+  "code": 161,
+  "tokens": 1061,
+  "functions": 26,
+  "decisions": 16,
+  "perFile": [
+   {
+    "file": "src/api/api.mbt",
+    "lines": 235,
+    "code": 161,
+    "tokens": 1061,
+    "functions": 26,
+    "decisions": 16
+   }
+  ]
+ },
+ "JS glue kept (web/game.js, web/mf-core.js)": {
+  "files": 2,
+  "lines": 199,
+  "code": 176,
+  "tokens": 3911,
+  "functions": 54,
+  "decisions": 63,
+  "perFile": [
+   {
+    "file": "web/game.js",
+    "lines": 169,
+    "code": 150,
+    "tokens": 3377,
+    "functions": 38,
+    "decisions": 57
+   },
+   {
+    "file": "web/mf-core.js",
+    "lines": 30,
+    "code": 26,
+    "tokens": 534,
+    "functions": 16,
+    "decisions": 6
+   }
+  ]
+ }
+}

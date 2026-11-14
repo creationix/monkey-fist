@@ -49,19 +49,8 @@ pub fn rng_of(s : String) -> Rng {
 
 ///|
 /// Number.prototype.toString(36) for an unsigned 32-bit value.
-pub fn base36(u : UInt32) -> String {
-  let digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-  if u == 0 {
-    return "0"
-  }
-  let out : Array[Char] = []
-  let mut v = u
-  while v > 0 {
-    out.push(digits.get_char((v % 36).reinterpret_as_int()).unwrap())
-    v = v / 36
-  }
-  out.rev_in_place()
-  String::from_array(out)
+pub fn base36(u : UInt) -> String {
+  u.to_string(radix=36)
 }
 
 ///|
