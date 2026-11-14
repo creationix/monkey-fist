@@ -137,6 +137,17 @@ Level? generate(SetOpts o, int index) {
   return l;
 }
 
+/// game-engine.js available(): how many Journey levels are open.
+int journeyAvailable(int chapters) => (chapters.clamp(1, 12)) * 10;
+
+/// game-engine.js unlock(): clearing the last level of an open group opens the next ten.
+int journeyUnlock(int chapters, int index) {
+  if (index % 10 != 9) return chapters;
+  final next = index ~/ 10 + 2;
+  final best = chapters > next ? chapters : next;
+  return best > 12 ? 12 : best;
+}
+
 /// generate() from a set code, for isolates (plain arguments in, a Level out).
 Level? generateCode(String code, int index) {
   final o = parseCode(code);
