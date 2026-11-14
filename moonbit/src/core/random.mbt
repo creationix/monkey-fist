@@ -4,16 +4,16 @@
 ///|
 /// mulberry32: the state is a wrapping 32-bit Int, so `*` is Math.imul.
 pub(all) struct Rng {
-  mut a : Int
+  mut a : Int32
 }
 
 ///|
-pub fn mulberry32(seed : Int) -> Rng {
-  { a: seed }
+pub fn mulberry32(seed : Int32) -> Rng {
+  { a: seed, }
 }
 
 ///|
-fn lsr(x : Int, n : Int) -> Int {
+fn lsr(x : Int32, n : Int32) -> Int32 {
   (x.reinterpret_as_uint() >> n).reinterpret_as_int()
 }
 
@@ -28,13 +28,13 @@ pub fn Rng::next(self : Rng) -> Double {
 
 ///|
 /// Math.floor(rng() * n).
-pub fn Rng::below(self : Rng, n : Int) -> Int {
+pub fn Rng::below(self : Rng, n : Int32) -> Int32 {
   (self.next() * n.to_double()).floor().to_int()
 }
 
 ///|
 /// FNV-1a over UTF-16 code units, as hashString in random.js.
-pub fn hash_string(s : String) -> UInt {
+pub fn hash_string(s : String) -> UInt32 {
   let mut h = 0x811c9dc5U
   for i in 0..<s.length() {
     h = (h ^ s.code_unit_at(i).to_int().reinterpret_as_uint()) * 0x01000193U
@@ -49,7 +49,7 @@ pub fn rng_of(s : String) -> Rng {
 
 ///|
 /// Number.prototype.toString(36) for an unsigned 32-bit value.
-pub fn base36(u : UInt) -> String {
+pub fn base36(u : UInt32) -> String {
   let digits = "0123456789abcdefghijklmnopqrstuvwxyz"
   if u == 0 {
     return "0"
@@ -66,7 +66,7 @@ pub fn base36(u : UInt) -> String {
 
 ///|
 /// Math.round: halves round up, toward +Infinity.
-pub fn js_round(x : Double) -> Int {
+pub fn js_round(x : Double) -> Int32 {
   let f = x.floor()
   if x - f >= 0.5 {
     f.to_int() + 1
@@ -77,7 +77,7 @@ pub fn js_round(x : Double) -> Int {
 
 ///|
 /// Math.floor(a / b) for b > 0.
-pub fn floor_div(a : Int, b : Int) -> Int {
+pub fn floor_div(a : Int32, b : Int32) -> Int32 {
   if a >= 0 {
     a / b
   } else {
@@ -87,12 +87,12 @@ pub fn floor_div(a : Int, b : Int) -> Int {
 
 ///|
 /// Array.prototype.sort is stable in V8; every comparator here is consistent.
-pub fn[T] ssort(a : Array[T], cmp : (T, T) -> Int) -> Unit {
+pub fn[T] ssort(a : Array[T], cmp : (T, T) -> Int32) -> Unit {
   a.mut_view().stable_sort_by(cmp)
 }
 
 ///|
-pub fn imin(a : Int, b : Int) -> Int {
+pub fn imin(a : Int32, b : Int32) -> Int32 {
   if a < b {
     a
   } else {
@@ -101,7 +101,7 @@ pub fn imin(a : Int, b : Int) -> Int {
 }
 
 ///|
-pub fn imax(a : Int, b : Int) -> Int {
+pub fn imax(a : Int32, b : Int32) -> Int32 {
   if a > b {
     a
   } else {
@@ -129,7 +129,7 @@ pub fn dmax(a : Double, b : Double) -> Double {
 
 ///|
 /// Index of the first occurrence of x in a at or after `from`, or -1.
-pub fn index_from(a : Array[Int], x : Int, from : Int) -> Int {
+pub fn index_from(a : Array[Int32], x : Int32, from : Int32) -> Int32 {
   for k in from..<a.length() {
     if a[k] == x {
       return k
@@ -139,13 +139,13 @@ pub fn index_from(a : Array[Int], x : Int, from : Int) -> Int {
 }
 
 ///|
-pub fn contains(a : Array[Int], x : Int) -> Bool {
+pub fn contains(a : Array[Int32], x : Int32) -> Bool {
   index_from(a, x, 0) >= 0
 }
 
 ///|
 /// [...new Set(a)]: first occurrences, in order.
-pub fn unique(a : Array[Int]) -> Array[Int] {
+pub fn unique(a : Array[Int32]) -> Array[Int32] {
   let out = []
   for x in a {
     if !contains(out, x) {
@@ -157,10 +157,10 @@ pub fn unique(a : Array[Int]) -> Array[Int] {
 
 ///|
 /// A key for a list of small non-negative ints, for visited sets.
-pub fn key_of(a : FixedArray[Int]) -> String {
+pub fn key_of(a : FixedArray[Int32]) -> String {
   let sb = StringBuilder()
   for x in a {
-    sb.write_char(Int::unsafe_to_char(x + 1))
+    sb.write_char(Int32::unsafe_to_char(x + 1))
   }
   sb.to_string()
 }

@@ -3,27 +3,27 @@
 // mirrors bend it), so a board is one offset per rope.
 
 ///|
-pub let sq_dx : FixedArray[Int] = [1, 0, -1, 0]
+pub let sq_dx : FixedArray[Int32] = [1, 0, -1, 0]
 
 ///|
-pub let sq_dy : FixedArray[Int] = [0, 1, 0, -1]
+pub let sq_dy : FixedArray[Int32] = [0, 1, 0, -1]
 
 ///|
 /// Fixed two-sided mirrors by cell (y * W + x): -1 none, 0 '/', 1 '\'. `keys`
 /// keeps insertion order, as a JS Map does.
 pub(all) struct SqMirrors {
-  slope : FixedArray[Int]
-  keys : Array[Int]
+  slope : FixedArray[Int32]
+  keys : Array[Int32]
 }
 
 ///|
 pub fn SqMirrors::empty() -> SqMirrors {
-  { slope: [], keys: [] }
+  { slope: [], keys: [], }
 }
 
 ///|
 pub fn SqMirrors::of_board(b : Board) -> SqMirrors {
-  let m = { slope: FixedArray::make(b.w * b.h, -1), keys: [] }
+  let m = { slope: FixedArray::make(b.w * b.h, -1), keys: [], }
   for x in b.mirrors {
     m.set(x.cell.r * b.w + x.cell.q, x.kind)
   }
@@ -31,7 +31,7 @@ pub fn SqMirrors::of_board(b : Board) -> SqMirrors {
 }
 
 ///|
-pub fn SqMirrors::set(self : SqMirrors, c : Int, s : Int) -> Unit {
+pub fn SqMirrors::set(self : SqMirrors, c : Int32, s : Int32) -> Unit {
   if self.slope[c] < 0 {
     self.keys.push(c)
   }
@@ -39,7 +39,7 @@ pub fn SqMirrors::set(self : SqMirrors, c : Int, s : Int) -> Unit {
 }
 
 ///|
-pub fn SqMirrors::get(self : SqMirrors, c : Int) -> Int {
+pub fn SqMirrors::get(self : SqMirrors, c : Int32) -> Int32 {
   if c >= 0 && c < self.slope.length() {
     self.slope[c]
   } else {
@@ -48,17 +48,17 @@ pub fn SqMirrors::get(self : SqMirrors, c : Int) -> Int {
 }
 
 ///|
-pub fn SqMirrors::has(self : SqMirrors, c : Int) -> Bool {
+pub fn SqMirrors::has(self : SqMirrors, c : Int32) -> Bool {
   self.get(c) >= 0
 }
 
 ///|
-pub fn SqMirrors::size(self : SqMirrors) -> Int {
+pub fn SqMirrors::size(self : SqMirrors) -> Int32 {
   self.keys.length()
 }
 
 ///|
-fn turn(s : Int, dx : Int, dy : Int) -> (Int, Int) {
+fn turn(s : Int32, dx : Int32, dy : Int32) -> (Int32, Int32) {
   if s == 0 {
     (-dy, -dx)
   } else {
@@ -67,14 +67,14 @@ fn turn(s : Int, dx : Int, dy : Int) -> (Int, Int) {
 }
 
 ///|
-pub fn head_dir(path : Path) -> (Int, Int) {
+pub fn head_dir(path : Path) -> (Int32, Int32) {
   let h = path[path.length() - 1]
   let p = path[path.length() - 2]
   (h.q - p.q, h.r - p.r)
 }
 
 ///|
-fn exit_dir(path : Path, w : Int, m : SqMirrors) -> (Int, Int) {
+fn exit_dir(path : Path, w : Int32, m : SqMirrors) -> (Int32, Int32) {
   let h = last(path)
   let (dx, dy) = head_dir(path)
   let s = m.get(h.r * w + h.q)
@@ -88,13 +88,13 @@ fn exit_dir(path : Path, w : Int, m : SqMirrors) -> (Int, Int) {
 // Scratch marks for duplicate checks, grown on demand.
 
 ///|
-let marks : Array[Int] = []
+let marks : Array[Int32] = []
 
 ///|
-let mark_stamp : Ref[Int] = { val: 0 }
+let mark_stamp : Ref[Int32] = { val: 0, }
 
 ///|
-fn next_stamp(size : Int) -> Int {
+fn next_stamp(size : Int32) -> Int32 {
   while marks.length() < size {
     marks.push(0)
   }
@@ -103,7 +103,7 @@ fn next_stamp(size : Int) -> Int {
 }
 
 ///|
-fn has_dup(out : Array[Int], start : Int) -> Bool {
+fn has_dup(out : Array[Int32], start : Int32) -> Bool {
   let mut top = 0
   for k in start..<out.length() {
     top = imax(top, out[k] + 1)
@@ -123,14 +123,14 @@ fn has_dup(out : Array[Int], start : Int) -> Bool {
 /// Append to `out` the cells a head at (x, y) passes moving (dx, dy), up to the
 /// edge. False if that way out would enter a cell twice.
 pub fn ray_cells(
-  x0 : Int,
-  y0 : Int,
-  dx0 : Int,
-  dy0 : Int,
-  w : Int,
-  h : Int,
+  x0 : Int32,
+  y0 : Int32,
+  dx0 : Int32,
+  dy0 : Int32,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
-  out : Array[Int],
+  out : Array[Int32],
 ) -> Bool {
   let start = out.length()
   let mut turned = false
@@ -161,7 +161,7 @@ pub fn ray_cells(
 }
 
 ///|
-pub fn self_blocked(path : Path, w : Int, h : Int, m : SqMirrors) -> Bool {
+pub fn self_blocked(path : Path, w : Int32, h : Int32, m : SqMirrors) -> Bool {
   let hd = last(path)
   if m.size() > 0 {
     let (dx, dy) = exit_dir(path, w, m)
@@ -197,26 +197,26 @@ pub fn self_blocked(path : Path, w : Int, h : Int, m : SqMirrors) -> Bool {
 /// The compact board: seq[i] is rope i's track, len[i] its length and off[i] how
 /// far along it has slid (-1 once it has left).
 pub(all) struct SqBoard {
-  mut n : Int
-  mut left : Int
-  occ : FixedArray[Int]
-  at : FixedArray[Int]
-  seq : Array[FixedArray[Int]]
-  len : FixedArray[Int]
-  off : FixedArray[Int]
-  was : FixedArray[Int]
-  now : FixedArray[Int]
+  mut n : Int32
+  mut left : Int32
+  occ : FixedArray[Int32]
+  at : FixedArray[Int32]
+  seq : Array[FixedArray[Int32]]
+  len : FixedArray[Int32]
+  off : FixedArray[Int32]
+  was : FixedArray[Int32]
+  now : FixedArray[Int32]
 }
 
 ///|
-pub const GONE : Int = 32767
+pub const GONE : Int32 = 32767
 
 ///|
 /// None if some rope's way out passes a cell twice.
 pub fn sq_board(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
 ) -> SqBoard? {
   let n = paths.length()
@@ -274,8 +274,8 @@ pub fn sq_board(
 ///|
 pub fn sq_board_exn(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
 ) -> SqBoard {
   match sq_board(paths, w, h, m) {
@@ -286,7 +286,7 @@ pub fn sq_board_exn(
 
 ///|
 /// Where rope i would stop if tapped: its new offset, or -1 if it would leave.
-pub fn SqBoard::slide_to(b : SqBoard, i : Int) -> Int {
+pub fn SqBoard::slide_to(b : SqBoard, i : Int32) -> Int32 {
   let s = b.seq[i]
   let mut p = b.off[i] + b.len[i]
   while p < s.length() && b.occ[s[p]] == -1 {
@@ -300,7 +300,7 @@ pub fn SqBoard::slide_to(b : SqBoard, i : Int) -> Int {
 }
 
 ///|
-pub fn SqBoard::place(b : SqBoard, i : Int, to : Int) -> Unit {
+pub fn SqBoard::place(b : SqBoard, i : Int32, to : Int32) -> Unit {
   let s = b.seq[i]
   let l = b.len[i]
   let from = b.off[i]
@@ -322,7 +322,7 @@ pub fn SqBoard::place(b : SqBoard, i : Int, to : Int) -> Unit {
 
 ///|
 /// The relaxation: how many ropes certainly can never leave.
-pub fn SqBoard::relax(b : SqBoard) -> Int {
+pub fn SqBoard::relax(b : SqBoard) -> Int32 {
   let n = b.n
   let was = b.was
   let now = b.now
@@ -384,27 +384,29 @@ pub fn SqBoard::all_free(b : SqBoard) -> Bool {
 }
 
 ///|
-pub fn SqBoard::paths(b : SqBoard, w : Int) -> Array[Path?] {
-  Array::makei(b.n, i => if b.off[i] < 0 {
-    None
-  } else {
-    let s = b.seq[i]
-    Some(
-      Array::makei(b.len[i], j => {
-        let c = s[b.off[i] + j]
-        { q: c % w, r: c / w }
-      }),
-    )
+pub fn SqBoard::paths(b : SqBoard, w : Int32) -> Array[Path?] {
+  Array::makei(b.n, i => {
+    if b.off[i] < 0 {
+      None
+    } else {
+      let s = b.seq[i]
+      Some(
+        Array::makei(b.len[i], j => {
+          let c = s[b.off[i] + j]
+          { q: c % w, r: c / w, }
+        }),
+      )
+    }
   })
 }
 
 ///|
 pub fn sq_frozen(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
-) -> Array[Int] {
+) -> Array[Int32] {
   let b = sq_board_exn(paths, w, h, m)
   ignore(b.relax())
   let out = []
@@ -420,17 +422,17 @@ pub fn sq_frozen(
 /// solved: Some(true), Some(false) when certainly unsolvable, None when the budget ran out.
 pub(all) struct Solved {
   solved : Bool?
-  moves : Array[Int]
-  nodes : Int
+  moves : Array[Int32]
+  nodes : Int32
 }
 
 ///|
 pub fn sq_solve(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  budget : Int,
-  prefer : Array[Int],
+  w : Int32,
+  h : Int32,
+  budget : Int32,
+  prefer : Array[Int32],
   m : SqMirrors,
 ) -> Solved {
   let b = sq_board_exn(paths, w, h, m)
@@ -467,7 +469,7 @@ pub fn sq_solve(
       hopeless[key] = true
       return false
     }
-    let tries : Array[(Int, Int, Int)] = []
+    let tries : Array[(Int32, Int32, Int32)] = []
     for i in 0..<n {
       if b.off[i] < 0 {
         continue
@@ -514,11 +516,11 @@ pub fn sq_solve(
 /// Only player taps count: once no rope blocks another, the rest is automatic.
 pub fn sq_player_taps(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  taps : Array[Int],
+  w : Int32,
+  h : Int32,
+  taps : Array[Int32],
   m : SqMirrors,
-) -> Int? {
+) -> Int32? {
   let b = sq_board_exn(paths, w, h, m)
   let mut count = 0
   let mut auto = false
@@ -547,18 +549,18 @@ pub fn sq_player_taps(
 
 ///|
 pub(all) struct Par {
-  plan : Array[Int]
-  par : Int
+  plan : Array[Int32]
+  par : Int32
   exact : Bool
 }
 
 ///|
 pub fn sq_fewest_player_taps(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  known : Array[Int],
-  budget : Int,
+  w : Int32,
+  h : Int32,
+  known : Array[Int32],
+  budget : Int32,
   m : SqMirrors,
 ) -> Par? {
   let count = match sq_player_taps(paths, w, h, known, m) {
@@ -568,7 +570,7 @@ pub fn sq_fewest_player_taps(
   let b = sq_board_exn(paths, w, h, m)
   let limit = if budget == 0 { 6000 } else { budget }
   let moves = []
-  let tried : Map[String, Int] = Map([])
+  let tried : Map[String, Int32] = Map([])
   let rank = FixedArray::make(b.n, 1000000)
   let later = FixedArray::make(b.n, 1000000)
   for k, i in known {
@@ -580,7 +582,7 @@ pub fn sq_fewest_player_taps(
   let mut nodes = 0
   let mut gave_up = false
   let blockers = FixedArray::make(b.n, false)
-  fn bound() -> Int {
+  fn bound() -> Int32 {
     blockers.fill(false)
     let mut total = 0
     for i in 0..<b.n {
@@ -599,7 +601,7 @@ pub fn sq_fewest_player_taps(
   }
 
   let lower = imax(if b.left > 0 { 1 } else { 0 }, bound())
-  fn search(remaining : Int) -> Bool {
+  fn search(remaining : Int32) -> Bool {
     if b.all_free() {
       return true
     }
@@ -619,7 +621,7 @@ pub fn sq_fewest_player_taps(
       tried[key] = 1000000
       return false
     }
-    let choices : Array[(Int, Int, Int)] = []
+    let choices : Array[(Int32, Int32, Int32)] = []
     for i in 0..<b.n {
       if b.off[i] >= 0 {
         let to = b.slide_to(i)
@@ -655,19 +657,19 @@ pub fn sq_fewest_player_taps(
           moves.push(i)
         }
       }
-      return Some({ plan: moves, par: manual, exact: true })
+      return Some({ plan: moves, par: manual, exact: true, })
     }
     k += 1
   }
-  Some({ plan: known.copy(), par: count, exact: !gave_up })
+  Some({ plan: known.copy(), par: count, exact: !gave_up, })
 }
 
 ///|
 pub fn sq_play(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  taps : Array[Int],
+  w : Int32,
+  h : Int32,
+  taps : Array[Int32],
   m : SqMirrors,
 ) -> Array[Path?] {
   let b = sq_board_exn(paths, w, h, m)
@@ -680,28 +682,28 @@ pub fn sq_play(
 }
 
 ///|
-pub const EV_EXIT : Int = 0
+pub const EV_EXIT : Int32 = 0
 
 ///|
-pub const EV_BOUNCE : Int = 1
+pub const EV_BOUNCE : Int32 = 1
 
 ///|
-pub const EV_SLIDE : Int = 2
+pub const EV_SLIDE : Int32 = 2
 
 ///|
 pub(all) struct Replayed {
   solved : Bool
-  taps : Int
-  events : Array[Int]
+  taps : Int32
+  events : Array[Int32]
   paths : Array[Path?]
 }
 
 ///|
 pub fn sq_replay(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  taps : Array[Int],
+  w : Int32,
+  h : Int32,
+  taps : Array[Int32],
   m : SqMirrors,
 ) -> Replayed {
   let b = sq_board_exn(paths, w, h, m)
@@ -711,7 +713,7 @@ pub fn sq_replay(
   for i in taps {
     let to = if b.off[i] < 0 { b.off[i] } else { b.slide_to(i) }
     if to == b.off[i] {
-      return { solved: false, taps: count, events, paths: b.paths(w) }
+      return { solved: false, taps: count, events, paths: b.paths(w), }
     }
     if !auto {
       count += 1
@@ -722,14 +724,14 @@ pub fn sq_replay(
       auto = true
     }
   }
-  { solved: b.left == 0, taps: count, events, paths: b.paths(w) }
+  { solved: b.left == 0, taps: count, events, paths: b.paths(w), }
 }
 
 ///|
 pub fn sq_free(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
 ) -> Bool {
   sq_board_exn(paths, w, h, m).all_free()
@@ -739,10 +741,10 @@ pub fn sq_free(
 /// Each rope's whole track as cell indices; None if a way out passes a cell twice.
 pub fn sq_tracks(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   m : SqMirrors,
-) -> Array[FixedArray[Int]]? {
+) -> Array[FixedArray[Int32]]? {
   match sq_board(paths, w, h, m) {
     Some(b) => Some(b.seq)
     None => None
@@ -753,11 +755,11 @@ pub fn sq_tracks(
 /// Move exits the rest of the solution does not need to the automatic release.
 pub fn sq_postpone_exits(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
-  taps : Array[Int],
+  w : Int32,
+  h : Int32,
+  taps : Array[Int32],
   m : SqMirrors,
-) -> Array[Int]? {
+) -> Array[Int32]? {
   let mut best = taps.copy()
   let mut count = match sq_player_taps(paths, w, h, best, m) {
     None => return None
@@ -793,10 +795,10 @@ pub fn sq_postpone_exits(
 /// rope that can move, at random. Returns the share of games it wins.
 pub fn sq_casual_wins(
   paths : Array[Path?],
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   rng : Rng,
-  games : Int,
+  games : Int32,
   m : SqMirrors,
 ) -> Double {
   let b = sq_board_exn(paths, w, h, m)
@@ -827,7 +829,8 @@ pub fn sq_casual_wins(
       if exits.length() > 0 {
         b.place(exits[rng.below(exits.length())], -1)
       } else if moves.length() > 0 {
-        let k = 2 * (rng.next() * moves.length().to_double() / 2.0).floor().to_int()
+        let k = 2 *
+          (rng.next() * moves.length().to_double() / 2.0).floor().to_int()
         b.place(moves[k], moves[k + 1])
       } else {
         break
@@ -842,7 +845,7 @@ pub fn sq_casual_wins(
 }
 
 ///|
-pub fn bends_of(path : Path) -> Int {
+pub fn bends_of(path : Path) -> Int32 {
   let mut n = 0
   for i in 2..<path.length() {
     if path[i].q - path[i - 1].q != path[i - 1].q - path[i - 2].q ||
@@ -855,7 +858,7 @@ pub fn bends_of(path : Path) -> Int {
 
 ///|
 /// Every rope standing in each rope's way out, in track order.
-fn sq_blockers(b : SqBoard) -> Array[Array[Int]] {
+fn sq_blockers(b : SqBoard) -> Array[Array[Int32]] {
   Array::makei(b.n, i => {
     let s = b.seq[i]
     let seen = []
@@ -871,7 +874,7 @@ fn sq_blockers(b : SqBoard) -> Array[Array[Int]] {
 
 ///|
 /// Strongly connected groups of the "waits for" links (Tarjan, iterative).
-fn groups_of(blk : Array[Array[Int]]) -> Array[Array[Int]] {
+fn groups_of(blk : Array[Array[Int32]]) -> Array[Array[Int32]] {
   let n = blk.length()
   let index = FixedArray::make(n, -1)
   let low = FixedArray::make(n, 0)
@@ -883,7 +886,7 @@ fn groups_of(blk : Array[Array[Int]]) -> Array[Array[Int]] {
     if index[root] >= 0 {
       continue
     }
-    let work : Array[(Int, Ref[Int])] = [(root, { val: 0 })]
+    let work : Array[(Int32, Ref[Int32])] = [(root, { val: 0, })]
     index[root] = next
     low[root] = next
     next += 1
@@ -900,7 +903,7 @@ fn groups_of(blk : Array[Array[Int]]) -> Array[Array[Int]] {
           next += 1
           stack.push(x)
           on[x] = true
-          work.push((x, { val: 0 }))
+          work.push((x, { val: 0, }))
         } else if on[x] && index[x] < low[v] {
           low[v] = index[x]
         }

@@ -1,10 +1,12 @@
 import {
   "monkeyfist/mf/core",
+  "monkeyfist/mf/game",
 }
+
 pkgtype(kind: "foreign_library")
+
 warnings = "-79-4-7"
+
 options(
-  link: {
-    "js": { "format": "esm" },
-  },
+  link: { "js": { "format": "esm" } },
 )

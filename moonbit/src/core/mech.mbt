@@ -6,15 +6,15 @@
 /// Per-board lookup tables, built once per board.
 pub(all) struct Geo {
   hex : Bool
-  w : Int
-  h : Int
-  mirror : FixedArray[Int]
+  w : Int32
+  h : Int32
+  mirror : FixedArray[Int32]
   spring : FixedArray[Bool]
-  nmirrors : Int
-  nsprings : Int
-  occ : FixedArray[Int]
-  mut stamp : Int
-  mut tracked : Int
+  nmirrors : Int32
+  nsprings : Int32
+  occ : FixedArray[Int32]
+  mut stamp : Int32
+  mut tracked : Int32
   sqm : SqMirrors
 }
 
@@ -33,7 +33,11 @@ pub fn Geo::new(b : Board) -> Geo {
     occ: FixedArray::make(b.w * b.h, 0),
     stamp: 0,
     tracked: -1,
-    sqm: if b.hex { SqMirrors::empty() } else { SqMirrors::of_board(b) },
+    sqm: if b.hex {
+      SqMirrors::empty()
+    } else {
+      SqMirrors::of_board(b)
+    },
   }
   for m in b.mirrors {
     mirror[g.cell(m.cell)] = m.kind
@@ -45,7 +49,7 @@ pub fn Geo::new(b : Board) -> Geo {
 }
 
 ///|
-pub fn Geo::cell(self : Geo, p : Pt) -> Int {
+pub fn Geo::cell(self : Geo, p : Pt) -> Int32 {
   if self.hex {
     hex_cell(p, self.w)
   } else {
@@ -65,14 +69,14 @@ pub fn Geo::inside(self : Geo, p : Pt) -> Bool {
 ///|
 pub(all) struct Move {
   paths : Array[Path?]
-  event : Int
-  distance : Int
+  event : Int32
+  distance : Int32
   route : Array[Pt]
 }
 
 ///|
 /// The direction a rope leaves in: its head's direction, turned by a mirror under the head.
-pub fn Geo::direction(self : Geo, path : Path) -> (Int, Int) {
+pub fn Geo::direction(self : Geo, path : Path) -> (Int32, Int32) {
   let (dq, dr) = head_dir(path)
   let m = self.mirror[self.cell(last(path))]
   if m < 0 {
@@ -86,7 +90,7 @@ pub fn Geo::direction(self : Geo, path : Path) -> (Int, Int) {
 }
 
 ///|
-fn Geo::mark(self : Geo, paths : Array[Path?]) -> Int {
+fn Geo::mark(self : Geo, paths : Array[Path?]) -> Int32 {
   self.stamp += 1
   let s = self.stamp
   for p in paths {
@@ -100,19 +104,19 @@ fn Geo::mark(self : Geo, paths : Array[Path?]) -> Int {
 }
 
 ///|
-fn replace(paths : Array[Path?], i : Int, p : Path?) -> Array[Path?] {
+fn replace(paths : Array[Path?], i : Int32, p : Path?) -> Array[Path?] {
   let next = paths.copy()
   next[i] = p
   next
 }
 
 ///|
-fn tail(route : Array[Pt], n : Int) -> Path {
+fn tail(route : Array[Pt], n : Int32) -> Path {
   route[route.length() - n:].to_owned()
 }
 
 ///|
-pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
+pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int32) -> Move? {
   guard paths[i] is Some(path) else { return None }
   let s = self.mark(paths)
   let route = path.copy()
@@ -122,17 +126,22 @@ pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
   let mut dr = dr0
   let mut distance = 0
   if self.hex {
-    let seen : Array[Int] = []
+    let seen : Array[Int32] = []
     let mut d = hex_dir_index(dq, dr)
     while true {
-      let next = { q: p.q + hex_dq[d], r: p.r + hex_dr[d] }
+      let next = { q: p.q + hex_dq[d], r: p.r + hex_dr[d], }
       if !self.inside(next) {
         for _ in 0..<(path.length() + 2) {
-          p = { q: p.q + hex_dq[d], r: p.r + hex_dr[d] }
+          p = { q: p.q + hex_dq[d], r: p.r + hex_dr[d], }
           route.push(p)
           distance += 1
         }
-        return Some({ paths: replace(paths, i, None), event: EV_EXIT, distance, route })
+        return Some({
+          paths: replace(paths, i, None),
+          event: EV_EXIT,
+          distance,
+          route,
+        })
       }
       let c = self.cell(next)
       if self.occ[c] == s {
@@ -172,7 +181,7 @@ pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
       route,
     })
   }
-  let seen : Array[Int] = []
+  let seen : Array[Int32] = []
   let mut event = EV_SLIDE
   while true {
     let state = ((p.r * self.w + p.q) * 3 + dq + 1) * 3 + dr + 1
@@ -185,7 +194,7 @@ pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
     if nq < 0 || nr < 0 || nq >= self.w || nr >= self.h {
       event = EV_EXIT
       for _ in 0..<(path.length() + 2) {
-        p = { q: p.q + dq, r: p.r + dr }
+        p = { q: p.q + dq, r: p.r + dr, }
         route.push(p)
         distance += 1
       }
@@ -195,7 +204,7 @@ pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
     if self.occ[c] == s {
       break
     }
-    p = { q: nq, r: nr }
+    p = { q: nq, r: nr, }
     route.push(p)
     distance += 1
     if self.spring[c] {
@@ -221,7 +230,7 @@ pub fn Geo::tap(self : Geo, paths : Array[Path?], i : Int) -> Move? {
     }
     Some(t)
   }
-  Some({ paths: replace(paths, i, rest), event, distance, route })
+  Some({ paths: replace(paths, i, rest), event, distance, route, })
 }
 
 ///|
@@ -243,11 +252,11 @@ fn Geo::key(self : Geo, paths : Array[Path?]) -> String {
   let sb = StringBuilder()
   for p in paths {
     match p {
-      None => sb.write_char(Int::unsafe_to_char(1))
+      None => sb.write_char(Int32::unsafe_to_char(1))
       Some(path) => {
-        sb.write_char(Int::unsafe_to_char(path.length() + 2))
+        sb.write_char(Int32::unsafe_to_char(path.length() + 2))
         for c in path {
-          sb.write_char(Int::unsafe_to_char(self.cell(c) + 1))
+          sb.write_char(Int32::unsafe_to_char(self.cell(c) + 1))
         }
       }
     }
@@ -260,15 +269,15 @@ fn Geo::key(self : Geo, paths : Array[Path?]) -> String {
 fn Geo::solve_full(
   self : Geo,
   paths : Array[Path?],
-  budget : Int,
-  prefer : Array[Int],
+  budget : Int32,
+  prefer : Array[Int32],
 ) -> Solved {
   let visited : Map[String, Bool] = Map([])
   let moves = []
   let mut nodes = 0
   let mut unknown = false
   if self.hex {
-    fn search(current : Array[Path?], preferred : ArrayView[Int]) -> Bool {
+    fn search(current : Array[Path?], preferred : ArrayView[Int32]) -> Bool {
       if all_gone(current) {
         return true
       }
@@ -283,19 +292,21 @@ fn Geo::solve_full(
       }
       visited[state] = true
       let p0 = if preferred.length() > 0 { preferred[0] } else { -1 }
-      let tries : Array[(Int, Move)] = []
+      let tries : Array[(Int32, Move)] = []
       for i in 0..<current.length() {
         if current[i] is Some(_) && self.tap(current, i) is Some(m) {
           tries.push((i, m))
         }
       }
-      ssort(tries, (a, b) => if a.0 == p0 {
-        -1
-      } else if b.0 == p0 {
-        1
-      } else {
-        (if a.1.event == EV_EXIT { 0 } else { 1 }) -
-        (if b.1.event == EV_EXIT { 0 } else { 1 })
+      ssort(tries, (a, b) => {
+        if a.0 == p0 {
+          -1
+        } else if b.0 == p0 {
+          1
+        } else {
+          (if a.1.event == EV_EXIT { 0 } else { 1 }) -
+          (if b.1.event == EV_EXIT { 0 } else { 1 })
+        }
       })
       for t in tries {
         moves.push(t.0)
@@ -319,13 +330,17 @@ fn Geo::solve_full(
       } else {
         Some(false)
       },
-      moves: if solved { moves } else { [] },
+      moves: if solved {
+        moves
+      } else {
+        []
+      },
       nodes,
     }
   }
   let n = paths.length()
-  let first : Map[Int, Int] = Map([])
-  let lastk : Map[Int, Int] = Map([])
+  let first : Map[Int32, Int32] = Map([])
+  let lastk : Map[Int32, Int32] = Map([])
   let moved = FixedArray::make(n, 0)
   for k, i in prefer {
     if !first.contains(i) {
@@ -347,7 +362,7 @@ fn Geo::solve_full(
       return false
     }
     visited[key] = true
-    let tries : Array[(Int, Move, Int)] = []
+    let tries : Array[(Int32, Move, Int32)] = []
     for i in 0..<current.length() {
       guard self.tap(current, i) is Some(next) else { continue }
       let rank = match (if moved[i] > 0 { lastk } else { first }).get(i) {
@@ -388,7 +403,11 @@ fn Geo::solve_full(
     } else {
       Some(false)
     },
-    moves: if solved { moves } else { [] },
+    moves: if solved {
+      moves
+    } else {
+      []
+    },
     nodes,
   }
 }
@@ -409,7 +428,8 @@ pub fn Board::tracked(self : Board, g : Geo) -> Bool {
   }
   if g.tracked < 0 {
     let ok = if self.hex {
-      hex_compile(self.w, self.h, self.mirrors, some_paths(self.ropes)) is Some(_)
+      hex_compile(self.w, self.h, self.mirrors, some_paths(self.ropes))
+      is Some(_)
     } else {
       sq_board(some_paths(self.ropes), self.w, self.h, g.sqm) is Some(_)
     }
@@ -435,7 +455,7 @@ pub fn Board::all_free(self : Board, g : Geo, paths : Array[Path?]) -> Bool {
 pub fn Board::replay(
   self : Board,
   g : Geo,
-  moves : Array[Int],
+  moves : Array[Int32],
   paths : Array[Path?],
 ) -> Replayed {
   if self.tracked(g) {
@@ -450,7 +470,7 @@ pub fn Board::replay(
   let mut cur = paths
   for i in moves {
     guard g.tap(cur, i) is Some(m) else {
-      return { solved: false, paths: cur, taps, events }
+      return { solved: false, paths: cur, taps, events, }
     }
     if !automatic {
       taps += 1
@@ -461,11 +481,15 @@ pub fn Board::replay(
       automatic = true
     }
   }
-  { solved: all_gone(cur), paths: cur, taps, events }
+  { solved: all_gone(cur), paths: cur, taps, events, }
 }
 
 ///|
-pub fn Board::replay_plan(self : Board, g : Geo, plan : Array[Int]) -> Replayed {
+pub fn Board::replay_plan(
+  self : Board,
+  g : Geo,
+  plan : Array[Int32],
+) -> Replayed {
   self.replay(g, plan, some_paths(self.ropes))
 }
 
@@ -474,8 +498,8 @@ pub fn Board::solve(
   self : Board,
   g : Geo,
   paths : Array[Path?],
-  budget : Int,
-  prefer : Array[Int],
+  budget : Int32,
+  prefer : Array[Int32],
 ) -> Solved {
   if !self.tracked(g) {
     return g.solve_full(paths, budget, prefer)
@@ -488,7 +512,11 @@ pub fn Board::solve(
 }
 
 ///|
-pub fn Board::frozen(self : Board, g : Geo, paths : Array[Path?]) -> Array[Int] {
+pub fn Board::frozen(
+  self : Board,
+  g : Geo,
+  paths : Array[Path?],
+) -> Array[Int32] {
   if self.tracked(g) {
     if self.hex {
       return hex_compile_exn(self.w, self.h, self.mirrors, paths).frozen()
@@ -521,8 +549,8 @@ pub fn Board::frozen(self : Board, g : Geo, paths : Array[Path?]) -> Array[Int] 
 pub fn Board::minimum_taps(
   self : Board,
   g : Geo,
-  fallback : Array[Int],
-  budget : Int,
+  fallback : Array[Int32],
+  budget : Int32,
 ) -> Par {
   let verified = self.replay_plan(g, fallback)
   if !verified.solved {
@@ -538,7 +566,7 @@ pub fn Board::minimum_taps(
   let mut q = 0
   while q < qpaths.length() {
     if q >= budget {
-      return { plan: fallback.copy(), par: verified.taps, exact: false }
+      return { plan: fallback.copy(), par: verified.taps, exact: false, }
     }
     let paths = qpaths[q]
     let depth = qdepth[q]
@@ -561,7 +589,7 @@ pub fn Board::minimum_taps(
           any = true
         }
       }
-      return { plan, par: imax(if any { 1 } else { 0 }, depth), exact: true }
+      return { plan, par: imax(if any { 1 } else { 0 }, depth), exact: true, }
     }
     for i in 0..<paths.length() {
       if paths[i] is None {
@@ -580,5 +608,5 @@ pub fn Board::minimum_taps(
     }
     q += 1
   }
-  { plan: fallback.copy(), par: verified.taps, exact: true }
+  { plan: fallback.copy(), par: verified.taps, exact: true, }
 }

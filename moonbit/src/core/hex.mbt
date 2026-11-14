@@ -2,34 +2,37 @@
 // hex/engine.js. Axial q/r coordinates; cell indices are offset columns.
 
 ///|
-pub let hex_dq : FixedArray[Int] = [1, 0, -1, -1, 0, 1]
+pub let hex_dq : FixedArray[Int32] = [1, 0, -1, -1, 0, 1]
 
 ///|
-pub let hex_dr : FixedArray[Int] = [0, 1, 1, 0, -1, -1]
+pub let hex_dr : FixedArray[Int32] = [0, 1, 1, 0, -1, -1]
 
 ///|
-pub fn hex_inside(w : Int, h : Int, p : Pt) -> Bool {
-  p.r >= 0 && p.r < h && p.q + floor_div(p.r, 2) >= 0 && p.q + floor_div(p.r, 2) < w
+pub fn hex_inside(w : Int32, h : Int32, p : Pt) -> Bool {
+  p.r >= 0 &&
+  p.r < h &&
+  p.q + floor_div(p.r, 2) >= 0 &&
+  p.q + floor_div(p.r, 2) < w
 }
 
 ///|
-pub fn hex_cell(p : Pt, w : Int) -> Int {
+pub fn hex_cell(p : Pt, w : Int32) -> Int32 {
   p.r * w + p.q + floor_div(p.r, 2)
 }
 
 ///|
-pub fn hex_point(c : Int, w : Int) -> Pt {
+pub fn hex_point(c : Int32, w : Int32) -> Pt {
   let r = c / w
-  { q: c % w - r / 2, r }
+  { q: c % w - r / 2, r, }
 }
 
 ///|
-pub fn hex_reflect(d : Int, axis : Int) -> Int {
+pub fn hex_reflect(d : Int32, axis : Int32) -> Int32 {
   ((2 * axis - d) % 6 + 6) % 6
 }
 
 ///|
-pub fn hex_dir_index(dq : Int, dr : Int) -> Int {
+pub fn hex_dir_index(dq : Int32, dr : Int32) -> Int32 {
   for d in 0..<6 {
     if hex_dq[d] == dq && hex_dr[d] == dr {
       return d
@@ -39,8 +42,8 @@ pub fn hex_dir_index(dq : Int, dr : Int) -> Int {
 }
 
 ///|
-pub fn hex_mirrors(w : Int, h : Int, mirrors : Array[Mirror]) -> SqMirrors {
-  let m = { slope: FixedArray::make(w * h, -1), keys: [] }
+pub fn hex_mirrors(w : Int32, h : Int32, mirrors : Array[Mirror]) -> SqMirrors {
+  let m = { slope: FixedArray::make(w * h, -1), keys: [], }
   for x in mirrors {
     m.set(hex_cell(x.cell, w), x.kind)
   }
@@ -51,20 +54,20 @@ pub fn hex_mirrors(w : Int, h : Int, mirrors : Array[Mirror]) -> SqMirrors {
 /// Append the cells ahead of `head` moving in direction d, to the edge; false if
 /// the way out would enter a cell twice. Turning mirror cells go to `turns`.
 fn ray_track(
-  w : Int,
-  h : Int,
-  head : Int,
-  d0 : Int,
+  w : Int32,
+  h : Int32,
+  head : Int32,
+  d0 : Int32,
   m : SqMirrors,
-  out : Array[Int],
-  turns : Array[Int]?,
+  out : Array[Int32],
+  turns : Array[Int32]?,
 ) -> Bool {
   let start = out.length()
   let mut p = hex_point(head, w)
   let mut d = d0
   let mut turned = false
   while true {
-    p = { q: p.q + hex_dq[d], r: p.r + hex_dr[d] }
+    p = { q: p.q + hex_dq[d], r: p.r + hex_dr[d], }
     if !hex_inside(w, h, p) {
       break
     }
@@ -89,7 +92,7 @@ fn ray_track(
 }
 
 ///|
-fn exit_index(w : Int, path : Path, m : SqMirrors) -> Int {
+fn exit_index(w : Int32, path : Path, m : SqMirrors) -> Int32 {
   let (dq, dr) = head_dir(path)
   let d = hex_dir_index(dq, dr)
   let axis = m.get(hex_cell(last(path), w))
@@ -103,11 +106,11 @@ fn exit_index(w : Int, path : Path, m : SqMirrors) -> Int {
 ///|
 /// Mirror cells on which some rope's way out actually turns.
 pub fn hex_turning(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   paths : Array[Path],
-) -> Array[Int] {
+) -> Array[Int32] {
   let bent = hex_mirrors(w, h, mirrors)
   let turns = []
   for path in paths {
@@ -128,21 +131,21 @@ pub fn hex_turning(
 
 ///|
 pub(all) struct HexBoard {
-  w : Int
-  n : Int
-  tracks : Array[FixedArray[Int]]
-  lengths : FixedArray[Int]
-  offsets : FixedArray[Int]
-  occupied : FixedArray[Int]
-  at : FixedArray[Int]
-  reach : FixedArray[Int]
-  mut left : Int
+  w : Int32
+  n : Int32
+  tracks : Array[FixedArray[Int32]]
+  lengths : FixedArray[Int32]
+  offsets : FixedArray[Int32]
+  occupied : FixedArray[Int32]
+  at : FixedArray[Int32]
+  reach : FixedArray[Int32]
+  mut left : Int32
 }
 
 ///|
 pub fn hex_compile(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   paths : Array[Path?],
 ) -> HexBoard? {
@@ -178,10 +181,10 @@ pub fn hex_compile(
           }
         } else {
           let (dq, dr) = head_dir(path)
-          let mut p = { q: last(path).q + dq, r: last(path).r + dr }
+          let mut p = { q: last(path).q + dq, r: last(path).r + dr, }
           while hex_inside(w, h, p) {
             track.push(hex_cell(p, w))
-            p = { q: p.q + dq, r: p.r + dr }
+            p = { q: p.q + dq, r: p.r + dr, }
           }
         }
         tracks.push(FixedArray::from_array(track))
@@ -206,8 +209,8 @@ pub fn hex_compile(
 
 ///|
 pub fn hex_compile_exn(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   paths : Array[Path?],
 ) -> HexBoard {
@@ -219,7 +222,7 @@ pub fn hex_compile_exn(
 
 ///|
 /// Where rope i would stop: its new offset, -1 if it would leave, -2 if gone.
-pub fn HexBoard::to(self : HexBoard, i : Int) -> Int {
+pub fn HexBoard::to(self : HexBoard, i : Int32) -> Int32 {
   if i < 0 || i >= self.n || self.offsets[i] < 0 {
     return -2
   }
@@ -237,7 +240,7 @@ pub fn HexBoard::to(self : HexBoard, i : Int) -> Int {
 }
 
 ///|
-pub fn HexBoard::place(self : HexBoard, i : Int, target : Int) -> Unit {
+pub fn HexBoard::place(self : HexBoard, i : Int32, target : Int32) -> Unit {
   let from = self.offsets[i]
   let track = self.tracks[i]
   let length = self.lengths[i]
@@ -269,19 +272,23 @@ pub fn HexBoard::free(self : HexBoard) -> Bool {
 
 ///|
 pub fn HexBoard::paths(self : HexBoard) -> Array[Path?] {
-  Array::makei(self.n, i => if self.offsets[i] < 0 {
-    None
-  } else {
-    let t = self.tracks[i]
-    Some(
-      Array::makei(self.lengths[i], j => hex_point(t[self.offsets[i] + j], self.w)),
-    )
+  Array::makei(self.n, i => {
+    if self.offsets[i] < 0 {
+      None
+    } else {
+      let t = self.tracks[i]
+      Some(
+        Array::makei(self.lengths[i], j => {
+          hex_point(t[self.offsets[i] + j], self.w)
+        }),
+      )
+    }
   })
 }
 
 ///|
 /// Optimistically let every rope use cells another could eventually vacate.
-fn HexBoard::relaxed(self : HexBoard) -> FixedArray[Int] {
+fn HexBoard::relaxed(self : HexBoard) -> FixedArray[Int32] {
   let reach = self.reach
   for i in 0..<self.n {
     reach[i] = self.offsets[i]
@@ -332,7 +339,7 @@ pub fn HexBoard::dead(self : HexBoard) -> Bool {
 }
 
 ///|
-pub fn HexBoard::frozen(self : HexBoard) -> Array[Int] {
+pub fn HexBoard::frozen(self : HexBoard) -> Array[Int32] {
   let reach = self.relaxed()
   let out = []
   for i in 0..<self.n {
@@ -344,16 +351,16 @@ pub fn HexBoard::frozen(self : HexBoard) -> Array[Int] {
 }
 
 ///|
-fn offsets_key(o : FixedArray[Int]) -> String {
+fn offsets_key(o : FixedArray[Int32]) -> String {
   key_of(o)
 }
 
 ///|
 pub fn hex_replay(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
-  moves : Array[Int],
+  moves : Array[Int32],
   paths : Array[Path?],
 ) -> Replayed {
   let board = hex_compile_exn(w, h, mirrors, paths)
@@ -363,7 +370,7 @@ pub fn hex_replay(
   for i in moves {
     let target = board.to(i)
     if target == -2 || target == board.offsets[i] {
-      return { solved: false, paths: board.paths(), events, taps }
+      return { solved: false, paths: board.paths(), events, taps, }
     }
     if !automatic {
       taps += 1
@@ -374,24 +381,24 @@ pub fn hex_replay(
       automatic = true
     }
   }
-  { solved: board.left == 0, paths: board.paths(), events, taps }
+  { solved: board.left == 0, paths: board.paths(), events, taps, }
 }
 
 ///|
 pub fn hex_solve(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   paths : Array[Path?],
-  budget : Int,
-  prefer : Array[Int],
+  budget : Int32,
+  prefer : Array[Int32],
 ) -> Solved {
   let board = hex_compile_exn(w, h, mirrors, paths)
   let seen : Map[String, Bool] = Map([])
   let moves = []
   let mut nodes = 0
   let mut exhausted = false
-  fn search(preferred : ArrayView[Int]) -> Bool {
+  fn search(preferred : ArrayView[Int32]) -> Bool {
     if board.left == 0 {
       return true
     }
@@ -409,19 +416,21 @@ pub fn hex_solve(
       return false
     }
     let p0 = if preferred.length() > 0 { preferred[0] } else { -1 }
-    let tries : Array[(Int, Int)] = []
+    let tries : Array[(Int32, Int32)] = []
     for i in 0..<paths.length() {
       let target = board.to(i)
       if target != -2 && target != board.offsets[i] {
         tries.push((i, target))
       }
     }
-    ssort(tries, (a, b) => if a.0 == p0 {
-      -1
-    } else if b.0 == p0 {
-      1
-    } else {
-      (if a.1 < 0 { 0 } else { 1 }) - (if b.1 < 0 { 0 } else { 1 })
+    ssort(tries, (a, b) => {
+      if a.0 == p0 {
+        -1
+      } else if b.0 == p0 {
+        1
+      } else {
+        (if a.1 < 0 { 0 } else { 1 }) - (if b.1 < 0 { 0 } else { 1 })
+      }
     })
     for t in tries {
       let (i, target) = t
@@ -449,19 +458,23 @@ pub fn hex_solve(
     } else {
       Some(false)
     },
-    moves: if solved { moves } else { [] },
+    moves: if solved {
+      moves
+    } else {
+      []
+    },
     nodes,
   }
 }
 
 ///|
 pub fn hex_postpone_exits(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   ropes : Array[Path],
-  plan : Array[Int],
-) -> Array[Int]? {
+  plan : Array[Int32],
+) -> Array[Int32]? {
   let start = some_paths(ropes)
   let mut best = plan.copy()
   let mut result = hex_replay(w, h, mirrors, best, start)
@@ -496,12 +509,12 @@ pub fn hex_postpone_exits(
 
 ///|
 pub fn hex_casual_wins(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   ropes : Array[Path],
   rng : Rng,
-  games : Int,
+  games : Int32,
 ) -> Double {
   let mut wins = 0
   let exits = []
@@ -526,7 +539,8 @@ pub fn hex_casual_wins(
       if exits.length() > 0 {
         b.place(exits[rng.below(exits.length())], -1)
       } else if moves.length() > 0 {
-        let k = 2 * (rng.next() * moves.length().to_double() / 2.0).floor().to_int()
+        let k = 2 *
+          (rng.next() * moves.length().to_double() / 2.0).floor().to_int()
         b.place(moves[k], moves[k + 1])
       } else {
         break
@@ -542,12 +556,12 @@ pub fn hex_casual_wins(
 
 ///|
 pub fn hex_fewest_player_taps(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   ropes : Array[Path],
-  fallback : Array[Int],
-  budget : Int,
+  fallback : Array[Int32],
+  budget : Int32,
 ) -> Par {
   let start = some_paths(ropes)
   let verified = hex_replay(w, h, mirrors, fallback, start)
@@ -557,7 +571,7 @@ pub fn hex_fewest_player_taps(
   let b = hex_compile_exn(w, h, mirrors, start)
   let n = b.n
   let moves = []
-  let tried : Map[String, Int] = Map([])
+  let tried : Map[String, Int32] = Map([])
   let rank = FixedArray::make(n, 1000000)
   let later = FixedArray::make(n, 1000000)
   for step, id in fallback {
@@ -569,7 +583,7 @@ pub fn hex_fewest_player_taps(
   let mut nodes = 0
   let mut exhausted = false
   let blockers = FixedArray::make(n, false)
-  fn bound() -> Int {
+  fn bound() -> Int32 {
     blockers.fill(false)
     let mut count = 0
     for i in 0..<n {
@@ -587,7 +601,7 @@ pub fn hex_fewest_player_taps(
     count
   }
 
-  fn search(remaining : Int) -> Bool {
+  fn search(remaining : Int32) -> Bool {
     if b.free() {
       return true
     }
@@ -607,11 +621,13 @@ pub fn hex_fewest_player_taps(
       tried[state] = 1000000
       return false
     }
-    let choices : Array[(Int, Int, Int)] = []
+    let choices : Array[(Int32, Int32, Int32)] = []
     for i in 0..<n {
       let to = b.to(i)
       if to != -2 && to != b.offsets[i] {
-        choices.push((i, to, if b.offsets[i] != 0 { later[i] } else { rank[i] }))
+        choices.push(
+          (i, to, if b.offsets[i] != 0 { later[i] } else { rank[i] }),
+        )
       }
     }
     ssort(choices, (a, c) => if a.2 != c.2 { a.2 - c.2 } else { a.0 - c.0 })
@@ -642,28 +658,28 @@ pub fn hex_fewest_player_taps(
           moves.push(i)
         }
       }
-      return { plan: moves, par: manual, exact: true }
+      return { plan: moves, par: manual, exact: true, }
     }
     taps += 1
   }
-  { plan: fallback.copy(), par: verified.taps, exact: !exhausted }
+  { plan: fallback.copy(), par: verified.taps, exact: !exhausted, }
 }
 
 ///|
 struct HexIntent {
-  moves : Array[Int]
-  cost : Int
+  moves : Array[Int32]
+  cost : Int32
 }
 
 ///|
 /// Replay exact slide destinations (stops are head cells, in order per rope).
 fn hex_intentions(
-  w : Int,
-  h : Int,
+  w : Int32,
+  h : Int32,
   mirrors : Array[Mirror],
   ropes : Array[Path],
-  stops : Array[Array[Int]],
-  certificate : Array[Int]?,
+  stops : Array[Array[Int32]],
+  certificate : Array[Int32]?,
 ) -> HexIntent? {
   let b = hex_compile_exn(w, h, mirrors, some_paths(ropes))
   let n = ropes.length()
@@ -672,7 +688,7 @@ fn hex_intentions(
   let moved_at = FixedArray::make(n, 0)
   let moves = []
   let mut cost = 0
-  fn step(i : Int) -> Bool {
+  fn step(i : Int32) -> Bool {
     let from = b.offsets[i]
     let target = b.to(i)
     if target == -2 || target == from {
@@ -702,7 +718,11 @@ fn hex_intentions(
     }
     layer += 1
     moved_at[i] = layer
-    let stop_at = if target < 0 { from + length } else { imin(from + length, target) }
+    let stop_at = if target < 0 {
+      from + length
+    } else {
+      imin(from + length, target)
+    }
     for j in from..<stop_at {
       released[track[j]] = layer
     }
@@ -737,38 +757,38 @@ fn hex_intentions(
   if b.left > 0 {
     None
   } else {
-    Some({ moves, cost })
+    Some({ moves, cost, })
   }
 }
 
 ///|
 pub(all) struct HexCfg {
-  w : Int
-  h : Int
-  stage : Int
+  w : Int32
+  h : Int32
+  stage : Int32
   coverage : Double
-  length : Int
+  length : Int32
   tap_depth : Double
   mirrors : Array[Mirror]
-  knots : Int
-  traps : Int
+  knots : Int32
+  traps : Int32
   initial_ropes : Array[Path]
-  initial_stops : Array[Array[Int]]
-  initial_plan : Array[Int]?
+  initial_stops : Array[Array[Int32]]
+  initial_plan : Array[Int32]?
 }
 
 ///|
 pub(all) struct HexBuilt {
   ropes : Array[Path]
-  plan : Array[Int]
+  plan : Array[Int32]
 }
 
 ///|
 struct HexShape {
   path : Path
-  ids : Array[Int]
-  ray : Array[Int]
-  turns : Array[Int]
+  ids : Array[Int32]
+  ray : Array[Int32]
+  turns : Array[Int32]
 }
 
 ///|
@@ -777,35 +797,37 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
   let h = cfg.h
   let area = w * h
   let points = Array::makei(area, i => hex_point(i, w))
-  let neighbours = Array::makei(area, c => FixedArray::makei(6, d => {
-    let q : Pt = { q: points[c].q + hex_dq[d], r: points[c].r + hex_dr[d] }
-    if hex_inside(w, h, q) {
-      hex_cell(q, w)
-    } else {
-      -1
-    }
-  }))
+  let neighbours = Array::makei(area, c => {
+    FixedArray::makei(6, d => {
+      let q : Pt = { q: points[c].q + hex_dq[d], r: points[c].r + hex_dr[d], }
+      if hex_inside(w, h, q) {
+        hex_cell(q, w)
+      } else {
+        -1
+      }
+    })
+  })
   let occupied = FixedArray::make(area, -1)
   let seen = FixedArray::make(area, 0)
   let forward = FixedArray::make(area, 0)
   let mirrors = cfg.mirrors
   let ropes : Array[Path] = []
-  let stops : Array[Array[Int]] = []
+  let stops : Array[Array[Int32]] = []
   let mut stamp = 0
   let mut covered = 0
   let mut knots = 0
-  let mut result : HexIntent = { moves: [], cost: 0 }
+  let mut result : HexIntent = { moves: [], cost: 0, }
   let bent = hex_mirrors(w, h, mirrors)
   let tile = FixedArray::make(area, false)
   for c in bent.keys {
     tile[c] = true
   }
   let kept = FixedArray::make(area, false)
-  fn free(c : Int) -> Bool {
+  fn free(c : Int32) -> Bool {
     c >= 0 && occupied[c] < 0 && !tile[c] && !kept[c]
   }
 
-  fn ray(head : Int, d : Int) -> Array[Int]? {
+  fn ray(head : Int32, d : Int32) -> Array[Int32]? {
     let out = []
     if bent.size() > 0 {
       if ray_track(w, h, head, d, bent, out, None) {
@@ -823,11 +845,11 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
     }
   }
 
-  fn intent(cert : Array[Int]?) -> HexIntent? {
+  fn intent(cert : Array[Int32]?) -> HexIntent? {
     hex_intentions(w, h, mirrors, ropes, stops, cert)
   }
 
-  fn shape(want : Int, aim : (Int, Int)?) -> HexShape? {
+  fn shape(want : Int32, aim : (Int32, Int32)?) -> HexShape? {
     let minimum = 2
     let mut head = match aim {
       Some((hd, _)) => hd
@@ -903,7 +925,7 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
       return None
     }
     body.rev_in_place()
-    Some({ path: body.map(c => points[c]), ids: body, ray: ahead, turns })
+    Some({ path: body.map(c => points[c]), ids: body, ray: ahead, turns, })
   }
 
   // Optional repeated-slide core, replayed before any gap-filling additions.
@@ -1004,7 +1026,7 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
   let mut attempts = 0
   let turned_by = FixedArray::make(area, false)
   let mut turned_count = 0
-  fn aim_at() -> (Int, Int)? {
+  fn aim_at() -> (Int32, Int32)? {
     let idle = mirrors.filter(m => !turned_by[hex_cell(m.cell, w)])
     if idle.length() == 0 {
       return None
@@ -1073,8 +1095,8 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
       }
       s
     })
-    let spots : Array[(Int, Int, Int, Array[Int])] = []
-    let deadly : Array[(Int, Int, Int, Array[Int])] = []
+    let spots : Array[(Int32, Int32, Int32, Array[Int32])] = []
+    let deadly : Array[(Int32, Int32, Int32, Array[Int32])] = []
     for c in 0..<area {
       if !free(c) {
         continue
@@ -1156,7 +1178,8 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
   }
 
   let limit = area * 22
-  while covered.to_double() < area.to_double() * cfg.coverage && attempts < limit {
+  while covered.to_double() < area.to_double() * cfg.coverage &&
+        attempts < limit {
     if traps < cfg.traps &&
       ropes.length() >= 2 &&
       rng.next() < 0.5 &&
@@ -1211,5 +1234,5 @@ pub fn hex_build(rng : Rng, cfg : HexCfg) -> HexBuilt? {
   if intent(Some(result.moves)) is None {
     abort("Hex weaving certificate failed")
   }
-  Some({ ropes, plan: result.moves })
+  Some({ ropes, plan: result.moves, })
 }

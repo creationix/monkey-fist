@@ -4,9 +4,9 @@
 
 ///|
 priv struct Snap {
-  event : Int // 0 exit, 1 blocked, 2 loop, 3 bounce
-  distance : Int
-  blocker : Int
+  event : Int32 // 0 exit, 1 blocked, 2 loop, 3 bounce
+  distance : Int32
+  blocker : Int32
 }
 
 ///|
@@ -20,7 +20,7 @@ fn snapshot(g : Geo, paths : Array[Path?]) -> Array[Snap?] {
       }
     }
   }
-  let seen : Array[Int] = []
+  let seen : Array[Int32] = []
   paths.map(fn(p) {
     guard p is Some(path) else { return None }
     let mut pt = last(path)
@@ -29,24 +29,24 @@ fn snapshot(g : Geo, paths : Array[Path?]) -> Array[Snap?] {
     let mut dr = dr0
     let mut distance = 0
     seen.clear()
-    for _ in 0..=(g.w * g.h * 6) {
-      let next = { q: pt.q + dq, r: pt.r + dr }
+    for _ in 0..<=(g.w * g.h * 6) {
+      let next = { q: pt.q + dq, r: pt.r + dr, }
       if !g.inside(next) {
-        return Some({ event: 0, distance, blocker: -1 })
+        return Some({ event: 0, distance, blocker: -1, })
       }
       let c = g.cell(next)
       if g.occ[c] == s {
-        return Some({ event: 1, distance, blocker: owner[c] })
+        return Some({ event: 1, distance, blocker: owner[c], })
       }
       let state = if g.hex { c } else { (c * 3 + dq + 1) * 3 + dr + 1 }
       if contains(seen, state) {
-        return Some({ event: 2, distance: 0, blocker: -1 })
+        return Some({ event: 2, distance: 0, blocker: -1, })
       }
       seen.push(state)
       distance += 1
       pt = next
       if g.spring[c] {
-        return Some({ event: 3, distance, blocker: -1 })
+        return Some({ event: 3, distance, blocker: -1, })
       }
       let m = g.mirror[c]
       if m >= 0 {
@@ -61,14 +61,19 @@ fn snapshot(g : Geo, paths : Array[Path?]) -> Array[Snap?] {
         }
       }
     }
-    Some({ event: 2, distance: 0, blocker: -1 })
+    Some({ event: 2, distance: 0, blocker: -1, })
   })
 }
 
 ///|
-pub fn interaction(b : Board, g : Geo, plan : Array[Int], manual : Int) -> Double {
+pub fn interaction(
+  b : Board,
+  g : Geo,
+  plan : Array[Int32],
+  manual : Int32,
+) -> Double {
   let n = b.ropes.length()
-  let dependents : Array[Array[Int]] = Array::makei(n, _ => [])
+  let dependents : Array[Array[Int32]] = Array::makei(n, _ => [])
   let mut paths = some_paths(b.ropes)
   let mut before = snapshot(g, paths)
   let actions = FixedArray::make(n, 0)
@@ -111,11 +116,11 @@ pub fn interaction(b : Board, g : Geo, plan : Array[Int], manual : Int) -> Doubl
 
 ///|
 fn graph_interaction(
-  dependents : Array[Array[Int]],
-  n : Int,
-  revisited : Int,
+  dependents : Array[Array[Int32]],
+  n : Int32,
+  revisited : Int32,
 ) -> Double {
-  let prerequisites : Array[Array[Int]] = Array::makei(n, _ => [])
+  let prerequisites : Array[Array[Int32]] = Array::makei(n, _ => [])
   for from in 0..<n {
     for to in dependents[from] {
       prerequisites[to].push(from)
@@ -127,9 +132,9 @@ fn graph_interaction(
   let low = FixedArray::make(n, 0)
   let on_stack = FixedArray::make(n, false)
   let stack = []
-  let components : Array[Array[Int]] = []
+  let components : Array[Array[Int32]] = []
   let component = FixedArray::make(n, 0)
-  fn visit(v : Int) -> Unit {
+  fn visit(v : Int32) -> Unit {
     indices[v] = next_index
     low[v] = next_index
     next_index += 1
@@ -165,7 +170,7 @@ fn graph_interaction(
     }
   }
   let k = components.length()
-  let arcs : Array[Array[Int]] = Array::makei(k, _ => [])
+  let arcs : Array[Array[Int32]] = Array::makei(k, _ => [])
   let indegree = FixedArray::make(k, 0)
   for i in 0..<n {
     for j in dependents[i] {
@@ -206,14 +211,22 @@ fn graph_interaction(
       }
     }
   }
-  let essential = Array::makei(k, a => arcs[a].filter(c => !arcs[a].iter().any(x => x != c && reach[x][c])))
+  let essential = Array::makei(k, a => {
+    arcs[a].filter(c => !arcs[a].iter().any(x => x != c && reach[x][c]))
+  })
   let incoming = FixedArray::make(k, 0)
   for next in essential {
     for c in next {
       incoming[c] += 1
     }
   }
-  let internal_joins = components.map(group => group.filter(i => prerequisites[i].filter(j => component[j] == component[i]).length() >= 2).length())
+  let internal_joins = components.map(group => {
+    group
+    .filter(i => {
+      prerequisites[i].filter(j => component[j] == component[i]).length() >= 2
+    })
+    .length()
+  })
   let mut joins = 0
   for x in incoming {
     if x >= 2 {
@@ -223,8 +236,10 @@ fn graph_interaction(
   for x in internal_joins {
     joins += x
   }
-  let junctions = Array::makei(k, i => (if incoming[i] >= 2 { 1 } else { 0 }) +
-    (if internal_joins[i] > 0 { 1 } else { 0 }))
+  let junctions = Array::makei(k, i => {
+    (if incoming[i] >= 2 { 1 } else { 0 }) +
+    (if internal_joins[i] > 0 { 1 } else { 0 })
+  })
   let branch = FixedArray::makei(k, i => junctions[i])
   for a in queue {
     for c in essential[a] {
@@ -283,7 +298,7 @@ fn graph_interaction(
 ///|
 /// Number(x.toFixed(digits)) for the small non-negative values used here: the
 /// nearest decimal with `digits` places, larger on a tie.
-pub fn to_fixed(x : Double, digits : Int) -> Double {
+pub fn to_fixed(x : Double, digits : Int32) -> Double {
   let mut scale = 1.0
   for _ in 0..<digits {
     scale *= 10.0

@@ -4,42 +4,42 @@
 
 ///|
 pub(all) struct WeaveCfg {
-  w : Int
-  h : Int
-  len_lo : Int
-  len_hi : Int
-  min_len : Int
+  w : Int32
+  h : Int32
+  len_lo : Int32
+  len_hi : Int32
+  min_len : Int32
   straight : Double
   cover : Double
   tap_depth : Double
-  tie : Int
-  bait : Int
-  pull : Int
+  tie : Int32
+  bait : Int32
+  pull : Int32
   mirrors : SqMirrors
   initial_ropes : Array[Path]
-  initial_stops : Array[Array[Int]]
-  initial_plan : Array[Int]?
+  initial_stops : Array[Array[Int32]]
+  initial_plan : Array[Int32]?
 }
 
 ///|
 pub(all) struct Woven {
   ropes : Array[Path]
-  taps : Array[Int]
-  knots : Int
-  traps : Int
+  taps : Array[Int32]
+  knots : Int32
+  traps : Int32
 }
 
 ///|
-const WALKED : Int = -2
+const WALKED : Int32 = -2
 
 ///|
-const KEPT : Int = -3
+const KEPT : Int32 = -3
 
 ///|
-const MIRROR : Int = -4
+const MIRROR : Int32 = -4
 
 ///|
-const MIN_ROPES : Int = 3
+const MIN_ROPES : Int32 = 3
 
 ///|
 const MIN_COVERAGE_SLIDE : Double = 0.72
@@ -51,19 +51,19 @@ const MIN_COVERAGE_SMALL : Double = 0.6
 const MIN_BLOCKED_SHARE : Double = 0.5
 
 ///|
-const SMALL_W : Int = 5
+const SMALL_W : Int32 = 5
 
 ///|
-const KNOT_TRIES : Int = 12
+const KNOT_TRIES : Int32 = 12
 
 ///|
-const TRIES_PER_STEP : Int = 6
+const TRIES_PER_STEP : Int32 = 6
 
 ///|
-const MAX_STUCK : Int = 4
+const MAX_STUCK : Int32 = 4
 
 ///|
-pub fn knots_wanted(d : Double) -> Int {
+pub fn knots_wanted(d : Double) -> Int32 {
   if d < 12.0 {
     0
   } else {
@@ -74,14 +74,14 @@ pub fn knots_wanted(d : Double) -> Int {
 ///|
 pub(all) struct Style {
   name : String
-  min_len : Int
+  min_len : Int32
   straight : Double
-  len_lo : Int
+  len_lo : Int32
   twisty : Bool
 }
 
 ///|
-pub fn Style::len_hi(self : Style, w : Int) -> Int {
+pub fn Style::len_hi(self : Style, w : Int32) -> Int32 {
   match self.name {
     "short" => 5
     "medium" => 8
@@ -91,33 +91,33 @@ pub fn Style::len_hi(self : Style, w : Int) -> Int {
 
 ///|
 pub let styles : FixedArray[Style] = [
-  { name: "short", min_len: 2, straight: 0.5, len_lo: 3, twisty: false },
-  { name: "medium", min_len: 2, straight: 0.35, len_lo: 4, twisty: false },
-  { name: "twisty", min_len: 3, straight: 0.2, len_lo: 6, twisty: true },
+  { name: "short", min_len: 2, straight: 0.5, len_lo: 3, twisty: false, },
+  { name: "medium", min_len: 2, straight: 0.35, len_lo: 4, twisty: false, },
+  { name: "twisty", min_len: 3, straight: 0.2, len_lo: 6, twisty: true, },
 ]
 
 ///|
 /// The board the replay runs on, taking one more rope at a time with its
 /// intentions: the offsets it is meant to stop at, in order, before it leaves.
 struct Intentions {
-  w : Int
-  h : Int
+  w : Int32
+  h : Int32
   mirrors : SqMirrors
   b : SqBoard
   paths : Array[Path]
-  stops : Array[Array[Int]]
-  cost : FixedArray[Int]
-  dep : FixedArray[Int]
-  cell_at : FixedArray[Int]
-  rope_at : FixedArray[Int]
-  cell_by : FixedArray[Int]
-  done : FixedArray[Int]
-  mut taps : Array[Int]
-  mut cost_sum : Int
+  stops : Array[Array[Int32]]
+  cost : FixedArray[Int32]
+  dep : FixedArray[Int32]
+  cell_at : FixedArray[Int32]
+  rope_at : FixedArray[Int32]
+  cell_by : FixedArray[Int32]
+  done : FixedArray[Int32]
+  mut taps : Array[Int32]
+  mut cost_sum : Int32
 }
 
 ///|
-fn Intentions::new(w : Int, h : Int, mirrors : SqMirrors) -> Intentions {
+fn Intentions::new(w : Int32, h : Int32, mirrors : SqMirrors) -> Intentions {
   let n = w * h
   let b : SqBoard = {
     n: 0,
@@ -149,7 +149,7 @@ fn Intentions::new(w : Int, h : Int, mirrors : SqMirrors) -> Intentions {
 }
 
 ///|
-fn Intentions::add(self : Intentions, path : Path, st : Array[Int]) -> Int {
+fn Intentions::add(self : Intentions, path : Path, st : Array[Int32]) -> Int32 {
   let b = self.b
   let hd = last(path)
   let (dx, dy) = head_dir(path)
@@ -198,7 +198,7 @@ fn Intentions::set_up(self : Intentions) -> Unit {
 
 ///|
 /// Tap rope i if that does what is meant for it next. True if it moved.
-fn Intentions::tap(self : Intentions, i : Int) -> Bool {
+fn Intentions::tap(self : Intentions, i : Int32) -> Bool {
   let b = self.b
   let q = b.seq[i]
   let l = b.len[i]
@@ -246,7 +246,11 @@ fn Intentions::tap(self : Intentions, i : Int) -> Bool {
 }
 
 ///|
-fn Intentions::replay(self : Intentions, list : Array[Int], fresh : Int) -> Bool {
+fn Intentions::replay(
+  self : Intentions,
+  list : Array[Int32],
+  fresh : Int32,
+) -> Bool {
   let b = self.b
   self.set_up()
   self.cell_at.fill(-1)
@@ -275,9 +279,9 @@ fn Intentions::replay(self : Intentions, list : Array[Int], fresh : Int) -> Bool
 fn Intentions::trial(
   self : Intentions,
   path : Path,
-  st : Array[Int],
-  order : Array[Int],
-) -> Int {
+  st : Array[Int32],
+  order : Array[Int32],
+) -> Int32 {
   let id = self.add(path, st)
   let list = [id]
   for x in order {
@@ -295,23 +299,23 @@ fn Intentions::trial(
 
 ///|
 struct Spot {
-  c : Int
-  di : Int
-  room : Int
-  against : Int
-  gap : Int
+  c : Int32
+  di : Int32
+  room : Int32
+  against : Int32
+  gap : Int32
 }
 
 ///|
 struct Lane {
-  cells : Array[Int]
-  free : Int
-  ids : Array[Int]
+  cells : Array[Int32]
+  free : Int32
+  ids : Array[Int32]
 }
 
 ///|
 struct Shaped {
-  cells : Array[Int]
+  cells : Array[Int32]
   path : Path
   lane : Lane
 }
@@ -321,21 +325,21 @@ struct Shaped {
 struct Cand {
   path : Path
   lane : Lane?
-  gain : Int
-  bends : Int
-  pull : Int
-  rest : Array[Int]
-  gap : Array[Int]
+  gain : Int32
+  bends : Int32
+  pull : Int32
+  rest : Array[Int32]
+  gap : Array[Int32]
 }
 
 ///|
 fn knot_spots(
-  occ : FixedArray[Int],
-  rest : FixedArray[Int],
-  w : Int,
-  h : Int,
+  occ : FixedArray[Int32],
+  rest : FixedArray[Int32],
+  w : Int32,
+  h : Int32,
   mirrors : SqMirrors,
-  pull : Int,
+  pull : Int32,
 ) -> (Array[Spot], Array[Spot], Array[Spot]) {
   let tight = []
   let chain = []
@@ -371,7 +375,7 @@ fn knot_spots(
           by -= dy
         }
         if room >= 2 {
-          let s = { c, di, room, against, gap: 0 }
+          let s = { c, di, room, against, gap: 0, }
           if o >= 0 {
             tight.push(s)
           } else {
@@ -391,8 +395,11 @@ fn knot_spots(
               (occ[ahead[gap]] == -1 || occ[ahead[gap]] == MIRROR) {
           gap += 1
         }
-        if gap > 0 && gap <= pull && gap < ahead.length() && occ[ahead[gap]] >= 0 {
-          gapped.push({ c, di, room: 0, against: -1, gap })
+        if gap > 0 &&
+          gap <= pull &&
+          gap < ahead.length() &&
+          occ[ahead[gap]] >= 0 {
+          gapped.push({ c, di, room: 0, against: -1, gap, })
         }
         continue
       }
@@ -416,7 +423,7 @@ fn knot_spots(
         nx < w &&
         ny < h &&
         occ[ny * w + nx] >= 0 {
-        gapped.push({ c, di, room: 0, against: -1, gap })
+        gapped.push({ c, di, room: 0, against: -1, gap, })
       }
     }
   }
@@ -430,14 +437,14 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   let nn = w * h
   let occ = FixedArray::make(nn, -1)
   let mirrors = cfg.mirrors
-  let xy = (c : Int) => { q: c % w, r: c / w }
+  let xy = (c : Int32) => { q: c % w, r: c / w, }
   let blocked = (path : Path) => self_blocked(path, w, h, mirrors)
   for c in mirrors.keys {
     occ[c] = MIRROR
   }
   let ib = Intentions::new(w, h, mirrors)
   let b = ib.b
-  let mut order : Array[Int] = []
+  let mut order : Array[Int32] = []
   let mut total0 = 0
   let mut bend_sum = 0
   let mut covered = 0
@@ -448,7 +455,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   let rest = FixedArray::make(nn, -1)
 
   // ---- shaping ropes ----
-  fn grow(start : Int, first : Int, straight : Double) -> Array[Int] {
+  fn grow(start : Int32, first : Int32, straight : Double) -> Array[Int32] {
     let want = cfg.len_lo + rng.below(cfg.len_hi - cfg.len_lo + 1)
     let cells = [start]
     let mut last = -1
@@ -487,7 +494,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     cells
   }
 
-  fn way_out(x : Int, y : Int, d : Int) -> Lane? {
+  fn way_out(x : Int32, y : Int32, d : Int32) -> Lane? {
     let cells = []
     let dx = sq_dx[d]
     let dy = sq_dy[d]
@@ -514,10 +521,10 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
         ids.push(o)
       }
     }
-    Some({ cells, free, ids })
+    Some({ cells, free, ids, })
   }
 
-  fn dir_index(dx : Int, dy : Int) -> Int {
+  fn dir_index(dx : Int32, dy : Int32) -> Int32 {
     for d in 0..<4 {
       if sq_dx[d] == dx && sq_dy[d] == dy {
         return d
@@ -526,10 +533,10 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     abort("bad direction")
   }
 
-  fn shape(start : Int, straight : Double, dir : Int) -> Shaped? {
+  fn shape(start : Int32, straight : Double, dir : Int32) -> Shaped? {
     let s = xy(start)
     if dir >= 0 || rng.next() < 0.75 {
-      let opts : Array[(Int, Lane, Int)] = []
+      let opts : Array[(Int32, Lane, Int32)] = []
       let mut sum = 0
       for d in 0..<4 {
         if dir >= 0 && d != dir {
@@ -558,7 +565,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
         let path = cells.map(xy)
         path.rev_in_place()
         if cells.length() >= cfg.min_len && !blocked(path) {
-          return Some({ cells, path, lane: o.1 })
+          return Some({ cells, path, lane: o.1, })
         }
       }
       if dir >= 0 {
@@ -577,7 +584,11 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
       if !blocked(p) {
         let hd = last(p)
         let (dx, dy) = head_dir(p)
-        ok.push({ cells, path: p, lane: way_out(hd.q, hd.r, dir_index(dx, dy)).unwrap() })
+        ok.push({
+          cells,
+          path: p,
+          lane: way_out(hd.q, hd.r, dir_index(dx, dy)).unwrap(),
+        })
       }
     }
     if ok.length() == 0 {
@@ -597,7 +608,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     }
   }
 
-  fn trial(path : Path, st : Array[Int]) -> Int {
+  fn trial(path : Path, st : Array[Int32]) -> Int32 {
     ib.trial(path, st, order)
   }
 
@@ -640,9 +651,9 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   }
 
   // ---- how the board stands ----
-  let mut ahead : Array[Array[Int]] = []
-  let mut blk : Array[Array[Int]] = []
-  let lanes : Array[Array[Int]] = Array::makei(nn, _ => [])
+  let mut ahead : Array[Array[Int32]] = []
+  let mut blk : Array[Array[Int32]] = []
+  let lanes : Array[Array[Int32]] = Array::makei(nn, _ => [])
   let up = FixedArray::make(nn, 0)
   fn survey() -> Unit {
     ahead = []
@@ -680,7 +691,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   }
 
   // kind: 0 deep, 1 leaf, 2 inner, 3 any, 4 plain, 5 mirror
-  fn pick_parent(kind : Int) -> Int {
+  fn pick_parent(kind : Int32) -> Int32 {
     let mut sum = 0
     let wts = Array::makei(ib.paths.length(), i => {
       let v = if ahead[i].length() == 0 {
@@ -714,7 +725,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     wts.length() - 1
   }
 
-  fn aimed() -> (Int, Int)? {
+  fn aimed() -> (Int32, Int32)? {
     let idle = mirrors.keys.filter(c => !mirror_used[c])
     if idle.length() == 0 {
       return None
@@ -736,7 +747,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     Some((y * w + x, di))
   }
 
-  fn candidate(kind : Int, at : Int) -> Cand? {
+  fn candidate(kind : Int32, at : Int32) -> Cand? {
     let mut start = if at >= 0 { at } else { -1 }
     let mut dir = -1
     if kind == 5 {
@@ -785,7 +796,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   // ---- knots and traps ----
   let mark = FixedArray::make(nn + 1, 0)
   let mut stamp = 0
-  fn below(blockers : Array[Int]) -> Unit {
+  fn below(blockers : Array[Int32]) -> Unit {
     stamp += 1
     let stack = blockers.copy()
     for z in stack {
@@ -802,7 +813,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     }
   }
 
-  fn tied(cell : Int) -> Bool {
+  fn tied(cell : Int32) -> Bool {
     for id in lanes[cell] {
       if mark[id] == stamp {
         return true
@@ -811,13 +822,13 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     false
   }
 
-  fn to_path(cells : Array[Int]) -> Path {
+  fn to_path(cells : Array[Int32]) -> Path {
     let p = cells.map(xy)
     p.rev_in_place()
     p
   }
 
-  fn walk(spot : Spot, k : Int) -> (Array[Int], Array[Int])? {
+  fn walk(spot : Spot, k : Int32) -> (Array[Int32], Array[Int32])? {
     let back = (spot.di + 2) % 4
     let want = imax(k + 2, cfg.len_lo + rng.below(cfg.len_hi - cfg.len_lo + 1))
     let cells = [spot.c]
@@ -1042,7 +1053,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     true
   }
 
-  fn fits(c : Cand?, n : Int, budget : Int) -> Cand? {
+  fn fits(c : Cand?, budget : Int32) -> Cand? {
     match c {
       Some(c) =>
         if c.gain + c.bends <= budget && bend_sum + c.bends <= s_max {
@@ -1054,7 +1065,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     }
   }
 
-  fn knot_or_trap(n : Int, room : Double, budget : Int) -> Cand? {
+  fn knot_or_trap(n : Int32, room : Double, budget : Int32) -> Cand? {
     let want_knots = cfg.tie - knots
     let want_traps = cfg.bait - traps
     if n < 2 ||
@@ -1074,8 +1085,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
       }
       let list = if !is_knot {
         gapped
-      } else if chain.length() > 0 &&
-        (rng.next() < 0.5 || tight.length() == 0) {
+      } else if chain.length() > 0 && (rng.next() < 0.5 || tight.length() == 0) {
         chain
       } else {
         tight
@@ -1086,7 +1096,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
       }
       let spot = list[rng.below(list.length())]
       let c = if is_knot { knot(spot) } else { trap(spot) }
-      if fits(c, n, budget) is Some(c) {
+      if fits(c, budget) is Some(c) {
         return Some(c)
       }
       k += 1
@@ -1099,7 +1109,12 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
   let kinds_deep = [0, 0, 1, 2, 0, 3, 1, 2]
   let kinds_leaf = [1, 2, 3, 1, 2, 4, 3, 1]
   let kinds_inner = [2, 3, 4, 2, 3, 4, 2, 3]
-  fn best_rope(n : Int, budget : Int, desire : Double, need : Int) -> Cand? {
+  fn best_rope(
+    n : Int32,
+    budget : Int32,
+    desire : Double,
+    need : Int32,
+  ) -> Cand? {
     let kinds = if n == 0 {
       kinds_any
     } else if budget < 1 {
@@ -1116,7 +1131,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     let mut best_miss = 1.0e300
     for k in 0..<TRIES_PER_STEP {
       let kind = if aim && k == 0 { 5 } else { kinds[k % kinds.length()] }
-      guard fits(candidate(kind, -1), n, budget) is Some(c) else { continue }
+      guard fits(candidate(kind, -1), budget) is Some(c) else { continue }
       let lane = c.lane.unwrap()
       let lands = need > 0 &&
         c.gain + c.bends >= need &&
@@ -1137,7 +1152,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     best
   }
 
-  fn next_addition(score : Int) -> Cand? {
+  fn next_addition(score : Int32) -> Cand? {
     let n = b.n
     let budget = s_max - score
     let room = dmax(1.0, (cover_goal - covered.to_double()) / mean_len)
@@ -1153,9 +1168,7 @@ pub fn weave(rng : Rng, cfg : WeaveCfg) -> Woven? {
     let mut stuck = 0
     for _ in 0..<(2 * nn) {
       let score = total0 + bend_sum
-      if score >= s_min &&
-        b.n >= MIN_ROPES &&
-        covered.to_double() >= cover_goal {
+      if score >= s_min && b.n >= MIN_ROPES && covered.to_double() >= cover_goal {
         break
       }
       match next_addition(score) {
@@ -1268,5 +1281,5 @@ fn finished(cfg : WeaveCfg, ib : Intentions) -> Woven? {
       fin.place(i, 0)
     }
   }
-  Some({ ropes, taps: solution, knots: tied_up, traps: fatal })
+  Some({ ropes, taps: solution, knots: tied_up, traps: fatal, })
 }

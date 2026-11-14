@@ -3,22 +3,22 @@
 ///|
 pub(all) struct Spec {
   hex : Bool
-  w : Int
-  h : Int
+  w : Int32
+  h : Int32
   difficulty : Double
   mirrors : Bool
   springs : Bool
   seed : String
   require_slide : Bool
-  min_mirrors : Int
-  min_springs : Int
+  min_mirrors : Int32
+  min_springs : Int32
   colossal : Bool
 }
 
 ///|
 pub(all) struct Level {
   board : Board
-  par : Int
+  par : Int32
   exact : Bool
   coverage : Double
   wins : Double
@@ -76,12 +76,18 @@ fn valid(b : Board, g : Geo) -> Bool {
 ///|
 priv struct Core {
   ropes : Array[Path]
-  stops : Array[Array[Int]]
-  plan : Array[Int]
+  stops : Array[Array[Int32]]
+  plan : Array[Int32]
 }
 
 ///|
-fn repeated_core(hex : Bool, w : Int, height : Int, d : Double, rng : Rng) -> Core? {
+fn repeated_core(
+  hex : Bool,
+  w : Int32,
+  height : Int32,
+  d : Double,
+  rng : Rng,
+) -> Core? {
   let options : Array[Array[Path]] = []
   let maximum = imin(imin(10, imin(w, height) / 2), imax(w, height) - 4)
   let wanted = js_round(
@@ -96,61 +102,63 @@ fn repeated_core(hex : Bool, w : Int, height : Int, d : Double, rng : Rng) -> Co
     let a : Path = []
     let b : Path = []
     let left = -depth - 3 - extra
-    for r in 1..=depth {
-      a.push({ q: 0, r })
+    for r in 1..<=depth {
+      a.push({ q: 0, r, })
     }
     for q = -1; q >= left; q = q - 1 {
-      a.push({ q, r: depth })
+      a.push({ q, r: depth, })
     }
     let mut column = left
     for r = depth - 1; r >= 0; r = r - 1 {
       let next = if extra > 0 && r > 0 && r % 3 == 1 { left - 1 } else { left }
       if next != column {
-        a.push({ q: next, r: r + 1 })
+        a.push({ q: next, r: r + 1, })
       }
-      a.push({ q: next, r })
+      a.push({ q: next, r, })
       column = next
     }
     for q = left + 1; q <= -depth - 2; q = q + 1 {
-      a.push({ q, r: 0 })
+      a.push({ q, r: 0, })
     }
     for q = -depth; q <= -1; q = q + 1 {
-      b.push({ q, r: 0 })
+      b.push({ q, r: 0, })
     }
     for q = -1; q >= -side; q = q - 1 {
-      b.push({ q, r: -1 })
+      b.push({ q, r: -1, })
     }
     for r = -2; r >= -bottom; r = r - 1 {
-      b.push({ q: -side, r })
+      b.push({ q: -side, r, })
     }
     for q = 1 - side; q <= 0; q = q + 1 {
-      b.push({ q, r: -bottom })
+      b.push({ q, r: -bottom, })
     }
     for r = 1 - bottom; r <= -1; r = r + 1 {
-      b.push({ q: 0, r })
+      b.push({ q: 0, r, })
     }
     for turn in 0..<(if hex { 6 } else { 4 }) {
       for flip in [false, true] {
-        let ropes = [a, b].map(path => path.map(p => {
-          let mut q = p.q
-          let mut r = p.r
-          if flip {
-            let t = q
-            q = r
-            r = t
-          }
-          for _ in 0..<turn {
-            let t = q
-            if hex {
-              q = -r
-              r = t + r
-            } else {
-              q = -r
+        let ropes = [a, b].map(path => {
+          path.map(p => {
+            let mut q = p.q
+            let mut r = p.r
+            if flip {
+              let t = q
+              q = r
               r = t
             }
-          }
-          { q, r }
-        }))
+            for _ in 0..<turn {
+              let t = q
+              if hex {
+                q = -r
+                r = t + r
+              } else {
+                q = -r
+                r = t
+              }
+            }
+            { q, r, }
+          })
+        })
         let mut r0 = 1000000
         let mut r1 = -1000000
         for path in ropes {
@@ -179,7 +187,9 @@ fn repeated_core(hex : Bool, w : Int, height : Int, d : Double, rng : Rng) -> Co
         }
         let col = rng.below(w - width + 1)
         options.push(
-          ropes.map(path => path.map(p => { q: p.q - x0 + col, r: p.r - r0 + row })),
+          ropes.map(path => {
+            path.map(p => { q: p.q - x0 + col, r: p.r - r0 + row, })
+          }),
         )
       }
     }
@@ -218,21 +228,21 @@ fn repeated_core(hex : Bool, w : Int, height : Int, d : Double, rng : Rng) -> Co
     }
     paths = mv.paths
   }
-  Some({ ropes: chosen, stops, plan: proven.plan })
+  Some({ ropes: chosen, stops, plan: proven.plan, })
 }
 
 ///|
 fn place_mirrors(
   hex : Bool,
-  w : Int,
-  height : Int,
-  count : Int,
+  w : Int32,
+  height : Int32,
+  count : Int32,
   rng : Rng,
   avoid : FixedArray[Bool],
 ) -> Array[Mirror] {
   let cells = []
   for i in 0..<(w * height) {
-    let p = if hex { hex_point(i, w) } else { { q: i % w, r: i / w } }
+    let p = if hex { hex_point(i, w) } else { { q: i % w, r: i / w, } }
     let column = p.q + (if hex { floor_div(p.r, 2) } else { 0 })
     if column > 0 && column < w - 1 && p.r > 0 && p.r < height - 1 && !avoid[i] {
       cells.push(p)
@@ -249,16 +259,16 @@ fn place_mirrors(
       continue
     }
     if hex {
-      out.push({ cell: p, kind: rng.below(3) })
+      out.push({ cell: p, kind: rng.below(3), })
     } else {
-      out.push({ cell: p, kind: if rng.next() < 0.5 { 0 } else { 1 } })
+      out.push({ cell: p, kind: if rng.next() < 0.5 { 0 } else { 1 }, })
     }
     near[index(p)] = true
     for d in 0..<(if hex { 6 } else { 4 }) {
       let q = if hex {
-        { q: p.q + hex_dq[d], r: p.r + hex_dr[d] }
+        { q: p.q + hex_dq[d], r: p.r + hex_dr[d], }
       } else {
-        { q: p.q + sq_dx[d], r: p.r + sq_dy[d] }
+        { q: p.q + sq_dx[d], r: p.r + sq_dy[d], }
       }
       near[index(q)] = true
     }
@@ -267,20 +277,20 @@ fn place_mirrors(
 }
 
 ///|
-pub fn knots_for(d : Double) -> Int {
+pub fn knots_for(d : Double) -> Int32 {
   knots_wanted(300.0 * @math.pow(dmax(0.0, d) / 100.0, 1.3))
 }
 
 ///|
 fn woven(
   hex : Bool,
-  w : Int,
-  height : Int,
+  w : Int32,
+  height : Int32,
   d : Double,
   rng : Rng,
   style : Style,
   long_ropes : Bool,
-  mirror_count : Int,
+  mirror_count : Int32,
   core_wanted : Bool,
 ) -> Board? {
   let area = w * height
@@ -323,9 +333,14 @@ fn woven(
   if hex {
     let knots = imax(
       imax(
-        if area >= 30 && d >= 20.0 { 1 } else { 0 },
+        if area >= 30 && d >= 20.0 {
+          1
+        } else {
+          0
+        },
         js_round(
-          area.to_double() / (if long_ropes { 50.0 } else { 32.0 }) *
+          area.to_double() /
+          (if long_ropes { 50.0 } else { 32.0 }) *
           strength *
           strength,
         ),
@@ -383,26 +398,38 @@ fn woven(
   } else {
     knots_for(d)
   }
-  let mmap = { slope: FixedArray::make(area, -1), keys: [] }
+  let mmap = { slope: FixedArray::make(area, -1), keys: [], }
   for m in mirrors {
     mmap.set(m.cell.r * w + m.cell.q, m.kind)
   }
   guard weave(rng, {
       w,
       h: height,
-      len_lo: if long_ropes { 6 } else { style.len_lo },
+      len_lo: if long_ropes {
+        6
+      } else {
+        style.len_lo
+      },
       len_hi: if long_ropes {
         length
       } else {
         imax(style.len_lo, style.len_hi(imin(w, height)))
       },
-      min_len: if long_ropes { 2 } else { style.min_len },
+      min_len: if long_ropes {
+        2
+      } else {
+        style.min_len
+      },
       straight: style.straight,
       cover: 0.99,
       tap_depth: strength * 8.0,
       tie: knots,
       bait: traps,
-      pull: if long_ropes { 5 } else { 3 },
+      pull: if long_ropes {
+        5
+      } else {
+        3
+      },
       mirrors: mmap,
       initial_ropes: iropes,
       initial_stops: istops,
@@ -431,12 +458,12 @@ fn woven(
 }
 
 ///|
-fn pt_key(p : Pt) -> Int {
+fn pt_key(p : Pt) -> Int32 {
   (p.q + 4096) * 8192 + p.r + 4096
 }
 
 ///|
-fn add_spinners(start : Board, rng : Rng, count : Int) -> Board? {
+fn add_spinners(start : Board, rng : Rng, count : Int32) -> Board? {
   let mut board = start
   for _ in 0..<count {
     let g = board.geo()
@@ -454,7 +481,7 @@ fn add_spinners(start : Board, rng : Rng, count : Int) -> Board? {
     }
     for path in board.ropes {
       let (dq, dr) = g.direction(path)
-      let p = { q: last(path).q + dq, r: last(path).r + dr }
+      let p = { q: last(path).q + dq, r: last(path).r + dr, }
       if g.inside(p) {
         blocked[g.cell(p)] = true
       }
@@ -471,7 +498,7 @@ fn add_spinners(start : Board, rng : Rng, count : Int) -> Board? {
       }
       paths = mv.paths
     }
-    let seen : Map[Int, Bool] = Map([])
+    let seen : Map[Int32, Bool] = Map([])
     fn fresh(group : Array[Pt]) -> Array[Pt] {
       let cells = group.filter(p => {
         if !g.inside(p) || blocked[g.cell(p)] || seen.contains(pt_key(p)) {
@@ -491,13 +518,17 @@ fn add_spinners(start : Board, rng : Rng, count : Int) -> Board? {
 
     fn try_cells(cells : Array[Pt]) -> Board? {
       // Eager, like the JS (map then find): every candidate is evaluated.
-      let first = cells[0:imin(16, cells.length())].to_owned().map(c => with_spinner(board, c))
+      let first = cells[0:imin(16, cells.length())]
+        .to_owned()
+        .map(c => with_spinner(board, c))
       for x in first {
         if x is Some(_) {
           return x
         }
       }
-      let second = cells[0:imin(8, cells.length())].to_owned().map(c => search_spinner(board, c))
+      let second = cells[0:imin(8, cells.length())]
+        .to_owned()
+        .map(c => search_spinner(board, c))
       for x in second {
         if x is Some(_) {
           return x
@@ -521,7 +552,12 @@ fn ways_out(board : Board) -> Array[Pt] {
   let out = []
   let w = board.w
   if board.hex {
-    let tracks = hex_compile_exn(board.w, board.h, board.mirrors, some_paths(board.ropes)).tracks
+    let tracks = hex_compile_exn(
+        board.w,
+        board.h,
+        board.mirrors,
+        some_paths(board.ropes),
+      ).tracks
     for i, t in tracks {
       for k in board.ropes[i].length()..<t.length() {
         out.push(hex_point(t[k], w))
@@ -529,14 +565,14 @@ fn ways_out(board : Board) -> Array[Pt] {
     }
   } else {
     let tracks = sq_tracks(
-        some_paths(board.ropes),
-        board.w,
-        board.h,
-        SqMirrors::of_board(board),
-      ).unwrap()
+      some_paths(board.ropes),
+      board.w,
+      board.h,
+      SqMirrors::of_board(board),
+    ).unwrap()
     for i, t in tracks {
       for k in board.ropes[i].length()..<t.length() {
-        out.push({ q: t[k] % w, r: t[k] / w })
+        out.push({ q: t[k] % w, r: t[k] / w, })
       }
     }
   }
@@ -585,7 +621,8 @@ fn search_spinner(board : Board, cell : Pt) -> Board? {
     js_round(12000.0 / b.ropes.length().to_double()),
     board.plan,
   )
-  if solution.solved == Some(true) && bounce_step(b, g, solution.moves, cell) >= 0 {
+  if solution.solved == Some(true) &&
+    bounce_step(b, g, solution.moves, cell) >= 0 {
     Some(b.with_plan(solution.moves))
   } else {
     None
@@ -593,7 +630,7 @@ fn search_spinner(board : Board, cell : Pt) -> Board? {
 }
 
 ///|
-fn bounce_step(b : Board, g : Geo, plan : Array[Int], at : Pt) -> Int {
+fn bounce_step(b : Board, g : Geo, plan : Array[Int32], at : Pt) -> Int32 {
   let played = b.replay_plan(g, plan)
   if !played.solved {
     return -1
@@ -647,18 +684,18 @@ fn features_used(b : Board, g : Geo) -> Bool {
 
 ///|
 priv struct FeatureStats {
-  used_mirrors : Int
-  used_springs : Int
-  manual_mirrors : Int
-  manual_springs : Int
+  used_mirrors : Int32
+  used_springs : Int32
+  manual_mirrors : Int32
+  manual_springs : Int32
 }
 
 ///|
 fn feature_stats(
   b : Board,
   g : Geo,
-  plan : Array[Int],
-  manual : Int,
+  plan : Array[Int32],
+  manual : Int32,
 ) -> FeatureStats? {
   let area = b.w * b.h
   let turned = FixedArray::make(area, false)
@@ -726,7 +763,7 @@ fn regional(b : Board) -> Bool {
     2 * (if p.r.to_double() >= b.h.to_double() / 2.0 { 1 } else { 0 })
   }
   for i in 0..<(b.w * b.h) {
-    let p = if b.hex { hex_point(i, b.w) } else { { q: i % b.w, r: i / b.w } }
+    let p = if b.hex { hex_point(i, b.w) } else { { q: i % b.w, r: i / b.w, } }
     area[zone(p)] += 1
   }
   for path in b.ropes {
@@ -757,7 +794,7 @@ fn trivial(b : Board, g : Geo) -> Bool {
 }
 
 ///|
-fn postpone(b : Board, g : Geo, plan : Array[Int]) -> Array[Int] {
+fn postpone(b : Board, g : Geo, plan : Array[Int32]) -> Array[Int32] {
   let mut best = plan
   let mut taps = b.replay_plan(g, plan).taps
   for k = imin(taps, best.length()) - 1; k >= 0; k = k - 1 {
@@ -783,7 +820,7 @@ fn postpone(b : Board, g : Geo, plan : Array[Int]) -> Array[Int] {
 /// Par: unneeded exits postponed to the automatic release, then a bounded search.
 fn score(b : Board, g : Geo, skip : Bool) -> Par {
   if skip {
-    return { plan: b.plan, par: b.replay_plan(g, b.plan).taps, exact: false }
+    return { plan: b.plan, par: b.replay_plan(g, b.plan).taps, exact: false, }
   }
   let budget = 2500
   if b.springs.length() == 0 && !b.hex {
@@ -805,12 +842,12 @@ fn score(b : Board, g : Geo, skip : Bool) -> Par {
   if b.ropes.length() <= 12 {
     b.minimum_taps(g, start, 1200)
   } else {
-    { plan: start, par: b.replay_plan(g, start).taps, exact: false }
+    { plan: start, par: b.replay_plan(g, start).taps, exact: false, }
   }
 }
 
 ///|
-fn casual_rate(b : Board, g : Geo, rng : Rng, games : Int) -> Double {
+fn casual_rate(b : Board, g : Geo, rng : Rng, games : Int32) -> Double {
   if b.springs.length() == 0 && !b.hex {
     return sq_casual_wins(some_paths(b.ropes), b.w, b.h, rng, games, g.sqm)
   }
@@ -869,7 +906,11 @@ pub fn grid_generate(s : Spec) -> Level? {
     }]
   let colossal = s.colossal
   let strength = d / 100.0
-  let spinner_count = if s.springs { imax(1, imax(1, s.min_springs)) } else { 0 }
+  let spinner_count = if s.springs {
+    imax(1, imax(1, s.min_springs))
+  } else {
+    0
+  }
   let min_m = if s.min_mirrors > 0 { s.min_mirrors } else { 2 }
   let mirror_count = if !s.mirrors {
     0
@@ -974,7 +1015,11 @@ pub fn grid_generate(s : Spec) -> Level? {
         b,
         g,
         rng_of("casual/" + s.seed + "/" + attempt.to_string()),
-        if b.springs.length() > 0 { 10 } else { 32 },
+        if b.springs.length() > 0 {
+          10
+        } else {
+          32
+        },
       )
     }
     let work = (slides + bounces).to_double()
@@ -1004,11 +1049,11 @@ pub fn grid_generate(s : Spec) -> Level? {
 }
 
 ///|
-pub fn bench_casual(b : Board, games : Int) -> Double {
+pub fn bench_casual(b : Board, games : Int32) -> Double {
   casual_rate(b, b.geo(), rng_of("bench"), games)
 }
 
 ///|
-pub fn bench_par(b : Board) -> Int {
+pub fn bench_par(b : Board) -> Int32 {
   score(b, b.geo(), false).par
 }

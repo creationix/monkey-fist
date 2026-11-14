@@ -4,8 +4,8 @@
 ///|
 #derive(Eq, Hash, Debug)
 pub(all) struct Pt {
-  q : Int
-  r : Int
+  q : Int32
+  r : Int32
 }
 
 ///|
@@ -16,27 +16,31 @@ pub type Path = Array[Pt]
 #derive(Eq, Debug)
 pub(all) struct Mirror {
   cell : Pt
-  kind : Int
+  kind : Int32
 }
 
 ///|
 pub(all) struct Board {
   hex : Bool
-  w : Int
-  h : Int
+  w : Int32
+  h : Int32
   ropes : Array[Path]
   mirrors : Array[Mirror]
   springs : Array[Pt]
-  mut plan : Array[Int]
+  mut plan : Array[Int32]
 }
 
 ///|
-pub fn Board::with_springs(self : Board, springs : Array[Pt], plan : Array[Int]) -> Board {
-  { ..self, springs, plan }
+pub fn Board::with_springs(
+  self : Board,
+  springs : Array[Pt],
+  plan : Array[Int32],
+) -> Board {
+  { ..self, springs, plan, }
 }
 
 ///|
-pub fn Board::with_plan(self : Board, plan : Array[Int]) -> Board {
+pub fn Board::with_plan(self : Board, plan : Array[Int32]) -> Board {
   { ..self, plan, }
 }
 
@@ -61,6 +65,6 @@ pub fn last(p : Path) -> Pt {
 }
 
 ///|
-pub fn slice(p : Array[Pt], a : Int, b : Int) -> Array[Pt] {
+pub fn slice(p : Array[Pt], a : Int32, b : Int32) -> Array[Pt] {
   p[a:b].to_owned()
 }

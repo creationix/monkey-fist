@@ -8,6 +8,32 @@ pub fn bench_par() -> Int32
 
 pub fn bench_solve(Int32) -> Int32
 
+pub fn f_get(Int32) -> Double
+
+pub fn f_len() -> Int32
+
+pub fn game_auto() -> Unit
+
+pub fn game_draw() -> Int32
+
+pub fn game_hint() -> Unit
+
+pub fn game_pointer(Double, Double) -> Int32
+
+pub fn game_resize(Double, Double, Double, Double) -> Unit
+
+pub fn game_speed(Double) -> Unit
+
+pub fn game_start() -> Int32
+
+pub fn game_status() -> Int32
+
+pub fn game_undo() -> Unit
+
+pub fn game_update(Double) -> Unit
+
+pub fn game_voices() -> Int32
+
 pub fn generate(Int32) -> Int32
 
 pub fn in_push(Int32) -> Unit

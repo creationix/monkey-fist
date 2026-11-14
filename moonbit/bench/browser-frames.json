@@ -1,0 +1,59 @@
+{
+ "browser": "153.0.8010.12",
+ "frames": {
+  "57": {
+   "JS game": {
+    "frames": 202,
+    "wallMs": 3358,
+    "scriptMsPerFrame": 1.4513762376237624,
+    "taskMsPerFrame": 4.339816831683168,
+    "layoutMsPerFrame": 0.03595544554455446
+   },
+   "MoonBit slice": {
+    "frames": 444,
+    "wallMs": 7398,
+    "scriptMsPerFrame": 0.4231846846846847,
+    "taskMsPerFrame": 5.050364864864865,
+    "layoutMsPerFrame": 0.29186936936936936,
+    "moonbitMsPerFrame": 0.08179916317426604,
+    "canvasGlueMsPerFrame": 0.2958158995823693
+   }
+  },
+  "60": {
+   "JS game": {
+    "frames": 202,
+    "wallMs": 3390,
+    "scriptMsPerFrame": 1.503232673267327,
+    "taskMsPerFrame": 4.098247524752475,
+    "layoutMsPerFrame": 0.04782178217821782
+   },
+   "MoonBit slice": {
+    "frames": 504,
+    "wallMs": 8392,
+    "scriptMsPerFrame": 0.4245238095238095,
+    "taskMsPerFrame": 4.919615079365079,
+    "layoutMsPerFrame": 0.2939781746031746,
+    "moonbitMsPerFrame": 0.08085501857957073,
+    "canvasGlueMsPerFrame": 0.30223048327327967
+   }
+  },
+  "119": {
+   "JS game": {
+    "frames": 202,
+    "wallMs": 3391,
+    "scriptMsPerFrame": 1.5470544554455445,
+    "taskMsPerFrame": 4.239460396039604,
+    "layoutMsPerFrame": 0.03143069306930693
+   },
+   "MoonBit slice": {
+    "frames": 623,
+    "wallMs": 10388,
+    "scriptMsPerFrame": 0.42377688603531294,
+    "taskMsPerFrame": 4.446617977528089,
+    "layoutMsPerFrame": 0.24375762439807383,
+    "moonbitMsPerFrame": 0.079635258356398,
+    "canvasGlueMsPerFrame": 0.3019756838887375
+   }
+  }
+ }
+}

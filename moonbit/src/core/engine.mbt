@@ -1,17 +1,17 @@
 // game-engine.js: set codes, level specifications, layout keys and generate().
 
 ///|
-pub let grid_version : Int = 8
+pub let grid_version : Int32 = 8
 
 ///|
 pub(all) struct SetOpts {
   journey : Bool
   grid : Char // 'S', 'H' or 'M'
-  min : Int
-  max : Int
-  w : Int
-  h : Int
-  count : Int
+  min : Int32
+  max : Int32
+  w : Int32
+  h : Int32
+  count : Int32
   mirrors : Bool
   springs : Bool
   colossal : Bool
@@ -45,7 +45,7 @@ pub fn set_code(o : SetOpts) -> String {
 }
 
 ///|
-fn digits(s : String, lo : Int, hi : Int) -> Int? {
+fn digits(s : String, lo : Int32, hi : Int32) -> Int32? {
   if s.length() < lo || s.length() > hi {
     return None
   }
@@ -128,7 +128,7 @@ pub fn parse_code(text : String) -> SetOpts? {
 }
 
 ///|
-pub fn level_spec(o : SetOpts, index : Int) -> Spec {
+pub fn level_spec(o : SetOpts, index : Int32) -> Spec {
   let i = imax(0, imin(o.count - 1, index))
   if o.journey {
     return journey[i]
@@ -143,9 +143,9 @@ pub fn level_spec(o : SetOpts, index : Int) -> Spec {
     w: o.w,
     h: o.h,
     difficulty: o.min.to_double() +
-      (o.max - o.min).to_double() *
-      i.to_double() /
-      imax(1, o.count - 1).to_double(),
+    (o.max - o.min).to_double() *
+    i.to_double() /
+    imax(1, o.count - 1).to_double(),
     mirrors: o.mirrors,
     springs: o.springs,
     seed: base36(hash_string("grid/3/" + set_code(o) + "/" + i.to_string()))
@@ -204,9 +204,9 @@ pub fn layout_key(b : Board) -> String {
 }
 
 ///|
-pub fn generate(o : SetOpts, index : Int) -> Level? {
+pub fn generate(o : SetOpts, index : Int32) -> Level? {
   match grid_generate(level_spec(o, index)) {
-    Some(l) => Some({ ..l, layout_key: layout_key(l.board) })
+    Some(l) => Some({ ..l, layout_key: layout_key(l.board), })
     None => None
   }
 }
