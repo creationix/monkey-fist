@@ -42,10 +42,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     // Wait for the isolate to weave the level.
-    await tester.runAsync(() => store.get(0));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    // The isolate runs in real time; its result is delivered in the test's
+    // fake-async zone, so alternate real waits with pumps.
     final state = tester.state(find.byType(GameScreen)) as dynamic;
+    for (var k = 0; k < 200 && state.game == null; k++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     final game = state.game;
     expect(game, isNotNull);
     await _shot(tester, 'app-level1', GameScreen);
