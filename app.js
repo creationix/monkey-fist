@@ -16,7 +16,7 @@ if (save.gridGen !== H.GRID_VERSION) { save.sets = {}; save.gridGen = H.GRID_VER
 save.sets ||= {};
 save.chapterSets ||= {};
 const chaptersFor = options => save.chapterSets[H.code(options)] || 1;
-save.sound = MFAudio.soundSetting(save.sound).id;
+save.sound = MFAudio.setting('sound', save.sound).id; save.music = MFAudio.setting('music', save.music).id;
 const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
 if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
 if (save.graphics !== 'tiles') save.graphics = 'rope';
@@ -36,7 +36,8 @@ const rules = () => H;
 const headDirection = path => H.direction(G.level, path);
 let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null, motionNo = 0;
 const gameAudio = MFAudio.createAudio(() => ({
-  sound: save.sound, music: !!save.music && !document.hidden && !$('chooser').open && !$('result').open, level: G.index + 1,
+  // Music pauses in the background and in menus.
+  sound: save.sound, music: document.hidden || $('chooser').open || $('result').open ? 'off' : save.music, level: G.index + 1,
 }));
 const { init: audio, sfx } = gameAudio;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -50,10 +51,11 @@ function refreshFrozen() {
 }
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
 function syncMusic() {
-  $('music').textContent = save.music ? '♫ Music on' : '♫ Music off'; $('music').setAttribute('aria-pressed', !!save.music);
-  const sound = MFAudio.soundSetting(save.sound);
-  $('sound').textContent = 'Sound: ' + sound.label; $('sound').setAttribute('aria-pressed', sound.id !== 'off');
-  $('sound').setAttribute('aria-label', 'Sound effects: ' + sound.label);
+  for (const [id, kind, name] of [['sound', 'sound', 'Sound effects'], ['music', 'music', 'Music']]) {
+    const level = MFAudio.setting(kind, save[kind]);
+    $(id).textContent = (kind === 'music' ? '♫ Music: ' : 'Sound: ') + level.label;
+    $(id).setAttribute('aria-pressed', level.id !== 'off'); $(id).setAttribute('aria-label', name + ': ' + level.label);
+  }
   gameAudio.sync();
 }
 function updateURL() {
@@ -255,7 +257,7 @@ function tap(i, automatic = false, solveFast = false) {
   let previous = G.moves.get(i);
   if (solveFast) while (previous?.queued) previous = previous.queued;
   if (G.loading || !G.paths[i] || !solveFast && previous && (previous.event !== 'bounce' || previous.queued) || G.ended || (G.auto && !automatic)) return;
-  if (!automatic) { audio(); G.taps++; G.hint = -1; }
+  if (!automatic) { audio(); gameAudio.music?.activity(); G.taps++; G.hint = -1; }
   const m = rules().tap(G.level, G.paths, i);
   // The bounce animation shows the rope is blocked; a light sound confirms it.
   if (!m) { G.bump = { i, time: .25 }; G.combo = 0; if (!automatic) sfx.blocked(); hud(); return; }
@@ -885,8 +887,8 @@ for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridH
 $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
 $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };
 $('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
-$('music').onclick = () => { save.music = !save.music; audio(); persist(); syncMusic(); };
-$('sound').onclick = () => { save.sound = MFAudio.nextSound(save.sound); persist(); syncMusic(); };
+$('music').onclick = () => { save.music = MFAudio.nextSetting('music', save.music); audio(); persist(); syncMusic(); };
+$('sound').onclick = () => { save.sound = MFAudio.nextSetting('sound', save.sound); persist(); syncMusic(); };
 $('graphics').onclick = () => { save.graphics = save.graphics === 'tiles' ? 'rope' : 'tiles'; persist(); syncDisplay(); restingKey = []; drawNext = true; };
 $('moveSpeed').onclick = () => { const choices = ['normal', 'fast', 'slow']; save.moveSpeed = choices[(choices.indexOf(save.moveSpeed) + 1) % choices.length]; persist(); syncDisplay(); };
 $('oled').onclick = () => {

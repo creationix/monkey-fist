@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SONGS, createMusicPlayer } = require('../music.js');
+const { SONGS, ARRANGEMENTS, THINKING, melodyNote, createMusicPlayer } = require('../music.js');
 
 function audioClock() {
   const oscillators = [], gains = [], sources = [], nodes = [], buffers = [];
@@ -92,4 +92,47 @@ test('a long session develops through all sections without growing the active vo
   assert.equal(sections.size, 4); assert.ok(peak > 10 && peak < 64, 'normal arranging stays well below the voice cap');
   assert.equal(buffers.length, 1, 'shakers and hand drums reuse one noise buffer');
   player.dispose(); advance(101); assert.equal(player.state.voices, 0);
+});
+
+// Every note of a song pass, bar by bar and eighth by eighth.
+const passNotes = (song, level, pass) => song.bars.slice(0, 16).map((_, bar) => Array.from({ length: 8 }, (_, slot) => melodyNote(song, level, bar, slot, pass)));
+test('long sessions cycle four arrangements, with an exact first theme and seeded variations after it', () => {
+  assert.deepEqual(ARRANGEMENTS, ['theme', 'variation', 'drift', 'return']);
+  for (const [index, song] of SONGS.entries()) {
+    const level = index + 1, written = song.bars.slice(0, 16);
+    assert.deepEqual(passNotes(song, level, 0), written, song.title + ' opens with the written melody');
+    for (const pass of [1, 3, 4, 5, 7]) {
+      const notes = passNotes(song, level, pass), flat = notes.flat(), original = written.flat();
+      const same = flat.filter((note, k) => note === original[k]).length;
+      assert.ok(same < flat.length, song.title + ' pass ' + pass + ' varies');
+      assert.ok(same > flat.length * .6, song.title + ' pass ' + pass + ' stays recognisable: ' + same + '/' + flat.length);
+      assert.deepEqual(passNotes(song, level, pass), notes, 'variations are repeatable');
+      notes.forEach((bar, b) => {
+        assert.equal(bar[0] === null, written[b][0] === null, 'downbeats are kept');
+        const tones = new Set(song.chords[b % song.chords.length].map(n => n % 12));
+        bar.forEach((note, slot) => { if (note !== null && note !== written[b][slot]) assert.ok(tones.has(note % 12) || Math.abs(note - written[b][slot]) === 12, song.title + ': a changed note is a chord tone or an octave'); });
+      });
+    }
+    const drift = passNotes(song, level, 2);
+    assert.ok(drift.every((bar, b) => b % 2 === 0 || bar.every(note => note === null)), song.title + ' drift rests the melody on odd bars');
+    assert.notDeepEqual(passNotes(song, level, 1), passNotes(song, level + SONGS.length, 1), song.title + ' varies differently on a later level');
+  }
+});
+
+test('a drift pass is lighter, and the music eases back while the player thinks', () => {
+  const { context, destination, oscillators, advance } = audioClock(), player = createMusicPlayer(context, destination);
+  const bar = 240 / SONGS[0].bpm; player.setLevel(1); player.setEnabled(true);
+  const run = (from, to, act) => { const before = oscillators.length; for (let t = from; t < to; t += .05) { advance(t); if (act) player.activity(); player.tick(); } return oscillators.length - before; };
+  // Keep "playing": a tap every tick, so the thinking calm never starts.
+  const theme = run(0, 16 * bar, true), variation = run(16 * bar, 32 * bar, true);
+  assert.equal(player.state.arrangement, 'drift');
+  const drift = run(32 * bar, 48 * bar, true);
+  assert.ok(drift < theme * .75 && drift < variation * .75, 'drift voices ' + drift + ' against ' + theme + ' and ' + variation);
+  assert.equal(player.state.calm, 0);
+  // Now think: no taps for longer than THINKING, then the calm settles within four bars.
+  run(48 * bar, 48 * bar + THINKING + 5 * bar, false);
+  assert.equal(player.state.calm, 1);
+  player.activity(); run(48 * bar + THINKING + 5 * bar, 48 * bar + THINKING + 8 * bar, false);
+  assert.equal(player.state.calm, 0, 'a tap brings the music back within two bars');
+  player.dispose();
 });

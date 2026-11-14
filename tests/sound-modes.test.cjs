@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 const base = process.env.MF_TEST_URL || 'http://127.0.0.1:4173/';
 
-test('the sound button cycles actual mix levels and persists offline', { timeout: 60000 }, async () => {
+test('the sound and music buttons cycle actual mix levels and persist offline', { timeout: 60000 }, async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true });
   try {
     {
@@ -41,15 +41,27 @@ test('the sound button cycles actual mix levels and persists offline', { timeout
         assert.ok(Math.abs(await page.evaluate(() => __musicGain.value) - .55) < .0001, 'sound level must not alter the music bus');
         assert.equal(await page.evaluate(() => __game.save.sound), mode);
       };
-      await verify('low', .15);
+      await verify('soft', .15);
       await page.screenshot({ path: '/tmp/monkey-fist-sound.png' });
-      for (const [mode, gain] of [['full', .6], ['off', 0], ['low', .15]]) {
+      for (const [mode, gain] of [['full', .6], ['off', 0], ['soft', .15]]) {
         await button.click(); await verify(mode, gain);
         assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).sound, storage), mode);
       }
+      // Music: Off, then Soft at the original level, then Full at about twice it. It plays
+      // only outside the menu, so each level is checked with the menu closed.
+      const music = page.locator('#music');
+      assert.equal(await music.getAttribute('aria-label'), 'Music: Off');
+      for (const [mode, gain] of [['soft', .55], ['full', 1.15], ['off', null]]) {
+        await music.click(); assert.equal(await music.getAttribute('aria-label'), 'Music: ' + mode[0].toUpperCase() + mode.slice(1));
+        assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).music, storage), mode);
+        await page.click('#closeLevels');
+        assert.equal(await page.evaluate(() => gameAudio.music.state.enabled), mode !== 'off');
+        if (gain) await page.waitForFunction(gain => Math.abs(__musicGain.value - gain) < .001, gain);
+        await page.click('#levels');
+      }
       await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForFunction(() => !!navigator.serviceWorker.controller);
       await context.setOffline(true); await page.reload(); await ready(); await page.keyboard.press('Shift'); await page.click('#levels');
-      await verify('low', .15);
+      await verify('soft', .15);
       assert.deepEqual(errors, []); await context.close();
     }
   } finally { await browser.close(); }

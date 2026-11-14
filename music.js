@@ -63,9 +63,40 @@
     s.groove = { low: rhythm(low), hand: rhythm(hand), wood: rhythm(wood), shaker: rhythm(shaker), bass: rhythm(bass), swing, register: register - 12 };
   });
   const SECTIONS = ['canopy', 'groove', 'river break', 'celebration'];
+  // Long sessions: each 16-bar pass of a song takes the next of four arrangements, so the
+  // exact song recurs only after 64 bars (about three minutes), and later rounds vary further.
+  // The drift pass thins the drums and lets the melody breathe, a rest for the ear.
+  const ARRANGEMENTS = ['theme', 'variation', 'drift', 'return'];
+  // How far each arrangement strays from the written melody (the first theme is exact).
+  const STRAY = { theme: .12, variation: .35, drift: .2, return: .25 };
+  // Seconds without a tap before the music eases back while the player thinks.
+  const THINKING = 20;
+  // A small seeded hash in [0, 1): the same level, pass and note always vary the same way.
+  const hash = (...values) => { let h = 2166136261; for (const v of values) { h = Math.imul(h ^ (v | 0), 16777619); h ^= h >>> 13; } return (h >>> 0) / 4294967296; };
+  // The nearest note above (direction 1) or below (-1) whose pitch class is in `tones`.
+  const nearestTone = (note, tones, direction) => { for (let k = 1; k < 12; k++) if (tones.has((note + k * direction + 120) % 12)) return note + k * direction; return note; };
+
+  // The melody note of a song's bar and eighth-note slot on a given pass: the written note, or
+  // a small seeded variation of it (a dropped note, a step to a neighbouring chord tone, an
+  // octave, or a passing note). In a drift pass the melody rests on odd bars.
+  function melodyNote(song, level, barNo, slot, pass) {
+    const arrangement = ARRANGEMENTS[pass % ARRANGEMENTS.length], written = song.bars[barNo][slot];
+    if (arrangement === 'drift' && (barNo & 1)) return null;
+    const stray = arrangement === 'theme' && pass < ARRANGEMENTS.length ? 0 : STRAY[arrangement];
+    if (!stray) return written;
+    const roll = k => hash(level, pass, barNo, slot, k), tones = new Set(song.chords[barNo % song.chords.length].map(n => n % 12));
+    if (written === null) {
+      const previous = slot ? song.bars[barNo][slot - 1] : null;
+      return previous !== null && roll(0) < .4 * stray ? nearestTone(previous, tones, roll(1) < .5 ? 1 : -1) : null;
+    }
+    if (slot && roll(2) < .5 * stray) return null; // never the downbeat
+    if (roll(3) < .5 * stray) return nearestTone(written, tones, roll(4) < .5 ? 1 : -1);
+    const octave = written + (written > 84 ? -12 : 12);
+    return roll(5) < .2 * stray && octave >= 64 && octave <= 96 ? octave : written;
+  }
 
   function createMusicPlayer(context, destination) {
-    let enabled = false, selected = SONGS[0], level = 1, step = 0, nextTime = 0, bus = null;
+    let enabled = false, selected = SONGS[0], level = 1, step = 0, nextTime = 0, bus = null, lastActive = 0, calm = 0;
     let audibleChord = selected.chords[0], chordQueue = [], noiseBuffer = null;
     const MAX_VOICES = 96;
 
@@ -156,48 +187,58 @@
       }
     }
     function schedule(time) {
-      const sixteenth = 15 / selected.bpm, i = step % 16, barNo = Math.floor(step / 16) % 16, cycle = Math.floor(step / 256);
+      const sixteenth = 15 / selected.bpm, i = step % 16, bar = Math.floor(step / 16), barNo = bar % 16, pass = Math.floor(bar / 16);
+      const arrangement = ARRANGEMENTS[pass % ARRANGEMENTS.length], drift = arrangement === 'drift';
       const section = Math.floor(barNo / 4), groove = selected.groove, chord = selected.chords[barNo % selected.chords.length];
       const human = .94 + ((step * 37 + selected.bpm) % 13) / 100;
-      if (i === 0) chordQueue.push({ time, chord });
+      if (i === 0) {
+        chordQueue.push({ time, chord });
+        // Ease back over four bars while the player thinks; return within two after a tap.
+        const target = time - lastActive > THINKING ? 1 : 0;
+        calm = target > calm ? Math.min(target, calm + .25) : Math.max(target, calm - .5);
+      }
       // Light opening, full groove, a spacious river break, then a fuller return.
-      const energy = [.8, 1, .62, 1.05][section];
+      const energy = [.8, 1, .62, 1.05][section] * (drift ? .8 : 1), beat = energy * (1 - .6 * calm), sparse = section === 2 || drift;
       for (const kind of ['low', 'hand', 'wood', 'shaker']) {
         let accent = groove[kind][i]; if (accent === null) continue;
         if (kind === 'shaker' && accent <= 3) continue;
-        if (section === 2 && ((kind === 'low' && i !== 0 && i !== 8) || (kind === 'shaker' && i % 4) || kind === 'wood')) continue;
+        if (sparse && ((kind === 'low' && i !== 0 && i !== 8) || (kind === 'shaker' && i % 4) || kind === 'wood')) continue;
+        if ((drift || calm >= .75) && (kind === 'hand' || kind === 'wood')) continue;
         if (section === 0 && kind === 'wood' && !(barNo & 1)) continue;
-        if (cycle && kind === 'hand' && i === 7) accent *= .6;
-        drum(kind, accent / 9 * energy * human, time + (kind === 'hand' ? .007 : kind === 'wood' ? .003 : 0));
+        if (pass & 1 && kind === 'hand' && i === 7) accent *= .6;
+        drum(kind, accent / 9 * beat * human, time + (kind === 'hand' ? .007 : kind === 'wood' ? .003 : 0));
       }
-      // A different short hand-drum answer at the end of each four-bar phrase.
-      if (barNo % 4 === 3 && i >= 12 && (i + cycle) % 3 !== 0) {
+      // A different short hand-drum answer at the end of each four-bar phrase; a drift pass
+      // keeps only the last one, which leads back into the next pass.
+      if (barNo % 4 === 3 && i >= 12 && (i + pass) % 3 !== 0 && calm < .5 && (!drift || barNo === 15)) {
         drum('hand', (.42 + (i - 12) * .12) * energy, time + .012);
         if (section === 3 && i === 15) drum('wood', .65, time + sixteenth * .5);
       }
       const bass = groove.bass[i];
-      if (bass !== null && (section !== 2 || i === 0 || i === 8)) {
+      if (bass !== null && (!sparse || i === 0 || i === 8)) {
         const anticipation = i >= 14 && (barNo & 1), nextChord = selected.chords[(barNo + 1) % selected.chords.length];
         const note = anticipation ? nextChord[0] - 12 : chord[bass] - 12, frequency = hz(note);
         tone(frequency, sixteenth * (i === 0 ? 3.5 : 2.2), .1 * energy, time, { type: 'triangle', attack: .016 });
         tone(frequency, sixteenth * 3, .065 * energy, time + .002, { attack: .016 });
       }
       if (!(i & 1)) {
-        const note = selected.bars[barNo][i / 2], melodicTime = time + ((barNo & 1) ? .006 : 0);
-        if (note !== null) lead(note + groove.register, melodicTime, sixteenth * 2, human * (section === 2 ? .8 : 1));
+        // In a drift pass the melody calls on even bars and the answering voice replies.
+        const note = melodyNote(selected, level, barNo, i / 2, pass), melodicTime = time + ((barNo & 1) ? .006 : 0);
+        if (note !== null) lead(note + groove.register, melodicTime, sixteenth * 2, human * (section === 2 || drift ? .8 : 1) * (1 - .25 * calm));
         else if (section !== 0 && (barNo & 1) && (i === 6 || i === 10 || i === 14)) {
-          lead(chord[(i / 2 + cycle) % 3], melodicTime + sixteenth * .2, sixteenth * 1.5, .4, true);
+          lead(chord[(i / 2 + pass) % 3], melodicTime + sixteenth * .2, sixteenth * 1.5, .4, true);
         }
       }
-      if (i === 0 && (section === 1 || section === 3)) {
-        chord.slice(0, 3).forEach(n => tone(hz(n), sixteenth * 12, .005, time, { attack: .12 }));
+      // Soft chord pads: in the fuller sections, and under every bar of a drift pass.
+      if (i === 0 && (section === 1 || section === 3 || drift)) {
+        chord.slice(0, 3).forEach(n => tone(hz(n), sixteenth * (drift ? 15 : 12), drift ? .007 : .005, time, { attack: drift ? .3 : .12 }));
       }
       // Swing moves only the intervening sixteenth; every beat and bar stays aligned.
       return sixteenth * (i % 2 ? 1 - groove.swing : 1 + groove.swing);
     }
     function select(n, time) {
       level = Math.max(1, n | 0); selected = SONGS[(level - 1) % SONGS.length];
-      retire(time); step = 0; nextTime = time; chordQueue = []; audibleChord = selected.chords[0];
+      retire(time); step = 0; nextTime = time; chordQueue = []; audibleChord = selected.chords[0]; lastActive = time; calm = 0;
       if (enabled) bus = makeBus(time);
     }
 
@@ -213,19 +254,25 @@
         if (!enabled || context.state !== 'running') return;
         if (!bus) bus = makeBus(now + .05);
         if (nextTime < now) nextTime = now + .05;
-        while (nextTime < now + .25) { nextTime += schedule(nextTime); step = (step + 1) % 512; }
+        while (nextTime < now + .25) { nextTime += schedule(nextTime); step++; }
         while (chordQueue.length && chordQueue[0].time <= now) audibleChord = chordQueue.shift().chord;
       },
+      // A player action: the music returns from its thinking calm.
+      activity() { lastActive = context.currentTime; },
       getChord() {
         while (chordQueue.length && chordQueue[0].time <= context.currentTime) audibleChord = chordQueue.shift().chord;
         return { bass: hz(audibleChord[0] - 12), melody: audibleChord.map(n => hz(n + 12)) };
       },
-      get state() { return { title: selected.title, bpm: selected.bpm, level, enabled, step, section: SECTIONS[Math.floor((step % 256) / 64)], voices: bus?.voices.size || 0 }; },
+      get state() {
+        const bar = Math.floor(step / 16);
+        return { title: selected.title, bpm: selected.bpm, level, enabled, step, section: SECTIONS[Math.floor(bar % 16 / 4)],
+          arrangement: ARRANGEMENTS[Math.floor(bar / 16) % ARRANGEMENTS.length], calm, voices: bus?.voices.size || 0 };
+      },
       dispose() { enabled = false; retire(context.currentTime, .05); chordQueue = []; },
     };
   }
 
-  const api = { SONGS, createMusicPlayer };
+  const api = { SONGS, ARRANGEMENTS, THINKING, melodyNote, createMusicPlayer };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.MFMusic = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

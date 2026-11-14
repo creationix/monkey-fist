@@ -223,13 +223,22 @@ generation research and measures each Journey revision.
 
 ## Sound, saves, and offline play
 
-Six synthesized arrangements change with the level: bass-led percussion,
-restrained melody, and no downloaded audio. The same swish plays on both grids.
-The exit sound plays as soon as the entire rope clears both the board and the
-visible viewport; animation does not wait for an invisible extended route.
-The sound-effects button cycles **Off → Low → Full**; Low is the default and
-uses one quarter of Full’s gain. Music has a separate toggle. Audio initializes
-on the first gesture, pauses in the background, and music pauses in menus.
+Six synthesized songs change with the level: bass-led percussion, restrained
+melody, and no downloaded audio. For long puzzles, each 16-bar pass of a song
+takes the next of four arrangements (theme, variation, a sparse drift pass that
+rests the ear, and a varied return), so the exact song recurs only after 64 bars
+and later rounds vary further. Variations are small and seeded by level: a
+dropped note, a step to a neighbouring chord tone, an octave, a passing note.
+After 20 seconds without a tap, the drums and melody ease back while the player
+thinks, and return within two bars of the next tap.
+
+A soft swish plays when a rope starts moving. The exit sound plays as soon as
+the entire rope clears both the board and the visible viewport; animation does
+not wait for an invisible extended route. The sound-effects and music buttons
+each cycle **Off → Soft → Full**. Effects start Soft (a quarter of Full's gain);
+music starts Off, and its Full is about twice Soft, still below the limiter.
+Audio initializes on the first gesture, pauses in the background, and music
+pauses in menus.
 Mirror turns make a low, hollow pluck tuned to the current music, timed to the
 head reaching each mirror. Sliding away from a mirror does not repeat its sound.
 Spring impacts make a low, damped boing when the coil compresses.

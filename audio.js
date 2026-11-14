@@ -2,24 +2,26 @@
 // synth, mix, mobile unlock, and scheduling live here.
 (function (root) {
   'use strict';
-  const SOUND_LEVELS = [
-    { id: 'off', label: 'Off', gain: 0 },
-    { id: 'low', label: 'Low', gain: .15 },
-    { id: 'full', label: 'Full', gain: .6 },
-  ];
-  // New players start with the gentler mix.
-  const soundSetting = value => SOUND_LEVELS.find(level => level.id === value) || SOUND_LEVELS[1];
-  const nextSound = value => SOUND_LEVELS[(SOUND_LEVELS.indexOf(soundSetting(value)) + 1) % SOUND_LEVELS.length].id;
+  // Sound effects and music each have Off, Soft and Full. New players start with soft
+  // effects and no music. Full music is about twice Soft, still below the limiter.
+  const LEVELS = [{ id: 'off', label: 'Off' }, { id: 'soft', label: 'Soft' }, { id: 'full', label: 'Full' }];
+  const GAINS = { sound: { off: 0, soft: .15, full: .6 }, music: { off: 0, soft: .55, full: 1.15 } };
+  const DEFAULTS = { sound: 'soft', music: 'off' };
+  const setting = (kind, value) => { const level = LEVELS.find(l => l.id === value) || LEVELS.find(l => l.id === DEFAULTS[kind]); return { ...level, gain: GAINS[kind][level.id] }; };
+  const nextSetting = (kind, value) => LEVELS[(LEVELS.findIndex(l => l.id === setting(kind, value).id) + 1) % LEVELS.length].id;
   function createAudio(readState) {
-    let context = null, music = null, sound = null, soundBus = null, soundGain = null;
+    let context = null, music = null, sound = null;
+    const buses = {}, gains = {};
+    // Follow a bus to its setting's gain; an Off setting leaves the gain and stops the source.
+    function follow(kind, level) {
+      if (!buses[kind] || level.id === 'off' || level.gain === gains[kind]) return;
+      gains[kind] = level.gain; buses[kind].gain.setTargetAtTime(level.gain, context.currentTime, .015);
+    }
     function sync() {
-      const state = readState(), setting = soundSetting(state.sound);
-      if (soundBus && setting.gain !== soundGain) {
-        soundGain = setting.gain;
-        soundBus.gain.setTargetAtTime(soundGain, context.currentTime, .015);
-      }
-      sound?.setEnabled(setting.id !== 'off' && !document.hidden);
-      music?.setEnabled(!!state.music);
+      const state = readState(), soundLevel = setting('sound', state.sound), musicLevel = setting('music', state.music);
+      follow('sound', soundLevel); follow('music', musicLevel);
+      sound?.setEnabled(soundLevel.id !== 'off' && !document.hidden);
+      music?.setEnabled(musicLevel.id !== 'off');
     }
     function init() {
       if (!context) {
@@ -30,12 +32,13 @@
         const limiter = context.createDynamicsCompressor();
         limiter.threshold.value = -10; limiter.knee.value = 8; limiter.ratio.value = 8;
         limiter.attack.value = .003; limiter.release.value = .2; limiter.connect(context.destination);
-        const musicBus = context.createGain(); soundBus = context.createGain();
-        soundGain = soundSetting(readState().sound).gain;
-        musicBus.gain.value = .55; soundBus.gain.value = soundGain;
-        musicBus.connect(limiter); soundBus.connect(limiter);
-        music = MFMusic.createMusicPlayer(context, musicBus);
-        sound = MFSound.createSoundPlayer(context, soundBus, { getChord: () => music.getChord() });
+        for (const kind of ['sound', 'music']) {
+          buses[kind] = context.createGain();
+          gains[kind] = buses[kind].gain.value = setting(kind, readState()[kind]).gain || GAINS[kind].soft;
+          buses[kind].connect(limiter);
+        }
+        music = MFMusic.createMusicPlayer(context, buses.music);
+        sound = MFSound.createSoundPlayer(context, buses.sound, { getChord: () => music.getChord() });
         music.setLevel(readState().level);
         // Both games use the same lookahead scheduler, independent of rendering.
         setInterval(() => music.tick(), 80);
@@ -57,5 +60,5 @@
     });
     return { init, sync, sfx, get music() { return music; }, get sound() { return sound; } };
   }
-  root.MFAudio = { createAudio, soundSetting, nextSound };
+  root.MFAudio = { createAudio, setting, nextSetting };
 })(globalThis);

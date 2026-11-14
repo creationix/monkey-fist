@@ -20,7 +20,7 @@ test('the game lazily shares one audio session across gestures, song changes, an
             return source;
           }
         };
-        localStorage.setItem('monkey-fist-unified-v1', JSON.stringify({ music: true, sound: 'full' }));
+        localStorage.setItem('monkey-fist-unified-v1', JSON.stringify({ music: 'soft', sound: 'full' }));
         Object.defineProperty(document, 'hidden', { configurable: true, get: () => !!window.__testHidden });
       });
       await page.goto(base);
@@ -38,7 +38,7 @@ test('the game lazily shares one audio session across gestures, song changes, an
       assert.deepEqual(await page.evaluate(() => ({ contexts: __contexts.length, unlocks: __unlocks, selections: __selections, level: gameAudio.music.state.level })),
         { contexts: 1, unlocks: 1, selections: 0, level: 5 });
       for (const muted of [false, true]) {
-        if (muted) await page.evaluate(() => { __game.save.music = false; gameAudio.sync(); });
+        if (muted) await page.evaluate(() => { __game.save.music = 'off'; gameAudio.sync(); });
         await page.evaluate(() => { __testHidden = true; document.dispatchEvent(new Event('visibilitychange')); });
         await page.waitForFunction(() => __contexts[0].state === 'suspended');
         assert.equal(await page.evaluate(() => gameAudio.sound.state.enabled), false);

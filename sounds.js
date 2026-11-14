@@ -46,7 +46,8 @@
     const effects = {
       click() { tone(520, .06, 'sine', .22, 0, 700); },
       activate() { tone(240, .055, 'sine', .04, 0, 180, .003); tone(360, .03, 'sine', .012, .004, 270, .003); },
-      slide() { noise(.3, .3, 500, 2400); tone(260, .2, 'sine', .1, 0, 520); },
+      // A soft swish under the music: quieter and less hissy than the other effects.
+      slide() { noise(.3, .12, 450, 1700); tone(260, .2, 'sine', .04, 0, 520); },
       reflect(turn = 0) {
         // A hollow, low pluck with a soft answering note, tuned to the music.
         const bass = options.getChord?.().bass || 65.41, frequency = bass * [4, 5, 6][Math.abs(turn | 0) % 3];

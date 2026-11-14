@@ -14,7 +14,7 @@ async function load(data) {
 
 test('scores from another generator version are cleared, but Journey chapter access stays', { timeout: 60000 }, async () => {
   const { browser, page } = await load({ gridGen: GRID_VERSION - 1, chapterSets: { 'J3-MONKEYFIST': 4 },
-    sets: { 'J3-MONKEYFIST': { 0: { taps: 1, stars: 3 } }, 'U3-S-1-1-4-5-1-N-OLD': { 0: { taps: 1, stars: 3 } } }, sound: 'off', music: false });
+    sets: { 'J3-MONKEYFIST': { 0: { taps: 1, stars: 3 } }, 'U3-S-1-1-4-5-1-N-OLD': { 0: { taps: 1, stars: 3 } } }, sound: 'off', music: 'off' });
   try {
     const state = await page.evaluate(() => __game.save);
     assert.equal(state.gridGen, GRID_VERSION);
