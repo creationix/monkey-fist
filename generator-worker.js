@@ -1,6 +1,6 @@
 /* global MFGame, MFMoonBit */
 'use strict';
-importScripts('random.js?v=1', 'levels.js?v=37', 'mechanics.js?v=31', 'hex/engine.js?v=12', 'hex/mechanics.js?v=1', 'grid-journey.js?v=10', 'game-engine.js?v=19', 'moonbit/web/generator.js?v=3');
+importScripts('random.js?v=1', 'levels.js?v=38', 'mechanics.js?v=31', 'hex/engine.js?v=13', 'hex/mechanics.js?v=2', 'grid-journey.js?v=10', 'game-engine.js?v=19', 'moonbit/web/generator.js?v=3');
 // Boards, hints and feature checks all come from MoonBit, loaded once per worker.
 onmessage = async ({ data }) => {
   try {

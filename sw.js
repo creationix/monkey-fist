@@ -1,7 +1,7 @@
 // Offline support: the whole game is cached on first visit.
 // Bump CACHE when the list of files changes.
-const CACHE = 'monkey-fist-v99';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=10', './input.js?v=3', './app.js?v=51', './grid-journey.js?v=10', './game-engine.js?v=19', './generator-worker.js?v=26', './rope-art.js?v=9', './random.js?v=1', './levels.js?v=37', './mechanics.js?v=31', './music.js?v=33', './sounds.js?v=10', './audio.js?v=4', './hex/engine.js?v=12', './hex/mechanics.js?v=1', './moonbit/web/generator.js?v=3', './moonbit/dist/gen.wasm?v=3', './moonbit/dist/gen.js?v=3', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'monkey-fist-v100';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './style.css?v=10', './input.js?v=3', './app.js?v=51', './grid-journey.js?v=10', './game-engine.js?v=19', './generator-worker.js?v=26', './rope-art.js?v=9', './random.js?v=1', './levels.js?v=38', './mechanics.js?v=31', './music.js?v=33', './sounds.js?v=10', './audio.js?v=4', './hex/engine.js?v=13', './hex/mechanics.js?v=2', './moonbit/web/generator.js?v=3', './moonbit/dist/gen.wasm?v=3', './moonbit/dist/gen.js?v=3', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));

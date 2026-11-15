@@ -187,9 +187,9 @@ The underlying engines remain specialized:
 | --- | --- |
 | `moonbit/src/core` (loaded by `moonbit/web/generator.js`) | The generator: fixed-size dense packing, independent difficulty, causal dependency metrics; its committed builds are `moonbit/dist/gen.wasm` and `gen.js` |
 | `grid-journey.js` | The Journey's level specifications |
-| `levels.js` | Square woven builder (long ropes, sliding knots and traps, fixed tracks that bend on mirrors) and the compact offset kernels: replay, solver, par search and casual playouts |
+| `levels.js` | Square compact offset kernels (fixed tracks that bend on mirrors): taps, replay, frozen-rope detection, and the solvers tests check boards with |
 | `mechanics.js` | Square full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |
-| `hex/engine.js` | Hex woven builder (mutual-wait pairs, long strands, traps, mirrors) and the compact offset kernels |
+| `hex/engine.js` | Hex geometry and the compact offset kernels |
 | `hex/mechanics.js` | Hex full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |
 | `app.js` | Shared interaction, animation, camera, scoring, persistence and menus |
 | `input.js` | Independent touch contacts, intentional pan/pinch recognition, and centered camera bounds |

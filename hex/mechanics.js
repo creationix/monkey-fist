@@ -51,16 +51,6 @@
     return { paths: result, event: 'slide', distance, route, turns };
   }
   const allFree = (level, paths) => paths.every((p, i) => !p || tap(level, paths, i)?.event === 'exit');
-  function replay(level, moves, paths = level.ropes) {
-    const events = []; let taps = 0, automatic = false;
-    for (const i of moves) {
-      const move = tap(level, paths, i); if (!move) return { solved: false, paths, events, taps };
-      if (!automatic) taps++;
-      paths = move.paths; events.push(move.event);
-      if (allFree(level, paths)) automatic = true;
-    }
-    return { solved: paths.every(p => !p), paths, events, taps };
-  }
   function solve(level, paths = level.ropes, budget = 900, prefer = []) {
     const visited = new Set(), moves = []; let nodes = 0, exhausted = false;
     function search(current, preferred) {
@@ -80,6 +70,6 @@
     const solved = search(paths, prefer);
     return { solved: solved ? true : exhausted ? null : false, moves: solved ? moves.slice() : [], nodes };
   }
-  const api = { reflect, direction, tap, allFree, replay, solve };
+  const api = { reflect, direction, tap, allFree, solve };
   if (node) module.exports = api; else root.MFHexMechanics = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
