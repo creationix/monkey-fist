@@ -10,7 +10,7 @@ test('hard custom boards fill their fixed grid and their complete animation queu
       await page.click('#levels');
       assert.equal(await page.inputValue('#gridWidth'),'10'); assert.equal(await page.inputValue('#gridHeight'),'14');
       await page.click('#closeLevels');
-      assert.deepEqual(await page.evaluate(()=>[__game.G.level.W,__game.G.level.H,__game.G.level.coverage >= .8]),[10,14,true]);
+      assert.deepEqual(await page.evaluate(()=>[__game.G.level.W,__game.G.level.H,(b=>b.ropes.reduce((n,p)=>n+p.length,0)/(b.W*b.H-b.mirrors.length-b.springs.length))(__game.G.level) >= .8]),[10,14,true]);
       await page.click('#autoSolve');
       assert.equal(await page.evaluate(()=>__game.G.paths.every(p=>!p)),true);
       assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('auto-solving')),true);

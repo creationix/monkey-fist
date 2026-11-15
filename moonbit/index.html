@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2029">
+<title>Monkey Fist · MoonBit</title>
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="stylesheet" href="../style.css?v=10">
+<style>
+  #picker{position:fixed;z-index:2;bottom:max(14px,env(safe-area-inset-bottom));right:max(14px,env(safe-area-inset-right));display:flex;gap:6px;align-items:center}
+  #picker button,#picker select{padding:8px 11px;background:#173a49ec;border-radius:12px;border:1px solid var(--line);color:var(--text)}
+  #picker select{width:auto;margin:0}
+  #engine{position:fixed;z-index:2;left:50%;transform:translateX(-50%);bottom:max(8px,env(safe-area-inset-bottom));font-size:10px;color:var(--muted);pointer-events:none;white-space:nowrap}
+  .actions{grid-template-columns:repeat(2,54px)}
+</style>
+</head>
+<body>
+<main id="game">
+  <aside class="hud">
+    <div class="brand"><span class="mark" id="gridMark" aria-hidden="true">◇</span><span>MONKEY FIST<small id="gridType">MOONBIT</small></span></div>
+    <div class="readout"><h1 id="levelName">Level 1 <span>/ 120</span></h1><p id="remaining"></p><p id="score"></p></div>
+    <nav class="actions" aria-label="Game controls">
+      <button id="restart" title="Restart this level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg><small>Restart</small></button>
+      <button id="hint" title="Hint costs two taps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20h6M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8Z"/></svg><small>Hint +2</small></button>
+      <button id="undo" title="Undo costs one tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></svg><small>Undo <b id="undos">3</b></small></button>
+      <button id="autoSolve" title="Auto-solve this level for zero stars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 8 7-8 7ZM13 5l8 7-8 7Z"/></svg><small>Solve 0★</small></button>
+    </nav>
+  </aside>
+  <div id="boardWrap"><canvas id="board" tabindex="0" aria-label="Rope puzzle. Tap a rope to slide it."></canvas>
+    <div id="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Weaving your tangle…</div></div>
+  <nav id="picker" aria-label="Level"><button id="prev" aria-label="Previous level">‹</button><select id="levelSelect" aria-label="Journey level"></select><button id="nextLevel" aria-label="Next level">›</button></nav>
+  <div id="engine"></div>
+  <div id="notice" role="status" aria-live="polite"></div>
+</main>
+<dialog id="result">
+  <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p>
+  <button id="next" class="primary">Next level →</button><button id="again">Play again</button>
+</dialog>
+<script type="module" src="web/game.js?v=1"></script>
+</body>
+</html>

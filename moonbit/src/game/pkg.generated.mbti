@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "monkeyfist/mf/game"
+
+import {
+  "monkeyfist/mf/core",
+}
+
+// Values
+pub fn auto_solve() -> Unit
+
+pub fn draw(Array[Double]) -> Unit
+
+pub fn hint() -> Unit
+
+pub fn pick(Double, Double) -> Int32
+
+pub fn pointer(Double, Double) -> Int32
+
+pub fn resize(Double, Double, Double, Double) -> Unit
+
+pub fn set_speed(Double) -> Unit
+
+pub fn start(@core.Level) -> Unit
+
+pub fn status() -> Array[Int32]
+
+pub fn take_notice() -> String
+
+pub fn take_voices(Array[Double]) -> Unit
+
+pub fn tap(Int32, Bool, Bool) -> Unit
+
+pub fn undo() -> Unit
+
+pub fn update(Double) -> Unit
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

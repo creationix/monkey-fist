@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Monkey Fist core benchmark</title>
+<pre id="log">running…</pre>
+<script type="module">
+// Generation benchmark in the browser: the JS reference engine (loaded from ?ref=,
+// a checkout of 9e69e3a) against the MoonBit core on wasm-gc and on JS.
+import { wrap } from '../web/mf-core.js';
+const params = new URLSearchParams(location.search), ref = params.get('ref') || '../../', N = +(params.get('levels') || 120);
+const log = s => { document.getElementById('log').textContent += '\n' + s; };
+const scripts = ['random.js', 'levels.js', 'mechanics.js', 'hex/engine.js', 'hex/mechanics.js', 'dependency-metrics.js', 'grid-generator.js', 'grid-journey.js', 'game-engine.js'];
+const result = { userAgent: navigator.userAgent, startup: {}, generation: {}, perLevel: {} };
+let t = performance.now();
+for (const s of scripts) await new Promise((ok, fail) => { const e = document.createElement('script'); e.src = ref + s; e.onload = ok; e.onerror = fail; document.head.append(e); });
+result.startup['JS reference (9 scripts)'] = performance.now() - t;
+t = performance.now();
+const { instance } = await WebAssembly.instantiateStreaming(fetch('../dist/mf.wasm'), {});
+const wasm = wrap(instance.exports); result.startup['MoonBit wasm-gc (fetch+compile+instantiate)'] = performance.now() - t;
+t = performance.now();
+const mjs = wrap(await import('../dist/mf.js')); result.startup['MoonBit JS (import)'] = performance.now() - t;
+const engines = { 'JS reference': i => MFGame.generate({ kind: 'journey', index: i }), 'MoonBit wasm-gc': i => wasm.generate('J3-MONKEYFIST', i), 'MoonBit JS': i => mjs.generate('J3-MONKEYFIST', i) };
+for (const [name, gen] of Object.entries(engines)) {
+  const times = [];
+  for (let i = 0; i < N; i++) { const s = performance.now(); const b = gen(i); times.push(performance.now() - s); if (!b) throw Error(name + ' failed ' + i); }
+  const sorted = times.slice().sort((a, b) => a - b), total = times.reduce((a, b) => a + b, 0);
+  result.generation[name] = { total, mean: total / N, median: sorted[N >> 1], max: sorted[N - 1] }; result.perLevel[name] = times;
+  log(`${name}: total ${total.toFixed(0)} ms, mean ${(total / N).toFixed(1)}, max ${sorted[N - 1].toFixed(0)}`);
+  await new Promise(r => setTimeout(r, 50));
+}
+window.results = result; log('done');
+</script>

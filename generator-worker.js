@@ -1,9 +1,11 @@
-/* global MFGame */
+/* global MFGame, MFMoonBit */
 'use strict';
-importScripts('random.js?v=1', 'levels.js?v=37', 'mechanics.js?v=31', 'hex/engine.js?v=12', 'hex/mechanics.js?v=1', 'dependency-metrics.js?v=1', 'grid-generator.js?v=7', 'grid-journey.js?v=10', 'game-engine.js?v=17');
+importScripts('random.js?v=1', 'levels.js?v=37', 'mechanics.js?v=31', 'hex/engine.js?v=12', 'hex/mechanics.js?v=1', 'dependency-metrics.js?v=1', 'grid-generator.js?v=7', 'grid-journey.js?v=10', 'game-engine.js?v=17', 'moonbit/web/generator.js?v=1');
 // Tell the page the scripts loaded: a worker that never says so is replaced by the main thread.
 postMessage({ ready: true });
-onmessage = ({ data }) => {
-  try { postMessage(data.type === 'features' ? { features: MFGame.reachableFeatures(data.level, data.paths, data.budget) } : data.type === 'guide' ? { solution: MFGame.guide(data.level, data.paths, data.budget, data.prefer) } : { level: MFGame.generate(data) }); }
+// Boards come from the MoonBit generator (same boards, several times faster),
+// loaded only by workers that weave, or grid-generator.js if it cannot run.
+onmessage = async ({ data }) => {
+  try { postMessage(data.type === 'features' ? { features: MFGame.reachableFeatures(data.level, data.paths, data.budget) } : data.type === 'guide' ? { solution: MFGame.guide(data.level, data.paths, data.budget, data.prefer) } : { level: await MFMoonBit.generate(data, MFGame.generate) }); }
   catch (error) { postMessage({ error: error.message }); }
 };

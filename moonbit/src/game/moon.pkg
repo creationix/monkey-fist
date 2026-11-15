@@ -1,0 +1,6 @@
+import {
+  "monkeyfist/mf/core",
+  "moonbitlang/core/math",
+}
+
+warnings = "-79-4-7"

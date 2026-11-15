@@ -6,7 +6,8 @@ const level = { W: 4, H: 5, ropes: [[{q:0,r:0},{q:1,r:0}]], plan: [0] };
 function harness(behavior, generate = () => { throw Error('Unexpected main-thread fallback'); }) {
   const calls = [], local = [], context = {setTimeout,clearTimeout,Date,Array,Error,Promise,
     H:{code:()=> 'J3-MONKEYFIST',generate:options=>{local.push(options);return generate(options);}},
-    levelCache:new Map(),pendingGeneration:null,workersWork:true,WORKER:'generator-worker.js?v=21',local};
+    levelCache:new Map(),pendingGeneration:null,workersWork:true,WORKER:'generator-worker.js?v=22',local};
+  context.MFMoonBit={generate:async(options,fallback)=>fallback(options)};
   context.Worker = class {
     constructor(url) {this.url=url;this.terminated=false;calls.push(this);behavior(this,calls.length,'construct');}
     postMessage(data) {this.data=data;behavior(this,calls.length,'post');}
