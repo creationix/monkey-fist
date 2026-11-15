@@ -1,4 +1,4 @@
-/* global MFGame, MFHex, MFAudio, MFRopeArt, MFInput */
+/* global MFGame, MFHex, MFAudio, MFRopeArt, MFInput, MFMoonBit */
 'use strict';
 const H = MFGame, $ = id => document.getElementById(id), canvas = $('board'), mainContext = canvas.getContext('2d');
 let ctx = mainContext;
@@ -65,7 +65,7 @@ function updateURL() {
 // Workers can exist and still fail to load or start (some older iPads). After the
 // first such failure, every background job runs on the main thread instead.
 let workersWork = typeof Worker !== 'undefined';
-const WORKER = 'generator-worker.js?v=21';
+const WORKER = 'generator-worker.js?v=22';
 function startWorker(message, receive, fallback) {
   if (workersWork) try {
     const worker = new Worker(WORKER);
@@ -137,10 +137,11 @@ function weave(options) {
     };
     const cancel = () => finish(null);
     pendingGeneration = cancel;
-    // Generate on the main thread: for every later board too if workers do not load.
+    // Generate on the main thread (MoonBit's generator, as in the worker): for every
+    // later board too if workers do not load.
     const local = broken => {
       cleanup(); if (broken) workersWork = false;
-      retryTimer = setTimeout(() => { if (settled) return; try { finish(H.generate(options)); } catch (e) { finish(null, e); } }, 0);
+      retryTimer = setTimeout(() => { if (!settled) MFMoonBit.generate(options, H.generate).then(level => finish(level), e => finish(null, e)); }, 0);
     };
     const failed = broken => {
       if (settled) return;

@@ -378,14 +378,80 @@ What I'd do instead, in order:
 
   Given §6, I don't think it is worth doing.
 
+## 8. Later: the hybrid (MoonBit generator inside the JS game)
+
+You asked for the CPU-heavy work in MoonBit and everything else left in JS, and
+for the JS game to keep working on older iPads without wasm-gc. This is now
+wired into the real game on this branch.
+
+- **What runs where.** Only board generation moved. `generator-worker.js` and
+  the main-thread fallback in `app.js` call `MFMoonBit.generate(options,
+  MFGame.generate)` (`moonbit/web/generator.js`). Hints, auto-solve, feature
+  fading, rendering, input and sound are unchanged JS.
+- **Which build.** It tries `dist/gen.wasm` (wasm-gc) first. If the browser
+  can't compile it (Safari before 18.2), it loads `dist/gen.js`, the MoonBit JS
+  build, as a classic script: `importScripts` in a worker, a script tag on the
+  main thread. If neither loads or runs, `grid-generator.js` makes the board
+  exactly as before.
+- **Generator-only package.** `src/gen` exports just the generator, so the
+  game loads 131 KB of wasm or 550 KB of JS, not the whole MoonBit game.
+  `build.sh` turns the JS build's five globals into one, `MFCore`.
+- **Old Safari.** I compiled `gen.js`, `generator.js` and the worker with
+  esbuild for Safari 14 and for the newest JS. The output was identical, so they
+  use no syntax newer than Safari 14. At runtime the JS build needs BigInt and
+  `DataView.setBigUint64` (Safari 15). The game itself has needed Safari 15.4
+  since Nov 11 (`Array.prototype.at`), so this doesn't raise the floor. I
+  couldn't run real WebKit here: only Chromium is installed.
+- **Same boards.** `tests/generator.test.cjs`, on both builds, checks:
+  - all 120 Journey levels against `scripts/grid-journey-measurements.json`;
+  - all 15 custom sets, including both colossal maps, with their full plans;
+  - a 20-board sample, field for field against the live JS generator: ropes,
+    mirrors, springs, plan, par, layoutKey, index, seed and difficulty;
+  - the fallback path.
+- **Fewer board fields.** Boards no longer carry the generator's statistics
+  (`coverage`, `slideStats`, `complexity` and the like). The game never read
+  them. One test read `coverage`; it now computes it from the board.
+- **Game tests.** All 152 tests in `tests/` pass in Chromium.
+
+**Speed, from the game's real worker in Chromium** (12 Journey levels across
+the whole range, one worker, mean after the first):
+
+| Generator | Mean per board | Slowest | First board (includes load) |
+| --- | ---: | ---: | ---: |
+| MoonBit wasm-gc | 93 ms | 230 ms | 166 ms |
+| MoonBit JS build, the old-iPad path (wasm blocked) | 199 ms | 465 ms | 206 ms |
+| `grid-generator.js`, as on main (both blocked) | 970 ms | 2339 ms | 177 ms |
+
+That is about 10× with wasm-gc and 5× without it. An old iPad will be slower
+in absolute terms, but it should keep the same ratio to main.
+
+**Costs**, in line with §6:
+- The service worker precaches 0.7 MB more: both builds, so offline play
+  works whichever one the device uses.
+- The builds are committed artifacts, so `moonbit/build.sh` must be rerun after
+  any change to the MoonBit core.
+- Any change to the JS generator must now be made in MoonBit too. Otherwise
+  the parity test fails, and the game would quietly make different boards from
+  the JS reference.
+- `moonbit/` is outside `scripts/code-metrics.cjs`'s game area. The game
+  budget still passes (67,745 tokens, 2,144 decisions), but that's partly
+  because the loader lives there.
+
+This changes §6's advice. The JS rewrite in §6's step 2 is still the
+no-toolchain route. The hybrid delivers the speed now, without touching the
+game's JS, and it's honest about older Safari.
+
 ## Layout
 
 ```
 moonbit/
   index.html, web/game.js   playable slice and its Canvas/Web Audio/DOM glue
   web/mf-core.js            loader + numeric interop (wasm-gc or JS build)
-  dist/mf.wasm, dist/mf.js  committed builds (./build.sh regenerates them)
+  web/generator.js          the JS game's generator: wasm-gc, else the JS build, else grid-generator.js
+  dist/mf.wasm, dist/mf.js  committed builds of the slice (./build.sh regenerates them)
+  dist/gen.wasm, dist/gen.js  committed generator-only builds for the JS game
   src/core                  generator core       src/game  game layer       src/api  exports
+  src/gen                   generator-only exports
   tests                     parity (Node) and play (Chromium) tests
   scripts                   reference dump, parity, Node benchmark, JS control, code metrics
   bench                     browser benchmark page/driver and raw results
