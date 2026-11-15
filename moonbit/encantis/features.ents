@@ -1,0 +1,258 @@
+// reachableFeatures (game-engine.js) in Encantis: the mirrors and springs some
+// rope could still pass, each rope running alone and free to stop after any unit
+// step. A sample against the JS and src/core/assist.mbt, not part of the game.
+//
+// JS writes i32 words at in_ptr(): hex, W, H, budget, nMirrors, (q, r, kind)*,
+// nSprings, (q, r)*, nPaths, (len, (q, r)*)* with len 0 for a rope that is gone.
+// reachable() returns how many feature indices (mirrors first, then springs) it
+// wrote at out_ptr(), in the order reached; every feature when the budget runs out.
+
+export "mem" memory
+
+data inbuf = mut [0:u8; 1048576]
+data outbuf = mut [0:u8; 65536]
+// Per cell: feature index + 1 (0 none), and mirror kind + 1 (0 none).
+data feat = mut [0:u8; 1048576]
+data mkind = mut [0:u8; 1048576]
+// Per feature: 1 once reached.
+data live = mut [0:u8; 65536]
+// The moving rope, a window [lo, hi) of a deque: q, r and cell index per point.
+data pq = mut [0:u8; 1048576]
+data pr = mut [0:u8; 1048576]
+data pc = mut [0:u8; 1048576]
+// The seen set: open addressing, 32768 slots of (generation, hash, start, len)
+// over an arena of cell words that holds every state seen for the current rope.
+data slots = mut [0:u8; 524288]
+data arena = mut [0:u8; 8388608]
+
+def slot_mask = 32767:u32
+def deque_cap = 262144:u32
+def arena_cap = 2097152:u32
+data hex_dq = [1, 0, -1, -1, 0, 1]
+data hex_dr = [0, 1, 1, 0, -1, -1]
+
+global gen: u32 = 0
+global used: u32 = 0
+global hex: bool = false
+global width: i32 = 0
+global height: i32 = 0
+
+export func in_ptr() -> u32 => inbuf as u32
+export func out_ptr() -> u32 => outbuf as u32
+
+func word(k: u32) -> i32 => inbuf.i32[k]
+
+func inside(q: i32, r: i32) -> bool {
+  return false when r < 0 || r >= height
+  return q >= 0 && q < width when !hex
+  let x = q + r / 2
+  return x >= 0 && x < width
+}
+
+// Callers check inside first, so r >= 0 and r / 2 is Math.floor(r / 2).
+func cell(q: i32, r: i32) -> u32 {
+  return (r * width + q) as u32 when !hex
+  return (r * width + q + r / 2) as u32
+}
+
+// FNV-1a over the cell words of the window.
+func state_hash(lo: u32, hi: u32) -> (h: u32) {
+  h = 0x811c9dc5
+  let i = lo
+  while i < hi {
+    h = (h ^ pc.u32[i]) * 0x01000193
+    i += 1
+  }
+}
+
+// Adds the window's state to the seen set. False if it was already there.
+func see(lo: u32, hi: u32) -> bool {
+  let n = hi - lo
+  let h = state_hash(lo, hi)
+  let s = h & slot_mask
+  loop {
+    let b = s * 4
+    if slots.u32[b] != gen {
+      // Empty for this rope: claim it.
+      slots.u32[b] = gen
+      slots.u32[b + 1] = h
+      slots.u32[b + 2] = used
+      slots.u32[b + 3] = n
+      for i in n {
+        arena.u32[used + i] = pc.u32[lo + i]
+      }
+      used += n
+      return true
+    }
+    if slots.u32[b + 1] == h && slots.u32[b + 3] == n {
+      let start = slots.u32[b + 2]
+      let same = true
+      for i in n {
+        if arena.u32[start + i] != pc.u32[lo + i] {
+          same = false
+          break
+        }
+      }
+      return false when same
+    }
+    s = (s + 1) & slot_mask
+  }
+  return true
+}
+
+func put_all(total: u32) -> u32 {
+  for k in total {
+    outbuf.u32[k] = k
+  }
+  return total
+}
+
+export func reachable() -> u32 {
+  hex = word(0) == 1
+  width = word(1)
+  height = word(2)
+  let budget = word(3) as u32
+  let cells = (width * height) as u32
+  for z in cells {
+    feat.u32[z] = 0
+    mkind.u32[z] = 0
+  }
+  let k: u32 = 4
+  let mirrors = word(k) as u32
+  k += 1
+  for m in mirrors {
+    let c = cell(word(k), word(k + 1))
+    feat.u32[c] = m + 1
+    mkind.u32[c] = (word(k + 2) + 1) as u32
+    k += 3
+  }
+  let springs = word(k) as u32
+  k += 1
+  for s in springs {
+    feat.u32[cell(word(k), word(k + 1))] = mirrors + s + 1
+    k += 2
+  }
+  let total = mirrors + springs
+  return 0 when total == 0
+  for z2 in total {
+    live.u8[z2] = 0
+  }
+  let found: u32 = 0
+  let visited: u32 = 0
+  let ropes = word(k) as u32
+  k += 1
+  for rope in ropes {
+    let n = word(k) as u32
+    k += 1
+    if n > 0 {
+      // A fresh seen set and arena for this rope.
+      gen += 1
+      used = 0
+      let lo: u32 = 0
+      let hi: u32 = n
+      for p in n {
+        let q = word(k)
+        let r = word(k + 1)
+        pq.i32[p] = q
+        pr.i32[p] = r
+        pc.u32[p] = cell(q, r)
+        k += 2
+      }
+      loop {
+        return put_all(total) when visited >= budget
+        visited += 1
+        // The arena is full only on boards far beyond the game's: keep everything.
+        return put_all(total) when used + (hi - lo) > arena_cap
+        break when !see(lo, hi)
+        let hq = pq.i32[hi - 1]
+        let hr = pr.i32[hi - 1]
+        let dq = hq - pq.i32[hi - 2]
+        let dr = hr - pr.i32[hi - 2]
+        let hc = pc.u32[hi - 1]
+        let kind = mkind.u32[hc]
+        if kind > 0 {
+          let f = feat.u32[hc] - 1
+          if live.u8[f] == 0 {
+            live.u8[f] = 1
+            outbuf.u32[found] = f
+            found += 1
+          }
+          let axis = (kind - 1) as i32
+          if hex {
+            let incoming: i32 = 0
+            while incoming < 6 {
+              break when hex_dq.i32[incoming] == dq && hex_dr.i32[incoming] == dr
+              incoming += 1
+            }
+            let out = (2 * axis - incoming + 6) % 6
+            dq = hex_dq.i32[out]
+            dr = hex_dr.i32[out]
+          } elif axis == 0 {
+            let t = dq
+            dq = 0 - dr
+            dr = 0 - t
+          } else {
+            let t2 = dq
+            dq = dr
+            dr = t2
+          }
+        }
+        let nq = hq + dq
+        let nr = hr + dr
+        break when !inside(nq, nr)
+        let at = cell(nq, nr)
+        let hit = false
+        let w = lo
+        while w < hi {
+          if pc.u32[w] == at {
+            hit = true
+            break
+          }
+          w += 1
+        }
+        break when hit
+        let fa = feat.u32[at]
+        if fa > 0 && live.u8[fa - 1] == 0 {
+          live.u8[fa - 1] = 1
+          outbuf.u32[found] = fa - 1
+          found += 1
+        }
+        return put_all(total) when found == total
+        // path.slice(1).concat(next), compacting when the window reaches the end.
+        if hi == deque_cap {
+          for j in hi - lo {
+            pq.i32[j] = pq.i32[lo + j]
+            pr.i32[j] = pr.i32[lo + j]
+            pc.u32[j] = pc.u32[lo + j]
+          }
+          hi -= lo
+          lo = 0
+        }
+        pq.i32[hi] = nq
+        pr.i32[hi] = nr
+        pc.u32[hi] = at
+        hi += 1
+        lo += 1
+        if fa > mirrors {
+          // A spring reverses the rope.
+          let a = lo
+          let b = hi - 1
+          while a < b {
+            let tq = pq.i32[a]
+            pq.i32[a] = pq.i32[b]
+            pq.i32[b] = tq
+            let tr = pr.i32[a]
+            pr.i32[a] = pr.i32[b]
+            pr.i32[b] = tr
+            let tc = pc.u32[a]
+            pc.u32[a] = pc.u32[b]
+            pc.u32[b] = tc
+            a += 1
+            b -= 1
+          }
+        }
+      }
+    }
+  }
+  return found
+}

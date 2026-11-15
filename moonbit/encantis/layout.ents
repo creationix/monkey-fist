@@ -1,0 +1,231 @@
+// Monkey Fist kernel in Encantis: mulberry32, FNV-1a, toString(36) and the
+// layoutKey of game-engine.js, bit for bit. A sample, not part of the game.
+//
+// Interop is linear memory: JS writes the board as i32s at in_ptr() (the same
+// order as put_level in src/gen/gen.mbt), calls layout_key(n), and reads the
+// returned number of ASCII bytes from key_ptr(). The JSON text is in text_ptr().
+
+export "mem" memory
+
+data inbuf = mut [0:u8; 262144]
+data text = mut [0:u8; 1048576]
+data keybuf = mut [0:u8; 32]
+data digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+data prefix = "layout:"
+
+export func in_ptr() -> u32 => inbuf as u32
+export func text_ptr() -> u32 => text as u32
+export func key_ptr() -> u32 => keybuf as u32
+
+// --- mulberry32 (random.js): u32 arithmetic wraps, so * is Math.imul ---
+
+global rng_a: u32 = 0
+
+export func rng_seed(seed: u32) {
+  rng_a = seed
+}
+
+export func rng_next() -> f64 {
+  rng_a += 0x6D2B79F5
+  let a = rng_a
+  let t: u32 = (a ^ (a >> 15)) * (1 | a)
+  t = (t + (t ^ (t >> 7)) * (61 | t)) ^ t
+  return f64(t ^ (t >> 14)) / 4294967296.0
+}
+
+// Math.floor(rng() * n)
+export func rng_below(n: u32) -> u32 => u32(floor(rng_next() * f64(n)))
+
+// --- FNV-1a (hashString). JS hashes UTF-16 code units; every string hashed
+// here is ASCII, where bytes and code units agree. ---
+
+func fnv(p: [*]u8, n: u32, seed: u32) -> (h: u32) {
+  h = seed
+  for i in n {
+    h = (h ^ p[i]) * 0x01000193
+  }
+}
+
+export func hash_bytes(n: u32) -> u32 => fnv(inbuf as [*]u8, n, 0x811c9dc5)
+
+// --- text writers: each takes the write offset into text and returns the new one ---
+
+func put(o: u32, c: u8) -> u32 {
+  text.u8[o] = c
+  return o + 1
+}
+
+// Decimal, as JSON.stringify writes an integer.
+func put_int(o: u32, v: i32) -> u32 {
+  let u: u32 = v as u32
+  if v < 0 {
+    o = put(o, 45)
+    u = (0 - v) as u32
+  }
+  let start = o
+  loop {
+    text.u8[o] = digits.u8[u % 10]
+    o += 1
+    u /= 10
+    break when u == 0
+  }
+  // reverse the digits in place
+  let i = start
+  let j = o - 1
+  while i < j {
+    let c = text.u8[i]
+    text.u8[i] = text.u8[j]
+    text.u8[j] = c
+    i += 1
+    j -= 1
+  }
+  return o
+}
+
+// Number.prototype.toString(36) of an unsigned 32-bit value, into keybuf.
+func put_base36(o: u32, v: u32) -> u32 {
+  let start = o
+  loop {
+    keybuf.u8[o] = digits.u8[v % 36]
+    o += 1
+    v /= 36
+    break when v == 0
+  }
+  let i = start
+  let j = o - 1
+  while i < j {
+    let c = keybuf.u8[i]
+    keybuf.u8[i] = keybuf.u8[j]
+    keybuf.u8[j] = c
+    i += 1
+    j -= 1
+  }
+  return o
+}
+
+func word(k: u32) -> i32 => inbuf.i32[k]
+
+// --- layoutKey: JSON.stringify([grid, W, H, ropes, mirrors, springs]) ---
+// Input words: hex, W, H, nRopes, (len, q, r, ...)*, nMirrors, (q, r, kind)*,
+// nSprings, (q, r)*. Square mirror kind 0 is "/", 1 is "\\"; Hex kind is the axis.
+// Returns the text length.
+export func layout_json() -> u32 {
+  let o: u32 = 0
+  let k: u32 = 0
+  let hex = word(0) == 1
+  o = put(o, 91)
+  if hex {
+    o = put(o, 34)
+    o = put(o, 104)
+    o = put(o, 101)
+    o = put(o, 120)
+    o = put(o, 34)
+  } else {
+    o = put(o, 34)
+    o = put(o, 115)
+    o = put(o, 113)
+    o = put(o, 117)
+    o = put(o, 97)
+    o = put(o, 114)
+    o = put(o, 101)
+    o = put(o, 34)
+  }
+  o = put(o, 44)
+  o = put_int(o, word(1))
+  o = put(o, 44)
+  o = put_int(o, word(2))
+  o = put(o, 44)
+  o = put(o, 91)
+  let ropes = word(3) as u32
+  k = 4
+  for i in ropes {
+    if i > 0 { o = put(o, 44) }
+    o = put(o, 91)
+    let n = word(k) as u32
+    k += 1
+    for j in n {
+      if j > 0 { o = put(o, 44) }
+      o = put(o, 91)
+      o = put_int(o, word(k))
+      o = put(o, 44)
+      o = put_int(o, word(k + 1))
+      o = put(o, 93)
+      k += 2
+    }
+    o = put(o, 93)
+  }
+  o = put(o, 93)
+  o = put(o, 44)
+  o = put(o, 91)
+  let mirrors = word(k) as u32
+  k += 1
+  for i in mirrors {
+    if i > 0 { o = put(o, 44) }
+    o = put(o, 91)
+    o = put_int(o, word(k))
+    o = put(o, 44)
+    o = put_int(o, word(k + 1))
+    o = put(o, 44)
+    if hex {
+      o = put_int(o, word(k + 2))
+    } elif word(k + 2) == 0 {
+      o = put(o, 34)
+      o = put(o, 47)
+      o = put(o, 34)
+    } else {
+      o = put(o, 34)
+      o = put(o, 92)
+      o = put(o, 92)
+      o = put(o, 34)
+    }
+    o = put(o, 93)
+    k += 3
+  }
+  o = put(o, 93)
+  o = put(o, 44)
+  o = put(o, 91)
+  let springs = word(k) as u32
+  k += 1
+  for i in springs {
+    if i > 0 { o = put(o, 44) }
+    o = put(o, 91)
+    o = put_int(o, word(k))
+    o = put(o, 44)
+    o = put_int(o, word(k + 1))
+    o = put(o, 93)
+    k += 2
+  }
+  o = put(o, 93)
+  o = put(o, 93)
+  return o
+}
+
+// hashString(data).toString(36) + '-' + hashString('layout:' + data).toString(36),
+// into keybuf. Returns the key length.
+export func layout_key() -> u32 {
+  let n = layout_json()
+  let t = text as [*]u8
+  let h1 = fnv(t, n, 0x811c9dc5)
+  let h2 = fnv(t, n, fnv(prefix as [*]u8, 7, 0x811c9dc5))
+  let o = put_base36(0, h1)
+  keybuf.u8[o] = 45
+  o = put_base36(o + 1, h2)
+  return o
+}
+
+// --- the scalar helpers the selection score reads ---
+
+// Math.round: halves round up, toward +Infinity, and a result of zero keeps
+// the sign of x (Math.round(-0.3) is -0).
+export func js_round(x: f64) -> f64 {
+  let f = floor(x)
+  return copysign(f + 1.0, x) when x - f >= 0.5
+  return f
+}
+
+// Number(x.toFixed(d)) by scale and round, as metrics.mbt's to_fixed.
+export func to_fixed(x: f64, d: u32) -> f64 {
+  let scale = 1.0
+  for i in d { scale *= 10.0 }
+  return js_round(x * scale) / scale
+}
