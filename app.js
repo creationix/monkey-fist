@@ -65,11 +65,11 @@ function updateURL() {
 // Workers can exist and still fail to load or start (some older iPads). After the
 // first such failure, every background job runs on the main thread instead.
 let workersWork = typeof Worker !== 'undefined';
-const WORKER = 'generator-worker.js?v=22';
+const WORKER = 'generator-worker.js?v=23';
 function startWorker(message, receive, fallback) {
   if (workersWork) try {
     const worker = new Worker(WORKER);
-    worker.onmessage = ({ data }) => { if (!data?.ready) receive(data); };
+    worker.onmessage = ({ data }) => receive(data);
     worker.onerror = event => { event.preventDefault?.(); worker.terminate(); workersWork = false; fallback(); };
     worker.postMessage(message); return worker;
   } catch { workersWork = false; }
@@ -123,9 +123,9 @@ function weave(options) {
   const key = H.code(options) + '/' + options.index;
   if (levelCache.has(key)) return Promise.resolve(levelCache.get(key));
   return new Promise((resolve, reject) => {
-    let worker = null, retryTimer = null, startTimer = null, attempts = 0, settled = false;
+    let worker = null, retryTimer = null, attempts = 0, settled = false;
     const cleanup = () => {
-      clearTimeout(retryTimer); clearTimeout(startTimer); retryTimer = startTimer = null;
+      clearTimeout(retryTimer); retryTimer = null;
       if (worker) { worker.onmessage = worker.onerror = null; worker.terminate(); worker = null; }
     };
     const finish = (level, error) => {
@@ -159,11 +159,8 @@ function weave(options) {
       try {
         const url = WORKER + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
         const current = worker = new Worker(url);
-        // A worker that never starts (no ready message) is not retried.
-        startTimer = setTimeout(() => { if (!settled && worker === current) local(true); }, 10000);
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
-          if (data?.ready) { clearTimeout(startTimer); startTimer = null; return; }
           if (data?.error) { failed(); return; }
           if (!Array.isArray(data?.level?.ropes) || !Array.isArray(data.level.plan)) { failed(); return; }
           finish(data.level);
