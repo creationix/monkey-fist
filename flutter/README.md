@@ -5,7 +5,29 @@ Android phones and tablets, iPhone and iPad. It plays the same 120 Journey level
 as the web game. Every level is regenerated on the device from its seed with a
 Dart port of the generator, and it matches the JavaScript output exactly.
 
+On Android, all six web songs are synthesized offline, with the same score,
+grooves, seeded melody variations, four arrangements, and quieter thinking
+passages. **Music: Off → Soft → Full** is independent of sound effects and is
+saved between sessions. Music starts Off, plays during puzzles, and pauses on
+the level list, results, or when the app is backgrounded. It uses media volume.
+The Android audio stream is buffered continuously; no music files are downloaded
+or bundled. Music playback on iOS is not wired up yet.
+
 See [REPORT.md](REPORT.md) for what was ported, parity results and timings.
+
+The **Settings** gear is in the top-right corner of both the journey and puzzle
+screens. The same settings screen contains:
+
+- Sound effects and background music: Off / Soft / Full, independently.
+- Movement speed: Slow / Normal / Fast.
+- Art style: Rope / Tiles, including matching mirrors and springs.
+- High contrast: black backgrounds, clearer grid lines and stronger UI outlines.
+
+Changes are saved automatically. Opening Settings pauses the puzzle and music;
+returning applies the preferences without resetting the board, taps or progress.
+The gameplay toolbar contains only Undo, Hint, Solve, Restart, and Fit when needed.
+The journey and settings screens scroll with persistent navigation, and controls
+adapt to small screens, landscape and larger text.
 
 ## Layout
 
@@ -70,14 +92,86 @@ the generator change and run the parity tests.
 
 ## Build for Android
 
+After editing the web song definitions, run `python3 tool/gen_music.py` from
+`flutter/` to update the shared score. The native synthesizer is in
+`lib/game/music.dart`; `test/core/music_test.dart` checks its output and timing.
+
 Requirements: the Android SDK (command-line tools, a platform and build tools,
 with their licences accepted: `sdkmanager --licenses`) and a JDK (17 or newer).
 Run `flutter doctor` to check.
 
 ```sh
+flutter build apk --debug            # quick, debuggable APK for local testing
 flutter build apk --release          # a universal APK in build/app/outputs/flutter-apk/
 flutter build appbundle --release    # an .aab for Google Play
 ```
+
+### Local development on Linux
+
+Install [Flutter stable](https://docs.flutter.dev/install/manual) and
+[Android Studio](https://developer.android.com/studio). This project needs
+Flutter 3.50 / Dart 3.14 or later. Android Studio includes a Java runtime, the
+SDK Manager, and the Device Manager for creating Android emulators.
+
+For installations in `~/develop/flutter`, `~/develop/android-studio`, and
+`~/Android/Sdk`, add these exports to your shell configuration:
+
+```sh
+export FLUTTER_ROOT="$HOME/develop/flutter"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export JAVA_HOME="$HOME/develop/android-studio/jbr"
+export PATH="$FLUTTER_ROOT/bin:$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+```
+
+Open a new terminal, then configure Flutter and install the SDK packages used by
+Flutter 3.50. Review and accept the SDK licenses when prompted:
+
+```sh
+flutter config --android-sdk "$ANDROID_HOME" --jdk-dir "$JAVA_HOME"
+sdkmanager --licenses
+sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.1.0' \
+  'ndk;28.2.13676358' 'cmake;3.22.1' 'emulator' \
+  'system-images;android-36;google_apis;x86_64'
+flutter doctor -v
+```
+
+The `x86_64` image is for Intel/AMD Linux machines. For a local virtual phone,
+use Android Studio **More Actions → Virtual Device Manager** (or **Tools →
+Device Manager** in an open project), or create one from the terminal:
+
+```sh
+echo no | avdmanager create avd --name Monkey_Fist_API_36 \
+  --package 'system-images;android-36;google_apis;x86_64' --device pixel_5
+emulator -accel-check                # Linux requires accessible /dev/kvm
+emulator -avd Monkey_Fist_API_36 -memory 2048 -cores 2
+```
+
+Gradle is limited to a 2 GB heap and two workers, and its daemon exits after
+one minute idle, to leave room for the emulator. The first build downloads and
+compiles dependencies; if memory is tight, close the emulator during that build
+and reopen it to install the APK.
+
+Keep the emulator running and use another terminal for the app:
+
+```sh
+cd /path/to/monkey-fist/flutter
+flutter pub get
+flutter devices
+flutter run -d emulator-5554         # use the device ID printed above
+```
+
+In `flutter run`, press `r` for hot reload, `R` for a full restart, and `q` to
+stop. For a standalone APK, build and install it directly:
+
+```sh
+flutter build apk --debug
+adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+The release APK is `build/app/outputs/flutter-apk/app-release.apk`. You can
+copy it to a physical Android device and install it, or enable USB debugging,
+authorize the computer on the phone, and use its ID with `flutter run -d` or
+`adb -s`. Use `flutter test` for the automated suite; it does not need an emulator.
 
 The template release build is signed with the debug key. For Play Store
 releases, create an upload keystore and configure `android/key.properties` and

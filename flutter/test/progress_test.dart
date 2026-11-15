@@ -1,7 +1,64 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monkey_fist/game/progress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'dart:convert';
 
 void main() {
+  test(
+    'all settings persist together and legacy sound preferences migrate',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'monkey-fist-unified-v1': jsonEncode({'sound': true}),
+      });
+      final p = await Progress.load();
+      expect(p.soundLevel, 'full');
+      p.soundLevel = 'soft';
+      p.music = 'full';
+      p.graphics = 'tiles';
+      p.speed = 'fast';
+      p.highContrast = true;
+      p.save();
+      final restored = await Progress.load();
+      expect(restored.soundLevel, 'soft');
+      expect(restored.music, 'full');
+      expect(restored.graphics, 'tiles');
+      expect(restored.speed, 'fast');
+      expect(restored.highContrast, isTrue);
+      SharedPreferences.setMockInitialValues({
+        'monkey-fist-unified-v1': jsonEncode({'sound': false}),
+      });
+      expect((await Progress.load()).soundLevel, 'off');
+    },
+  );
+  test(
+    'graphics defaults to Rope and Tiles survives reloading progress',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final progress = await Progress.load();
+      expect(progress.graphics, 'rope');
+      progress.graphics = 'tiles';
+      progress.record(0, 1, 3);
+      final restored = await Progress.load();
+      expect(restored.graphics, 'tiles');
+      expect(restored.scores[0]?.stars, 3);
+      expect(restored.available, 10);
+    },
+  );
+  test(
+    'music starts Off and its independent volume setting is saved',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final progress = await Progress.load();
+      expect(progress.music, 'off');
+      progress.music = 'full';
+      progress.sound = false;
+      progress.save();
+      final restored = await Progress.load();
+      expect(restored.music, 'full');
+      expect(restored.sound, isFalse);
+    },
+  );
   test('best scores and chapter unlocks', () {
     final p = Progress.memory();
     expect(p.available, 10);

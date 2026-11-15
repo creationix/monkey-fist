@@ -3,6 +3,8 @@
 // when gridVersion changes; chapter unlocks are kept.
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/engine.dart';
@@ -13,12 +15,17 @@ class Best {
   const Best(this.taps, this.stars);
 }
 
-class Progress {
+class Progress extends ChangeNotifier {
   static const _key = 'monkey-fist-unified-v1';
   final SharedPreferences? _prefs;
   int chapters = 1;
   final Map<int, Best> scores = {};
-  bool sound = true;
+  String soundLevel = 'soft';
+  bool get sound => soundLevel != 'off';
+  set sound(bool enabled) => soundLevel = enabled ? 'full' : 'off';
+  bool highContrast = false;
+  String music = 'off';
+  String graphics = 'rope';
   String speed = 'normal';
 
   Progress._(this._prefs);
@@ -39,13 +46,29 @@ class Progress {
       try {
         final j = jsonDecode(raw) as Map<String, dynamic>;
         p.chapters = (j['chapters'] as int?) ?? 1;
-        p.sound = (j['sound'] as bool?) ?? true;
-        p.speed = (j['speed'] as String?) ?? 'normal';
+        final sound = j['sound'];
+        p.soundLevel = sound is bool
+            ? (sound ? 'full' : 'off')
+            : ['off', 'soft', 'full'].contains(sound)
+            ? sound as String
+            : 'soft';
+        p.highContrast = j['highContrast'] == true || j['oled'] == true;
+        final music = j['music'];
+        p.music = ['off', 'soft', 'full'].contains(music)
+            ? music as String
+            : 'off';
+        p.graphics = j['graphics'] == 'tiles' ? 'tiles' : 'rope';
+        p.speed = ['slow', 'normal', 'fast'].contains(j['speed'])
+            ? j['speed'] as String
+            : 'normal';
         if (j['version'] == gridVersion) {
           final s = (j['scores'] as Map<String, dynamic>?) ?? {};
           for (final e in s.entries) {
             final v = e.value as Map<String, dynamic>;
-            p.scores[int.parse(e.key)] = Best(v['taps'] as int, v['stars'] as int);
+            p.scores[int.parse(e.key)] = Best(
+              v['taps'] as int,
+              v['stars'] as int,
+            );
           }
         }
       } catch (_) {
@@ -60,7 +83,9 @@ class Progress {
   /// Record a finished level. Returns the number of chapters newly opened.
   int record(int index, int taps, int stars) {
     final old = scores[index];
-    if (old == null || stars > old.stars || (stars == old.stars && taps < old.taps)) {
+    if (old == null ||
+        stars > old.stars ||
+        (stars == old.stars && taps < old.taps)) {
       scores[index] = Best(taps, stars);
     }
     final previous = chapters;
@@ -70,16 +95,24 @@ class Progress {
   }
 
   void save() {
+    notifyListeners();
     final prefs = _prefs;
     if (prefs == null) return;
     prefs.setString(
-        _key,
-        jsonEncode({
-          'version': gridVersion,
-          'chapters': chapters,
-          'sound': sound,
-          'speed': speed,
-          'scores': {for (final e in scores.entries) '${e.key}': {'taps': e.value.taps, 'stars': e.value.stars}},
-        }));
+      _key,
+      jsonEncode({
+        'version': gridVersion,
+        'chapters': chapters,
+        'sound': soundLevel,
+        'highContrast': highContrast,
+        'music': music,
+        'graphics': graphics,
+        'speed': speed,
+        'scores': {
+          for (final e in scores.entries)
+            '${e.key}': {'taps': e.value.taps, 'stars': e.value.stars},
+        },
+      }),
+    );
   }
 }

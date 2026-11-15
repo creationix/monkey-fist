@@ -12,6 +12,8 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
   final progress = await Progress.load();
   final audio = SfxPlayer(enabled: progress.sound);
+  audio.setSetting(progress.soundLevel);
+  audio.music.setSetting(progress.music);
   runApp(MonkeyFistApp(progress: progress, store: LevelStore(), audio: audio));
 }
 
@@ -19,15 +21,23 @@ class MonkeyFistApp extends StatelessWidget {
   final Progress progress;
   final LevelStore store;
   final SfxPlayer audio;
-  const MonkeyFistApp({super.key, required this.progress, required this.store, required this.audio});
+  const MonkeyFistApp({
+    super.key,
+    required this.progress,
+    required this.store,
+    required this.audio,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Monkey Fist',
-      debugShowCheckedModeBanner: false,
-      theme: monkeyTheme(),
-      home: HomeScreen(progress: progress, store: store, audio: audio),
+    return ListenableBuilder(
+      listenable: progress,
+      builder: (context, _) => MaterialApp(
+        title: 'Monkey Fist',
+        debugShowCheckedModeBanner: false,
+        theme: monkeyTheme(highContrast: progress.highContrast),
+        home: HomeScreen(progress: progress, store: store, audio: audio),
+      ),
     );
   }
 }

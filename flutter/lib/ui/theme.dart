@@ -18,21 +18,46 @@ const backgroundGradient = BoxDecoration(
   ),
 );
 
-ThemeData monkeyTheme() {
+BoxDecoration appBackground(bool highContrast) => highContrast
+    ? const BoxDecoration(color: Colors.black)
+    : backgroundGradient;
+
+Color appMuted(BuildContext context) =>
+    Theme.of(context).colorScheme.onSurfaceVariant;
+
+ThemeData monkeyTheme({bool highContrast = false}) {
   final base = ThemeData(
     brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: ColorScheme.dark(
       primary: kAccent,
       onPrimary: Color(0xff14242a),
-      surface: kDialog,
+      surface: highContrast ? const Color(0xff050a0c) : kDialog,
       onSurface: kText,
       secondary: kMuted,
+      secondaryContainer: highContrast
+          ? const Color(0xff14262c)
+          : const Color(0xff224653),
+      onSecondaryContainer: kText,
+      onSurfaceVariant: highContrast ? const Color(0xffc7dadd) : kMuted,
+      outline: highContrast ? const Color(0xff82999e) : const Color(0xff36515c),
+      outlineVariant: highContrast
+          ? const Color(0xff4c6368)
+          : const Color(0xff29444f),
+      surfaceContainerHighest: highContrast ? const Color(0xff101a1e) : kButton,
     ),
-    scaffoldBackgroundColor: kBackground,
+    scaffoldBackgroundColor: highContrast ? Colors.black : kBackground,
     useMaterial3: true,
   );
   return base.copyWith(
     textTheme: base.textTheme.apply(bodyColor: kText, displayColor: kText),
-    dialogTheme: const DialogThemeData(backgroundColor: kDialog),
+    dialogTheme: DialogThemeData(
+      backgroundColor: highContrast ? const Color(0xff050a0c) : kDialog,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      centerTitle: false,
+      elevation: 0,
+    ),
   );
 }

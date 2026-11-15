@@ -102,12 +102,27 @@ Ported from `app.js` (with `moonbit/src/game/game.mbt` as a typed guide):
 - Levels are generated with `Isolate.run`. The next level is prefetched while
   you play.
 
+- Android background music: all six scores and grooves from `music.js`, the four
+  arrangements and seeded melody changes, idle thinning, and independent saved
+  Off/Soft/Full controls. Dart synthesizes PCM in an isolate, streamed through
+  Android AudioTrack on the media channel. Menus, results and backgrounding stop
+  the stream. The native playback bridge is Android-only.
+
+The Rope/Tiles graphics selector is now available on the level list and during
+play, with saved preferences, translucent strand silhouettes, glass mirrors,
+and gear-style springs. It changes rendering without resetting game state.
+
+The UI now uses one shared Settings screen from both journey and gameplay.
+Sound and music have matching Off/Soft/Full selectors; speed, art and high
+contrast are saved with them. High contrast applies to the entire app, including
+menus, results and the board. Gameplay pauses immediately while Settings is open.
+
 ### Not ported
 
 - Custom sets UI. The core generates any U3 custom set code, and the parity
   tests cover them, but the app only shows the Journey.
-- Music (`music.js`).
-- The Tiles graphics style, dark (OLED) mode toggle, reduced motion and keyboard play.
+- Music playback on iOS (the Dart synthesizer and score are shared).
+- Reduced motion and keyboard play.
 - Feature fade-out (`reachableFeatures`).
 - The arrowhead easing as it turns on a mirror. A rope at rest points along
   its exit direction; a moving rope points along its last segment.
@@ -224,7 +239,6 @@ prefetched, so the UI never waits on it during play.
   - an APK or IPA build (blocked on the SDK licence acceptance and a Mac);
   - Custom sets UI;
   - music;
-  - Tiles style and dark mode;
   - feature fade-out;
   - the arrowhead easing on mirrors;
   - running on real devices.

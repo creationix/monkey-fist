@@ -2,6 +2,7 @@
 // written to the temporary directory and played from a small pool of players,
 // rate-limited per effect as sounds.js does. Audio failures never reach the game.
 import 'dart:io';
+import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -9,9 +10,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../game/game_state.dart';
 import '../game/sounds.dart';
+import 'music.dart';
 
 class SfxPlayer {
   bool enabled;
+  double _volume = 1;
+  late final MusicPlayer music = MusicPlayer();
   final List<AudioPlayer> _pool = [];
   int _next = 0;
   final Map<String, Future<String?>> _files = {};
@@ -22,17 +26,39 @@ class SfxPlayer {
 
   SfxPlayer({this.enabled = true});
 
+  void setSetting(String value) {
+    enabled = value != 'off';
+    _volume = value == 'soft' ? .25 : 1;
+    unawaited(_syncVolume());
+  }
+
+  Future<void> _syncVolume() async {
+    try {
+      await Future.wait(
+        _pool.map((p) => enabled ? p.setVolume(_volume) : p.stop()),
+      );
+    } catch (_) {
+      /* An unavailable audio device must not interrupt settings. */
+    }
+  }
+
   Future<void> _init() async {
     if (_ready || _broken) return;
     try {
-      await AudioPlayer.global.setAudioContext(AudioContextConfig(
-        focus: AudioContextConfigFocus.mixWithOthers,
-        respectSilence: true,
-      ).build());
+      await AudioPlayer.global.setAudioContext(
+        AudioContextConfig(
+          focus: AudioContextConfigFocus.mixWithOthers,
+          // On Android, respectSilence selects the ringtone stream. Game
+          // effects should follow media volume, including in vibrate mode.
+          respectSilence: defaultTargetPlatform != TargetPlatform.android,
+        ).build(),
+      );
       for (var i = 0; i < 8; i++) {
         final p = AudioPlayer();
         await p.setReleaseMode(ReleaseMode.stop);
-        if (defaultTargetPlatform == TargetPlatform.android) await p.setPlayerMode(PlayerMode.lowLatency);
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          await p.setPlayerMode(PlayerMode.lowLatency);
+        }
         _pool.add(p);
       }
       _ready = true;
@@ -48,7 +74,8 @@ class SfxPlayer {
     return kind.name;
   }
 
-  Future<String?> _file(Sfx kind, int arg) => _files.putIfAbsent(_key(kind, arg), () async {
+  Future<String?> _file(Sfx kind, int arg) =>
+      _files.putIfAbsent(_key(kind, arg), () async {
         try {
           final bytes = await compute(_render, (kind.index, arg));
           final dir = await getTemporaryDirectory();
@@ -60,13 +87,22 @@ class SfxPlayer {
         }
       });
 
-  static Uint8List _render((int, int) a) => renderSfx(Sfx.values[a.$1], a.$2, gain: .6);
+  static Uint8List _render((int, int) a) =>
+      renderSfx(Sfx.values[a.$1], a.$2, gain: .6);
 
   /// Render the common clips ahead of the first tap.
   Future<void> warmUp() async {
     if (!enabled) return;
     await _init();
-    for (final k in [Sfx.activate, Sfx.slide, Sfx.thud, Sfx.blocked, Sfx.pop, Sfx.reflect, Sfx.spring]) {
+    for (final k in [
+      Sfx.activate,
+      Sfx.slide,
+      Sfx.thud,
+      Sfx.blocked,
+      Sfx.pop,
+      Sfx.reflect,
+      Sfx.spring,
+    ]) {
       await _file(k, 1);
     }
   }
@@ -89,6 +125,8 @@ class SfxPlayer {
       final p = _pool[_next];
       _next = (_next + 1) % _pool.length;
       await p.stop();
+      if (!enabled) return;
+      await p.setVolume(_volume);
       await p.play(DeviceFileSource(path));
     } catch (_) {
       // Sound is optional.

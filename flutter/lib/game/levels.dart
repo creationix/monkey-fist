@@ -5,14 +5,18 @@ import 'dart:isolate';
 
 import '../core/engine.dart';
 
+// Keep the isolate closure outside LevelStore's cache/error-handler scope.
+// Capturing that scope also captures cached Futures, which cannot be sent.
+Future<Level?> _generateInIsolate(String code, int index) =>
+    Isolate.run(() => generateCode(code, index));
+
 class LevelStore {
   final String code;
   final Map<int, Future<Level?>> _cache = {};
   LevelStore([this.code = journeyCode]);
 
   Future<Level?> get(int index) => _cache.putIfAbsent(index, () {
-        final code = this.code;
-        return Isolate.run(() => generateCode(code, index)).catchError((Object _) {
+        return _generateInIsolate(code, index).catchError((Object _) {
           _cache.remove(index);
           return null;
         });

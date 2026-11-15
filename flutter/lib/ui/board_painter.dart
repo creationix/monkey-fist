@@ -9,6 +9,7 @@ import '../core/hex.dart';
 import '../core/util.dart' show Pt;
 import '../game/game_state.dart';
 import 'rope_art.dart';
+import 'tile_art.dart';
 
 const List<Color> palette = [
   Color(0xff37d5ac),
@@ -26,7 +27,9 @@ class BoardPainter extends CustomPainter {
   final GameState g;
   final int frame;
   final bool oled;
-  BoardPainter(this.g, this.frame, {this.oled = false}) : super();
+  final String graphics;
+  BoardPainter(this.g, this.frame, {this.oled = false, this.graphics = 'rope'}) : super();
+  bool get tiles => graphics == 'tiles';
 
   Offset _o(Vec v) => Offset(v.x, v.y);
 
@@ -113,6 +116,14 @@ class BoardPainter extends CustomPainter {
       canvas.save();
       canvas.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
       canvas.rotate(math.atan2(b.y - a.y, b.x - a.x));
+      if (tiles) {
+        final glass = Rect.fromLTWH(-length / 2, -s * .08, length, s * .16);
+        canvas.drawRect(glass, Paint()..color = const Color(0x668edce0));
+        canvas.drawRect(glass, Paint()..style = PaintingStyle.stroke..strokeJoin = StrokeJoin.bevel
+          ..strokeWidth = s * .03..color = const Color(0xe69ad7d4));
+        canvas.restore();
+        continue;
+      }
       final line = Path()
         ..moveTo(-length / 2, 0)
         ..lineTo(length / 2, 0);
@@ -166,6 +177,7 @@ class BoardPainter extends CustomPainter {
   }
 
   void _spring(Canvas canvas, Pt spring) {
+    if (tiles) { _tileSpring(canvas, spring); return; }
     final s = g.scale;
     final p = g.screen(spring);
     canvas.save();
@@ -252,34 +264,68 @@ class BoardPainter extends CustomPainter {
       canvas.translate(head.x * t, head.y * t);
     }
     final moving = move != null && !move.waiting;
-    if (move != null && move.waiting) {
-      strokeRope(canvas, points, s * .4, s * .51, const Color(0x33fff1b4));
-    }
     final h = Offset(head.x, head.y);
+    if (move != null && move.waiting) {
+      _stroke(canvas, points, s * .4, s * .51, const Color(0x33fff1b4), h);
+    }
     if (g.hint == i) {
       final pulse = .5 + .5 * math.sin(g.clock * 7);
-      strokeRope(canvas, points, s * .4, s * .56 + s * .2 * pulse, const Color(0x88fff0b0),
+      _stroke(canvas, points, s * .4, s * .56 + s * .2 * pulse, const Color(0x88fff0b0), h,
           moving: moving, blur: MaskFilter.blur(BlurStyle.normal, s * (.12 + .07 * pulse)));
-      strokeRope(canvas, points, s * .4, s * .56, const Color(0xfffff1b4), moving: moving);
-      _arrow(canvas, points.last, h, s, s * .09, const Color(0xfffff1b4));
+      _stroke(canvas, points, s * .4, s * .56, const Color(0xfffff1b4), h, moving: moving);
+      if (!tiles) _arrow(canvas, points.last, h, s, s * .09, const Color(0xfffff1b4));
     }
     final color = _color(i);
     final fold = move != null && move.spring != null ? _foldIndex(move) : -1;
     if (fold > 0 && fold < points.length - 1) {
       // Paint the returning strand over the outgoing one, arrowhead on top.
-      drawRope(canvas, points.sublist(0, fold + 1), s * .4, color, null, moving: moving);
-      drawRope(canvas, points.sublist(fold), s * .4, color, h, moving: moving);
+      _draw(canvas, points.sublist(0, fold + 1), s * .4, color, null, moving: moving);
+      _draw(canvas, points.sublist(fold), s * .4, color, h, moving: moving);
     } else {
-      drawRope(canvas, points, s * .4, color, h, moving: moving);
+      _draw(canvas, points, s * .4, color, h, moving: moving);
     }
     final flash = g.activations[i];
     if (flash != null) {
       final a = .28 * math.min(1.0, flash / .18);
-      strokeRope(canvas, points, s * .4, s * .43, const Color(0xfffff8dc).withValues(alpha: a), moving: moving);
-      _arrow(canvas, points.last, h, s, 0, const Color(0xfffff8dc).withValues(alpha: a));
+      _stroke(canvas, points, s * .4, s * .43, const Color(0xfffff8dc).withValues(alpha: a), h, moving: moving);
+      if (!tiles) _arrow(canvas, points.last, h, s, 0, const Color(0xfffff8dc).withValues(alpha: a));
     }
     canvas.restore();
     points = const [];
+  }
+
+  void _draw(Canvas canvas, List<Offset> points, double width, Color color, Offset? head, {bool moving = false}) {
+    if (tiles) {
+      drawTiles(canvas, points, width, color, head, moving: moving);
+    } else {
+      drawRope(canvas, points, width, color, head, moving: moving);
+    }
+  }
+
+  void _stroke(Canvas canvas, List<Offset> points, double width, double strokeWidth, Color color, Offset head,
+      {bool moving = false, MaskFilter? blur}) {
+    if (tiles) {
+      strokeTiles(canvas, points, width, strokeWidth, color, head: head, moving: moving, blur: blur);
+    } else {
+      strokeRope(canvas, points, width, strokeWidth, color, moving: moving, blur: blur);
+    }
+  }
+
+  void _tileSpring(Canvas canvas, Pt spring) {
+    final s = g.scale, p = g.screen(spring);
+    canvas.save();
+    canvas.translate(p.x, p.y);
+    canvas.rotate(g.springRotation(spring));
+    final gear = _gear(s);
+    canvas.drawPath(gear, Paint()..color = const Color(0x61ffc169));
+    final rim = Paint()..style = PaintingStyle.stroke..strokeJoin = StrokeJoin.bevel;
+    canvas.drawPath(gear, rim..color = const Color(0xe6f4bf78)..strokeWidth = s * .035);
+    canvas.drawPath(gear, rim..color = const Color(0x4dfff4cf)..strokeWidth = s * .01);
+    final symbol = Path()..moveTo(-s * .14, s * .11)..lineTo(-s * .14, -s * .11)
+      ..lineTo(s * .14, -s * .11)..lineTo(s * .14, s * .07)
+      ..moveTo(s * .065, s * .015)..lineTo(s * .14, s * .12)..lineTo(s * .215, s * .015);
+    canvas.drawPath(symbol, rim..color = const Color(0xd9ffd293)..strokeWidth = s * .038);
+    canvas.restore();
   }
 
   /// Index of the spring cell among the visible points of a folding rope.
