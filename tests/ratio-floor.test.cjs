@@ -61,7 +61,7 @@ test('the opening Journey has no below-floor or concealed one-tap fan levels', {
     assert.equal(board.seed,intro[index].seed);
     assert.equal(intro[index].journeySeed,G.DEFAULT.seed);
     assert.equal(G.allFree(board,board.ropes),false);
-    const rebuilt=require('../grid-generator').generate(intro[index],G);
+    const rebuilt=require('../moonbit/web/generator.js').local().generateSpec(intro[index]);
     assert.deepEqual(rebuilt.ropes,board.ropes,'the stored seeded settings regenerate each opening board');
     assert.equal(G.layoutKey(rebuilt),intro[index].layoutKey);
     assert.ok(board.ropes.length <= 5, 'introductory boards keep the number of ropes manageable');

@@ -3,7 +3,7 @@
 // the builder measured goes to a JSON file beside the builder, for tests and docs.
 'use strict';
 const path = require('node:path');
-// The fields grid-generator.js reads from a level specification.
+// The fields the generator (moonbit/web/generator.js) reads from a level specification.
 const RUNTIME_FIELDS = ['grid', 'W', 'H', 'difficulty', 'mirrors', 'springs', 'seed', 'minMirrors', 'minSprings', 'requireSlide'];
 const runtimeOf = level => Object.fromEntries(RUNTIME_FIELDS.filter(k => level[k] !== undefined).map(k => [k, level[k]]));
 const measurementsPath = out => path.resolve(out) === path.resolve(__dirname, '../../grid-journey.js')

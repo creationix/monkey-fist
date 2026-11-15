@@ -1,5 +1,7 @@
-// web/generator.js must hand the JS game exactly the boards grid-generator.js makes,
-// with both builds: wasm-gc, and the plain JS build that older Safari falls back to.
+// web/generator.js, the game's only generator, must make the boards and measurements
+// the Journey and custom sets were built and recorded with (grid-generator.js at
+// 9e69e3a, since deleted), with both builds: wasm-gc, and the plain JS build that
+// older Safari falls back to.
 const test = require('node:test'), assert = require('node:assert'), fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
 globalThis.MFGame = require('../../game-engine.js');
@@ -18,15 +20,6 @@ const backends = {
     return MFMoonBit.wrap(globalThis.MFCore, 'js');
   },
 };
-// The fields the game reads, plus the specification it was made from.
-const FIELDS = ['grid', 'W', 'H', 'ropes', 'mirrors', 'springs', 'plan', 'par', 'layoutKey', 'index', 'seed', 'difficulty', 'coverage', 'play', 'mechanicStats'];
-const pick = b => ({ ...Object.fromEntries(FIELDS.map(k => [k, b[k]])),
-  slideStats: { manualSlides: b.slideStats.manualSlides, manualBounces: b.slideStats.manualBounces, repeatedRopes: b.slideStats.repeatedRopes, automaticRopes: b.slideStats.automaticRopes } });
-// A sample regenerated live by the JS generator and compared field by field.
-const live = [...[0, 9, 10, 25, 39, 47, 58, 64, 77, 86, 99, 110, 119].map(index => ({ opts: { kind: 'journey' }, index })),
-  ...cases.filter(c => !c.opts.colossal && c.opts.width * c.opts.height <= 300)];
-const reference = new Map(live.map(c => [c, pick(MFGame.generate({ ...c.opts, index: c.index }))])); // still grid-generator.js here
-
 for (const [name, load] of Object.entries(backends)) {
   test(`${name}: every Journey level matches the JS generator`, async () => {
     const gen = await load(), bad = [];
@@ -45,10 +38,6 @@ for (const [name, load] of Object.entries(backends)) {
       assert.deepStrictEqual({ layoutKey: b.layoutKey, par: b.par, ropes: b.ropes.length, plan: b.plan },
         { layoutKey: e.layoutKey, par: e.par, ropes: e.ropes, plan: e.plan }, e.code + ' #' + e.index);
     });
-  });
-  test(`${name}: boards are field for field the JS generator's`, async () => {
-    const gen = await load();
-    for (const [c, expected] of reference) assert.deepStrictEqual(pick(gen.generate({ ...c.opts, index: c.index })), expected, JSON.stringify(c));
   });
 }
 test('a set code that fits no board is an error, not a wrong board', async () => {

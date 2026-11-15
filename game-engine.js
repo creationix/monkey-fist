@@ -7,7 +7,6 @@
   const M = node ? require('./mechanics.js') : root.MFMechanics;
   const H = node ? require('./hex/engine.js') : root.MFHex;
   const R = node ? require('./hex/mechanics.js') : root.MFHexMechanics;
-  const F = node ? require('./grid-generator.js') : root.MFGridGenerator;
   const K = node ? require('./grid-journey.js') : root.MFGridJourney;
   // Bump when generated boards change, so saved scores no longer apply.
   const GRID_VERSION = 8;
@@ -198,10 +197,9 @@
       (board.springs || []).map(p => [p.q, p.r])]);
     return L.hashString(data).toString(36) + '-' + L.hashString('layout:' + data).toString(36);
   }
-  function generate(options = {}) {
-    const board = F.generate(spec(options, options.index), api);
-    return { ...board, layoutKey: layoutKey(board) };
-  }
+  // Boards come from the MoonBit generator (moonbit/web/generator.js). This one is
+  // synchronous: in Node, or on a page that has loaded its JS build.
+  const generate = (options = {}) => (node ? require('./moonbit/web/generator.js') : root.MFMoonBit).local().generate(options);
   const project = (p, b) => b.grid === 'hex' ? H.project(p) : { x: p.q, y: p.r };
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;

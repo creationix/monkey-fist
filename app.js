@@ -66,7 +66,7 @@ function updateURL() {
 // worker that finished its job waits for the next one, so jobs don't each reload
 // the scripts (tens of milliseconds, far more on old iPads); cancelling terminates.
 let workersWork = typeof Worker !== 'undefined', spare = null;
-const WORKER = 'generator-worker.js?v=24';
+const WORKER = 'generator-worker.js?v=25';
 const takeWorker = () => { const worker = spare || new Worker(WORKER); spare = null; return worker; };
 const park = worker => { worker.onmessage = worker.onerror = null; if (spare) worker.terminate(); else spare = worker; };
 function startWorker(message, receive, fallback) {
@@ -144,7 +144,7 @@ function weave(options) {
     // later board too if workers do not load.
     const local = broken => {
       cleanup(); if (broken) workersWork = false;
-      retryTimer = setTimeout(() => { if (!settled) MFMoonBit.generate(options).catch(() => H.generate(options)).then(level => finish(level), e => finish(null, e)); }, 0);
+      retryTimer = setTimeout(() => { if (!settled) MFMoonBit.generate(options).then(level => finish(level), e => finish(null, e)); }, 0);
     };
     const failed = broken => {
       if (settled) return;

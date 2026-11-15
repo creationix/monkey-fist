@@ -20,29 +20,10 @@
       "challenge": 0
     },
     "targetChallenge": 0.524,
-    "complexity": {
-      "edges": 1,
-      "essentialEdges": 1,
-      "joins": 0,
-      "forks": 0,
-      "depth": 2,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 2,
-      "interaction": 0,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.6666666666666666
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "wgyj0i-1ujyjy0",
@@ -69,29 +50,10 @@
       "challenge": 0
     },
     "targetChallenge": 0.524,
-    "complexity": {
-      "edges": 1,
-      "essentialEdges": 1,
-      "joins": 0,
-      "forks": 0,
-      "depth": 2,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 2,
-      "interaction": 0,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.75
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "77pph5-mbs1bv",
@@ -118,29 +80,10 @@
       "challenge": 0
     },
     "targetChallenge": 1.023,
-    "complexity": {
-      "edges": 2,
-      "essentialEdges": 2,
-      "joins": 0,
-      "forks": 0,
-      "depth": 3,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 3,
-      "interaction": 0,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.5
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "1d4h3us-1wfjhy",
@@ -167,29 +110,10 @@
       "challenge": 0
     },
     "targetChallenge": 1.711,
-    "complexity": {
-      "edges": 3,
-      "essentialEdges": 2,
-      "joins": 0,
-      "forks": 0,
-      "depth": 3,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 3,
-      "interaction": 0,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.5
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "edtywu-193tc6g",
@@ -216,29 +140,10 @@
       "challenge": 1
     },
     "targetChallenge": 1.023,
-    "complexity": {
-      "edges": 5,
-      "essentialEdges": 5,
-      "joins": 0,
-      "forks": 0,
-      "depth": 5,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 5,
-      "interaction": 1,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "1b152tv-wm3sp9",
@@ -265,29 +170,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.711,
-    "complexity": {
-      "edges": 6,
-      "essentialEdges": 6,
-      "joins": 1,
-      "forks": 1,
-      "depth": 5,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 5,
-      "interaction": 4.775,
-      "revisitedRopes": 0,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 0,
-      "initialExitFraction": 0
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "173c636-ecy4ng",
@@ -315,29 +201,10 @@
       "challenge": 2.688
     },
     "targetChallenge": 2.508,
-    "complexity": {
-      "edges": 5,
-      "essentialEdges": 5,
-      "joins": 0,
-      "forks": 0,
-      "depth": 5,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 5,
-      "interaction": 1.4,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "layoutKey": "110bonu-11478wg",
@@ -364,29 +231,10 @@
       "challenge": 2.75
     },
     "targetChallenge": 2.508,
-    "complexity": {
-      "edges": 6,
-      "essentialEdges": 5,
-      "joins": 0,
-      "forks": 1,
-      "depth": 4,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 5,
-      "interaction": 1.4,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "1u6xgvt-1wn3oc3",
@@ -414,29 +262,10 @@
       "challenge": 3.5
     },
     "targetChallenge": 3.387,
-    "complexity": {
-      "edges": 3,
-      "essentialEdges": 3,
-      "joins": 0,
-      "forks": 0,
-      "depth": 3,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 3,
-      "interaction": 1.4875,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.25
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "ha9xum-gyoc1w",
@@ -464,29 +293,10 @@
       "challenge": 3.563
     },
     "targetChallenge": 3.387,
-    "complexity": {
-      "edges": 4,
-      "essentialEdges": 4,
-      "joins": 0,
-      "forks": 1,
-      "depth": 3,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 4,
-      "interaction": 1.75,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 0,
-      "initialExitFraction": 0
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "17gz59o-1szwr0i",
@@ -513,29 +323,10 @@
       "challenge": 1
     },
     "targetChallenge": 1.672,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 21,
-      "joins": 5,
-      "forks": 5,
-      "depth": 12,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 4.0599,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 7,
-      "initialExitFraction": 0.3333333333333333
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "layoutKey": "sedvuu-ji0ai8"
@@ -561,29 +352,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.135,
-    "complexity": {
-      "edges": 9,
-      "essentialEdges": 8,
-      "joins": 2,
-      "forks": 2,
-      "depth": 5,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 5,
-      "interaction": 3.0454,
-      "revisitedRopes": 0,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.4444444444444444
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "4l2cy6-15pnjl8"
@@ -611,29 +383,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.025,
-    "complexity": {
-      "edges": 9,
-      "essentialEdges": 8,
-      "joins": 0,
-      "forks": 0,
-      "depth": 5,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 5,
-      "interaction": 0.3058,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 1,
-      "initialExits": 4,
-      "initialExitFraction": 0.36363636363636365
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -665,29 +418,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.918,
-    "complexity": {
-      "edges": 17,
-      "essentialEdges": 13,
-      "joins": 2,
-      "forks": 0,
-      "depth": 8,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 10,
-      "interaction": 3.032,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.3076923076923077
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "pzx48p-1fn2chz"
@@ -714,29 +448,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.717,
-    "complexity": {
-      "edges": 14,
-      "essentialEdges": 12,
-      "joins": 1,
-      "forks": 2,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 11,
-      "interaction": 1.8604,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 1,
-      "initialExits": 2,
-      "initialExitFraction": 0.16666666666666666
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -769,29 +484,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.079,
-    "complexity": {
-      "edges": 19,
-      "essentialEdges": 17,
-      "joins": 1,
-      "forks": 6,
-      "depth": 10,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 15,
-      "interaction": 2.0754,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.125
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -823,29 +519,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.814,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 16,
-      "joins": 3,
-      "forks": 2,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 3.6133,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.25
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "ppynrb-4u07k1"
@@ -872,29 +549,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.765,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 17,
-      "joins": 3,
-      "forks": 3,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 15,
-      "interaction": 4.0833,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -927,29 +585,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.865,
-    "complexity": {
-      "edges": 26,
-      "essentialEdges": 23,
-      "joins": 4,
-      "forks": 4,
-      "depth": 15,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 10,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 16,
-      "interaction": 3.9129,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.10526315789473684
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -982,29 +621,10 @@
       "challenge": 2
     },
     "targetChallenge": 1.971,
-    "complexity": {
-      "edges": 30,
-      "essentialEdges": 28,
-      "joins": 3,
-      "forks": 6,
-      "depth": 12,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 17,
-      "interaction": 1.9766,
-      "revisitedRopes": 0,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.08333333333333333
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -1037,29 +657,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.365,
-    "complexity": {
-      "edges": 15,
-      "essentialEdges": 12,
-      "joins": 2,
-      "forks": 3,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 10,
-      "interaction": 3.8355,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.18181818181818182
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -1092,29 +693,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.483,
-    "complexity": {
-      "edges": 19,
-      "essentialEdges": 14,
-      "joins": 2,
-      "forks": 3,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 3.0694,
-      "revisitedRopes": 0,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 5,
-      "initialExitFraction": 0.35714285714285715
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -1147,29 +729,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.248,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 15,
-      "joins": 1,
-      "forks": 1,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 12,
-      "interaction": 1.9102,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1203,29 +766,10 @@
       "challenge": 2
     },
     "targetChallenge": 2.306,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 22,
-      "joins": 2,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 17,
-      "interaction": 1.6844,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 1,
-      "initialExits": 5,
-      "initialExitFraction": 0.20833333333333334
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -1258,29 +802,10 @@
       "challenge": 2.75
     },
     "targetChallenge": 2.728,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 13,
-      "joins": 2,
-      "forks": 1,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 2.4787,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 1,
-      "initialExits": 5,
-      "initialExitFraction": 0.3333333333333333
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1314,29 +839,10 @@
       "challenge": 3
     },
     "targetChallenge": 2.424,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 19,
-      "joins": 4,
-      "forks": 5,
-      "depth": 8,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 4.2829,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 1,
-      "initialExits": 4,
-      "initialExitFraction": 0.2222222222222222
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1370,29 +876,10 @@
       "challenge": 3
     },
     "targetChallenge": 2.191,
-    "complexity": {
-      "edges": 39,
-      "essentialEdges": 29,
-      "joins": 2,
-      "forks": 7,
-      "depth": 16,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 10,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 25,
-      "interaction": 2.7241,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 1,
-      "initialExits": 4,
-      "initialExitFraction": 0.15384615384615385
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -1424,29 +911,10 @@
       "challenge": 3.625
     },
     "targetChallenge": 2.544,
-    "complexity": {
-      "edges": 28,
-      "essentialEdges": 26,
-      "joins": 5,
-      "forks": 6,
-      "depth": 16,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 13,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 21,
-      "interaction": 4.9606,
-      "revisitedRopes": 1,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 5,
-      "initialExitFraction": 0.21739130434782608
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "685dm6-1ds35tw"
@@ -1472,29 +940,10 @@
       "challenge": 3.875
     },
     "targetChallenge": 2.605,
-    "complexity": {
-      "edges": 17,
-      "essentialEdges": 12,
-      "joins": 0,
-      "forks": 2,
-      "depth": 9,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 11,
-      "interaction": 1.3062,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.16666666666666666
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "1wct2kb-ulvbax"
@@ -1521,29 +970,10 @@
       "challenge": 4.75
     },
     "targetChallenge": 2.666,
-    "complexity": {
-      "edges": 26,
-      "essentialEdges": 21,
-      "joins": 5,
-      "forks": 2,
-      "depth": 12,
-      "branchingDepth": 5,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 21,
-      "interaction": 4.3773,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 1,
-      "initialExits": 6,
-      "initialExitFraction": 0.2727272727272727
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 1,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1576,29 +1006,10 @@
       "challenge": 3.25
     },
     "targetChallenge": 2.791,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 20,
-      "joins": 3,
-      "forks": 3,
-      "depth": 12,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 3.536,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.15789473684210525
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -1631,29 +1042,10 @@
       "challenge": 3.688
     },
     "targetChallenge": 2.854,
-    "complexity": {
-      "edges": 13,
-      "essentialEdges": 9,
-      "joins": 0,
-      "forks": 1,
-      "depth": 8,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 9,
-      "interaction": 0.658,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -1686,29 +1078,10 @@
       "challenge": 3.75
     },
     "targetChallenge": 2.918,
-    "complexity": {
-      "edges": 28,
-      "essentialEdges": 23,
-      "joins": 3,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 19,
-      "interaction": 2.4436,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.17391304347826086
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1740,29 +1113,10 @@
       "challenge": 3.063
     },
     "targetChallenge": 3.179,
-    "complexity": {
-      "edges": 13,
-      "essentialEdges": 12,
-      "joins": 1,
-      "forks": 3,
-      "depth": 7,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 1.1265,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.21428571428571427
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "layoutKey": "zsnu76-1tz0rco"
@@ -1789,29 +1143,10 @@
       "challenge": 4.5
     },
     "targetChallenge": 3.379,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 14,
-      "joins": 2,
-      "forks": 2,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 12,
-      "interaction": 2.8408,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.21428571428571427
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -1845,29 +1180,10 @@
       "challenge": 4.75
     },
     "targetChallenge": 3.113,
-    "complexity": {
-      "edges": 15,
-      "essentialEdges": 10,
-      "joins": 0,
-      "forks": 2,
-      "depth": 7,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 10,
-      "interaction": 0.6017,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.09090909090909091
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -1901,29 +1217,10 @@
       "challenge": 6.25
     },
     "targetChallenge": 2.982,
-    "complexity": {
-      "edges": 15,
-      "essentialEdges": 14,
-      "joins": 3,
-      "forks": 3,
-      "depth": 8,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 10,
-      "interaction": 4.4817,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.3076923076923077
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -1957,29 +1254,10 @@
       "challenge": 6.25
     },
     "targetChallenge": 3.245,
-    "complexity": {
-      "edges": 15,
-      "essentialEdges": 15,
-      "joins": 4,
-      "forks": 2,
-      "depth": 8,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 10,
-      "interaction": 4.8087,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.2857142857142857
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2012,29 +1290,10 @@
       "challenge": 6.25
     },
     "targetChallenge": 3.047,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 22,
-      "joins": 2,
-      "forks": 5,
-      "depth": 14,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 2.6,
-      "revisitedRopes": 4,
-      "partialSlides": 2,
-      "bounces": 3,
-      "initialExits": 1,
-      "initialExitFraction": 0.05
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 3,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2068,29 +1327,10 @@
       "challenge": 7.25
     },
     "targetChallenge": 3.312,
-    "complexity": {
-      "edges": 16,
-      "essentialEdges": 15,
-      "joins": 2,
-      "forks": 2,
-      "depth": 8,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 13,
-      "interaction": 3.3158,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.07142857142857142
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -2123,29 +1363,10 @@
       "challenge": 3.688
     },
     "targetChallenge": 3.723,
-    "complexity": {
-      "edges": 40,
-      "essentialEdges": 33,
-      "joins": 6,
-      "forks": 7,
-      "depth": 21,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 12,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 28,
-      "interaction": 4.8393,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.07142857142857142
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2178,29 +1399,10 @@
       "challenge": 3.75
     },
     "targetChallenge": 3.935,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 22,
-      "joins": 6,
-      "forks": 7,
-      "depth": 13,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 9,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 4.7704,
-      "revisitedRopes": 1,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.2222222222222222
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2234,29 +1436,10 @@
       "challenge": 4.25
     },
     "targetChallenge": 3.864,
-    "complexity": {
-      "edges": 14,
-      "essentialEdges": 11,
-      "joins": 1,
-      "forks": 2,
-      "depth": 8,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 1.375,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 3,
-      "initialExits": 2,
-      "initialExitFraction": 0.16666666666666666
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 3,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2289,29 +1472,10 @@
       "challenge": 4.563
     },
     "targetChallenge": 4.007,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 19,
-      "joins": 2,
-      "forks": 5,
-      "depth": 12,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 3,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.1111111111111111
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -2343,29 +1507,10 @@
       "challenge": 3.625
     },
     "targetChallenge": 3.584,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 16,
-      "joins": 3,
-      "forks": 2,
-      "depth": 12,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 4.6429,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "1x4l009-1iiegav"
@@ -2393,29 +1538,10 @@
       "challenge": 5.5
     },
     "targetChallenge": 4.079,
-    "complexity": {
-      "edges": 11,
-      "essentialEdges": 9,
-      "joins": 0,
-      "forks": 2,
-      "depth": 7,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 9,
-      "interaction": 0.47,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2449,29 +1575,10 @@
       "challenge": 5.75
     },
     "targetChallenge": 3.447,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 21,
-      "joins": 1,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 21,
-      "interaction": 0.9324,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.13043478260869565
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2504,29 +1611,10 @@
       "challenge": 6
     },
     "targetChallenge": 3.654,
-    "complexity": {
-      "edges": 19,
-      "essentialEdges": 15,
-      "joins": 1,
-      "forks": 2,
-      "depth": 7,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 13,
-      "interaction": 1.6641,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.25
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -2559,29 +1647,10 @@
       "challenge": 6
     },
     "targetChallenge": 3.794,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 21,
-      "joins": 2,
-      "forks": 4,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 3.1685,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.05555555555555555
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2615,29 +1684,10 @@
       "challenge": 7
     },
     "targetChallenge": 3.516,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 20,
-      "joins": 6,
-      "forks": 6,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 4.9286,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2670,29 +1720,10 @@
       "challenge": 4.375
     },
     "targetChallenge": 4.297,
-    "complexity": {
-      "edges": 23,
-      "essentialEdges": 21,
-      "joins": 7,
-      "forks": 7,
-      "depth": 8,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 4.4789,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 6,
-      "initialExitFraction": 0.3157894736842105
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2725,29 +1756,10 @@
       "challenge": 4.813
     },
     "targetChallenge": 4.594,
-    "complexity": {
-      "edges": 34,
-      "essentialEdges": 30,
-      "joins": 6,
-      "forks": 8,
-      "depth": 12,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 25,
-      "interaction": 4.6028,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.11538461538461539
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -2780,29 +1792,10 @@
       "challenge": 4.938
     },
     "targetChallenge": 4.151,
-    "complexity": {
-      "edges": 23,
-      "essentialEdges": 21,
-      "joins": 3,
-      "forks": 3,
-      "depth": 13,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 3.775,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.15
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -2836,29 +1829,10 @@
       "challenge": 5
     },
     "targetChallenge": 4.371,
-    "complexity": {
-      "edges": 11,
-      "essentialEdges": 11,
-      "joins": 1,
-      "forks": 1,
-      "depth": 8,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 11,
-      "interaction": 1.6651,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 5,
-      "initialExitFraction": 0.35714285714285715
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -2892,29 +1866,10 @@
       "challenge": 5.25
     },
     "targetChallenge": 4.224,
-    "complexity": {
-      "edges": 23,
-      "essentialEdges": 15,
-      "joins": 0,
-      "forks": 2,
-      "depth": 9,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 1.056,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.06666666666666667
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -2946,29 +1901,10 @@
       "challenge": 4.625
     },
     "targetChallenge": 4.745,
-    "complexity": {
-      "edges": 39,
-      "essentialEdges": 36,
-      "joins": 7,
-      "forks": 10,
-      "depth": 13,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 32,
-      "interaction": 4.0909,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.12121212121212122
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "layoutKey": "jpgr9f-10m3f4h"
@@ -2995,29 +1931,10 @@
       "challenge": 5.5
     },
     "targetChallenge": 4.669,
-    "complexity": {
-      "edges": 17,
-      "essentialEdges": 13,
-      "joins": 3,
-      "forks": 3,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 11,
-      "interaction": 4.0322,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.3076923076923077
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3050,29 +1967,10 @@
       "challenge": 7
     },
     "targetChallenge": 4.519,
-    "complexity": {
-      "edges": 8,
-      "essentialEdges": 8,
-      "joins": 0,
-      "forks": 1,
-      "depth": 6,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 7,
-      "interaction": 2,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -3106,29 +2004,10 @@
       "challenge": 7
     },
     "targetChallenge": 4.821,
-    "complexity": {
-      "edges": 13,
-      "essentialEdges": 10,
-      "joins": 1,
-      "forks": 2,
-      "depth": 7,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 8,
-      "interaction": 2.838,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -3162,29 +2041,10 @@
       "challenge": 7.25
     },
     "targetChallenge": 4.445,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 17,
-      "joins": 2,
-      "forks": 2,
-      "depth": 11,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 2.5465,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.17647058823529413
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -3217,29 +2077,10 @@
       "challenge": 4.563
     },
     "targetChallenge": 5.207,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 21,
-      "joins": 2,
-      "forks": 4,
-      "depth": 14,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 19,
-      "interaction": 2.5705,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.1
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -3273,29 +2114,10 @@
       "challenge": 4.75
     },
     "targetChallenge": 5.443,
-    "complexity": {
-      "edges": 12,
-      "essentialEdges": 11,
-      "joins": 0,
-      "forks": 1,
-      "depth": 8,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 0,
-      "revisitedRopes": 0,
-      "partialSlides": 0,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.21428571428571427
-    },
     "slideStats": {
       "manualSlides": 0,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3328,29 +2150,10 @@
       "challenge": 5.313
     },
     "targetChallenge": 4.974,
-    "complexity": {
-      "edges": 18,
-      "essentialEdges": 13,
-      "joins": 1,
-      "forks": 2,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 11,
-      "interaction": 2.5049,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.15384615384615385
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3383,29 +2186,10 @@
       "challenge": 5.375
     },
     "targetChallenge": 4.898,
-    "complexity": {
-      "edges": 35,
-      "essentialEdges": 32,
-      "joins": 4,
-      "forks": 6,
-      "depth": 13,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 10,
-      "coupledGroups": 3,
-      "largestCoupledGroup": 24,
-      "interaction": 3.451,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.10344827586206896
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -3439,29 +2223,10 @@
       "challenge": 6.5
     },
     "targetChallenge": 5.129,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 16,
-      "joins": 2,
-      "forks": 3,
-      "depth": 7,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 15,
-      "interaction": 3.4167,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.06666666666666667
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3495,29 +2260,10 @@
       "challenge": 7.25
     },
     "targetChallenge": 5.052,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 17,
-      "joins": 2,
-      "forks": 3,
-      "depth": 8,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 2.2344,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.17647058823529413
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3549,29 +2295,10 @@
       "challenge": 5.875
     },
     "targetChallenge": 5.602,
-    "complexity": {
-      "edges": 16,
-      "essentialEdges": 16,
-      "joins": 3,
-      "forks": 4,
-      "depth": 7,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 10,
-      "interaction": 3.4267,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 6
     },
     "layoutKey": "10izclx-s9fymz"
@@ -3599,29 +2326,10 @@
       "challenge": 8
     },
     "targetChallenge": 5.285,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 17,
-      "joins": 4,
-      "forks": 3,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 13,
-      "interaction": 4.6316,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 5,
-      "initialExitFraction": 0.3125
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -3654,29 +2362,10 @@
       "challenge": 9
     },
     "targetChallenge": 5.523,
-    "complexity": {
-      "edges": 26,
-      "essentialEdges": 23,
-      "joins": 3,
-      "forks": 3,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 16,
-      "interaction": 2.338,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.09090909090909091
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 1,
-      "interleavedRopes": 3,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3709,29 +2398,10 @@
       "challenge": 11.5
     },
     "targetChallenge": 5.364,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 22,
-      "joins": 2,
-      "forks": 2,
-      "depth": 12,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 19,
-      "interaction": 2.8398,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 3,
-      "initialExits": 2,
-      "initialExitFraction": 0.09523809523809523
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 3,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -3765,29 +2435,10 @@
       "challenge": 5.75
     },
     "targetChallenge": 6.171,
-    "complexity": {
-      "edges": 42,
-      "essentialEdges": 35,
-      "joins": 7,
-      "forks": 10,
-      "depth": 11,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 29,
-      "interaction": 3.893,
-      "revisitedRopes": 0,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 5,
-      "initialExitFraction": 0.15625
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -3820,29 +2471,10 @@
       "challenge": 5.813
     },
     "targetChallenge": 5.763,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 18,
-      "joins": 3,
-      "forks": 5,
-      "depth": 8,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 10,
-      "interaction": 4.1669,
-      "revisitedRopes": 1,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.15384615384615385
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -3875,29 +2507,10 @@
       "challenge": 5.938
     },
     "targetChallenge": 6.007,
-    "complexity": {
-      "edges": 33,
-      "essentialEdges": 26,
-      "joins": 7,
-      "forks": 5,
-      "depth": 9,
-      "branchingDepth": 5,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 4.9959,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.09523809523809523
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 1,
-      "interleavedRopes": 4,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -3929,29 +2542,10 @@
       "challenge": 5.75
     },
     "targetChallenge": 5.683,
-    "complexity": {
-      "edges": 31,
-      "essentialEdges": 25,
-      "joins": 4,
-      "forks": 4,
-      "depth": 13,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 23,
-      "interaction": 3.9293,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.13043478260869565
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "layoutKey": "1evmqy6-dbmx1g"
@@ -3978,29 +2572,10 @@
       "challenge": 6.25
     },
     "targetChallenge": 6.253,
-    "complexity": {
-      "edges": 17,
-      "essentialEdges": 14,
-      "joins": 1,
-      "forks": 1,
-      "depth": 8,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 2.0893,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -4034,29 +2609,10 @@
       "challenge": 6.25
     },
     "targetChallenge": 5.844,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 19,
-      "joins": 2,
-      "forks": 4,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 3,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 2.7222,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.05555555555555555
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -4089,29 +2645,10 @@
       "challenge": 6.438
     },
     "targetChallenge": 5.925,
-    "complexity": {
-      "edges": 33,
-      "essentialEdges": 24,
-      "joins": 4,
-      "forks": 6,
-      "depth": 14,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 4.7027,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.10526315789473684
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -4144,29 +2681,10 @@
       "challenge": 6.5
     },
     "targetChallenge": 6.336,
-    "complexity": {
-      "edges": 17,
-      "essentialEdges": 14,
-      "joins": 2,
-      "forks": 2,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 12,
-      "interaction": 3.036,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.26666666666666666
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -4200,29 +2718,10 @@
       "challenge": 7
     },
     "targetChallenge": 6.42,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 18,
-      "joins": 0,
-      "forks": 2,
-      "depth": 7,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 15,
-      "interaction": 1.1481,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.11764705882352941
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -4256,29 +2755,10 @@
       "challenge": 7.75
     },
     "targetChallenge": 6.089,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 20,
-      "joins": 1,
-      "forks": 4,
-      "depth": 10,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 2.087,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.1111111111111111
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -4311,29 +2791,10 @@
       "challenge": 5.75
     },
     "targetChallenge": 6.587,
-    "complexity": {
-      "edges": 18,
-      "essentialEdges": 16,
-      "joins": 2,
-      "forks": 3,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 3.2163,
-      "revisitedRopes": 0,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 7
     },
     "mechanicStats": {
@@ -4366,29 +2827,10 @@
       "challenge": 6.5
     },
     "targetChallenge": 6.503,
-    "complexity": {
-      "edges": 42,
-      "essentialEdges": 34,
-      "joins": 4,
-      "forks": 6,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 11,
-      "coupledGroups": 3,
-      "largestCoupledGroup": 16,
-      "interaction": 2.1875,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 5,
-      "initialExitFraction": 0.14705882352941177
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 7
     },
     "mechanicStats": {
@@ -4422,29 +2864,10 @@
       "challenge": 7.25
     },
     "targetChallenge": 7.097,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 15,
-      "joins": 2,
-      "forks": 4,
-      "depth": 7,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 13,
-      "interaction": 2.4783,
-      "revisitedRopes": 1,
-      "partialSlides": 1,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 1,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -4478,29 +2901,10 @@
       "challenge": 7.25
     },
     "targetChallenge": 6.841,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 20,
-      "joins": 2,
-      "forks": 4,
-      "depth": 9,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 19,
-      "interaction": 2.1118,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.10526315789473684
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -4532,29 +2936,10 @@
       "challenge": 7.125
     },
     "targetChallenge": 7.27,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 18,
-      "joins": 0,
-      "forks": 2,
-      "depth": 11,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 4,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 14,
-      "interaction": 1.241,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.21052631578947367
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "layoutKey": "5mgysf-15e94et"
@@ -4582,29 +2967,10 @@
       "challenge": 7.5
     },
     "targetChallenge": 7.011,
-    "complexity": {
-      "edges": 36,
-      "essentialEdges": 31,
-      "joins": 6,
-      "forks": 7,
-      "depth": 13,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 26,
-      "interaction": 4.8346,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.1111111111111111
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -4638,29 +3004,10 @@
       "challenge": 7.75
     },
     "targetChallenge": 6.926,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 17,
-      "joins": 3,
-      "forks": 3,
-      "depth": 10,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 12,
-      "interaction": 5.6222,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.15384615384615385
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -4693,29 +3040,10 @@
       "challenge": 8
     },
     "targetChallenge": 6.756,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 15,
-      "joins": 1,
-      "forks": 2,
-      "depth": 10,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 2.024,
-      "revisitedRopes": 2,
-      "partialSlides": 5,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.2
-    },
     "slideStats": {
       "manualSlides": 5,
       "manualBounces": 0,
       "repeatedRopes": 2,
-      "interleavedRopes": 1,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -4748,29 +3076,10 @@
       "challenge": 9
     },
     "targetChallenge": 7.183,
-    "complexity": {
-      "edges": 28,
-      "essentialEdges": 21,
-      "joins": 2,
-      "forks": 4,
-      "depth": 10,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 3,
-      "largestCoupledGroup": 15,
-      "interaction": 1.9876,
-      "revisitedRopes": 3,
-      "partialSlides": 5,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.14285714285714285
-    },
     "slideStats": {
       "manualSlides": 5,
       "manualBounces": 2,
       "repeatedRopes": 2,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -4803,29 +3112,10 @@
       "challenge": 10.75
     },
     "targetChallenge": 6.671,
-    "complexity": {
-      "edges": 37,
-      "essentialEdges": 29,
-      "joins": 7,
-      "forks": 5,
-      "depth": 17,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 14,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 19,
-      "interaction": 6.1735,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.19047619047619047
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -4858,29 +3148,10 @@
       "challenge": 7
     },
     "targetChallenge": 7.444,
-    "complexity": {
-      "edges": 22,
-      "essentialEdges": 18,
-      "joins": 1,
-      "forks": 4,
-      "depth": 12,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 15,
-      "interaction": 1.7625,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.16666666666666666
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -4913,29 +3184,10 @@
       "challenge": 7.188
     },
     "targetChallenge": 7.707,
-    "complexity": {
-      "edges": 34,
-      "essentialEdges": 25,
-      "joins": 4,
-      "forks": 6,
-      "depth": 13,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 4.375,
-      "revisitedRopes": 1,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.1
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -4968,29 +3220,10 @@
       "challenge": 7.5
     },
     "targetChallenge": 7.795,
-    "complexity": {
-      "edges": 23,
-      "essentialEdges": 18,
-      "joins": 5,
-      "forks": 3,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 13,
-      "interaction": 4.6594,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.25
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -5023,29 +3256,10 @@
       "challenge": 8.063
     },
     "targetChallenge": 7.972,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 18,
-      "joins": 2,
-      "forks": 3,
-      "depth": 10,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 4,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 2.5025,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 0,
-      "initialExits": 5,
-      "initialExitFraction": 0.25
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -5078,29 +3292,10 @@
       "challenge": 8.313
     },
     "targetChallenge": 8.151,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 20,
-      "joins": 5,
-      "forks": 5,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 10,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 13,
-      "interaction": 5.7087,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.07142857142857142
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -5132,29 +3327,10 @@
       "challenge": 8.375
     },
     "targetChallenge": 7.884,
-    "complexity": {
-      "edges": 19,
-      "essentialEdges": 18,
-      "joins": 2,
-      "forks": 2,
-      "depth": 6,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 5,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 11,
-      "interaction": 2.5618,
-      "revisitedRopes": 3,
-      "partialSlides": 5,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.058823529411764705
-    },
     "slideStats": {
       "manualSlides": 5,
       "manualBounces": 0,
       "repeatedRopes": 2,
-      "interleavedRopes": 2,
       "automaticRopes": 3
     },
     "layoutKey": "9e5p4a-13gehdc"
@@ -5182,29 +3358,10 @@
       "challenge": 8.75
     },
     "targetChallenge": 7.356,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 19,
-      "joins": 3,
-      "forks": 2,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 3.1417,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.1111111111111111
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -5238,29 +3395,10 @@
       "challenge": 9
     },
     "targetChallenge": 8.062,
-    "complexity": {
-      "edges": 20,
-      "essentialEdges": 19,
-      "joins": 3,
-      "forks": 5,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 9,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 15,
-      "interaction": 4.114,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.11764705882352941
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -5294,29 +3432,10 @@
       "challenge": 9
     },
     "targetChallenge": 7.531,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 17,
-      "joins": 3,
-      "forks": 2,
-      "depth": 10,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 2,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 3.9375,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.125
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -5350,29 +3469,10 @@
       "challenge": 10
     },
     "targetChallenge": 7.619,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 22,
-      "joins": 4,
-      "forks": 4,
-      "depth": 9,
-      "branchingDepth": 4,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 16,
-      "interaction": 4.8837,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 4,
-      "initialExitFraction": 0.21052631578947367
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -5405,29 +3505,10 @@
       "challenge": 7.938
     },
     "targetChallenge": 8.421,
-    "complexity": {
-      "edges": 44,
-      "essentialEdges": 39,
-      "joins": 10,
-      "forks": 8,
-      "depth": 22,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 16,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 29,
-      "interaction": 5.3086,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 5,
-      "initialExitFraction": 0.15625
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -5461,29 +3542,10 @@
       "challenge": 8
     },
     "targetChallenge": 8.331,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 23,
-      "joins": 5,
-      "forks": 6,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 9,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 4.9778,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.1111111111111111
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 1,
-      "interleavedRopes": 0,
       "automaticRopes": 6
     },
     "mechanicStats": {
@@ -5516,29 +3578,10 @@
       "challenge": 8.188
     },
     "targetChallenge": 8.512,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 19,
-      "joins": 4,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 9,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 14,
-      "interaction": 5.064,
-      "revisitedRopes": 3,
-      "partialSlides": 5,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.06666666666666667
-    },
     "slideStats": {
       "manualSlides": 5,
       "manualBounces": 0,
       "repeatedRopes": 2,
-      "interleavedRopes": 3,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -5571,29 +3614,10 @@
       "challenge": 8.75
     },
     "targetChallenge": 8.786,
-    "complexity": {
-      "edges": 37,
-      "essentialEdges": 33,
-      "joins": 3,
-      "forks": 5,
-      "depth": 14,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 27,
-      "interaction": 2.5371,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.0967741935483871
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -5626,29 +3650,10 @@
       "challenge": 8.938
     },
     "targetChallenge": 8.877,
-    "complexity": {
-      "edges": 32,
-      "essentialEdges": 22,
-      "joins": 1,
-      "forks": 3,
-      "depth": 13,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 2.15,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.1
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -5681,29 +3686,10 @@
       "challenge": 9
     },
     "targetChallenge": 8.241,
-    "complexity": {
-      "edges": 29,
-      "essentialEdges": 23,
-      "joins": 3,
-      "forks": 6,
-      "depth": 14,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 20,
-      "interaction": 3.481,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.09523809523809523
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 6
     },
     "mechanicStats": {
@@ -5735,29 +3721,10 @@
       "challenge": 8.688
     },
     "targetChallenge": 8.603,
-    "complexity": {
-      "edges": 70,
-      "essentialEdges": 60,
-      "joins": 10,
-      "forks": 15,
-      "depth": 27,
-      "branchingDepth": 6,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 49,
-      "interaction": 4.3867,
-      "revisitedRopes": 6,
-      "partialSlides": 6,
-      "bounces": 0,
-      "initialExits": 3,
-      "initialExitFraction": 0.06
-    },
     "slideStats": {
       "manualSlides": 6,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "layoutKey": "15qjezb-18ir3i5"
@@ -5785,29 +3752,10 @@
       "challenge": 9.5
     },
     "targetChallenge": 9.062,
-    "complexity": {
-      "edges": 26,
-      "essentialEdges": 19,
-      "joins": 0,
-      "forks": 2,
-      "depth": 13,
-      "branchingDepth": 0,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 16,
-      "interaction": 1.1197,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.15789473684210525
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -5841,29 +3789,10 @@
       "challenge": 9.5
     },
     "targetChallenge": 8.694,
-    "complexity": {
-      "edges": 35,
-      "essentialEdges": 22,
-      "joins": 4,
-      "forks": 5,
-      "depth": 11,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 17,
-      "interaction": 4.1633,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.15
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -5897,29 +3826,10 @@
       "challenge": 10.5
     },
     "targetChallenge": 8.969,
-    "complexity": {
-      "edges": 44,
-      "essentialEdges": 42,
-      "joins": 9,
-      "forks": 9,
-      "depth": 24,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 19,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 32,
-      "interaction": 5.3331,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 5,
-      "initialExitFraction": 0.15151515151515152
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {
@@ -5952,29 +3862,10 @@
       "challenge": 8.25
     },
     "targetChallenge": 9.247,
-    "complexity": {
-      "edges": 21,
-      "essentialEdges": 19,
-      "joins": 3,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 7,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 15,
-      "interaction": 3.8407,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 1,
-      "initialExitFraction": 0.058823529411764705
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -6007,29 +3898,10 @@
       "challenge": 9
     },
     "targetChallenge": 9.527,
-    "complexity": {
-      "edges": 57,
-      "essentialEdges": 51,
-      "joins": 10,
-      "forks": 10,
-      "depth": 23,
-      "branchingDepth": 8,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 43,
-      "interaction": 4.4492,
-      "revisitedRopes": 2,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 8,
-      "initialExitFraction": 0.17391304347826086
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 6
     },
     "mechanicStats": {
@@ -6062,29 +3934,10 @@
       "challenge": 9.438
     },
     "targetChallenge": 9.621,
-    "complexity": {
-      "edges": 28,
-      "essentialEdges": 24,
-      "joins": 3,
-      "forks": 8,
-      "depth": 14,
-      "branchingDepth": 1,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 3.5233,
-      "revisitedRopes": 3,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 1,
-      "initialExitFraction": 0.05263157894736842
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -6116,29 +3969,10 @@
       "challenge": 9.563
     },
     "targetChallenge": 9.81,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 20,
-      "joins": 4,
-      "forks": 4,
-      "depth": 10,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 15,
-      "interaction": 4.8125,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.2222222222222222
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "layoutKey": "pjvq2o-1mft966"
@@ -6166,29 +4000,10 @@
       "challenge": 9.5
     },
     "targetChallenge": 10,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 18,
-      "joins": 2,
-      "forks": 4,
-      "depth": 9,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 16,
-      "interaction": 3.2772,
-      "revisitedRopes": 3,
-      "partialSlides": 3,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.11764705882352941
-    },
     "slideStats": {
       "manualSlides": 3,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 4
     },
     "mechanicStats": {
@@ -6221,29 +4036,10 @@
       "challenge": 9.563
     },
     "targetChallenge": 9.434,
-    "complexity": {
-      "edges": 27,
-      "essentialEdges": 22,
-      "joins": 5,
-      "forks": 4,
-      "depth": 11,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 8,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 15,
-      "interaction": 5.3646,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 0,
-      "initialExits": 2,
-      "initialExitFraction": 0.11764705882352941
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -6277,29 +4073,10 @@
       "challenge": 9.75
     },
     "targetChallenge": 9.154,
-    "complexity": {
-      "edges": 25,
-      "essentialEdges": 18,
-      "joins": 3,
-      "forks": 1,
-      "depth": 12,
-      "branchingDepth": 3,
-      "mutualWaitGroups": 2,
-      "mutualWaitRopes": 6,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 15,
-      "interaction": 3.512,
-      "revisitedRopes": 2,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 5,
-      "initialExitFraction": 0.2631578947368421
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 1
     },
     "mechanicStats": {
@@ -6332,29 +4109,10 @@
       "challenge": 9.875
     },
     "targetChallenge": 9.905,
-    "complexity": {
-      "edges": 48,
-      "essentialEdges": 38,
-      "joins": 5,
-      "forks": 6,
-      "depth": 19,
-      "branchingDepth": 5,
-      "mutualWaitGroups": 3,
-      "mutualWaitRopes": 10,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 33,
-      "interaction": 4.3788,
-      "revisitedRopes": 5,
-      "partialSlides": 6,
-      "bounces": 0,
-      "initialExits": 4,
-      "initialExitFraction": 0.12121212121212122
-    },
     "slideStats": {
       "manualSlides": 6,
       "manualBounces": 0,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 2
     },
     "mechanicStats": {
@@ -6388,29 +4146,10 @@
       "challenge": 10
     },
     "targetChallenge": 9.716,
-    "complexity": {
-      "edges": 24,
-      "essentialEdges": 19,
-      "joins": 2,
-      "forks": 5,
-      "depth": 13,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 0,
-      "mutualWaitRopes": 0,
-      "coupledGroups": 1,
-      "largestCoupledGroup": 18,
-      "interaction": 2.0515,
-      "revisitedRopes": 1,
-      "partialSlides": 2,
-      "bounces": 2,
-      "initialExits": 2,
-      "initialExitFraction": 0.10526315789473684
-    },
     "slideStats": {
       "manualSlides": 2,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 3
     },
     "mechanicStats": {
@@ -6444,29 +4183,10 @@
       "challenge": 10.75
     },
     "targetChallenge": 9.34,
-    "complexity": {
-      "edges": 50,
-      "essentialEdges": 43,
-      "joins": 6,
-      "forks": 10,
-      "depth": 25,
-      "branchingDepth": 2,
-      "mutualWaitGroups": 1,
-      "mutualWaitRopes": 12,
-      "coupledGroups": 2,
-      "largestCoupledGroup": 35,
-      "interaction": 3.4721,
-      "revisitedRopes": 4,
-      "partialSlides": 4,
-      "bounces": 2,
-      "initialExits": 3,
-      "initialExitFraction": 0.07894736842105263
-    },
     "slideStats": {
       "manualSlides": 4,
       "manualBounces": 2,
       "repeatedRopes": 0,
-      "interleavedRopes": 0,
       "automaticRopes": 5
     },
     "mechanicStats": {

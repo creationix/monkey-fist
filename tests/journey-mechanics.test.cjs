@@ -1,7 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const G = require('../game-engine');
-const F = require('../grid-generator');
 const key = p => p.q+','+p.r;
 
 function observedUse(b) {
@@ -65,7 +64,7 @@ test('later mechanic tiles are used by the final manual solution, not placed as 
     const metadata = levels[index], b = G.generate({ ...G.DEFAULT,index });
     const replayed = G.replay(b,b.plan); assert.equal(replayed.solved,true); assert.equal(replayed.taps,b.par);
     assert.deepEqual([b.W,b.H],[metadata.W,metadata.H]); assert.ok(b.coverage >= .8);
-    const observed = observedUse(b), reported = F.featureStats(b,b.plan,b.par,G);
+    const observed = observedUse(b), reported = b.mechanicStats;
     const { bounceActions,...distinct } = observed; assert.deepEqual(reported,distinct);
     assert.equal(observed.usedMirrors,b.mirrors.length,'every placed mirror changes an actual route direction');
     assert.equal(observed.usedSprings,b.springs.length,'every distinct spinner reverses a rope');

@@ -6,6 +6,11 @@ build it. The implementation described here is the grid-size generator used by
 codes retain their legacy generators. Goals describe intended player experience;
 techniques describe implemented rules and heuristics, including their limits.
 
+The generator was first written in JS (`grid-generator.js` and
+`dependency-metrics.js`, last at commit 9e69e3a). It now lives in MoonBit, in
+`moonbit/src/core` (`gridgen.mbt` and `metrics.mbt` correspond to those two
+files), and makes exactly the same boards and measurements.
+
 ## 1. Desired goals
 
 ### Interesting difficulty within a moderate board
@@ -103,7 +108,7 @@ which is all the game loads; the builder's measurements go to
 hand-authored maps or solution paths; boards are constructed when opened.
 
 Every board, at every size and with any mechanics, comes from the same woven
-construction. `grid-generator.js` chooses a seeded short/medium/twisty style once
+construction. The generator (`gridgen.mbt`) chooses a seeded short/medium/twisty style once
 per square level. Hex uses its own strand-building rules. Both try a bounded pool
 of candidates inside the exact requested dimensions.
 
@@ -201,7 +206,7 @@ a budget is not permission to publish an invalid or sparse result.
 
 ### Measuring dependencies instead of rewarding trivial chains
 
-`dependency-metrics.js` observes the manual part of a verified solution. A causal
+The dependency metrics (`metrics.mbt`) observe the manual part of a verified solution. A causal
 edge is recorded when moving a blocker gives another rope more legal travel.
 It measures converging prerequisites, forks, mutual-wait groups, branching
 depth, and ropes revisited after another rope actually unblocked them.

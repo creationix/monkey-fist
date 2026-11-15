@@ -175,16 +175,18 @@ puzzle qualities from the techniques currently used to produce them.
 [`game-engine.js`](game-engine.js) is the common set format, progression schedule,
 and gameplay adapter. Every published board must have at least two ropes, at
 least one blocked rope at startup, and a fully replayable solution certificate.
-Deterministic, bounded retries reject trivial candidates. The main thread loads
-boards through [`generator-worker.js`](generator-worker.js), with a synchronous
-fallback if workers are unavailable.
+Deterministic, bounded retries reject trivial candidates. The generator is
+written in MoonBit ([`moonbit/`](moonbit/)): the game loads its wasm-gc build, or
+its plain JS build on browsers without wasm-gc (Safari before 18.2). The main
+thread loads boards through [`generator-worker.js`](generator-worker.js), and on
+the main thread itself if workers are unavailable.
 
 The underlying engines remain specialized:
 
 | Module | Responsibility |
 | --- | --- |
-| `grid-generator.js`, `grid-journey.js` | Fixed-size dense packing, independent difficulty, and the Journey's level specifications |
-| `dependency-metrics.js` | Causal joins, mutual waits, repeated slides, and branching depth |
+| `moonbit/src/core` (loaded by `moonbit/web/generator.js`) | The generator: fixed-size dense packing, independent difficulty, causal dependency metrics; its committed builds are `moonbit/dist/gen.wasm` and `gen.js` |
+| `grid-journey.js` | The Journey's level specifications |
 | `levels.js` | Square woven builder (long ropes, sliding knots and traps, fixed tracks that bend on mirrors) and the compact offset kernels: replay, solver, par search and casual playouts |
 | `mechanics.js` | Square full-geometry movement: every tap and its route, mirrors and spinners, bounded full-path solving |
 | `hex/engine.js` | Hex woven builder (mutual-wait pairs, long strands, traps, mirrors) and the compact offset kernels |

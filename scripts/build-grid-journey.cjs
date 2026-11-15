@@ -14,7 +14,7 @@
 // schedule without building.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { createHash } = require('node:crypto');
-const G = require('../game-engine'), F = require('../grid-generator'), L = require('../levels');
+const G = require('../game-engine'), L = require('../levels'), F = require('../moonbit/web/generator.js').local();
 const { runtimeSource, measurementsPath } = require('./lib/journey-files.cjs');
 function argumentsOf(argv) {
   const result = { seed: 'MONKEYFIST', out: path.join(__dirname, '../grid-journey.js'), plan: false };
@@ -76,9 +76,10 @@ function plan() {
 }
 // The build re-measures each candidate with more casual games than the generator's
 // own candidate selection uses, so the stored challenge is a steadier estimate.
+// b must be the board the generator made last.
 function measure(b) {
-  const rng = L.mulberry32(L.hashString(BUILD + '/measure/' + b.seed)), wins = F.casualRate(b, G, rng, b.springs.length ? 24 : 96);
-  return { casualWins: Number(wins.toFixed(4)), work: b.play.work, challenge: Number(F.challengeOf(b.play.work, wins).toFixed(3)) };
+  const wins = F.measure(BUILD + '/measure/' + b.seed, b.springs.length ? 24 : 96);
+  return { casualWins: Number(wins.toFixed(4)), work: b.play.work, challenge: Number((b.play.work + 6 * (1 - wins)).toFixed(3)) };
 }
 // Harder levels should be losable: a candidate whose casual win rate is above the
 // generator's ceiling for its difficulty is kept only if no seed meets it, and then
@@ -111,7 +112,7 @@ if (options.plan) {
 const levels = [];
 // Resume validated metadata after an interrupted build. The cache contains no
 // maps or plans, and is invalidated by any generator/kernel or source change.
-const sourceFiles = ['scripts/build-grid-journey.cjs','grid-generator.js','dependency-metrics.js','game-engine.js','levels.js','mechanics.js','hex/engine.js','hex/mechanics.js'];
+const sourceFiles = ['scripts/build-grid-journey.cjs','moonbit/web/generator.js','moonbit/dist/gen.js','game-engine.js','levels.js','mechanics.js','hex/engine.js','hex/mechanics.js'];
 const cacheHash = createHash('sha256'); for (const file of sourceFiles) cacheHash.update(fs.readFileSync(path.join(__dirname, '..', file)));
 const cacheFile = path.join(os.tmpdir(), 'monkey-journey-build-' + cacheHash.digest('hex') + '.json');
 const cached = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : {};
@@ -128,7 +129,7 @@ for (const [i, source] of specs.entries()) {
    for (let local = 0; local < wanted + extra && (tried < wanted || !chosen || chosen.over); local++, attempt++) {
     const spec = { ...source, W: size[0], H: size[1], seedAttempt: attempt, seed: mapSeed(source, attempt) };
     let candidate;
-    try { candidate = F.generate(spec, G); }
+    try { candidate = F.generateSpec(spec); }
     catch (error) { process.stderr.write(`  ${i + 1}/${attempt + 1}: ${error.message}\n`); continue; }
     if (!acceptable(spec, candidate, levels)) { process.stderr.write(`  ${i + 1}/${attempt + 1}: rejected (duplicate map or too many ropes)\n`); continue; }
     tried++;
@@ -139,7 +140,7 @@ for (const [i, source] of specs.entries()) {
   if (!chosen) throw Error('Could not create a dense Journey level: ' + JSON.stringify(source));
   const { spec, candidate: board, play } = chosen;
   const metadata = { ...spec, par: board.par, ropeCount: board.ropes.length, coverage: Number(board.coverage.toFixed(4)), play, targetChallenge: Number(target.toFixed(3)),
-    ...(board.complexity ? { complexity: board.complexity } : {}), ...(board.slideStats ? { slideStats: board.slideStats } : {}),
+    ...(board.slideStats ? { slideStats: board.slideStats } : {}),
     ...(board.mechanicStats ? { mechanicStats: board.mechanicStats } : {}) };
   metadata.layoutKey = G.layoutKey(board);
   if (spec.chapter === 1) metadata.openingChallenge = play.challenge;
