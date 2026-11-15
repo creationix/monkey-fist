@@ -8,6 +8,13 @@ let input : Array[Int32] = []
 ///|
 let output : Array[Int32] = []
 
+///|
+/// The last level's measured doubles: casual win rate, challenge, coverage.
+let output_f : Array[Double] = []
+
+///|
+let current : Ref[@core.Level?] = { val: None }
+
 
 ///|
 #export_name("in_reset")
@@ -79,6 +86,40 @@ fn put_level(l : @core.Level) -> Unit {
     output.push(i)
   }
   put_string(l.layout_key)
+  for n in [
+    l.slides,
+    l.bounces,
+    l.repeated,
+    l.automatic,
+    l.used_mirrors,
+    l.used_springs,
+    l.manual_mirrors,
+    l.manual_springs,
+  ] {
+    output.push(n)
+  }
+  output_f.clear()
+  output_f.push(l.wins)
+  output_f.push(l.challenge)
+  output_f.push(l.coverage)
+  current.val = Some(l)
+}
+
+///|
+#export_name("outf_get")
+pub fn outf_get(i : Int32) -> Double {
+  output_f[i]
+}
+
+///|
+fn put(l : @core.Level?) -> Int32 {
+  match l {
+    Some(l) => {
+      put_level(l)
+      1
+    }
+    None => 0
+  }
 }
 
 ///|
@@ -87,11 +128,61 @@ fn put_level(l : @core.Level) -> Unit {
 #export_name("generate")
 pub fn generate(index : Int32) -> Int32 {
   guard @core.parse_code(input_string()) is Some(o) else { return 0 }
-  match @core.generate(o, index) {
-    Some(l) => {
-      put_level(l)
-      1
-    }
-    None => 0
+  put(@core.generate(o, index))
+}
+
+///|
+/// Generate from a specification whose seed is in the input buffer (the Journey
+/// builder's candidates). Returns 1 and fills the output buffers, or 0.
+#export_name("generate_spec")
+pub fn generate_spec(
+  hex : Int32,
+  w : Int32,
+  h : Int32,
+  difficulty : Double,
+  mirrors : Int32,
+  springs : Int32,
+  require_slide : Int32,
+  min_mirrors : Int32,
+  min_springs : Int32,
+  colossal : Int32,
+) -> Int32 {
+  put(
+    @core.generate_spec({
+      hex: hex == 1,
+      w,
+      h,
+      difficulty,
+      mirrors: mirrors == 1,
+      springs: springs == 1,
+      seed: input_string(),
+      require_slide: require_slide == 1,
+      min_mirrors,
+      min_springs,
+      colossal: colossal == 1,
+    }),
+  )
+}
+
+///|
+/// How often a casual player wins the last level, over `games` games seeded by
+/// the string in the input buffer.
+#export_name("measure")
+pub fn measure(games : Int32) -> Double {
+  match current.val {
+    Some(l) => @core.casual_measure(l.board, input_string(), games)
+    None => -1.0
   }
+}
+
+///|
+#export_name("target_challenge")
+pub fn target_challenge(d : Double) -> Double {
+  @core.target_challenge(d)
+}
+
+///|
+#export_name("win_ceiling")
+pub fn win_ceiling(d : Double) -> Double {
+  @core.win_ceiling(d)
 }

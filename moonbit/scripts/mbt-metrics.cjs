@@ -2,9 +2,11 @@
 // after comments are removed, functions, and decision points. For MoonBit, decisions
 // are if, for, while, guard, catch, && and ||, plus each match arm (like a JS case);
 // functions are fn plus lambdas (like JS function and =>).
-//   node scripts/mbt-metrics.cjs [reference checkout dir]
+//   node scripts/mbt-metrics.cjs <checkout of 9e69e3a, the JS reference>
+// (main no longer has grid-generator.js: e.g. git worktree add /tmp/ref 9e69e3a).
 const fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..'), ref = path.resolve(process.argv[2] || path.join(root, '..'));
+const root = path.join(__dirname, '..'), ref = path.resolve(process.argv[2] || '');
+if (!process.argv[2] || !fs.existsSync(path.join(ref, 'grid-generator.js'))) throw Error('Pass a checkout of 9e69e3a (the JS reference)');
 // The repository's own JS measure (its script prints a report when loaded; silence it).
 const log = console.log; console.log = () => {};
 const { measure } = require(path.join(root, '../scripts/code-metrics.cjs'));

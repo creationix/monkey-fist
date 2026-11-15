@@ -205,7 +205,13 @@ pub fn layout_key(b : Board) -> String {
 
 ///|
 pub fn generate(o : SetOpts, index : Int32) -> Level? {
-  match grid_generate(level_spec(o, index)) {
+  generate_spec(level_spec(o, index))
+}
+
+///|
+/// The level for a specification (the Journey builder's candidates), with its layout key.
+pub fn generate_spec(s : Spec) -> Level? {
+  match grid_generate(s) {
     Some(l) => Some({ ..l, layout_key: layout_key(l.board), })
     None => None
   }

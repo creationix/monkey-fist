@@ -24,6 +24,18 @@ pub(all) struct Level {
   wins : Double
   challenge : Double
   layout_key : String
+  // Measured play, as grid-generator.js reported it: forced partial slides and
+  // bounces in the par solution, ropes slid by hand twice or more, ropes that
+  // leave in the automatic release, and how the mirrors and springs are used
+  // (-1 on boards without them).
+  slides : Int32
+  bounces : Int32
+  repeated : Int32
+  automatic : Int32
+  used_mirrors : Int32
+  used_springs : Int32
+  manual_mirrors : Int32
+  manual_springs : Int32
 }
 
 ///|
@@ -970,9 +982,13 @@ pub fn grid_generate(s : Spec) -> Level? {
       continue
     }
     let result = score(b, g, colossal)
-    if b.mirrors.length() > 0 || b.springs.length() > 0 {
-      if feature_stats(b, g, result.plan, result.par) is Some(m) &&
-        (
+    let mech = if b.mirrors.length() > 0 || b.springs.length() > 0 {
+      feature_stats(b, g, result.plan, result.par)
+    } else {
+      None
+    }
+    if mech is Some(m) {
+      if (
           b.mirrors.length() < s.min_mirrors ||
           b.springs.length() < s.min_springs ||
           m.used_mirrors != b.mirrors.length() ||
@@ -987,14 +1003,25 @@ pub fn grid_generate(s : Spec) -> Level? {
     let mut slides = 0
     let mut bounces = 0
     let mut any_slide = false
+    let mut automatic = 0
+    let actions = Array::make(b.ropes.length(), 0)
     for k, e in played.events {
       if e == EV_SLIDE {
         any_slide = true
         if k < result.par {
           slides += 1
+          actions[result.plan[k]] += 1
         }
       } else if e == EV_BOUNCE && k < result.par {
         bounces += 1
+      } else if e == EV_EXIT && k >= result.par {
+        automatic += 1
+      }
+    }
+    let mut repeated = 0
+    for n in actions {
+      if n >= 2 {
+        repeated += 1
       }
     }
     if (s.require_slide || density < 0.85) && !any_slide {
@@ -1038,6 +1065,14 @@ pub fn grid_generate(s : Spec) -> Level? {
         wins,
         challenge,
         layout_key: "",
+        slides,
+        bounces,
+        repeated,
+        automatic,
+        used_mirrors: mech.map_or(-1, m => m.used_mirrors),
+        used_springs: mech.map_or(-1, m => m.used_springs),
+        manual_mirrors: mech.map_or(-1, m => m.manual_mirrors),
+        manual_springs: mech.map_or(-1, m => m.manual_springs),
       })
     }
     if colossal ||
@@ -1046,6 +1081,12 @@ pub fn grid_generate(s : Spec) -> Level? {
     }
   }
   best
+}
+
+///|
+/// How often a casual player wins `b`, over `games` games seeded by `seed`.
+pub fn casual_measure(b : Board, seed : String, games : Int32) -> Double {
+  casual_rate(b, b.geo(), rng_of(seed), games)
 }
 
 ///|

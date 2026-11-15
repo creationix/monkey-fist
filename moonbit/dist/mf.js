@@ -639,7 +639,7 @@ function _M0TPB5ArrayGRP310monkeyfist2mf4core4MoveE(param0, param1) {
   this.buf = param0;
   this.len = param1;
 }
-function _M0TP310monkeyfist2mf4core5Level(param0, param1, param2, param3, param4, param5, param6) {
+function _M0TP310monkeyfist2mf4core5Level(param0, param1, param2, param3, param4, param5, param6, param7, param8, param9, param10, param11, param12, param13, param14) {
   this.board = param0;
   this.par = param1;
   this.exact = param2;
@@ -647,6 +647,14 @@ function _M0TP310monkeyfist2mf4core5Level(param0, param1, param2, param3, param4
   this.wins = param4;
   this.challenge = param5;
   this.layout_key = param6;
+  this.slides = param7;
+  this.bounces = param8;
+  this.repeated = param9;
+  this.automatic = param10;
+  this.used_mirrors = param11;
+  this.used_springs = param12;
+  this.manual_mirrors = param13;
+  this.manual_springs = param14;
 }
 function _M0TPB5ArrayGRP310monkeyfist2mf4game6MotionE(param0, param1) {
   this.buf = param0;
@@ -706,137 +714,137 @@ const _M0MPB4Iter3newN6constrS893GiE = 0;
 const _M0MPB4Iter3newN6constrS899GbE = 0;
 const _M0FPC16double8infinity = $i64_reinterpret_f64(9218868437227405312n);
 const _M0FPC16double13neg__infinity = $i64_reinterpret_f64(18442240474082181120n);
-const _M0FP310monkeyfist2mf4core6stylesN6recordS3162 = new _M0TP310monkeyfist2mf4core5Style("short", 2, 0.5, 3, false);
-const _M0FP310monkeyfist2mf4core6stylesN6recordS3163 = new _M0TP310monkeyfist2mf4core5Style("medium", 2, 0.35, 4, false);
-const _M0FP310monkeyfist2mf4core6stylesN6recordS3164 = new _M0TP310monkeyfist2mf4core5Style("twisty", 3, 0.2, 6, true);
-const _M0FP310monkeyfist2mf4core6styles = [_M0FP310monkeyfist2mf4core6stylesN6recordS3162, _M0FP310monkeyfist2mf4core6stylesN6recordS3163, _M0FP310monkeyfist2mf4core6stylesN6recordS3164];
+const _M0FP310monkeyfist2mf4core6stylesN6recordS3172 = new _M0TP310monkeyfist2mf4core5Style("short", 2, 0.5, 3, false);
+const _M0FP310monkeyfist2mf4core6stylesN6recordS3173 = new _M0TP310monkeyfist2mf4core5Style("medium", 2, 0.35, 4, false);
+const _M0FP310monkeyfist2mf4core6stylesN6recordS3174 = new _M0TP310monkeyfist2mf4core5Style("twisty", 3, 0.2, 6, true);
+const _M0FP310monkeyfist2mf4core6styles = [_M0FP310monkeyfist2mf4core6stylesN6recordS3172, _M0FP310monkeyfist2mf4core6stylesN6recordS3173, _M0FP310monkeyfist2mf4core6stylesN6recordS3174];
 const _M0FP310monkeyfist2mf4core5marks = new _M0TPB5ArrayGiE([], 0);
 const _M0FP310monkeyfist2mf4core11mark__stamp = new _M0TPC13ref3RefGiE(0);
 const _M0FP310monkeyfist2mf4core6sq__dx = [1, 0, -1, 0];
 const _M0FP310monkeyfist2mf4core6sq__dy = [0, 1, 0, -1];
 const _M0FP310monkeyfist2mf4core7hex__dq = [1, 0, -1, -1, 0, 1];
 const _M0FP310monkeyfist2mf4core7hex__dr = [0, 1, 1, 0, -1, -1];
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3165 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 1, false, false, "1E36ZS5", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3166 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 1, false, false, "1R69SEE", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3167 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 10.75, false, false, "FQVGLS", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3168 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 20.5, false, false, "Q87N7F", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3169 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 6, 10.75, false, false, "204QXQ", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3170 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 20.5, false, false, "12Y6W4P", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3171 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 30.25, false, false, "1PPSC4A", true, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3172 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 30.25, false, false, "1DFJ2QC", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3173 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 40, false, false, "XCT8V6", true, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3174 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 40, false, false, "DF4GA5", true, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3175 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 20, false, false, "16BQGY8", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3176 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 25.831, false, false, "17KH1AO", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3177 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 24.479, true, true, "H4BUD7", false, 2, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3178 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 23.146, false, false, "T1V0O4", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3179 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 11, 20.58, false, true, "5TTLUG", false, 0, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3180 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 12, 25.153, true, false, "1I1T7WB", false, 1, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3181 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 21.84, false, false, "SVK4N0", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3182 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 12, 21.202, true, false, "13MVWXM", false, 1, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3183 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 11, 22.489, true, false, "URDUDE", false, 1, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3184 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 10, 23.809, true, false, "IWWEGP", false, 1, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3185 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 9, 28.579, true, false, "1FJ15LH", false, 2, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3186 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 29.97, true, false, "FGM11Z", false, 2, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3187 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 27.199, true, false, "RHTX0R", false, 2, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3188 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 11, 27.887, true, true, "EOQQ3H", false, 2, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3189 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 13, 32.779, false, true, "GY3JJT", false, 0, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3190 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 9, 29.273, true, true, "15HZGPX", false, 2, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3191 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 13, 26.513, true, true, "1I36K2N", false, 2, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3192 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 11, 30.669, false, false, "1TQ2CZM", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3193 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 31.37, false, false, "148O4PM", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3194 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 10, 32.073, false, true, "1ER5UMZ", false, 0, 1, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3195 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 33.486, true, false, "1JVC6AX", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3196 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 10, 34.195, true, false, "1IW0FZL", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3197 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 13, 34.905, true, false, "1X31NDQ", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3198 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 9, 37.763, false, false, "LT88BH", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3199 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 39.921, false, true, "7QGI92", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3200 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 11, 37.046, true, true, "F7C6T", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3201 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 35.617, true, true, "MZCMAO", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3202 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 14, 38.481, true, true, "19MOUFN", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3203 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 36.331, false, true, "19YX5VX", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3204 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 39.2, true, true, "1HK5XN5", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3205 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 43.542, true, false, "Q0QM7X", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3206 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 45.728, true, false, "11ZV02A", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3207 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 44.998, true, true, "10O5PCQ", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3208 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 46.458, true, false, "BOHYPD", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3209 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 13, 42.09, false, false, "1D2H50H", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3210 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 47.19, true, true, "CNTP0P", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3211 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 40.643, true, true, "10Y03ET", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3212 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 11, 42.816, false, true, "EZF88C", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3213 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 44.27, false, true, "1PBL4JT", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3214 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 41.366, true, true, "9IONA0", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3215 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 49.39, true, false, "1OP7NMU", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3216 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 11, 52.336, true, false, "AY2BIL", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3217 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 47.923, true, false, "22K8YD", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3218 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 50.125, true, true, "1L8PHDI", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3219 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 48.656, true, true, "1Y07GRC", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3220 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 53.814, false, false, "1CKB207", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3221 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 13, 53.075, false, true, "QPQLX", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3222 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 51.598, false, true, "1DK22VE", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3223 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 11, 54.554, true, true, "11SZ9PL", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3224 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 12, 50.862, true, true, "EQVAB3", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3225 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 58.265, true, false, "M1VOGV", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3226 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 60.501, true, true, "JHQ9ZP", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3227 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 14, 56.036, true, false, "1HCGSNF", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3228 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 16, 55.295, true, false, "9GOL45", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3229 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 12, 57.522, true, true, "87D93U", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3230 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 56.779, true, true, "WKT2LY", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3231 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 16, 61.994, false, false, "84U2RP", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3232 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 59.01, true, true, "1UHN3E3", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3233 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 61.247, false, true, "6BJJDG", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3234 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 59.755, false, true, "1HOJWGT", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3235 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 15, 67.24, true, true, "ORV5CK", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3236 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 15, 63.49, true, false, "1OLYVRN", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3237 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 14, 65.738, true, false, "1AYWVRG", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3238 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 13, 62.742, false, false, "C6M35", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3239 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 67.992, false, true, "E2XBR7", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3240 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 14, 64.239, true, true, "CGNNOT", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3241 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 64.988, true, false, "2BP1HE", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3242 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 68.745, false, true, "P5JGPE", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3243 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 69.498, true, true, "1MNW6SU", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3244 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 66.489, true, true, "AKTXYF", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3245 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 71.005, true, false, "1FL70XF", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3246 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 13, 70.251, true, false, "FQDB7L", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3247 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 14, 75.54, true, true, "14NSC3N", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3248 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 73.27, true, true, "1R06Q9U", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3249 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 77.056, false, false, "RLSZE3", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3250 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 14, 74.783, true, true, "13W28S1", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3251 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 74.026, true, true, "1U1OT6", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3252 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 12, 72.515, true, false, "T3FPIT", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3253 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 76.298, false, true, "HYFLVD", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3254 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 15, 71.76, false, true, "1RGH7ZX", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3255 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 15, 78.574, false, true, "LLUC5A", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3256 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 80.853, true, false, "ZVZHJF", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3257 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 15, 81.614, false, true, "1TNK21", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3258 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 13, 83.137, true, false, "1BV3VDS", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3259 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 14, 84.662, true, false, "OGZS70", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3260 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 13, 82.376, false, false, "1ATE6D7", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3261 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 77.814, true, true, "1BD8649", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3262 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 83.9, true, true, "O1N99M", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3263 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 13, 79.333, true, true, "1PFMFKQ", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3264 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 13, 80.093, true, true, "Q8M40P", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3265 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 16, 86.953, true, false, "914VI0", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3266 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 13, 86.189, true, true, "1VJ5C8T", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3267 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 13, 87.717, true, false, "ZMHIJW", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3268 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 16, 90.013, false, true, "XCEPST", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3269 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 16, 90.779, true, false, "1MJTCDU", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3270 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 14, 85.425, false, true, "1WIH2K5", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3271 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 15, 88.482, false, false, "1JK6FIG", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3272 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 92.312, true, true, "JTM74C", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3273 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 89.247, true, true, "AUFEW9", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3274 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 15, 91.545, true, true, "1U7ATWD", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3275 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 12, 93.846, false, true, "1UJKWAL", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3276 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 16, 96.151, false, true, "XL25Y7", false, 0, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3277 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 15, 96.92, true, false, "79P4LA", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3278 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 16, 98.459, false, false, "UGXK33", false, 0, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3279 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 100, true, true, "HQ3CE8", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3280 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 95.383, true, false, "IWKXI9", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3281 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 93.079, true, true, "KPVGWI", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3282 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 99.23, true, false, "H0R7RV", false, 3, 0, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3283 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 14, 97.69, true, true, "1RTSDHA", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journeyN6recordS3284 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 14, 94.614, true, true, "197XYV6", false, 3, 2, false);
-const _M0FP310monkeyfist2mf4core7journey = [_M0FP310monkeyfist2mf4core7journeyN6recordS3165, _M0FP310monkeyfist2mf4core7journeyN6recordS3166, _M0FP310monkeyfist2mf4core7journeyN6recordS3167, _M0FP310monkeyfist2mf4core7journeyN6recordS3168, _M0FP310monkeyfist2mf4core7journeyN6recordS3169, _M0FP310monkeyfist2mf4core7journeyN6recordS3170, _M0FP310monkeyfist2mf4core7journeyN6recordS3171, _M0FP310monkeyfist2mf4core7journeyN6recordS3172, _M0FP310monkeyfist2mf4core7journeyN6recordS3173, _M0FP310monkeyfist2mf4core7journeyN6recordS3174, _M0FP310monkeyfist2mf4core7journeyN6recordS3175, _M0FP310monkeyfist2mf4core7journeyN6recordS3176, _M0FP310monkeyfist2mf4core7journeyN6recordS3177, _M0FP310monkeyfist2mf4core7journeyN6recordS3178, _M0FP310monkeyfist2mf4core7journeyN6recordS3179, _M0FP310monkeyfist2mf4core7journeyN6recordS3180, _M0FP310monkeyfist2mf4core7journeyN6recordS3181, _M0FP310monkeyfist2mf4core7journeyN6recordS3182, _M0FP310monkeyfist2mf4core7journeyN6recordS3183, _M0FP310monkeyfist2mf4core7journeyN6recordS3184, _M0FP310monkeyfist2mf4core7journeyN6recordS3185, _M0FP310monkeyfist2mf4core7journeyN6recordS3186, _M0FP310monkeyfist2mf4core7journeyN6recordS3187, _M0FP310monkeyfist2mf4core7journeyN6recordS3188, _M0FP310monkeyfist2mf4core7journeyN6recordS3189, _M0FP310monkeyfist2mf4core7journeyN6recordS3190, _M0FP310monkeyfist2mf4core7journeyN6recordS3191, _M0FP310monkeyfist2mf4core7journeyN6recordS3192, _M0FP310monkeyfist2mf4core7journeyN6recordS3193, _M0FP310monkeyfist2mf4core7journeyN6recordS3194, _M0FP310monkeyfist2mf4core7journeyN6recordS3195, _M0FP310monkeyfist2mf4core7journeyN6recordS3196, _M0FP310monkeyfist2mf4core7journeyN6recordS3197, _M0FP310monkeyfist2mf4core7journeyN6recordS3198, _M0FP310monkeyfist2mf4core7journeyN6recordS3199, _M0FP310monkeyfist2mf4core7journeyN6recordS3200, _M0FP310monkeyfist2mf4core7journeyN6recordS3201, _M0FP310monkeyfist2mf4core7journeyN6recordS3202, _M0FP310monkeyfist2mf4core7journeyN6recordS3203, _M0FP310monkeyfist2mf4core7journeyN6recordS3204, _M0FP310monkeyfist2mf4core7journeyN6recordS3205, _M0FP310monkeyfist2mf4core7journeyN6recordS3206, _M0FP310monkeyfist2mf4core7journeyN6recordS3207, _M0FP310monkeyfist2mf4core7journeyN6recordS3208, _M0FP310monkeyfist2mf4core7journeyN6recordS3209, _M0FP310monkeyfist2mf4core7journeyN6recordS3210, _M0FP310monkeyfist2mf4core7journeyN6recordS3211, _M0FP310monkeyfist2mf4core7journeyN6recordS3212, _M0FP310monkeyfist2mf4core7journeyN6recordS3213, _M0FP310monkeyfist2mf4core7journeyN6recordS3214, _M0FP310monkeyfist2mf4core7journeyN6recordS3215, _M0FP310monkeyfist2mf4core7journeyN6recordS3216, _M0FP310monkeyfist2mf4core7journeyN6recordS3217, _M0FP310monkeyfist2mf4core7journeyN6recordS3218, _M0FP310monkeyfist2mf4core7journeyN6recordS3219, _M0FP310monkeyfist2mf4core7journeyN6recordS3220, _M0FP310monkeyfist2mf4core7journeyN6recordS3221, _M0FP310monkeyfist2mf4core7journeyN6recordS3222, _M0FP310monkeyfist2mf4core7journeyN6recordS3223, _M0FP310monkeyfist2mf4core7journeyN6recordS3224, _M0FP310monkeyfist2mf4core7journeyN6recordS3225, _M0FP310monkeyfist2mf4core7journeyN6recordS3226, _M0FP310monkeyfist2mf4core7journeyN6recordS3227, _M0FP310monkeyfist2mf4core7journeyN6recordS3228, _M0FP310monkeyfist2mf4core7journeyN6recordS3229, _M0FP310monkeyfist2mf4core7journeyN6recordS3230, _M0FP310monkeyfist2mf4core7journeyN6recordS3231, _M0FP310monkeyfist2mf4core7journeyN6recordS3232, _M0FP310monkeyfist2mf4core7journeyN6recordS3233, _M0FP310monkeyfist2mf4core7journeyN6recordS3234, _M0FP310monkeyfist2mf4core7journeyN6recordS3235, _M0FP310monkeyfist2mf4core7journeyN6recordS3236, _M0FP310monkeyfist2mf4core7journeyN6recordS3237, _M0FP310monkeyfist2mf4core7journeyN6recordS3238, _M0FP310monkeyfist2mf4core7journeyN6recordS3239, _M0FP310monkeyfist2mf4core7journeyN6recordS3240, _M0FP310monkeyfist2mf4core7journeyN6recordS3241, _M0FP310monkeyfist2mf4core7journeyN6recordS3242, _M0FP310monkeyfist2mf4core7journeyN6recordS3243, _M0FP310monkeyfist2mf4core7journeyN6recordS3244, _M0FP310monkeyfist2mf4core7journeyN6recordS3245, _M0FP310monkeyfist2mf4core7journeyN6recordS3246, _M0FP310monkeyfist2mf4core7journeyN6recordS3247, _M0FP310monkeyfist2mf4core7journeyN6recordS3248, _M0FP310monkeyfist2mf4core7journeyN6recordS3249, _M0FP310monkeyfist2mf4core7journeyN6recordS3250, _M0FP310monkeyfist2mf4core7journeyN6recordS3251, _M0FP310monkeyfist2mf4core7journeyN6recordS3252, _M0FP310monkeyfist2mf4core7journeyN6recordS3253, _M0FP310monkeyfist2mf4core7journeyN6recordS3254, _M0FP310monkeyfist2mf4core7journeyN6recordS3255, _M0FP310monkeyfist2mf4core7journeyN6recordS3256, _M0FP310monkeyfist2mf4core7journeyN6recordS3257, _M0FP310monkeyfist2mf4core7journeyN6recordS3258, _M0FP310monkeyfist2mf4core7journeyN6recordS3259, _M0FP310monkeyfist2mf4core7journeyN6recordS3260, _M0FP310monkeyfist2mf4core7journeyN6recordS3261, _M0FP310monkeyfist2mf4core7journeyN6recordS3262, _M0FP310monkeyfist2mf4core7journeyN6recordS3263, _M0FP310monkeyfist2mf4core7journeyN6recordS3264, _M0FP310monkeyfist2mf4core7journeyN6recordS3265, _M0FP310monkeyfist2mf4core7journeyN6recordS3266, _M0FP310monkeyfist2mf4core7journeyN6recordS3267, _M0FP310monkeyfist2mf4core7journeyN6recordS3268, _M0FP310monkeyfist2mf4core7journeyN6recordS3269, _M0FP310monkeyfist2mf4core7journeyN6recordS3270, _M0FP310monkeyfist2mf4core7journeyN6recordS3271, _M0FP310monkeyfist2mf4core7journeyN6recordS3272, _M0FP310monkeyfist2mf4core7journeyN6recordS3273, _M0FP310monkeyfist2mf4core7journeyN6recordS3274, _M0FP310monkeyfist2mf4core7journeyN6recordS3275, _M0FP310monkeyfist2mf4core7journeyN6recordS3276, _M0FP310monkeyfist2mf4core7journeyN6recordS3277, _M0FP310monkeyfist2mf4core7journeyN6recordS3278, _M0FP310monkeyfist2mf4core7journeyN6recordS3279, _M0FP310monkeyfist2mf4core7journeyN6recordS3280, _M0FP310monkeyfist2mf4core7journeyN6recordS3281, _M0FP310monkeyfist2mf4core7journeyN6recordS3282, _M0FP310monkeyfist2mf4core7journeyN6recordS3283, _M0FP310monkeyfist2mf4core7journeyN6recordS3284];
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3175 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 1, false, false, "1E36ZS5", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3176 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 1, false, false, "1R69SEE", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3177 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 10.75, false, false, "FQVGLS", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3178 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 20.5, false, false, "Q87N7F", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3179 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 6, 10.75, false, false, "204QXQ", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3180 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 20.5, false, false, "12Y6W4P", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3181 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 30.25, false, false, "1PPSC4A", true, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3182 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 30.25, false, false, "1DFJ2QC", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3183 = new _M0TP310monkeyfist2mf4core4Spec(true, 4, 6, 40, false, false, "XCT8V6", true, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3184 = new _M0TP310monkeyfist2mf4core4Spec(false, 4, 5, 40, false, false, "DF4GA5", true, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3185 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 20, false, false, "16BQGY8", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3186 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 25.831, false, false, "17KH1AO", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3187 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 24.479, true, true, "H4BUD7", false, 2, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3188 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 23.146, false, false, "T1V0O4", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3189 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 11, 20.58, false, true, "5TTLUG", false, 0, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3190 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 12, 25.153, true, false, "1I1T7WB", false, 1, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3191 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 21.84, false, false, "SVK4N0", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3192 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 12, 21.202, true, false, "13MVWXM", false, 1, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3193 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 11, 22.489, true, false, "URDUDE", false, 1, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3194 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 10, 23.809, true, false, "IWWEGP", false, 1, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3195 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 9, 28.579, true, false, "1FJ15LH", false, 2, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3196 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 29.97, true, false, "FGM11Z", false, 2, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3197 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 27.199, true, false, "RHTX0R", false, 2, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3198 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 11, 27.887, true, true, "EOQQ3H", false, 2, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3199 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 13, 32.779, false, true, "GY3JJT", false, 0, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3200 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 9, 29.273, true, true, "15HZGPX", false, 2, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3201 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 13, 26.513, true, true, "1I36K2N", false, 2, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3202 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 11, 30.669, false, false, "1TQ2CZM", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3203 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 31.37, false, false, "148O4PM", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3204 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 10, 32.073, false, true, "1ER5UMZ", false, 0, 1, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3205 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 33.486, true, false, "1JVC6AX", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3206 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 10, 34.195, true, false, "1IW0FZL", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3207 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 13, 34.905, true, false, "1X31NDQ", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3208 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 9, 37.763, false, false, "LT88BH", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3209 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 39.921, false, true, "7QGI92", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3210 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 11, 37.046, true, true, "F7C6T", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3211 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 12, 35.617, true, true, "MZCMAO", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3212 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 14, 38.481, true, true, "19MOUFN", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3213 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 36.331, false, true, "19YX5VX", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3214 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 39.2, true, true, "1HK5XN5", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3215 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 43.542, true, false, "Q0QM7X", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3216 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 45.728, true, false, "11ZV02A", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3217 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 10, 44.998, true, true, "10O5PCQ", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3218 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 46.458, true, false, "BOHYPD", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3219 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 13, 42.09, false, false, "1D2H50H", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3220 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 10, 47.19, true, true, "CNTP0P", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3221 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 40.643, true, true, "10Y03ET", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3222 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 11, 42.816, false, true, "EZF88C", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3223 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 44.27, false, true, "1PBL4JT", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3224 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 41.366, true, true, "9IONA0", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3225 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 49.39, true, false, "1OP7NMU", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3226 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 11, 52.336, true, false, "AY2BIL", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3227 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 12, 47.923, true, false, "22K8YD", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3228 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 50.125, true, true, "1L8PHDI", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3229 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 48.656, true, true, "1Y07GRC", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3230 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 53.814, false, false, "1CKB207", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3231 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 13, 53.075, false, true, "QPQLX", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3232 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 10, 51.598, false, true, "1DK22VE", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3233 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 11, 54.554, true, true, "11SZ9PL", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3234 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 12, 50.862, true, true, "EQVAB3", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3235 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 15, 58.265, true, false, "M1VOGV", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3236 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 60.501, true, true, "JHQ9ZP", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3237 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 14, 56.036, true, false, "1HCGSNF", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3238 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 16, 55.295, true, false, "9GOL45", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3239 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 12, 57.522, true, true, "87D93U", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3240 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 56.779, true, true, "WKT2LY", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3241 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 16, 61.994, false, false, "84U2RP", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3242 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 59.01, true, true, "1UHN3E3", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3243 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 61.247, false, true, "6BJJDG", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3244 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 59.755, false, true, "1HOJWGT", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3245 = new _M0TP310monkeyfist2mf4core4Spec(false, 8, 15, 67.24, true, true, "ORV5CK", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3246 = new _M0TP310monkeyfist2mf4core4Spec(true, 8, 15, 63.49, true, false, "1OLYVRN", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3247 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 14, 65.738, true, false, "1AYWVRG", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3248 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 13, 62.742, false, false, "C6M35", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3249 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 67.992, false, true, "E2XBR7", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3250 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 14, 64.239, true, true, "CGNNOT", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3251 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 64.988, true, false, "2BP1HE", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3252 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 11, 68.745, false, true, "P5JGPE", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3253 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 69.498, true, true, "1MNW6SU", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3254 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 66.489, true, true, "AKTXYF", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3255 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 13, 71.005, true, false, "1FL70XF", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3256 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 13, 70.251, true, false, "FQDB7L", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3257 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 14, 75.54, true, true, "14NSC3N", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3258 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 73.27, true, true, "1R06Q9U", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3259 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 77.056, false, false, "RLSZE3", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3260 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 14, 74.783, true, true, "13W28S1", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3261 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 12, 74.026, true, true, "1U1OT6", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3262 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 12, 72.515, true, false, "T3FPIT", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3263 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 76.298, false, true, "HYFLVD", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3264 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 15, 71.76, false, true, "1RGH7ZX", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3265 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 15, 78.574, false, true, "LLUC5A", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3266 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 80.853, true, false, "ZVZHJF", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3267 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 15, 81.614, false, true, "1TNK21", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3268 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 13, 83.137, true, false, "1BV3VDS", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3269 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 14, 84.662, true, false, "OGZS70", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3270 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 13, 82.376, false, false, "1ATE6D7", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3271 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 12, 77.814, true, true, "1BD8649", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3272 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 12, 83.9, true, true, "O1N99M", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3273 = new _M0TP310monkeyfist2mf4core4Spec(false, 10, 13, 79.333, true, true, "1PFMFKQ", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3274 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 13, 80.093, true, true, "Q8M40P", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3275 = new _M0TP310monkeyfist2mf4core4Spec(false, 9, 16, 86.953, true, false, "914VI0", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3276 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 13, 86.189, true, true, "1VJ5C8T", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3277 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 13, 87.717, true, false, "ZMHIJW", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3278 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 16, 90.013, false, true, "XCEPST", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3279 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 16, 90.779, true, false, "1MJTCDU", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3280 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 14, 85.425, false, true, "1WIH2K5", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3281 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 15, 88.482, false, false, "1JK6FIG", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3282 = new _M0TP310monkeyfist2mf4core4Spec(true, 9, 16, 92.312, true, true, "JTM74C", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3283 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 89.247, true, true, "AUFEW9", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3284 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 15, 91.545, true, true, "1U7ATWD", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3285 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 12, 93.846, false, true, "1UJKWAL", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3286 = new _M0TP310monkeyfist2mf4core4Spec(false, 11, 16, 96.151, false, true, "XL25Y7", false, 0, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3287 = new _M0TP310monkeyfist2mf4core4Spec(true, 10, 15, 96.92, true, false, "79P4LA", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3288 = new _M0TP310monkeyfist2mf4core4Spec(true, 11, 16, 98.459, false, false, "UGXK33", false, 0, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3289 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 100, true, true, "HQ3CE8", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3290 = new _M0TP310monkeyfist2mf4core4Spec(true, 12, 14, 95.383, true, false, "IWKXI9", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3291 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 93.079, true, true, "KPVGWI", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3292 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 13, 99.23, true, false, "H0R7RV", false, 3, 0, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3293 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 14, 97.69, true, true, "1RTSDHA", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journeyN6recordS3294 = new _M0TP310monkeyfist2mf4core4Spec(false, 12, 14, 94.614, true, true, "197XYV6", false, 3, 2, false);
+const _M0FP310monkeyfist2mf4core7journey = [_M0FP310monkeyfist2mf4core7journeyN6recordS3175, _M0FP310monkeyfist2mf4core7journeyN6recordS3176, _M0FP310monkeyfist2mf4core7journeyN6recordS3177, _M0FP310monkeyfist2mf4core7journeyN6recordS3178, _M0FP310monkeyfist2mf4core7journeyN6recordS3179, _M0FP310monkeyfist2mf4core7journeyN6recordS3180, _M0FP310monkeyfist2mf4core7journeyN6recordS3181, _M0FP310monkeyfist2mf4core7journeyN6recordS3182, _M0FP310monkeyfist2mf4core7journeyN6recordS3183, _M0FP310monkeyfist2mf4core7journeyN6recordS3184, _M0FP310monkeyfist2mf4core7journeyN6recordS3185, _M0FP310monkeyfist2mf4core7journeyN6recordS3186, _M0FP310monkeyfist2mf4core7journeyN6recordS3187, _M0FP310monkeyfist2mf4core7journeyN6recordS3188, _M0FP310monkeyfist2mf4core7journeyN6recordS3189, _M0FP310monkeyfist2mf4core7journeyN6recordS3190, _M0FP310monkeyfist2mf4core7journeyN6recordS3191, _M0FP310monkeyfist2mf4core7journeyN6recordS3192, _M0FP310monkeyfist2mf4core7journeyN6recordS3193, _M0FP310monkeyfist2mf4core7journeyN6recordS3194, _M0FP310monkeyfist2mf4core7journeyN6recordS3195, _M0FP310monkeyfist2mf4core7journeyN6recordS3196, _M0FP310monkeyfist2mf4core7journeyN6recordS3197, _M0FP310monkeyfist2mf4core7journeyN6recordS3198, _M0FP310monkeyfist2mf4core7journeyN6recordS3199, _M0FP310monkeyfist2mf4core7journeyN6recordS3200, _M0FP310monkeyfist2mf4core7journeyN6recordS3201, _M0FP310monkeyfist2mf4core7journeyN6recordS3202, _M0FP310monkeyfist2mf4core7journeyN6recordS3203, _M0FP310monkeyfist2mf4core7journeyN6recordS3204, _M0FP310monkeyfist2mf4core7journeyN6recordS3205, _M0FP310monkeyfist2mf4core7journeyN6recordS3206, _M0FP310monkeyfist2mf4core7journeyN6recordS3207, _M0FP310monkeyfist2mf4core7journeyN6recordS3208, _M0FP310monkeyfist2mf4core7journeyN6recordS3209, _M0FP310monkeyfist2mf4core7journeyN6recordS3210, _M0FP310monkeyfist2mf4core7journeyN6recordS3211, _M0FP310monkeyfist2mf4core7journeyN6recordS3212, _M0FP310monkeyfist2mf4core7journeyN6recordS3213, _M0FP310monkeyfist2mf4core7journeyN6recordS3214, _M0FP310monkeyfist2mf4core7journeyN6recordS3215, _M0FP310monkeyfist2mf4core7journeyN6recordS3216, _M0FP310monkeyfist2mf4core7journeyN6recordS3217, _M0FP310monkeyfist2mf4core7journeyN6recordS3218, _M0FP310monkeyfist2mf4core7journeyN6recordS3219, _M0FP310monkeyfist2mf4core7journeyN6recordS3220, _M0FP310monkeyfist2mf4core7journeyN6recordS3221, _M0FP310monkeyfist2mf4core7journeyN6recordS3222, _M0FP310monkeyfist2mf4core7journeyN6recordS3223, _M0FP310monkeyfist2mf4core7journeyN6recordS3224, _M0FP310monkeyfist2mf4core7journeyN6recordS3225, _M0FP310monkeyfist2mf4core7journeyN6recordS3226, _M0FP310monkeyfist2mf4core7journeyN6recordS3227, _M0FP310monkeyfist2mf4core7journeyN6recordS3228, _M0FP310monkeyfist2mf4core7journeyN6recordS3229, _M0FP310monkeyfist2mf4core7journeyN6recordS3230, _M0FP310monkeyfist2mf4core7journeyN6recordS3231, _M0FP310monkeyfist2mf4core7journeyN6recordS3232, _M0FP310monkeyfist2mf4core7journeyN6recordS3233, _M0FP310monkeyfist2mf4core7journeyN6recordS3234, _M0FP310monkeyfist2mf4core7journeyN6recordS3235, _M0FP310monkeyfist2mf4core7journeyN6recordS3236, _M0FP310monkeyfist2mf4core7journeyN6recordS3237, _M0FP310monkeyfist2mf4core7journeyN6recordS3238, _M0FP310monkeyfist2mf4core7journeyN6recordS3239, _M0FP310monkeyfist2mf4core7journeyN6recordS3240, _M0FP310monkeyfist2mf4core7journeyN6recordS3241, _M0FP310monkeyfist2mf4core7journeyN6recordS3242, _M0FP310monkeyfist2mf4core7journeyN6recordS3243, _M0FP310monkeyfist2mf4core7journeyN6recordS3244, _M0FP310monkeyfist2mf4core7journeyN6recordS3245, _M0FP310monkeyfist2mf4core7journeyN6recordS3246, _M0FP310monkeyfist2mf4core7journeyN6recordS3247, _M0FP310monkeyfist2mf4core7journeyN6recordS3248, _M0FP310monkeyfist2mf4core7journeyN6recordS3249, _M0FP310monkeyfist2mf4core7journeyN6recordS3250, _M0FP310monkeyfist2mf4core7journeyN6recordS3251, _M0FP310monkeyfist2mf4core7journeyN6recordS3252, _M0FP310monkeyfist2mf4core7journeyN6recordS3253, _M0FP310monkeyfist2mf4core7journeyN6recordS3254, _M0FP310monkeyfist2mf4core7journeyN6recordS3255, _M0FP310monkeyfist2mf4core7journeyN6recordS3256, _M0FP310monkeyfist2mf4core7journeyN6recordS3257, _M0FP310monkeyfist2mf4core7journeyN6recordS3258, _M0FP310monkeyfist2mf4core7journeyN6recordS3259, _M0FP310monkeyfist2mf4core7journeyN6recordS3260, _M0FP310monkeyfist2mf4core7journeyN6recordS3261, _M0FP310monkeyfist2mf4core7journeyN6recordS3262, _M0FP310monkeyfist2mf4core7journeyN6recordS3263, _M0FP310monkeyfist2mf4core7journeyN6recordS3264, _M0FP310monkeyfist2mf4core7journeyN6recordS3265, _M0FP310monkeyfist2mf4core7journeyN6recordS3266, _M0FP310monkeyfist2mf4core7journeyN6recordS3267, _M0FP310monkeyfist2mf4core7journeyN6recordS3268, _M0FP310monkeyfist2mf4core7journeyN6recordS3269, _M0FP310monkeyfist2mf4core7journeyN6recordS3270, _M0FP310monkeyfist2mf4core7journeyN6recordS3271, _M0FP310monkeyfist2mf4core7journeyN6recordS3272, _M0FP310monkeyfist2mf4core7journeyN6recordS3273, _M0FP310monkeyfist2mf4core7journeyN6recordS3274, _M0FP310monkeyfist2mf4core7journeyN6recordS3275, _M0FP310monkeyfist2mf4core7journeyN6recordS3276, _M0FP310monkeyfist2mf4core7journeyN6recordS3277, _M0FP310monkeyfist2mf4core7journeyN6recordS3278, _M0FP310monkeyfist2mf4core7journeyN6recordS3279, _M0FP310monkeyfist2mf4core7journeyN6recordS3280, _M0FP310monkeyfist2mf4core7journeyN6recordS3281, _M0FP310monkeyfist2mf4core7journeyN6recordS3282, _M0FP310monkeyfist2mf4core7journeyN6recordS3283, _M0FP310monkeyfist2mf4core7journeyN6recordS3284, _M0FP310monkeyfist2mf4core7journeyN6recordS3285, _M0FP310monkeyfist2mf4core7journeyN6recordS3286, _M0FP310monkeyfist2mf4core7journeyN6recordS3287, _M0FP310monkeyfist2mf4core7journeyN6recordS3288, _M0FP310monkeyfist2mf4core7journeyN6recordS3289, _M0FP310monkeyfist2mf4core7journeyN6recordS3290, _M0FP310monkeyfist2mf4core7journeyN6recordS3291, _M0FP310monkeyfist2mf4core7journeyN6recordS3292, _M0FP310monkeyfist2mf4core7journeyN6recordS3293, _M0FP310monkeyfist2mf4core7journeyN6recordS3294];
 const _M0FP310monkeyfist2mf4core13journey__opts = new _M0TP310monkeyfist2mf4core7SetOpts(true, 77, 1, 100, 10, 14, 120, true, true, false, "MONKEYFIST");
 const _M0FP310monkeyfist2mf4game4gaps = [25, 45, 40, 80, 45, 110, 60, 90, 80, 250, 150];
 const _M0FP310monkeyfist2mf4game6melody = [523.25, 587.33, 659.25, 783.99];
@@ -845,27 +853,27 @@ const _M0FP310monkeyfist2mf3api6output = new _M0TPB5ArrayGiE([], 0);
 const _M0FP310monkeyfist2mf3api7current = new _M0TPC13ref3RefGORP310monkeyfist2mf4core5LevelE(undefined);
 const _M0FP310monkeyfist2mf3api6floats = new _M0TPB5ArrayGdE([], 0);
 const _M0FPB4seed = _M0FPB12random__seed();
-const _M0FP310monkeyfist2mf4core9sq__solveN6constrS4323 = true;
-const _M0FP310monkeyfist2mf4core9sq__solveN6constrS4324 = false;
-const _M0FP310monkeyfist2mf4core10hex__solveN6constrS5193 = true;
-const _M0FP310monkeyfist2mf4core10hex__solveN6constrS5194 = false;
-const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4925 = true;
-const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4926 = false;
-const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4927 = true;
-const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4928 = false;
-const _M0FP310monkeyfist2mf4core14repeated__coreN6constrS5873 = true;
-const _M0FP310monkeyfist2mf4core8snapshotN6recordS4589 = new _M0TP310monkeyfist2mf4core4Snap(2, 0, -1);
-const _M0FP310monkeyfist2mf4core8snapshotN6constrS4590 = _M0FP310monkeyfist2mf4core8snapshotN6recordS4589;
-const _M0FP310monkeyfist2mf4core8snapshotN6recordS4591 = new _M0TP310monkeyfist2mf4core4Snap(2, 0, -1);
-const _M0FP310monkeyfist2mf4core8snapshotN6constrS4592 = _M0FP310monkeyfist2mf4core8snapshotN6recordS4591;
-const _M0FP310monkeyfist2mf4core15search__spinnerN6constrS6093 = true;
+const _M0FP310monkeyfist2mf4core9sq__solveN6constrS4333 = true;
+const _M0FP310monkeyfist2mf4core9sq__solveN6constrS4334 = false;
+const _M0FP310monkeyfist2mf4core10hex__solveN6constrS5203 = true;
+const _M0FP310monkeyfist2mf4core10hex__solveN6constrS5204 = false;
+const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4935 = true;
+const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4936 = false;
+const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4937 = true;
+const _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4938 = false;
+const _M0FP310monkeyfist2mf4core14repeated__coreN6constrS5883 = true;
+const _M0FP310monkeyfist2mf4core8snapshotN6recordS4599 = new _M0TP310monkeyfist2mf4core4Snap(2, 0, -1);
+const _M0FP310monkeyfist2mf4core8snapshotN6constrS4600 = _M0FP310monkeyfist2mf4core8snapshotN6recordS4599;
+const _M0FP310monkeyfist2mf4core8snapshotN6recordS4601 = new _M0TP310monkeyfist2mf4core4Snap(2, 0, -1);
+const _M0FP310monkeyfist2mf4core8snapshotN6constrS4602 = _M0FP310monkeyfist2mf4core8snapshotN6recordS4601;
+const _M0FP310monkeyfist2mf4core15search__spinnerN6constrS6103 = true;
 const _M0MPC16string6String4trimN6recordS1561 = new _M0TPC16string10StringView("\t\n\r ", 0, 4);
 const _M0MPC16string10StringView4findN6constrS1051 = 0;
-const _M0FP310monkeyfist2mf4core11parse__codeN6constrS6483 = _M0FP310monkeyfist2mf4core13journey__opts;
-const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6484 = new _M0TPC16string10StringView("-", 0, 1);
-const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6485 = new _M0TPC16string10StringView("M", 0, 1);
-const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6486 = new _M0TPC16string10StringView("S", 0, 1);
-const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6487 = new _M0TPC16string10StringView("C", 0, 1);
+const _M0FP310monkeyfist2mf4core11parse__codeN6constrS6508 = _M0FP310monkeyfist2mf4core13journey__opts;
+const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6509 = new _M0TPC16string10StringView("-", 0, 1);
+const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6510 = new _M0TPC16string10StringView("M", 0, 1);
+const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6511 = new _M0TPC16string10StringView("S", 0, 1);
+const _M0FP310monkeyfist2mf4core11parse__codeN6recordS6512 = new _M0TPC16string10StringView("C", 0, 1);
 const _tmp = new _M0TPB5ArrayGORPB5ArrayGRP310monkeyfist2mf4core2PtEE([], 0);
 const _tmp$2 = new _M0TPB5ArrayGiE([], 0);
 const _bind = [];
@@ -878,21 +886,21 @@ const _tmp$7 = _M0MPB3Map3MapGidE(new _M0TPB9ArrayViewGUidEE(_bind$2, 0, 0), und
 const _tmp$8 = _M0FP310monkeyfist2mf4core10mulberry32(7);
 const _bind$3 = [];
 const _M0FP310monkeyfist2mf4game4game = new _M0TP310monkeyfist2mf4game4Game(undefined, undefined, _tmp, _tmp$2, _tmp$3, 0, 3, _tmp$4, false, false, false, false, 0, -1, 0, -1, 0, 0, -1, _tmp$5, 0, 1, 360, 640, 80, 90, 30, 0, 0, _tmp$6, _tmp$7, 0, _tmp$8, _M0MPB3Map3MapGidE(new _M0TPB9ArrayViewGUidEE(_bind$3, 0, 0), undefined), "");
-const _M0FP310monkeyfist2mf4game10head__unitN5tupleS6934 = { _0: 0, _1: -1 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6623 = { _0: 0, _1: 1.5 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6624 = { _0: 0.2, _1: 2 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6625 = { _0: 0, _1: 1 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6626 = { _0: 0.12, _1: 1.125 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6627 = { _0: 0.24, _1: 1.25 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6628 = { _0: 0.42, _1: 1.5 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6629 = { _0: 0.74, _1: 2 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6630 = { _0: 0, _1: 1 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6631 = { _0: 0.09, _1: 1.25 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6632 = { _0: 0.18, _1: 1.5 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6633 = { _0: 0.32, _1: 2 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6634 = { _0: 0.46, _1: 1.5 };
-const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6635 = { _0: 0.61, _1: 2 };
-const _M0FP310monkeyfist2mf4game10seek__planN6constrS6735 = true;
+const _M0FP310monkeyfist2mf4game10head__unitN5tupleS6960 = { _0: 0, _1: -1 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6649 = { _0: 0, _1: 1.5 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6650 = { _0: 0.2, _1: 2 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6651 = { _0: 0, _1: 1 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6652 = { _0: 0.12, _1: 1.125 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6653 = { _0: 0.24, _1: 1.25 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6654 = { _0: 0.42, _1: 1.5 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6655 = { _0: 0.74, _1: 2 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6656 = { _0: 0, _1: 1 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6657 = { _0: 0.09, _1: 1.25 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6658 = { _0: 0.18, _1: 1.5 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6659 = { _0: 0.32, _1: 2 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6660 = { _0: 0.46, _1: 1.5 };
+const _M0FP310monkeyfist2mf4game10win__soundN5tupleS6661 = { _0: 0.61, _1: 2 };
+const _M0FP310monkeyfist2mf4game10seek__planN6constrS6761 = true;
 function _M0MPC16string10StringView12unsafe__view(self, start, end) {
   return new _M0TPC16string10StringView(self.str, self.start + start | 0, self.start + end | 0);
 }
@@ -2629,6 +2637,15 @@ function _M0IPC16option6OptionPB2Eq5equalGbE(self, other) {
       const _y = _Some$2;
       return _x === _y;
     }
+  }
+}
+function _M0MPC16option6Option7map__orGRP310monkeyfist2mf4core12FeatureStatsiE(self, default_, f) {
+  if (self === undefined) {
+    return default_;
+  } else {
+    const _Some = self;
+    const _x = _Some;
+    return f(_x);
   }
 }
 function _M0MPC15array5Array31unsafe__make__and__blit_2einnerGiE(src, allocate_len, len, src_offset, dst_offset) {
@@ -5152,6 +5169,21 @@ function _M0MPC15array5Array12unsafe__blitGiE(dst, dst_offset, src, src_offset, 
 function _M0MPC15array5Array12unsafe__blitGRP310monkeyfist2mf4core2PtE(dst, dst_offset, src, src_offset, len) {
   _M0MPC15array10FixedArray12unsafe__blitGRPB17UnsafeMaybeUninitGUiRPC13ref3RefGiEEEE(dst.buf, dst_offset, src.buf, src_offset, len);
 }
+function _M0MPC15array5Array4makeGiE(len, elem) {
+  const arr = _M0MPC15array5Array20unsafe__make__uninitGiE(len);
+  let _tmp$9 = 0;
+  while (true) {
+    const i = _tmp$9;
+    if (i < len) {
+      arr.buf[i] = elem;
+      _tmp$9 = i + 1 | 0;
+      continue;
+    } else {
+      break;
+    }
+  }
+  return arr;
+}
 function _M0MPC15array5Array3popGAiE(self) {
   const len = self.len;
   if (len === 0) {
@@ -7034,15 +7066,15 @@ function _M0MP310monkeyfist2mf4core3Rng5below(self, n) {
 function _M0MP310monkeyfist2mf4core9SqMirrors3has(self, c) {
   return _M0MP310monkeyfist2mf4core9SqMirrors3get(self, c) >= 0;
 }
-function _M0FP310monkeyfist2mf4core5weaveN7blockedS3726(_env, path) {
-  const w = _env._2;
-  const mirrors = _env._1;
+function _M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env, path) {
+  const mirrors = _env._2;
+  const w = _env._1;
   const h = _env._0;
   return _M0FP310monkeyfist2mf4core13self__blocked(path, w, h, mirrors);
 }
-function _M0FP310monkeyfist2mf4core5weaveN4growS3727(_env, start, first, straight) {
-  const w = _env._4;
-  const occ = _env._3;
+function _M0FP310monkeyfist2mf4core5weaveN4growS3737(_env, start, first, straight) {
+  const occ = _env._4;
+  const w = _env._3;
   const cfg = _env._2;
   const h = _env._1;
   const rng = _env._0;
@@ -7154,10 +7186,10 @@ function _M0FP310monkeyfist2mf4core5weaveN4growS3727(_env, start, first, straigh
   }
   return cells;
 }
-function _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env, x, y, d) {
-  const w = _env._3;
+function _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env, x, y, d) {
+  const mirrors = _env._3;
   const occ = _env._2;
-  const mirrors = _env._1;
+  const w = _env._1;
   const h = _env._0;
   const cells = new _M0TPB5ArrayGiE([], 0);
   const dx = d >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[d] : $oob();
@@ -7205,26 +7237,26 @@ function _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env, x, y, d) {
   }
   return new _M0TP310monkeyfist2mf4core4Lane(cells, free, ids);
 }
-function _M0FP310monkeyfist2mf4core5weaveN5trialS3729(_env, path, st) {
-  const ib = _env._1;
-  const order = _env._0;
+function _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env, path, st) {
+  const order = _env._1;
+  const ib = _env._0;
   return _M0MP310monkeyfist2mf4core10Intentions5trial(ib, path, st, order.val);
 }
-function _M0FP310monkeyfist2mf4core5weaveN6commitS3730(_env, c) {
-  const w = _env._13;
-  const ib = _env._12;
-  const rest = _env._11;
-  const occ = _env._10;
-  const bend_sum = _env._9;
-  const order = _env._8;
-  const traps = _env._7;
-  const knots = _env._6;
-  const mirrors = _env._5;
-  const mirror_used = _env._4;
-  const total0 = _env._3;
-  const mirrors_used = _env._2;
+function _M0FP310monkeyfist2mf4core5weaveN6commitS3740(_env, c) {
+  const bend_sum = _env._13;
+  const mirrors = _env._12;
+  const occ = _env._11;
+  const order = _env._10;
+  const total0 = _env._9;
+  const ib = _env._8;
+  const knots = _env._7;
+  const b = _env._6;
+  const mirror_used = _env._5;
+  const w = _env._4;
+  const traps = _env._3;
+  const rest = _env._2;
   const covered = _env._1;
-  const b = _env._0;
+  const mirrors_used = _env._0;
   const id = _M0MP310monkeyfist2mf4core10Intentions3add(ib, c.path, c.pull > 0 ? new _M0TPB5ArrayGiE([c.pull], 1) : new _M0TPB5ArrayGiE([], 0));
   if (mirrors.keys.len > 0) {
     const _bind$4 = b.seq;
@@ -7352,23 +7384,23 @@ function _M0FP310monkeyfist2mf4core5weaveN6commitS3730(_env, c) {
     return;
   }
 }
-function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
-  const w = _env._16;
+function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
+  const mirrors = _env._16;
   const _env$2 = _env._15;
-  const ib = _env._14;
-  const occ = _env._13;
-  const _env$3 = _env._12;
-  const _env$4 = _env._11;
-  const nn = _env._10;
-  const cfg = _env._9;
-  const up = _env._8;
-  const xy = _env._7;
-  const mirrors = _env._6;
-  const _env$5 = _env._5;
-  const mirror_used = _env._4;
-  const total0 = _env._3;
-  const ahead = _env._2;
-  const h = _env._1;
+  const occ = _env._14;
+  const ahead = _env._13;
+  const up = _env._12;
+  const _env$3 = _env._11;
+  const xy = _env._10;
+  const total0 = _env._9;
+  const _env$4 = _env._8;
+  const ib = _env._7;
+  const mirror_used = _env._6;
+  const w = _env._5;
+  const cfg = _env._4;
+  const _env$5 = _env._3;
+  const h = _env._2;
+  const nn = _env._1;
   const rng = _env._0;
   let start = at >= 0 ? at : -1;
   let dir = -1;
@@ -7610,7 +7642,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
               if (_tmp$10) {
                 break _L$3;
               }
-              const _bind$5 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env$5, s.q, s.r, d);
+              const _bind$5 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$5, s.q, s.r, d);
               if (_bind$5 === undefined) {
                 break _L$3;
               } else {
@@ -7652,7 +7684,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
               break;
             }
           }
-          const cells = _M0FP310monkeyfist2mf4core5weaveN4growS3727(_env$2, start$2, (o._0 + 2 | 0) % 4 | 0, straight);
+          const cells = _M0FP310monkeyfist2mf4core5weaveN4growS3737(_env$3, start$2, (o._0 + 2 | 0) % 4 | 0, straight);
           const _p = _M0MPC15array5Array20unsafe__make__uninitGUddEE(cells.len);
           const _p$2 = cells.len;
           const _p$3 = cells.buf;
@@ -7671,7 +7703,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
           }
           const path = _p;
           _M0MPC15array5Array14rev__in__placeGRP310monkeyfist2mf4core2PtE(path);
-          if (cells.len >= cfg.min_len && !_M0FP310monkeyfist2mf4core5weaveN7blockedS3726(_env$3, path)) {
+          if (cells.len >= cfg.min_len && !_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, path)) {
             _return_value = new _M0TP310monkeyfist2mf4core6Shaped(cells, path, o._1);
             break _L$2;
           }
@@ -7681,7 +7713,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
           break _L$2;
         }
       }
-      const cells = _M0FP310monkeyfist2mf4core5weaveN4growS3727(_env$2, start$2, -1, straight);
+      const cells = _M0FP310monkeyfist2mf4core5weaveN4growS3737(_env$3, start$2, -1, straight);
       if (cells.len < cfg.min_len) {
         _return_value = undefined;
         break _L$2;
@@ -7715,7 +7747,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
         const _ = _tmp$10;
         if (_ < _bind$5) {
           const p = _bind$6[_];
-          if (!_M0FP310monkeyfist2mf4core5weaveN7blockedS3726(_env$3, p)) {
+          if (!_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, p)) {
             const hd = _M0FP310monkeyfist2mf4core4last(p);
             const _bind$7 = _M0FP310monkeyfist2mf4core9head__dir(p);
             const _dx = _bind$7._0;
@@ -7745,7 +7777,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
               }
               _tmp$13 = _return_value$2;
             }
-            const _p$4 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env$5, _tmp$11, _tmp$12, _tmp$13);
+            const _p$4 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$5, _tmp$11, _tmp$12, _tmp$13);
             let _tmp$14;
             if (_p$4 === undefined) {
               _tmp$14 = $panic();
@@ -7817,17 +7849,17 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env, kind, at) {
   } else {
     const _Some = _bind$4;
     const _c = _Some;
-    const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3729(_env$4, _c.path, new _M0TPB5ArrayGiE([], 0));
+    const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env$4, _c.path, new _M0TPB5ArrayGiE([], 0));
     if (sum < 0) {
       return undefined;
     }
     return new _M0TP310monkeyfist2mf4core4Cand(_c.path, _c.lane, sum - total0.val | 0, _M0FP310monkeyfist2mf4core9bends__of(_c.path), 0, new _M0TPB5ArrayGiE([], 0), new _M0TPB5ArrayGiE([], 0));
   }
 }
-function _M0FP310monkeyfist2mf4core5weaveN5belowS3732(_env, blockers) {
+function _M0FP310monkeyfist2mf4core5weaveN5belowS3742(_env, blockers) {
   const stamp = _env._2;
-  const mark = _env._1;
-  const blk = _env._0;
+  const blk = _env._1;
+  const mark = _env._0;
   stamp.val = stamp.val + 1 | 0;
   const stack = _M0MPC15array5Array4copyGiE(blockers);
   const _bind$4 = stack.len;
@@ -7890,7 +7922,7 @@ function _M0FP310monkeyfist2mf4core5weaveN5belowS3732(_env, blockers) {
     }
   }
 }
-function _M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env, cell) {
+function _M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env, cell) {
   const stamp = _env._2;
   const lanes = _env._1;
   const mark = _env._0;
@@ -7916,7 +7948,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env, cell) {
   }
   return false;
 }
-function _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, cells) {
+function _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, cells) {
   const _p = _M0MPC15array5Array20unsafe__make__uninitGUddEE(cells.len);
   const _p$2 = cells.len;
   const _p$3 = cells.buf;
@@ -7937,13 +7969,13 @@ function _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, cells) {
   _M0MPC15array5Array14rev__in__placeGRP310monkeyfist2mf4core2PtE(p);
   return p;
 }
-function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
-  const w = _env._7;
+function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
+  const _env$2 = _env._7;
   const occ = _env._6;
-  const _env$2 = _env._5;
-  const cfg = _env._4;
-  const _env$3 = _env._3;
-  const xy = _env._2;
+  const xy = _env._5;
+  const _env$3 = _env._4;
+  const w = _env._3;
+  const cfg = _env._2;
   const h = _env._1;
   const rng = _env._0;
   const back = (spot.di + 2 | 0) % 4 | 0;
@@ -7987,7 +8019,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
           const nx = x + (di >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[di] : $oob()) | 0;
           const ny = y + (di >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[di] : $oob()) | 0;
           const nc = (Math.imul(ny, w) | 0) + nx | 0;
-          if (nx >= 0 && (ny >= 0 && (nx < w && (ny < h && ((nc >>> 0 < occ.length ? occ[nc] : $oob()) === -1 && (!body || !_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$3, nc))))))) {
+          if (nx >= 0 && (ny >= 0 && (nx < w && (ny < h && ((nc >>> 0 < occ.length ? occ[nc] : $oob()) === -1 && (!body || !_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, nc))))))) {
             _M0MPC15array5Array4pushGiE(opts, di);
           }
           _tmp$10 = di + 1 | 0;
@@ -8032,7 +8064,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
             const _p$6 = _tmp$11;
             if (_p$6 < _p$4) {
               const _p$7 = _p$5[_p$6];
-              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$3, ((Math.imul(y + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[_p$7] : $oob()) | 0, w) | 0) + x | 0) + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[_p$7] : $oob()) | 0)) {
+              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, ((Math.imul(y + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[_p$7] : $oob()) | 0, w) | 0) + x | 0) + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[_p$7] : $oob()) | 0)) {
                 _M0MPC15array5Array4pushGiE(_p$3, _p$7);
               }
               _tmp$11 = _p$6 + 1 | 0;
@@ -8073,7 +8105,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
         _M0MPC15array5Array4pushGiE(cells, nc);
       } else {
         _M0MPC15array5Array4pushGiE(tail, nc);
-        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$3, nc)) {
+        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, nc)) {
           got = true;
         }
       }
@@ -8125,7 +8157,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
   if (_tmp$13 < (_p$3 > _p$4 ? _p$3 : _p$4)) {
     _tmp$12 = true;
   } else {
-    _tmp$12 = _M0FP310monkeyfist2mf4core5weaveN7blockedS3726(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, cells));
+    _tmp$12 = _M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, cells));
   }
   if (_tmp$12) {
     return undefined;
@@ -8149,13 +8181,13 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env, spot, k) {
         break;
       }
     }
-    if (_M0FP310monkeyfist2mf4core5weaveN7blockedS3726(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, joined))) {
+    if (_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, joined))) {
       return undefined;
     }
   }
   return { _0: cells, _1: tail };
 }
-function _M0FP310monkeyfist2mf4core5weaveN4fitsS3736(bend_sum, c, budget) {
+function _M0FP310monkeyfist2mf4core5weaveN4fitsS3746(bend_sum, c, budget) {
   if (c === undefined) {
     return undefined;
   } else {
@@ -8171,7 +8203,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
   const occ = $make_array_len_and_init(nn, -1);
   const mirrors = cfg.mirrors;
   const xy = (c) => new _M0TP310monkeyfist2mf4core2Pt(c % w | 0, c / w | 0);
-  const _env = { _0: h, _1: mirrors, _2: w };
+  const _env = { _0: h, _1: w, _2: mirrors };
   const _bind$4 = mirrors.keys;
   const _bind$5 = _bind$4.len;
   const _bind$6 = _bind$4.buf;
@@ -8202,10 +8234,10 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
   const mirror_used = $make_array_len_and_init(nn, false);
   const mirrors_used = new _M0TPB8MutLocalGiE(0);
   const rest = $make_array_len_and_init(nn, -1);
-  const _env$2 = { _0: rng, _1: h, _2: cfg, _3: occ, _4: w };
-  const _env$3 = { _0: h, _1: mirrors, _2: occ, _3: w };
-  const _env$4 = { _0: order, _1: ib };
-  const _env$5 = { _0: b, _1: covered, _2: mirrors_used, _3: total0, _4: mirror_used, _5: mirrors, _6: knots, _7: traps, _8: order, _9: bend_sum, _10: occ, _11: rest, _12: ib, _13: w };
+  const _env$2 = { _0: rng, _1: h, _2: cfg, _3: w, _4: occ };
+  const _env$3 = { _0: h, _1: w, _2: occ, _3: mirrors };
+  const _env$4 = { _0: ib, _1: order };
+  const _env$5 = { _0: mirrors_used, _1: covered, _2: rest, _3: traps, _4: w, _5: mirror_used, _6: b, _7: knots, _8: ib, _9: total0, _10: order, _11: occ, _12: mirrors, _13: bend_sum };
   const ahead = new _M0TPB8MutLocalGRPB5ArrayGRPB5ArrayGiEEE(new _M0TPB5ArrayGRPB5ArrayGiEE([], 0));
   const blk = new _M0TPB8MutLocalGRPB5ArrayGRPB5ArrayGiEEE(new _M0TPB5ArrayGRPB5ArrayGiEE([], 0));
   let lanes;
@@ -8228,12 +8260,12 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
     lanes = _p;
   }
   const up = $make_array_len_and_init(nn, 0);
-  const _env$6 = { _0: rng, _1: h, _2: ahead, _3: total0, _4: mirror_used, _5: _env$3, _6: mirrors, _7: xy, _8: up, _9: cfg, _10: nn, _11: _env$4, _12: _env, _13: occ, _14: ib, _15: _env$2, _16: w };
+  const _env$6 = { _0: rng, _1: nn, _2: h, _3: _env$3, _4: cfg, _5: w, _6: mirror_used, _7: ib, _8: _env$4, _9: total0, _10: xy, _11: _env$2, _12: up, _13: ahead, _14: occ, _15: _env, _16: mirrors };
   const mark = $make_array_len_and_init(nn + 1 | 0, 0);
   const stamp = new _M0TPB8MutLocalGiE(0);
-  const _env$7 = { _0: blk, _1: mark, _2: stamp };
+  const _env$7 = { _0: mark, _1: blk, _2: stamp };
   const _env$8 = { _0: mark, _1: lanes, _2: stamp };
-  const _env$9 = { _0: rng, _1: h, _2: xy, _3: _env$8, _4: cfg, _5: _env, _6: occ, _7: w };
+  const _env$9 = { _0: rng, _1: h, _2: cfg, _3: w, _4: _env$8, _5: xy, _6: occ, _7: _env };
   const mean_len = ((cfg.len_lo + cfg.len_hi | 0) + 0) / 2 * 0.85;
   const cover_goal = cfg.cover * (nn + 0);
   const kinds_any = new _M0TPB5ArrayGiE([3], 1);
@@ -8662,7 +8694,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                   let _return_value$2;
                   _L$4: {
                     _L$5: {
-                      const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env$3, spot.c % w | 0, spot.c / w | 0, spot.di);
+                      const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$3, spot.c % w | 0, spot.c / w | 0, spot.di);
                       if (_bind$15 === undefined) {
                         c = undefined;
                       } else {
@@ -8671,18 +8703,18 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                         if (spot.against >= 0) {
                           const ids = _M0MPC15array5Array4copyGiE(_lane.ids);
                           _M0MPC15array5Array4pushGiE(ids, spot.against);
-                          _M0FP310monkeyfist2mf4core5weaveN5belowS3732(_env$7, ids);
+                          _M0FP310monkeyfist2mf4core5weaveN5belowS3742(_env$7, ids);
                         } else {
-                          _M0FP310monkeyfist2mf4core5weaveN5belowS3732(_env$7, _lane.ids);
+                          _M0FP310monkeyfist2mf4core5weaveN5belowS3742(_env$7, _lane.ids);
                         }
-                        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$8, spot.c)) {
+                        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$8, spot.c)) {
                           _return_value$2 = undefined;
                           break _L$5;
                         }
                         const _p$2 = cfg.pull;
                         const _p$3 = spot.room - 1 | 0;
                         const k$2 = 1 + _M0MP310monkeyfist2mf4core3Rng5below(rng, _p$2 < _p$3 ? _p$2 : _p$3) | 0;
-                        const _bind$16 = _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env$9, spot, k$2);
+                        const _bind$16 = _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env$9, spot, k$2);
                         if (_bind$16 === undefined) {
                           c = undefined;
                         } else {
@@ -8705,8 +8737,8 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                               break;
                             }
                           }
-                          const first = _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, joined);
-                          const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3729(_env$4, first, new _M0TPB5ArrayGiE([k$2], 1));
+                          const first = _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, joined);
+                          const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env$4, first, new _M0TPB5ArrayGiE([k$2], 1));
                           c = sum < 0 ? undefined : new _M0TP310monkeyfist2mf4core4Cand(first, undefined, sum - total0.val | 0, _M0FP310monkeyfist2mf4core9bends__of(first), k$2, _M0MPC15array9ArrayView9to__ownedGiE(_M0MPC15array5Array21clamped__view_2einnerGiE(_cells, 0, k$2)), new _M0TPB5ArrayGiE([], 0));
                         }
                       }
@@ -8718,16 +8750,16 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                   let _return_value$2;
                   _L$4: {
                     _L$5: {
-                      const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3728(_env$3, spot.c % w | 0, spot.c / w | 0, spot.di);
+                      const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$3, spot.c % w | 0, spot.c / w | 0, spot.di);
                       if (_bind$15 === undefined) {
                         c = undefined;
                       } else {
                         const _Some = _bind$15;
                         const _lane = _Some;
                         const gap = _M0MPC15array9ArrayView9to__ownedGiE(_M0MPC15array5Array21clamped__view_2einnerGiE(_lane.cells, 0, spot.gap));
-                        _M0FP310monkeyfist2mf4core5weaveN5belowS3732(_env$7, _lane.ids);
+                        _M0FP310monkeyfist2mf4core5weaveN5belowS3742(_env$7, _lane.ids);
                         let _tmp$16;
-                        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$8, spot.c)) {
+                        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$8, spot.c)) {
                           _tmp$16 = true;
                         } else {
                           const _p$2 = _M0MPC15array5Array4iterGiE(gap);
@@ -8740,7 +8772,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                             } else {
                               const _p$4 = _p$3;
                               const _p$5 = _p$4;
-                              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3733(_env$8, _p$5)) {
+                              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$8, _p$5)) {
                                 _tmp$17 = true;
                                 break;
                               }
@@ -8753,15 +8785,15 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                           _return_value$2 = undefined;
                           break _L$5;
                         }
-                        const _bind$16 = _M0FP310monkeyfist2mf4core5weaveN4walkS3735(_env$9, spot, 0);
+                        const _bind$16 = _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env$9, spot, 0);
                         if (_bind$16 === undefined) {
                           c = undefined;
                         } else {
                           const _Some$2 = _bind$16;
                           const _x = _Some$2;
                           const _cells = _x._0;
-                          const path = _M0FP310monkeyfist2mf4core5weaveN8to__pathS3734(xy, _cells);
-                          const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3729(_env$4, path, new _M0TPB5ArrayGiE([], 0));
+                          const path = _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, _cells);
+                          const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env$4, path, new _M0TPB5ArrayGiE([], 0));
                           if (sum < 0) {
                             _return_value$2 = undefined;
                             break _L$5;
@@ -8779,7 +8811,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                     c = _return_value$2;
                   }
                 }
-                const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN4fitsS3736(bend_sum, c, budget);
+                const _bind$15 = _M0FP310monkeyfist2mf4core5weaveN4fitsS3746(bend_sum, c, budget);
                 if (_bind$15 === undefined) {
                 } else {
                   const _Some = _bind$15;
@@ -8820,7 +8852,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                   }
                   kind = kinds.buf[_bind$14];
                 }
-                const _bind$14 = _M0FP310monkeyfist2mf4core5weaveN4fitsS3736(bend_sum, _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env$6, kind, -1), budget);
+                const _bind$14 = _M0FP310monkeyfist2mf4core5weaveN4fitsS3746(bend_sum, _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env$6, kind, -1), budget);
                 if (_bind$14 === undefined) {
                   break _L$3;
                 } else {
@@ -8896,7 +8928,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
           const _Some = _bind$13;
           const _best = _Some;
           stuck = 0;
-          _M0FP310monkeyfist2mf4core5weaveN6commitS3730(_env$5, _best);
+          _M0FP310monkeyfist2mf4core5weaveN6commitS3740(_env$5, _best);
         }
         break _L;
       }
@@ -8968,7 +9000,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
               const _$3 = _tmp$16;
               if (_$3 < 3) {
                 _L$2: {
-                  const _bind$10 = _M0FP310monkeyfist2mf4core5weaveN9candidateS3731(_env$6, budget < 1 ? 4 : 3, cell);
+                  const _bind$10 = _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env$6, budget < 1 ? 4 : 3, cell);
                   if (_bind$10 === undefined) {
                     break _L$2;
                   } else {
@@ -8977,7 +9009,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
                     if ((_c.gain + _c.bends | 0) > budget || (bend_sum.val + _c.bends | 0) > 999999) {
                       break _L$2;
                     }
-                    _M0FP310monkeyfist2mf4core5weaveN6commitS3730(_env$5, _c);
+                    _M0FP310monkeyfist2mf4core5weaveN6commitS3740(_env$5, _c);
                     break;
                   }
                 }
@@ -9111,16 +9143,16 @@ function _M0FP310monkeyfist2mf4core7key__of(a) {
   }
   return sb.val;
 }
-function _M0FP310monkeyfist2mf4core9sq__solveN6searchS4322(_env) {
+function _M0FP310monkeyfist2mf4core9sq__solveN6searchS4332(_env) {
   const later = _env._8;
-  const n = _env._7;
-  const nodes = _env._6;
-  const hopeless = _env._5;
-  const b = _env._4;
-  const rank = _env._3;
-  const limit = _env._2;
-  const gave_up = _env._1;
-  const moves = _env._0;
+  const limit = _env._7;
+  const gave_up = _env._6;
+  const nodes = _env._5;
+  const moves = _env._4;
+  const b = _env._3;
+  const hopeless = _env._2;
+  const rank = _env._1;
+  const n = _env._0;
   if (b.left === 0) {
     return true;
   }
@@ -9180,7 +9212,7 @@ function _M0FP310monkeyfist2mf4core9sq__solveN6searchS4322(_env) {
       const from = _tmp$12 >>> 0 < _tmp$11.length ? _tmp$11[_tmp$12] : $oob();
       _M0MP310monkeyfist2mf4core7SqBoard5place(b, t._0, t._1);
       _M0MPC15array5Array4pushGiE(moves, t._0);
-      if (_M0FP310monkeyfist2mf4core9sq__solveN6searchS4322(_env)) {
+      if (_M0FP310monkeyfist2mf4core9sq__solveN6searchS4332(_env)) {
         return true;
       }
       _M0MPC15array5Array3popGiE(moves);
@@ -9235,9 +9267,9 @@ function _M0FP310monkeyfist2mf4core9sq__solve(paths, w, h, budget, prefer, m) {
   }
   const nodes = new _M0TPB8MutLocalGiE(0);
   const gave_up = new _M0TPB8MutLocalGbE(false);
-  const _env = { _0: moves, _1: gave_up, _2: limit, _3: rank, _4: b, _5: hopeless, _6: nodes, _7: n, _8: later };
-  const solved = _M0FP310monkeyfist2mf4core9sq__solveN6searchS4322(_env);
-  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core9sq__solveN6constrS4323 : gave_up.val ? -1 : _M0FP310monkeyfist2mf4core9sq__solveN6constrS4324, moves, nodes.val);
+  const _env = { _0: n, _1: rank, _2: hopeless, _3: b, _4: moves, _5: nodes, _6: gave_up, _7: limit, _8: later };
+  const solved = _M0FP310monkeyfist2mf4core9sq__solveN6searchS4332(_env);
+  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core9sq__solveN6constrS4333 : gave_up.val ? -1 : _M0FP310monkeyfist2mf4core9sq__solveN6constrS4334, moves, nodes.val);
 }
 function _M0FP310monkeyfist2mf4core16sq__player__taps(paths, w, h, taps, m) {
   const b = _M0FP310monkeyfist2mf4core14sq__board__exn(paths, w, h, m);
@@ -9277,9 +9309,9 @@ function _M0FP310monkeyfist2mf4core16sq__player__taps(paths, w, h, taps, m) {
   }
   return b.left > 0 ? undefined : count;
 }
-function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4388(_env) {
-  const b = _env._1;
-  const blockers = _env._0;
+function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4398(_env) {
+  const blockers = _env._1;
+  const b = _env._0;
   _M0MPC15array10FixedArray12fill_2einnerGbE(blockers, false, 0, undefined);
   let total = 0;
   const _bind$4 = b.n;
@@ -9329,20 +9361,20 @@ function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4388(_env) 
   }
   return total;
 }
-function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4389(_env, remaining) {
-  const _env$2 = _env._8;
-  const moves = _env._7;
-  const later = _env._6;
-  const b = _env._5;
-  const limit = _env._4;
+function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4399(_env, remaining) {
+  const moves = _env._8;
+  const gave_up = _env._7;
+  const tried = _env._6;
+  const _env$2 = _env._5;
+  const later = _env._4;
   const rank = _env._3;
-  const gave_up = _env._2;
-  const nodes = _env._1;
-  const tried = _env._0;
+  const nodes = _env._2;
+  const b = _env._1;
+  const limit = _env._0;
   if (_M0MP310monkeyfist2mf4core7SqBoard9all__free(b)) {
     return true;
   }
-  if (remaining === 0 || _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4388(_env$2) > remaining) {
+  if (remaining === 0 || _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4398(_env$2) > remaining) {
     return false;
   }
   nodes.val = nodes.val + 1 | 0;
@@ -9404,7 +9436,7 @@ function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4389(_env,
       const from = _tmp$12 >>> 0 < _tmp$11.length ? _tmp$11[_tmp$12] : $oob();
       _M0MP310monkeyfist2mf4core7SqBoard5place(b, t._0, t._1);
       _M0MPC15array5Array4pushGiE(moves, t._0);
-      if (_M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4389(_env, remaining - 1 | 0)) {
+      if (_M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4399(_env, remaining - 1 | 0)) {
         return true;
       }
       _M0MPC15array5Array3popGiE(moves);
@@ -9465,15 +9497,15 @@ function _M0FP310monkeyfist2mf4core24sq__fewest__player__taps(paths, w, h, known
   const nodes = new _M0TPB8MutLocalGiE(0);
   const gave_up = new _M0TPB8MutLocalGbE(false);
   const blockers = $make_array_len_and_init(b.n, false);
-  const _env = { _0: blockers, _1: b };
+  const _env = { _0: b, _1: blockers };
   const _p = b.left > 0 ? 1 : 0;
-  const _p$2 = _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4388(_env);
+  const _p$2 = _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4398(_env);
   const lower = _p > _p$2 ? _p : _p$2;
-  const _env$2 = { _0: tried, _1: nodes, _2: gave_up, _3: rank, _4: limit, _5: b, _6: later, _7: moves, _8: _env };
+  const _env$2 = { _0: limit, _1: b, _2: nodes, _3: rank, _4: later, _5: _env, _6: tried, _7: gave_up, _8: moves };
   let k = lower;
   while (true) {
     if (k < count && !gave_up.val) {
-      if (_M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4389(_env$2, k)) {
+      if (_M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4399(_env$2, k)) {
         const manual = moves.len;
         const _bind$8 = b.n;
         let _tmp$10 = 0;
@@ -9926,7 +9958,7 @@ function _M0FP310monkeyfist2mf4core8snapshot(g, paths) {
                 }
                 const _p$22 = g.hex ? _p$21 : ((Math.imul(((Math.imul(_p$21, 3) | 0) + _p$14 | 0) + 1 | 0, 3) | 0) + _p$15 | 0) + 1 | 0;
                 if (_M0FP310monkeyfist2mf4core8contains(seen, _p$22)) {
-                  _p$7 = _M0FP310monkeyfist2mf4core8snapshotN6constrS4590;
+                  _p$7 = _M0FP310monkeyfist2mf4core8snapshotN6constrS4600;
                   break _L$2;
                 }
                 _M0MPC15array5Array4pushGiE(seen, _p$22);
@@ -9960,7 +9992,7 @@ function _M0FP310monkeyfist2mf4core8snapshot(g, paths) {
                 break;
               }
             }
-            _p$6 = _M0FP310monkeyfist2mf4core8snapshotN6constrS4592;
+            _p$6 = _M0FP310monkeyfist2mf4core8snapshotN6constrS4602;
           }
           break _L;
         }
@@ -9993,15 +10025,15 @@ function _M0FP310monkeyfist2mf4core9to__fixed(x, digits) {
   const n = y - f >= 0.5 ? f + 1 : f;
   return n / scale;
 }
-function _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4640(_env, v) {
-  const components = _env._7;
-  const on_stack = _env._6;
-  const indices = _env._5;
-  const stack = _env._4;
-  const next_index = _env._3;
-  const low = _env._2;
-  const component = _env._1;
-  const dependents = _env._0;
+function _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4650(_env, v) {
+  const next_index = _env._7;
+  const dependents = _env._6;
+  const low = _env._5;
+  const indices = _env._4;
+  const on_stack = _env._3;
+  const components = _env._2;
+  const stack = _env._1;
+  const component = _env._0;
   if (v >>> 0 < indices.length) {
     indices[v] = next_index.val;
   } else {
@@ -10031,7 +10063,7 @@ function _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4640(_env, v) {
     if (_ < _bind$5) {
       const x = _bind$6[_];
       if ((x >>> 0 < indices.length ? indices[x] : $oob()) < 0) {
-        _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4640(_env, x);
+        _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4650(_env, x);
         const _p = v >>> 0 < low.length ? low[v] : $oob();
         const _p$2 = x >>> 0 < low.length ? low[x] : $oob();
         if (v >>> 0 < low.length) {
@@ -10145,13 +10177,13 @@ function _M0FP310monkeyfist2mf4core18graph__interaction(dependents, n, revisited
   const stack = new _M0TPB5ArrayGiE([], 0);
   const components = new _M0TPB5ArrayGRPB5ArrayGiEE([], 0);
   const component = $make_array_len_and_init(n, 0);
-  const _env = { _0: dependents, _1: component, _2: low, _3: next_index, _4: stack, _5: indices, _6: on_stack, _7: components };
+  const _env = { _0: component, _1: stack, _2: components, _3: on_stack, _4: indices, _5: low, _6: dependents, _7: next_index };
   let _tmp$10 = 0;
   while (true) {
     const i = _tmp$10;
     if (i < n) {
       if ((i >>> 0 < indices.length ? indices[i] : $oob()) < 0) {
-        _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4640(_env, i);
+        _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4650(_env, i);
       }
       _tmp$10 = i + 1 | 0;
       continue;
@@ -11185,13 +11217,13 @@ function _M0MP310monkeyfist2mf4core3Geo3key(self, paths) {
   }
   return sb.val;
 }
-function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4923(_env, current, preferred) {
-  const visited = _env._5;
-  const unknown = _env._4;
+function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, current, preferred) {
+  const nodes = _env._5;
+  const visited = _env._4;
   const self = _env._3;
-  const moves = _env._2;
-  const budget = _env._1;
-  const nodes = _env._0;
+  const budget = _env._2;
+  const moves = _env._1;
+  const unknown = _env._0;
   if (_M0FP310monkeyfist2mf4core9all__gone(current)) {
     return true;
   }
@@ -11249,7 +11281,7 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4923(_env, current,
     if (_ < _bind$5) {
       const t = _bind$6[_];
       _M0MPC15array5Array4pushGiE(moves, t._0);
-      if (_M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4923(_env, t._1.paths, t._0 === p0 ? _M0MPC15array9ArrayView21clamped__view_2einnerGiE(preferred, 1, undefined) : preferred)) {
+      if (_M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, t._1.paths, t._0 === p0 ? _M0MPC15array9ArrayView21clamped__view_2einnerGiE(preferred, 1, undefined) : preferred)) {
         return true;
       }
       _M0MPC15array5Array3popGiE(moves);
@@ -11264,17 +11296,17 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4923(_env, current,
   }
   return false;
 }
-function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4924(_env, current) {
-  const visited = _env._9;
-  const moved = _env._8;
-  const first = _env._7;
-  const unknown = _env._6;
-  const self = _env._5;
-  const n = _env._4;
-  const moves = _env._3;
-  const budget = _env._2;
-  const nodes = _env._1;
-  const lastk = _env._0;
+function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4934(_env, current) {
+  const nodes = _env._9;
+  const visited = _env._8;
+  const self = _env._7;
+  const first = _env._6;
+  const moved = _env._5;
+  const budget = _env._4;
+  const lastk = _env._3;
+  const moves = _env._2;
+  const n = _env._1;
+  const unknown = _env._0;
   if (_M0FP310monkeyfist2mf4core9all__gone(current)) {
     return true;
   }
@@ -11335,7 +11367,7 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4924(_env, current)
       } else {
         $oob();
       }
-      if (_M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4924(_env, t._1.paths)) {
+      if (_M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4934(_env, t._1.paths)) {
         return true;
       }
       const _index_14 = t._0;
@@ -11363,9 +11395,9 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__full(self, paths, budget, prefer
   const nodes = new _M0TPB8MutLocalGiE(0);
   const unknown = new _M0TPB8MutLocalGbE(false);
   if (self.hex) {
-    const _env = { _0: nodes, _1: budget, _2: moves, _3: self, _4: unknown, _5: visited };
-    const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4923(_env, paths, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
-    return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4925 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4926, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
+    const _env = { _0: unknown, _1: moves, _2: budget, _3: self, _4: visited, _5: nodes };
+    const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, paths, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
+    return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4935 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4936, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
   }
   const n = paths.len;
   const _bind$5 = [];
@@ -11390,9 +11422,9 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__full(self, paths, budget, prefer
       break;
     }
   }
-  const _env = { _0: lastk, _1: nodes, _2: budget, _3: moves, _4: n, _5: self, _6: unknown, _7: first, _8: moved, _9: visited };
-  const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4924(_env, paths);
-  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4927 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4928, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
+  const _env = { _0: unknown, _1: n, _2: moves, _3: lastk, _4: budget, _5: moved, _6: first, _7: self, _8: visited, _9: nodes };
+  const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4934(_env, paths);
+  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4937 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4938, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
 }
 function _M0MP310monkeyfist2mf4core5Board3geo(self) {
   return _M0MP310monkeyfist2mf4core3Geo3new(self);
@@ -12004,14 +12036,14 @@ function _M0MP310monkeyfist2mf4core8HexBoard4dead(self) {
   }
   return false;
 }
-function _M0FP310monkeyfist2mf4core10hex__solveN6searchS5192(_env, preferred) {
+function _M0FP310monkeyfist2mf4core10hex__solveN6searchS5202(_env, preferred) {
   const board = _env._6;
-  const paths = _env._5;
+  const seen = _env._5;
   const budget = _env._4;
-  const seen = _env._3;
+  const exhausted = _env._3;
   const moves = _env._2;
-  const exhausted = _env._1;
-  const nodes = _env._0;
+  const nodes = _env._1;
+  const paths = _env._0;
   if (board.left === 0) {
     return true;
   }
@@ -12074,7 +12106,7 @@ function _M0FP310monkeyfist2mf4core10hex__solveN6searchS5192(_env, preferred) {
       const from = _i >>> 0 < _tmp$11.length ? _tmp$11[_i] : $oob();
       _M0MP310monkeyfist2mf4core8HexBoard5place(board, _i, _target);
       _M0MPC15array5Array4pushGiE(moves, _i);
-      if (_M0FP310monkeyfist2mf4core10hex__solveN6searchS5192(_env, _i === p0 ? _M0MPC15array9ArrayView21clamped__view_2einnerGiE(preferred, 1, undefined) : preferred)) {
+      if (_M0FP310monkeyfist2mf4core10hex__solveN6searchS5202(_env, _i === p0 ? _M0MPC15array9ArrayView21clamped__view_2einnerGiE(preferred, 1, undefined) : preferred)) {
         return true;
       }
       _M0MP310monkeyfist2mf4core8HexBoard5place(board, _i, from);
@@ -12097,9 +12129,9 @@ function _M0FP310monkeyfist2mf4core10hex__solve(w, h, mirrors, paths, budget, pr
   const moves = new _M0TPB5ArrayGiE([], 0);
   const nodes = new _M0TPB8MutLocalGiE(0);
   const exhausted = new _M0TPB8MutLocalGbE(false);
-  const _env = { _0: nodes, _1: exhausted, _2: moves, _3: seen, _4: budget, _5: paths, _6: board };
-  const solved = _M0FP310monkeyfist2mf4core10hex__solveN6searchS5192(_env, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
-  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core10hex__solveN6constrS5193 : exhausted.val ? -1 : _M0FP310monkeyfist2mf4core10hex__solveN6constrS5194, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
+  const _env = { _0: paths, _1: nodes, _2: moves, _3: exhausted, _4: budget, _5: seen, _6: board };
+  const solved = _M0FP310monkeyfist2mf4core10hex__solveN6searchS5202(_env, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
+  return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core10hex__solveN6constrS5203 : exhausted.val ? -1 : _M0FP310monkeyfist2mf4core10hex__solveN6constrS5204, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
 }
 function _M0MP310monkeyfist2mf4core5Board5solve(self, g, paths, budget, prefer) {
   if (!_M0MP310monkeyfist2mf4core5Board7tracked(self, g)) {
@@ -12486,10 +12518,10 @@ function _M0FP310monkeyfist2mf4core17hex__casual__wins(w, h, mirrors, ropes, rng
   }
   return (wins + 0) / ((1 > games ? 1 : games) + 0);
 }
-function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5358(_env) {
+function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env) {
   const n = _env._2;
-  const b = _env._1;
-  const blockers = _env._0;
+  const blockers = _env._1;
+  const b = _env._0;
   _M0MPC15array10FixedArray12fill_2einnerGbE(blockers, false, 0, undefined);
   let count = 0;
   let _tmp$9 = 0;
@@ -12538,21 +12570,21 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5358(_env)
   }
   return count;
 }
-function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5359(_env, remaining) {
+function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5369(_env, remaining) {
   const n = _env._9;
-  const b = _env._8;
-  const budget = _env._7;
-  const later = _env._6;
-  const rank = _env._5;
-  const tried = _env._4;
-  const moves = _env._3;
-  const _env$2 = _env._2;
-  const exhausted = _env._1;
-  const nodes = _env._0;
+  const tried = _env._8;
+  const nodes = _env._7;
+  const budget = _env._6;
+  const later = _env._5;
+  const exhausted = _env._4;
+  const _env$2 = _env._3;
+  const rank = _env._2;
+  const moves = _env._1;
+  const b = _env._0;
   if (_M0MP310monkeyfist2mf4core8HexBoard4free(b)) {
     return true;
   }
-  if (remaining === 0 || _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5358(_env$2) > remaining) {
+  if (remaining === 0 || _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env$2) > remaining) {
     return false;
   }
   nodes.val = nodes.val + 1 | 0;
@@ -12617,7 +12649,7 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5359(_env
       const from = _i >>> 0 < _tmp$11.length ? _tmp$11[_i] : $oob();
       _M0MP310monkeyfist2mf4core8HexBoard5place(b, _i, _to);
       _M0MPC15array5Array4pushGiE(moves, _i);
-      if (_M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5359(_env, remaining - 1 | 0)) {
+      if (_M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5369(_env, remaining - 1 | 0)) {
         return true;
       }
       _M0MPC15array5Array3popGiE(moves);
@@ -12675,13 +12707,13 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__taps(w, h, mirrors, ro
   const nodes = new _M0TPB8MutLocalGiE(0);
   const exhausted = new _M0TPB8MutLocalGbE(false);
   const blockers = $make_array_len_and_init(n, false);
-  const _env = { _0: blockers, _1: b, _2: n };
-  const _env$2 = { _0: nodes, _1: exhausted, _2: _env, _3: moves, _4: tried, _5: rank, _6: later, _7: budget, _8: b, _9: n };
-  const _p = _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5358(_env);
+  const _env = { _0: b, _1: blockers, _2: n };
+  const _env$2 = { _0: b, _1: moves, _2: rank, _3: _env, _4: exhausted, _5: later, _6: budget, _7: nodes, _8: tried, _9: n };
+  const _p = _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env);
   let taps = 1 > _p ? 1 : _p;
   while (true) {
     if (taps < verified.taps && !exhausted.val) {
-      if (_M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5359(_env$2, taps)) {
+      if (_M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5369(_env$2, taps)) {
         const manual = moves.len;
         let _tmp$10 = 0;
         while (true) {
@@ -12707,14 +12739,14 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__taps(w, h, mirrors, ro
   }
   return new _M0TP310monkeyfist2mf4core3Par(_M0MPC15array5Array4copyGiE(fallback), verified.taps, !exhausted.val);
 }
-function _M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5434(_env, i) {
-  const b = _env._6;
-  const cost = _env._5;
-  const done = _env._4;
+function _M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5444(_env, i) {
+  const released = _env._6;
+  const b = _env._5;
+  const moved_at = _env._4;
   const moves = _env._3;
-  const moved_at = _env._2;
-  const stops = _env._1;
-  const released = _env._0;
+  const stops = _env._2;
+  const cost = _env._1;
+  const done = _env._0;
   const _tmp$9 = b.offsets;
   const from = i >>> 0 < _tmp$9.length ? _tmp$9[i] : $oob();
   const target = _M0MP310monkeyfist2mf4core8HexBoard2to(b, i);
@@ -12834,7 +12866,7 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
   const moved_at = $make_array_len_and_init(n, 0);
   const moves = new _M0TPB5ArrayGiE([], 0);
   const cost = new _M0TPB8MutLocalGiE(0);
-  const _env = { _0: released, _1: stops, _2: moved_at, _3: moves, _4: done, _5: cost, _6: b };
+  const _env = { _0: done, _1: cost, _2: stops, _3: moves, _4: moved_at, _5: b, _6: released };
   if (certificate === undefined) {
     let changed = true;
     while (true) {
@@ -12844,7 +12876,7 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
         while (true) {
           const i = _tmp$9;
           if (i >= 0) {
-            if (_M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5434(_env, i)) {
+            if (_M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5444(_env, i)) {
               changed = true;
             }
             _tmp$9 = i - 1 | 0;
@@ -12868,7 +12900,7 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
       const _ = _tmp$9;
       if (_ < _bind$4) {
         const i = _bind$5[_];
-        if (!_M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5434(_env, i)) {
+        if (!_M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5444(_env, i)) {
           return undefined;
         }
         _tmp$9 = _ + 1 | 0;
@@ -12880,13 +12912,13 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
   }
   return b.left > 0 ? undefined : new _M0TP310monkeyfist2mf4core9HexIntent(moves, cost.val);
 }
-function _M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env, c) {
-  const tile = _env._2;
+function _M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env, c) {
+  const kept = _env._2;
   const occupied = _env._1;
-  const kept = _env._0;
+  const tile = _env._0;
   return c >= 0 && ((c >>> 0 < occupied.length ? occupied[c] : $oob()) < 0 && (!(c >>> 0 < tile.length ? tile[c] : $oob()) && !(c >>> 0 < kept.length ? kept[c] : $oob())));
 }
-function _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env, cert) {
+function _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env, cert) {
   const mirrors = _env._4;
   const stops = _env._3;
   const ropes = _env._2;
@@ -12894,18 +12926,18 @@ function _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env, cert) {
   const h = _env._0;
   return _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops, cert);
 }
-function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env, want, aim) {
-  const area = _env._10;
+function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env, want, aim) {
+  const points = _env._10;
   const seen = _env._9;
-  const _env$2 = _env._8;
-  const points = _env._7;
-  const stamp = _env._6;
-  const w = _env._5;
+  const w = _env._8;
+  const rng = _env._7;
+  const area = _env._6;
+  const h = _env._5;
   const bent = _env._4;
-  const h = _env._3;
-  const forward = _env._2;
-  const neighbours = _env._1;
-  const rng = _env._0;
+  const neighbours = _env._3;
+  const stamp = _env._2;
+  const forward = _env._1;
+  const _env$2 = _env._0;
   let head;
   if (aim === undefined) {
     head = -1;
@@ -12920,7 +12952,7 @@ function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env, want, aim) {
       const _ = _tmp$9;
       if (_ < 24) {
         const c = _M0MP310monkeyfist2mf4core3Rng5below(rng, area);
-        if (_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env$2, c)) {
+        if (_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env$2, c)) {
           head = c;
           break;
         }
@@ -12949,7 +12981,7 @@ function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env, want, aim) {
   }
   const _tmp$9 = neighbours.buf[_bind$4];
   const second = back >>> 0 < _tmp$9.length ? _tmp$9[back] : $oob();
-  if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env$2, second)) {
+  if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env$2, second)) {
     return undefined;
   }
   const turns = new _M0TPB5ArrayGiE([], 0);
@@ -13032,7 +13064,7 @@ function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env, want, aim) {
           }
           const _tmp$13 = neighbours.buf[tip];
           const c = d >>> 0 < _tmp$13.length ? _tmp$13[d] : $oob();
-          if (_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env$2, c) && ((c >>> 0 < seen.length ? seen[c] : $oob()) !== stamp.val && (c >>> 0 < forward.length ? forward[c] : $oob()) !== stamp.val)) {
+          if (_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env$2, c) && ((c >>> 0 < seen.length ? seen[c] : $oob()) !== stamp.val && (c >>> 0 < forward.length ? forward[c] : $oob()) !== stamp.val)) {
             _M0MPC15array5Array4pushGiE(choices, d);
           }
           _tmp$12 = d + 1 | 0;
@@ -13097,12 +13129,12 @@ function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env, want, aim) {
   }
   return new _M0TP310monkeyfist2mf4core8HexShape(_p, body, ahead, turns);
 }
-function _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5489(_env, path) {
-  const turned_count = _env._4;
-  const turned_by = _env._3;
-  const w = _env._2;
-  const bent = _env._1;
-  const h = _env._0;
+function _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5499(_env, path) {
+  const w = _env._4;
+  const turned_count = _env._3;
+  const turned_by = _env._2;
+  const h = _env._1;
+  const bent = _env._0;
   if (bent.keys.len > 0) {
     const t = new _M0TPB5ArrayGiE([], 0);
     _M0FP310monkeyfist2mf4core10ray__track(w, h, _M0FP310monkeyfist2mf4core9hex__cell(_M0FP310monkeyfist2mf4core4last(path), w), _M0FP310monkeyfist2mf4core11exit__index(w, path, bent), bent, new _M0TPB5ArrayGiE([], 0), t);
@@ -13215,9 +13247,9 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
     }
   }
   const kept = $make_array_len_and_init(area, false);
-  const _env = { _0: kept, _1: occupied, _2: tile };
+  const _env = { _0: tile, _1: occupied, _2: kept };
   const _env$2 = { _0: h, _1: w, _2: ropes, _3: stops, _4: mirrors };
-  const _env$3 = { _0: rng, _1: neighbours, _2: forward, _3: h, _4: bent, _5: w, _6: stamp, _7: points, _8: _env, _9: seen, _10: area };
+  const _env$3 = { _0: _env, _1: forward, _2: stamp, _3: neighbours, _4: bent, _5: h, _6: area, _7: rng, _8: w, _9: seen, _10: points };
   if (cfg.initial_ropes.len > 0) {
     const used = $make_array_len_and_init(area, false);
     let size = 0;
@@ -13328,7 +13360,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
         break;
       }
     }
-    const _bind$11 = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env$2, cfg.initial_plan);
+    const _bind$11 = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env$2, cfg.initial_plan);
     if (_bind$11 === undefined) {
       return undefined;
     } else {
@@ -13406,7 +13438,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
       const _p$2 = 7 + (stage / 2 | 0) | 0;
       const length = 38 < _p$2 ? 38 : _p$2;
       const base = 4 + (stage / 14 | 0) | 0;
-      const _bind$7 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env$3, base + _M0MP310monkeyfist2mf4core3Rng5below(rng, length) | 0, undefined);
+      const _bind$7 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env$3, base + _M0MP310monkeyfist2mf4core3Rng5below(rng, length) | 0, undefined);
       if (_bind$7 === undefined) {
         continue;
       } else {
@@ -13431,7 +13463,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
             break;
           }
         }
-        const bs = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env$3, base + _M0MP310monkeyfist2mf4core3Rng5below(rng, length) | 0, undefined);
+        const bs = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env$3, base + _M0MP310monkeyfist2mf4core3Rng5below(rng, length) | 0, undefined);
         const _bind$11 = _a.ids;
         const _bind$12 = _bind$11.len;
         const _bind$13 = _bind$11.buf;
@@ -13532,7 +13564,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                   $panic();
                 }
                 stops.buf[id] = _bind$17;
-                trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env$2, undefined);
+                trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env$2, undefined);
                 const _bind$18 = trial;
                 if (_bind$18 === undefined) {
                 } else {
@@ -13613,7 +13645,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
   let attempts = 0;
   const turned_by = $make_array_len_and_init(area, false);
   const turned_count = new _M0TPB8MutLocalGiE(0);
-  const _env$4 = { _0: h, _1: bent, _2: w, _3: turned_by, _4: turned_count };
+  const _env$4 = { _0: bent, _1: h, _2: turned_by, _3: turned_count, _4: w };
   const _bind$7 = ropes.len;
   const _bind$8 = ropes.buf;
   let _tmp$10 = 0;
@@ -13621,7 +13653,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
     const _ = _tmp$10;
     if (_ < _bind$7) {
       const path = _bind$8[_];
-      _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5489(_env$4, path);
+      _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5499(_env$4, path);
       _tmp$10 = _ + 1 | 0;
       continue;
     } else {
@@ -13695,7 +13727,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                   const c = _tmp$15;
                   if (c < area) {
                     _L$3: {
-                      if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env, c)) {
+                      if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env, c)) {
                         break _L$3;
                       }
                       let _tmp$16 = 0;
@@ -13708,7 +13740,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                             }
                             const _tmp$17 = neighbours.buf[c];
                             const _tmp$18 = (d + 3 | 0) % 6 | 0;
-                            if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env, _tmp$18 >>> 0 < _tmp$17.length ? _tmp$17[_tmp$18] : $oob())) {
+                            if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env, _tmp$18 >>> 0 < _tmp$17.length ? _tmp$17[_tmp$18] : $oob())) {
                               break _L$4;
                             }
                             const out = new _M0TPB5ArrayGiE([], 0);
@@ -13894,7 +13926,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                       const _tmp$17 = _M0MP310monkeyfist2mf4core3Rng4next(rng);
                       const _p$2 = (cfg.length + 0) / 2;
                       const want = 3 + _M0MPC16double6Double7to__int(_M0MPC16double6Double5floor(_tmp$17 * (2 > _p$2 ? 2 : _p$2))) | 0;
-                      const _bind$11 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env$3, want, { _0: _sc, _1: _sd });
+                      const _bind$11 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env$3, want, { _0: _sc, _1: _sd });
                       if (_bind$11 === undefined) {
                         break _L$3;
                       } else {
@@ -13903,7 +13935,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                         const id = ropes.len;
                         _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(ropes, _shaped.path);
                         _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(stops, new _M0TPB5ArrayGiE([], 0));
-                        const trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env$2, undefined);
+                        const trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env$2, undefined);
                         let fatal = false;
                         if (trial === undefined) {
                         } else {
@@ -13926,7 +13958,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                           _tmp$18 = _p$3;
                         }
                         result = _tmp$18;
-                        _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5489(_env$4, _shaped.path);
+                        _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5499(_env$4, _shaped.path);
                         const _bind$12 = _shaped.ids;
                         const _bind$13 = _bind$12.len;
                         const _bind$14 = _bind$12.buf;
@@ -14089,7 +14121,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
                 k = 0;
                 while (true) {
                   if (k < j && x >= 0) {
-                    if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5486(_env, x)) {
+                    if (!_M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env, x)) {
                       _return_value = undefined;
                       break _L$2;
                     }
@@ -14114,7 +14146,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
             aim_spot = undefined;
           }
           n = n + 1 | 0;
-          const _bind$9 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5488(_env$3, want, aim_spot);
+          const _bind$9 = _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env$3, want, aim_spot);
           if (_bind$9 === undefined) {
             continue;
           } else {
@@ -14122,7 +14154,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
             const _s = _Some;
             _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(ropes, _s.path);
             _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(stops, new _M0TPB5ArrayGiE([], 0));
-            const trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env$2, undefined);
+            const trial = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env$2, undefined);
             _M0MPC15array5Array3popGAiE(ropes);
             _M0MPC15array5Array3popGAiE(stops);
             if (trial === undefined) {
@@ -14186,7 +14218,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
         _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(ropes, _s.path);
         _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(stops, new _M0TPB5ArrayGiE([], 0));
         result = _t;
-        _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5489(_env$4, _s.path);
+        _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5499(_env$4, _s.path);
         const _bind$10 = _s.ids;
         const _bind$11 = _bind$10.len;
         const _bind$12 = _bind$10.buf;
@@ -14213,7 +14245,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
       break;
     }
   }
-  const _bind$9 = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5487(_env$2, result.moves);
+  const _bind$9 = _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env$2, result.moves);
   if (_bind$9 === undefined) {
     $panic("Hex weaving certificate failed");
   }
@@ -14692,7 +14724,7 @@ function _M0FP310monkeyfist2mf4core14repeated__core(hex, w, height, d, rng) {
   const board = new _M0TP310monkeyfist2mf4core5Board(hex, w, height, chosen, new _M0TPB5ArrayGRP310monkeyfist2mf4core6MirrorE([], 0), new _M0TPB5ArrayGRP310monkeyfist2mf4core2PtE([], 0), new _M0TPB5ArrayGiE([], 0));
   const g = _M0MP310monkeyfist2mf4core5Board3geo(board);
   const solution = _M0MP310monkeyfist2mf4core5Board5solve(board, g, _M0FP310monkeyfist2mf4core11some__paths(chosen), 2000, new _M0TPB5ArrayGiE([], 0));
-  if (_M0IP016_24default__implPB2Eq10not__equalGObE(solution.solved, _M0FP310monkeyfist2mf4core14repeated__coreN6constrS5873)) {
+  if (_M0IP016_24default__implPB2Eq10not__equalGObE(solution.solved, _M0FP310monkeyfist2mf4core14repeated__coreN6constrS5883)) {
     return undefined;
   }
   const proven = _M0MP310monkeyfist2mf4core5Board13minimum__taps(board, g, solution.moves, 20000);
@@ -14748,9 +14780,9 @@ function _M0FP310monkeyfist2mf4core14repeated__core(hex, w, height, d, rng) {
   }
   return new _M0TP310monkeyfist2mf4core4Core(chosen, stops, proven.plan);
 }
-function _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5983(_env, p) {
-  const w = _env._1;
-  const hex = _env._0;
+function _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5993(_env, p) {
+  const hex = _env._1;
+  const w = _env._0;
   return hex ? _M0FP310monkeyfist2mf4core9hex__cell(p, w) : (Math.imul(p.r, w) | 0) + p.q | 0;
 }
 function _M0FP310monkeyfist2mf4core14place__mirrors(hex, w, height, count, rng, avoid) {
@@ -14773,7 +14805,7 @@ function _M0FP310monkeyfist2mf4core14place__mirrors(hex, w, height, count, rng, 
   }
   const out = new _M0TPB5ArrayGRP310monkeyfist2mf4core6MirrorE([], 0);
   const near = $make_array_len_and_init(Math.imul(w, height) | 0, false);
-  const _env = { _0: hex, _1: w };
+  const _env = { _0: w, _1: hex };
   let tries = 0;
   while (true) {
     if (out.len < count && (cells.len > 0 && tries < (Math.imul(count, 40) | 0))) {
@@ -14783,7 +14815,7 @@ function _M0FP310monkeyfist2mf4core14place__mirrors(hex, w, height, count, rng, 
         $panic();
       }
       const p = cells.buf[_bind$5];
-      const _tmp$10 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5983(_env, p);
+      const _tmp$10 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5993(_env, p);
       if (_tmp$10 >>> 0 < near.length ? near[_tmp$10] : $oob()) {
         continue;
       }
@@ -14792,7 +14824,7 @@ function _M0FP310monkeyfist2mf4core14place__mirrors(hex, w, height, count, rng, 
       } else {
         _M0MPC15array5Array4pushGUiiiRPB5ArrayGiEEE(out, new _M0TP310monkeyfist2mf4core6Mirror(p, _M0MP310monkeyfist2mf4core3Rng4next(rng) < 0.5 ? 0 : 1));
       }
-      const _tmp$11 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5983(_env, p);
+      const _tmp$11 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5993(_env, p);
       if (_tmp$11 >>> 0 < near.length) {
         near[_tmp$11] = true;
       } else {
@@ -14804,7 +14836,7 @@ function _M0FP310monkeyfist2mf4core14place__mirrors(hex, w, height, count, rng, 
         const d = _tmp$12;
         if (d < _bind$6) {
           const q = hex ? new _M0TP310monkeyfist2mf4core2Pt(p.q + (d >>> 0 < _M0FP310monkeyfist2mf4core7hex__dq.length ? _M0FP310monkeyfist2mf4core7hex__dq[d] : $oob()) | 0, p.r + (d >>> 0 < _M0FP310monkeyfist2mf4core7hex__dr.length ? _M0FP310monkeyfist2mf4core7hex__dr[d] : $oob()) | 0) : new _M0TP310monkeyfist2mf4core2Pt(p.q + (d >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[d] : $oob()) | 0, p.r + (d >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[d] : $oob()) | 0);
-          const _tmp$13 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5983(_env, q);
+          const _tmp$13 = _M0FP310monkeyfist2mf4core14place__mirrorsN5indexS5993(_env, q);
           if (_tmp$13 >>> 0 < near.length) {
             near[_tmp$13] = true;
           } else {
@@ -15131,7 +15163,7 @@ function _M0FP310monkeyfist2mf4core15search__spinner(board, cell) {
   const b = _M0MP310monkeyfist2mf4core5Board13with__springs(board, springs, board.plan);
   const g = _M0MP310monkeyfist2mf4core5Board3geo(b);
   const solution = _M0MP310monkeyfist2mf4core5Board5solve(b, g, _M0FP310monkeyfist2mf4core11some__paths(b.ropes), _M0FP310monkeyfist2mf4core9js__round(12000 / (b.ropes.len + 0)), board.plan);
-  return _M0IPC16option6OptionPB2Eq5equalGbE(solution.solved, _M0FP310monkeyfist2mf4core15search__spinnerN6constrS6093) && _M0FP310monkeyfist2mf4core12bounce__step(b, g, solution.moves, cell) >= 0 ? _M0MP310monkeyfist2mf4core5Board10with__plan(b, solution.moves) : undefined;
+  return _M0IPC16option6OptionPB2Eq5equalGbE(solution.solved, _M0FP310monkeyfist2mf4core15search__spinnerN6constrS6103) && _M0FP310monkeyfist2mf4core12bounce__step(b, g, solution.moves, cell) >= 0 ? _M0MP310monkeyfist2mf4core5Board10with__plan(b, solution.moves) : undefined;
 }
 function _M0FP310monkeyfist2mf4core9ways__out(board) {
   const out = new _M0TPB5ArrayGRP310monkeyfist2mf4core2PtE([], 0);
@@ -15291,11 +15323,11 @@ function _M0FP310monkeyfist2mf4core13with__spinner(board, cell) {
   }
   return undefined;
 }
-function _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6153(_env, group) {
-  const seen = _env._3;
+function _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6163(_env, group) {
+  const blocked = _env._3;
   const rng = _env._2;
-  const blocked = _env._1;
-  const g = _env._0;
+  const g = _env._1;
+  const seen = _env._0;
   const _p = new _M0TPB5ArrayGRP310monkeyfist2mf4core2PtE([], 0);
   const _p$2 = group.len;
   const _p$3 = group.buf;
@@ -15371,7 +15403,7 @@ function _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6153(_env, group) {
   }
   return cells;
 }
-function _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6154(board, cells) {
+function _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6164(board, cells) {
   const _p = cells.len;
   const _p$2 = _M0MPC15array9ArrayView9to__ownedGRP310monkeyfist2mf4core2PtE(_M0MPC15array5Array21clamped__view_2einnerGRP310monkeyfist2mf4core2PtE(cells, 0, 16 < _p ? 16 : _p));
   const _p$3 = _M0MPC15array5Array20unsafe__make__uninitGORP310monkeyfist2mf4core4SnapE(_p$2.len);
@@ -15611,11 +15643,11 @@ function _M0FP310monkeyfist2mf4core13add__spinners(start, rng, count) {
       }
       const _bind$16 = [];
       const seen = _M0MPB3Map3MapGibE(new _M0TPB9ArrayViewGUibEE(_bind$16, 0, 0), undefined);
-      const _env = { _0: g, _1: blocked, _2: rng, _3: seen };
-      const _bind$17 = _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6154(board, _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6153(_env, routes));
+      const _env = { _0: seen, _1: g, _2: rng, _3: blocked };
+      const _bind$17 = _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6164(board, _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6163(_env, routes));
       let placed;
       if (_bind$17 === undefined) {
-        placed = _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6154(board, _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6153(_env, _M0FP310monkeyfist2mf4core9ways__out(board.val)));
+        placed = _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6164(board, _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6163(_env, _M0FP310monkeyfist2mf4core9ways__out(board.val)));
       } else {
         const _Some = _bind$17;
         const _b = _Some;
@@ -15757,7 +15789,7 @@ function _M0FP310monkeyfist2mf4core14features__used(b, g) {
   }
   return left === 0;
 }
-function _M0FP310monkeyfist2mf4core14feature__statsN5countS6281(a) {
+function _M0FP310monkeyfist2mf4core14feature__statsN5countS6291(a) {
   return _M0MPB4Iter5countGbE(_M0MPB4Iter6filterGbE(_M0MPC15array10FixedArray4iterGbE(a), (x) => x));
 }
 function _M0FP310monkeyfist2mf4core14feature__stats(b, g, plan, manual) {
@@ -15878,9 +15910,9 @@ function _M0FP310monkeyfist2mf4core14feature__stats(b, g, plan, manual) {
       break;
     }
   }
-  return new _M0TP310monkeyfist2mf4core12FeatureStats(_M0FP310monkeyfist2mf4core14feature__statsN5countS6281(turned), _M0FP310monkeyfist2mf4core14feature__statsN5countS6281(bounced), _M0FP310monkeyfist2mf4core14feature__statsN5countS6281(mturned), _M0FP310monkeyfist2mf4core14feature__statsN5countS6281(mbounced));
+  return new _M0TP310monkeyfist2mf4core12FeatureStats(_M0FP310monkeyfist2mf4core14feature__statsN5countS6291(turned), _M0FP310monkeyfist2mf4core14feature__statsN5countS6291(bounced), _M0FP310monkeyfist2mf4core14feature__statsN5countS6291(mturned), _M0FP310monkeyfist2mf4core14feature__statsN5countS6291(mbounced));
 }
-function _M0FP310monkeyfist2mf4core8regionalN4zoneS6322(b, p) {
+function _M0FP310monkeyfist2mf4core8regionalN4zoneS6332(b, p) {
   const col = p.q + (b.hex ? _M0FP310monkeyfist2mf4core10floor__div(p.r, 2) : 0) | 0;
   return (col + 0 >= (b.w + 0) / 2 ? 1 : 0) + (Math.imul(2, p.r + 0 >= (b.h + 0) / 2 ? 1 : 0) | 0) | 0;
 }
@@ -15898,7 +15930,7 @@ function _M0FP310monkeyfist2mf4core8regional(b) {
     const i = _tmp$9;
     if (i < _bind$4) {
       const p = b.hex ? _M0FP310monkeyfist2mf4core10hex__point(i, b.w) : new _M0TP310monkeyfist2mf4core2Pt(i % b.w | 0, i / b.w | 0);
-      const _index_20 = _M0FP310monkeyfist2mf4core8regionalN4zoneS6322(b, p);
+      const _index_20 = _M0FP310monkeyfist2mf4core8regionalN4zoneS6332(b, p);
       if (_index_20 < 0 || _index_20 >= area_len) {
         $panic();
       }
@@ -15928,7 +15960,7 @@ function _M0FP310monkeyfist2mf4core8regional(b) {
         const _$2 = _tmp$11;
         if (_$2 < _bind$8) {
           const p = _bind$9[_$2];
-          const _index_22 = _M0FP310monkeyfist2mf4core8regionalN4zoneS6322(b, p);
+          const _index_22 = _M0FP310monkeyfist2mf4core8regionalN4zoneS6332(b, p);
           if (_index_22 < 0 || _index_22 >= used_len) {
             $panic();
           }
@@ -16265,41 +16297,21 @@ function _M0FP310monkeyfist2mf4core14grid__generate(s) {
             break _L;
           }
           const result = _M0FP310monkeyfist2mf4core5score(_b, g, colossal);
-          if (_b.mirrors.len > 0 || _b.springs.len > 0) {
-            const _bind$5 = _M0FP310monkeyfist2mf4core14feature__stats(_b, g, result.plan, result.par);
-            if (_bind$5 === undefined) {
-            } else {
-              const _Some$2 = _bind$5;
-              const _m = _Some$2;
-              if (_b.mirrors.len < s.min_mirrors) {
-                break _L;
-              } else {
-                if (_b.springs.len < s.min_springs) {
-                  break _L;
-                } else {
-                  if (_m.used_mirrors !== _b.mirrors.len) {
-                    break _L;
-                  } else {
-                    if (_m.used_springs !== _b.springs.len) {
-                      break _L;
-                    } else {
-                      if (_m.manual_mirrors < s.min_mirrors) {
-                        break _L;
-                      } else {
-                        if (_m.manual_springs < s.min_springs) {
-                          break _L;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+          const mech = _b.mirrors.len > 0 || _b.springs.len > 0 ? _M0FP310monkeyfist2mf4core14feature__stats(_b, g, result.plan, result.par) : undefined;
+          if (mech === undefined) {
+          } else {
+            const _Some$2 = mech;
+            const _m = _Some$2;
+            if (_b.mirrors.len < s.min_mirrors || (_b.springs.len < s.min_springs || (_m.used_mirrors !== _b.mirrors.len || (_m.used_springs !== _b.springs.len || (_m.manual_mirrors < s.min_mirrors || _m.manual_springs < s.min_springs))))) {
+              break _L;
             }
           }
           const played = _M0MP310monkeyfist2mf4core5Board12replay__plan(_b, g, result.plan);
           let slides = 0;
           let bounces = 0;
           let any_slide = false;
+          let automatic = 0;
+          const actions = _M0MPC15array5Array4makeGiE(_b.ropes.len, 0);
           const _bind$5 = played.events;
           const _bind$6 = _bind$5.len;
           const _bind$7 = _bind$5.buf;
@@ -16312,13 +16324,47 @@ function _M0FP310monkeyfist2mf4core14grid__generate(s) {
                 any_slide = true;
                 if (k < result.par) {
                   slides = slides + 1 | 0;
+                  const _bind$8 = result.plan;
+                  if (k < 0 || k >= _bind$8.len) {
+                    $panic();
+                  }
+                  const _index_24 = _bind$8.buf[k];
+                  if (_index_24 < 0 || _index_24 >= actions.len) {
+                    $panic();
+                  }
+                  const _bind$9 = actions.buf[_index_24] + 1 | 0;
+                  if (_index_24 < 0 || _index_24 >= actions.len) {
+                    $panic();
+                  }
+                  actions.buf[_index_24] = _bind$9;
                 }
               } else {
                 if (e === 1 && k < result.par) {
                   bounces = bounces + 1 | 0;
+                } else {
+                  if (e === 0 && k >= result.par) {
+                    automatic = automatic + 1 | 0;
+                  }
                 }
               }
               _tmp$11 = k + 1 | 0;
+              continue;
+            } else {
+              break;
+            }
+          }
+          let repeated = 0;
+          const _bind$8 = actions.len;
+          const _bind$9 = actions.buf;
+          let _tmp$12 = 0;
+          while (true) {
+            const _ = _tmp$12;
+            if (_ < _bind$8) {
+              const n = _bind$9[_];
+              if (n >= 2) {
+                repeated = repeated + 1 | 0;
+              }
+              _tmp$12 = _ + 1 | 0;
               continue;
             } else {
               break;
@@ -16334,12 +16380,12 @@ function _M0FP310monkeyfist2mf4core14grid__generate(s) {
           const wins = colossal ? 1 : _M0FP310monkeyfist2mf4core12casual__rate(_b, g, _M0FP310monkeyfist2mf4core7rng__of(`casual/${s.seed}/${_M0MPC13int3Int18to__string_2einner(attempt, 10)}`), _b.springs.len > 0 ? 10 : 32);
           const work = (slides + bounces | 0) + 0;
           const challenge = work + 6 * (1 - wins);
-          const _tmp$12 = density * 3 - Math.abs(challenge - target) * 0.5;
+          const _tmp$13 = density * 3 - Math.abs(challenge - target) * 0.5;
           const _p$2 = wins - ceiling;
-          const value = _tmp$12 - (0 > _p$2 ? 0 : _p$2) * 4 + (colossal ? 0 : hardness * inter * 0.25);
+          const value = _tmp$13 - (0 > _p$2 ? 0 : _p$2) * 4 + (colossal ? 0 : hardness * inter * 0.25);
           if (value > best_value) {
             best_value = value;
-            best = new _M0TP310monkeyfist2mf4core5Level(_M0MP310monkeyfist2mf4core5Board10with__plan(_b, result.plan), result.par, result.exact, density, wins, challenge, "");
+            best = new _M0TP310monkeyfist2mf4core5Level(_M0MP310monkeyfist2mf4core5Board10with__plan(_b, result.plan), result.par, result.exact, density, wins, challenge, "", slides, bounces, repeated, automatic, _M0MPC16option6Option7map__orGRP310monkeyfist2mf4core12FeatureStatsiE(mech, -1, (m) => m.used_mirrors), _M0MPC16option6Option7map__orGRP310monkeyfist2mf4core12FeatureStatsiE(mech, -1, (m) => m.used_springs), _M0MPC16option6Option7map__orGRP310monkeyfist2mf4core12FeatureStatsiE(mech, -1, (m) => m.manual_mirrors), _M0MPC16option6Option7map__orGRP310monkeyfist2mf4core12FeatureStatsiE(mech, -1, (m) => m.manual_springs));
           }
           if (colossal || density >= 0.9 && (Math.abs(challenge - target) <= 0.5 && wins <= ceiling)) {
             break;
@@ -16408,9 +16454,9 @@ function _M0FP310monkeyfist2mf4core6digits(s, lo, hi) {
 function _M0FP310monkeyfist2mf4core11parse__code(text) {
   const t = _M0MPC16string10StringView9to__owned(_M0MPC16string10StringView9to__upper(_M0MPC16string6String4trim(text, undefined)));
   if (t === "J3-MONKEYFIST") {
-    return _M0FP310monkeyfist2mf4core11parse__codeN6constrS6483;
+    return _M0FP310monkeyfist2mf4core11parse__codeN6constrS6508;
   }
-  const parts = _M0MPB4Iter9to__arrayGsE(_M0MPB4Iter3mapGRPC16string10StringViewsE(_M0MPC16string6String5split(t, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6484), (p) => _M0MPC16string10StringView9to__owned(p)));
+  const parts = _M0MPB4Iter9to__arrayGsE(_M0MPB4Iter3mapGRPC16string10StringViewsE(_M0MPC16string6String5split(t, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6509), (p) => _M0MPC16string10StringView9to__owned(p)));
   let _tmp$9;
   if (parts.len !== 9) {
     _tmp$9 = true;
@@ -16521,9 +16567,9 @@ function _M0FP310monkeyfist2mf4core11parse__code(text) {
                 break;
               }
             }
-            const mirrors = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6485);
-            const springs = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6486);
-            const colossal = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6487);
+            const mirrors = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6510);
+            const springs = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6511);
+            const colossal = _M0MPC16string6String8contains(f, _M0FP310monkeyfist2mf4core11parse__codeN6recordS6512);
             const lo = mirrors || springs ? 8 : 4;
             const hi = colossal ? 48 : 24;
             if (_min < 1 || (_max > 100 || (_min > _max || (_w < lo || (_w > hi || (_h < lo || (_h > hi || (_count < 1 || _count > 200)))))))) {
@@ -16673,15 +16719,18 @@ function _M0FP310monkeyfist2mf4core11layout__key(b) {
   const data = sb.val;
   return `${_M0FP310monkeyfist2mf4core6base36(_M0FP310monkeyfist2mf4core12hash__string(data))}-${_M0FP310monkeyfist2mf4core6base36(_M0FP310monkeyfist2mf4core12hash__string(`layout:${data}`))}`;
 }
-function _M0FP310monkeyfist2mf4core8generate(o, index) {
-  const _bind$4 = _M0FP310monkeyfist2mf4core14grid__generate(_M0FP310monkeyfist2mf4core11level__spec(o, index));
+function _M0FP310monkeyfist2mf4core14generate__spec(s) {
+  const _bind$4 = _M0FP310monkeyfist2mf4core14grid__generate(s);
   if (_bind$4 === undefined) {
     return undefined;
   } else {
     const _Some = _bind$4;
     const _l = _Some;
-    return new _M0TP310monkeyfist2mf4core5Level(_l.board, _l.par, _l.exact, _l.coverage, _l.wins, _l.challenge, _M0FP310monkeyfist2mf4core11layout__key(_l.board));
+    return new _M0TP310monkeyfist2mf4core5Level(_l.board, _l.par, _l.exact, _l.coverage, _l.wins, _l.challenge, _M0FP310monkeyfist2mf4core11layout__key(_l.board), _l.slides, _l.bounces, _l.repeated, _l.automatic, _l.used_mirrors, _l.used_springs, _l.manual_mirrors, _l.manual_springs);
   }
+}
+function _M0FP310monkeyfist2mf4core8generate(o, index) {
+  return _M0FP310monkeyfist2mf4core14generate__spec(_M0FP310monkeyfist2mf4core11level__spec(o, index));
 }
 function _M0FP310monkeyfist2mf4game3geo() {
   const _p = _M0FP310monkeyfist2mf4game4game.geo;
@@ -16862,7 +16911,7 @@ function _M0FP310monkeyfist2mf4game10win__sound(stars) {
     _M0FP310monkeyfist2mf4game12tone_2einner(392.46, 0.95, 0, 0.025, 0.07, 0, 0.08);
     return undefined;
   }
-  let phrases_buf = [new _M0TPB5ArrayGUddEE([], 0), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6623, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6624], 2), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6625, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6626, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6627, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6628, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6629], 5), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6630, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6631, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6632, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6633, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6634, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6635], 6)];
+  let phrases_buf = [new _M0TPB5ArrayGUddEE([], 0), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6649, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6650], 2), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6651, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6652, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6653, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6654, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6655], 5), new _M0TPB5ArrayGUddEE([_M0FP310monkeyfist2mf4game10win__soundN5tupleS6656, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6657, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6658, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6659, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6660, _M0FP310monkeyfist2mf4game10win__soundN5tupleS6661], 6)];
   let phrases_len = 4;
   if (stars < 0 || stars >= phrases_len) {
     $panic();
@@ -17288,7 +17337,7 @@ function _M0FP310monkeyfist2mf4game10seek__plan(prefer, budget) {
     return undefined;
   }
   const s = _M0MP310monkeyfist2mf4core5Board5solve(b, g, _M0FP310monkeyfist2mf4game4game.paths, budget, prefer);
-  if (_M0IPC16option6OptionPB2Eq5equalGbE(s.solved, _M0FP310monkeyfist2mf4game10seek__planN6constrS6735)) {
+  if (_M0IPC16option6OptionPB2Eq5equalGbE(s.solved, _M0FP310monkeyfist2mf4game10seek__planN6constrS6761)) {
     _M0FP310monkeyfist2mf4game4game.plan = s.moves;
     return;
   } else {
@@ -18251,7 +18300,7 @@ function _M0FP310monkeyfist2mf4game10head__unit(i) {
   const _bx = _bind$9._0;
   const _by = _bind$9._1;
   const len = Math.sqrt((_bx - _ax) * (_bx - _ax) + (_by - _ay) * (_by - _ay));
-  return len === 0 ? _M0FP310monkeyfist2mf4game10head__unitN5tupleS6934 : { _0: (_bx - _ax) / len, _1: (_by - _ay) / len };
+  return len === 0 ? _M0FP310monkeyfist2mf4game10head__unitN5tupleS6960 : { _0: (_bx - _ax) / len, _1: (_by - _ay) / len };
 }
 function _M0FP310monkeyfist2mf4game4pick(px, py) {
   _L: {

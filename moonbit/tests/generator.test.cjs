@@ -19,12 +19,13 @@ const backends = {
   },
 };
 // The fields the game reads, plus the specification it was made from.
-const FIELDS = ['grid', 'W', 'H', 'ropes', 'mirrors', 'springs', 'plan', 'par', 'layoutKey', 'index', 'seed', 'difficulty'];
-const pick = b => Object.fromEntries(FIELDS.map(k => [k, b[k]]));
+const FIELDS = ['grid', 'W', 'H', 'ropes', 'mirrors', 'springs', 'plan', 'par', 'layoutKey', 'index', 'seed', 'difficulty', 'coverage', 'play', 'mechanicStats'];
+const pick = b => ({ ...Object.fromEntries(FIELDS.map(k => [k, b[k]])),
+  slideStats: { manualSlides: b.slideStats.manualSlides, manualBounces: b.slideStats.manualBounces, repeatedRopes: b.slideStats.repeatedRopes, automaticRopes: b.slideStats.automaticRopes } });
 // A sample regenerated live by the JS generator and compared field by field.
 const live = [...[0, 9, 10, 25, 39, 47, 58, 64, 77, 86, 99, 110, 119].map(index => ({ opts: { kind: 'journey' }, index })),
   ...cases.filter(c => !c.opts.colossal && c.opts.width * c.opts.height <= 300)];
-const reference = new Map(live.map(c => [c, pick(MFGame.generate({ ...c.opts, index: c.index }))]));
+const reference = new Map(live.map(c => [c, pick(MFGame.generate({ ...c.opts, index: c.index }))])); // still grid-generator.js here
 
 for (const [name, load] of Object.entries(backends)) {
   test(`${name}: every Journey level matches the JS generator`, async () => {
@@ -55,10 +56,21 @@ test('a set code that fits no board is an error, not a wrong board', async () =>
   assert.throws(() => MFMoonBit.wrap({ ...x, generate: () => 0 }, 'js').generate({ kind: 'journey', index: 0 }), /No board fits J3-MONKEYFIST level 1/);
   assert.ok(gen.generate({ kind: 'journey', index: 0 }).ropes.length);
 });
-test('generate() falls back to the JS generator when neither build loads', async () => {
+test('generate() rejects, not hangs, when neither build loads', async () => {
   // In Node there is no page to fetch moonbit/ from and no script loader, so load() fails.
-  const fresh = require('vm').runInNewContext(fs.readFileSync(path.join(root, 'web/generator.js'), 'utf8') + ';MFMoonBit', { MFGame, Error, Promise, Array, String, Object });
-  const made = [];
-  assert.strictEqual(await fresh.generate({ index: 2 }, o => (made.push(o), 'fallback board')), 'fallback board');
-  assert.deepStrictEqual(made, [{ index: 2 }]);
+  const fresh = require('vm').runInNewContext(fs.readFileSync(path.join(root, 'web/generator.js'), 'utf8') + ';MFMoonBit', { MFGame, Error, Promise, Array, String, Object, JSON, Number });
+  await assert.rejects(fresh.generate({ index: 2 }));
+});
+// The Journey builder (scripts/build-grid-journey.cjs) makes candidates from
+// specifications and re-measures them; this is what it stored for every level.
+test('every Journey specification regenerates with the stored play measurements', { timeout: 300000 }, () => {
+  const gen = MFMoonBit.local(), bad = [];
+  for (const [i, m] of journey.entries()) {
+    const b = gen.generateSpec(m), wins = gen.measure('journey/5/MONKEYFIST/measure/' + b.seed, b.springs.length ? 24 : 96);
+    const { manualSlides, manualBounces, repeatedRopes, automaticRopes } = m.slideStats;
+    const got = [b.par, b.layoutKey, Number(b.coverage.toFixed(4)), Number(wins.toFixed(4)), b.play.work, Number((b.play.work + 6 * (1 - wins)).toFixed(3)), b.slideStats, b.mechanicStats, Number(gen.targetChallenge(m.difficulty).toFixed(3))];
+    const want = [m.par, m.layoutKey, m.coverage, m.play.casualWins, m.play.work, m.play.challenge, { manualSlides, manualBounces, repeatedRopes, automaticRopes }, m.mechanicStats, m.targetChallenge];
+    if (JSON.stringify(got) !== JSON.stringify(want)) bad.push(i + 1);
+  }
+  assert.deepStrictEqual(bad, []);
 });

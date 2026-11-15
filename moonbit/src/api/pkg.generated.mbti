@@ -28,6 +28,8 @@ pub fn game_start() -> Int32
 
 pub fn game_status() -> Int32
 
+pub fn game_tap(Int32) -> Unit
+
 pub fn game_undo() -> Unit
 
 pub fn game_update(Double) -> Unit

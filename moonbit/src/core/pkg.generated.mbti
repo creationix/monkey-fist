@@ -24,6 +24,8 @@ pub fn bench_par(Board) -> Int32
 
 pub fn bends_of(Array[Pt]) -> Int32
 
+pub fn casual_measure(Board, String, Int32) -> Double
+
 pub fn contains(Array[Int32], Int32) -> Bool
 
 pub fn dmax(Double, Double) -> Double
@@ -33,6 +35,8 @@ pub fn dmin(Double, Double) -> Double
 pub fn floor_div(Int32, Int32) -> Int32
 
 pub fn generate(SetOpts, Int32) -> Level?
+
+pub fn generate_spec(Spec) -> Level?
 
 pub fn grid_generate(Spec) -> Level?
 
@@ -261,6 +265,14 @@ pub(all) struct Level {
   wins : Double
   challenge : Double
   layout_key : String
+  slides : Int32
+  bounces : Int32
+  repeated : Int32
+  automatic : Int32
+  used_mirrors : Int32
+  used_springs : Int32
+  manual_mirrors : Int32
+  manual_springs : Int32
 }
 
 #derive(Eq, @debug.Debug)
