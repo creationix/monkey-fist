@@ -8,23 +8,37 @@
 //
 // Nested scopes nest naturally (a call, then each attempt or rope inside it).
 // A result that must outlive a scope is allocated before entering it.
+//
+// Marks are addresses. alloc starts each allocation 8-byte aligned; extend grows
+// the topmost allocation by exactly n bytes, so an array whose length isn't known
+// in advance can be built in place: take a mark, extend once per element, and
+// the elements start at the mark (as long as nothing else is allocated meanwhile).
 
 def capacity = 16777216:u32
 data space = mut [0:u8; 16777216]
 global top: u32 = 0
 
-export func mark() -> u32 => top
+// The current top, as an address.
+export func mark() -> u32 => (space as u32) + top
 
 export func reset(m: u32) {
-  top = m
+  top = m - (space as u32)
 }
 
 // n bytes, 8-byte aligned. Traps when the stack is full: the game's work is
 // bounded by board size and search budgets, so this is a sizing bug, not a
 // condition to recover from.
 export func alloc(n: u32) -> (p: u32) {
+  top = (top + 7) & 0xFFFFFFF8
   p = (space as u32) + top
-  top += (n + 7) & 0xFFFFFFF8
+  top += n
+  assert top <= capacity
+}
+
+// n more bytes at the top, directly after what is there (no alignment).
+export func extend(n: u32) -> (p: u32) {
+  p = (space as u32) + top
+  top += n
   assert top <= capacity
 }
 
@@ -40,12 +54,26 @@ export func alloc_words(n: u32) -> (p: u32) {
 test "scopes free what they allocate, on every exit" {
   let base = mark()
   let a = alloc(10)
-  assert mark() == base + 16
+  assert mark() == base + 10
   let inner = mark()
   let b = alloc_words(4)
   assert b == a + 16
   reset(inner)
-  assert mark() == base + 16
+  assert mark() == base + 10
   reset(base)
   assert mark() == base
+}
+
+test "extend builds a contiguous array from a mark" {
+  let base = mark()
+  let start = mark()
+  for i in 5 {
+    let w = extend(4) as [*]mut u32
+    w[0] = i * 10
+  }
+  let words = start as [*]u32
+  assert words[0] == 0
+  assert words[4] == 40
+  assert mark() == start + 20
+  reset(base)
 }

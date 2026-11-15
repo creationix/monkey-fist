@@ -1,0 +1,529 @@
+// The hint solver for square boards without spinners: guide and sq_solve from
+// src/core/assist.mbt and square.mbt (levels.js's compact offset kernel before
+// that). A rope can only occupy cells of its own track: its body, then its way
+// out as fixed mirrors bend it. So a position is one offset per rope, and the
+// search is a depth-first search that remembers hopeless positions.
+//
+// JS writes i32 words at in_ptr(): W, H, budget, nMirrors, (q, r, kind)*,
+// nPaths, (len, (q, r)*)* with len 0 for a rope that is gone, nPrefer, prefer*.
+// guide() writes solved (1 yes, 0 no, 0xFFFFFFFF out of budget), nodes, the move
+// count and the moves at out_ptr(). It returns 0xFFFFFFFF if a rope's way out
+// passes a cell twice (the boards the game makes never do), else 0.
+//
+// Everything lives on the bump stack for one call; defer frees it on every return.
+// The board is in globals holding addresses: functions view them as typed
+// pointers (`let occ = occ_at as [*]mut i32`).
+
+import "../stack/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "alloc_words" func alloc_words(n: u32) -> u32
+  "extend" func extend(n: u32) -> u32
+)
+
+export "mem" memory
+
+data inbuf = mut [0:u8; 1048576]
+data outbuf = mut [0:u8; 262144]
+
+def gone = 32767:i32
+def none = 1000000:i32
+
+export func in_ptr() -> u32 => inbuf as u32
+export func out_ptr() -> u32 => outbuf as u32
+
+func word(k: u32) -> i32 => inbuf.i32[k]
+
+// The board, for one call: addresses of arrays on the stack.
+global width: i32 = 0
+global height: i32 = 0
+global n: u32 = 0
+global left: u32 = 0
+global slope_at: u32 = 0    // i32 per cell: -1 none, 0 '/', 1 '\'
+global occ_at: u32 = 0      // i32 per cell: the rope on it, or -1
+global at_at: u32 = 0       // i32 per cell: its index along that rope's track
+global seq_at: u32 = 0      // u32 per rope: the address of its track (cells)
+global total_at: u32 = 0    // u32 per rope: the track's length
+global len_at: u32 = 0      // u32 per rope: the rope's length (0 if gone)
+global off_at: u32 = 0      // i32 per rope: how far along it has slid, -1 once gone
+global was_at: u32 = 0      // i32 per rope: relax() scratch
+global now_at: u32 = 0      // i32 per rope: relax() scratch
+global rank_at: u32 = 0     // i32 per rope: its first place in the preferred order
+global later_at: u32 = 0    // i32 per rope: its last place in the preferred order
+
+// The search, for one call.
+global nodes: u32 = 0
+global limit: u32 = 0
+global gave_up: bool = false
+global moves_at: u32 = 0    // u32 per depth: the move stack
+global depth: u32 = 0
+
+// Pushes one word onto the stack top, directly after the last: tracks are built
+// this way, contiguously from a mark.
+func push_word(v: u32) {
+  let p = extend(4) as [*]mut u32
+  p[0] = v
+}
+
+// --- The board -------------------------------------------------------------
+
+func slope_of(c: i32) -> i32 {
+  return -1 when c < 0 || c >= width * height
+  let slope = slope_at as [*]i32
+  return slope[c as u32]
+}
+
+// Pushes the cells a head at (x, y) passes moving (dx, dy), up to the edge. ok is
+// false if that way out would enter a cell twice. marks holds a stamp per cell.
+func ray_cells(x0: i32, y0: i32, dx0: i32, dy0: i32, marks: [*]mut u32, stamp: u32) -> (ok: bool, count: u32) {
+  ok = true
+  count = 0
+  let x = x0
+  let y = y0
+  let dx = dx0
+  let dy = dy0
+  let turned = false
+  let start = mark()   // the ray continues the track being built
+  loop {
+    x += dx
+    y += dy
+    break when x < 0 || y < 0 || x >= width || y >= height
+    let c = y * width + x
+    push_word(c as u32)
+    count += 1
+    let s = slope_of(c)
+    if s >= 0 {
+      if s == 0 {
+        let t = dx
+        dx = 0 - dy
+        dy = 0 - t
+      } else {
+        let t2 = dx
+        dx = dy
+        dy = t2
+      }
+      turned = true
+      if count > (2 * width * height) as u32 {
+        ok = false
+        return
+      }
+    }
+  }
+  if turned {
+    let cells = start as [*]u32
+    for k in count {
+      if marks[cells[k]] == stamp {
+        ok = false
+        return
+      }
+      marks[cells[k]] = stamp
+    }
+  }
+  // Explicit: this compiler takes a trailing if as the named results' value.
+  return
+}
+
+// Where rope i would stop if tapped: its new offset, or -1 if it would leave.
+func slide_to(i: u32) -> i32 {
+  let seq = seq_at as [*]u32
+  let total = total_at as [*]u32
+  let len = len_at as [*]u32
+  let off = off_at as [*]i32
+  let occ = occ_at as [*]i32
+  let s = seq[i] as [*]u32
+  let p = (off[i] as u32) + len[i]
+  while p < total[i] && occ[s[p]] == -1 {
+    p += 1
+  }
+  return -1 when p == total[i]
+  return (p - len[i]) as i32
+}
+
+func place(i: u32, to: i32) {
+  let seq = seq_at as [*]u32
+  let len = len_at as [*]u32
+  let off = off_at as [*]mut i32
+  let occ = occ_at as [*]mut i32
+  let at = at_at as [*]mut i32
+  let s = seq[i] as [*]u32
+  let from = off[i]
+  if from >= 0 {
+    for p in len[i] {
+      occ[s[(from as u32) + p]] = -1
+    }
+    left -= 1
+  }
+  if to >= 0 {
+    for q in len[i] {
+      let c = s[(to as u32) + q]
+      occ[c] = i as i32
+      at[c] = ((to as u32) + q) as i32
+    }
+    left += 1
+  }
+  off[i] = to
+}
+
+// The relaxation: how many ropes certainly can never leave. Each rope advances as
+// far as it could if every rope ahead of it advanced first; repeat until none moves.
+func relax() -> u32 {
+  let seq = seq_at as [*]u32
+  let total = total_at as [*]u32
+  let len = len_at as [*]u32
+  let off = off_at as [*]i32
+  let occ = occ_at as [*]i32
+  let at = at_at as [*]i32
+  let was = was_at as [*]mut i32
+  let now = now_at as [*]mut i32
+  let waiting: u32 = 0
+  for i in n {
+    let x = gone
+    if off[i] >= 0 {
+      x = off[i]
+      waiting += 1
+    }
+    was[i] = x
+    now[i] = x
+  }
+  let moved = true
+  while moved && waiting > 0 {
+    moved = false
+    for j in n {
+      if was[j] != gone {
+        let s = seq[j] as [*]u32
+        let r = was[j]
+        loop {
+          let p = (r as u32) + len[j]
+          if p >= total[j] {
+            r = gone
+            break
+          }
+          let c = s[p]
+          let z = occ[c]
+          break when z != -1 && (z == j as i32 || was[z as u32] <= at[c])
+          r += 1
+        }
+        if r != was[j] {
+          now[j] = r
+          moved = true
+          if r == gone {
+            waiting -= 1
+          }
+        }
+      }
+    }
+    for k in n {
+      was[k] = now[k]
+    }
+  }
+  return waiting
+}
+
+// --- Hopeless positions: a set of offset vectors -----------------------------
+
+// Open addressing over (hash, key address) pairs; a key is n offsets. The search
+// adds at most one key per node, so the table is sized from the node limit and
+// never grows. Keys must outlive the search frame that finds them (each frame
+// frees its scratch on return), so they go in a pool reserved before the search
+// starts, with its own cursor.
+global table_at: u32 = 0
+global mask: u32 = 0
+global pool: u32 = 0
+
+func position_hash() -> (h: u32) {
+  let off = off_at as [*]i32
+  h = 0x811c9dc5
+  for i in n {
+    h = (h ^ (off[i] as u32)) * 0x01000193
+  }
+}
+
+// The slot of the current position: its own, or the empty one where it would go.
+func probe(h: u32) -> u32 {
+  let table = table_at as [*]u32
+  let off = off_at as [*]i32
+  let s = h & mask
+  loop {
+    let key = table[s * 2 + 1]
+    return s when key == 0
+    if table[s * 2] == h {
+      let k = key as [*]i32
+      let same = true
+      for i in n {
+        if k[i] != off[i] {
+          same = false
+          break
+        }
+      }
+      return s when same
+    }
+    s = (s + 1) & mask
+  }
+  return s
+}
+
+func hopeless() -> bool {
+  let table = table_at as [*]u32
+  return table[probe(position_hash()) * 2 + 1] != 0
+}
+
+// Remembers the current position as hopeless.
+func give_up_on() {
+  let table = table_at as [*]mut u32
+  let off = off_at as [*]i32
+  let h = position_hash()
+  let s = probe(h)
+  let key = pool as [*]mut i32
+  pool += n * 4
+  for i in n {
+    key[i] = off[i]
+  }
+  table[s * 2] = h
+  table[s * 2 + 1] = key as u32
+}
+
+// --- The search ---------------------------------------------------------------
+
+func search() -> bool {
+  return true when left == 0
+  nodes += 1
+  if nodes > limit {
+    gave_up = true
+    return false
+  }
+  return false when hopeless()
+  if relax() > 0 {
+    give_up_on()
+    return false
+  }
+  // This frame's moves to try, freed when it returns.
+  let frame = mark()
+  defer reset(frame)
+  let off = off_at as [*]i32
+  let rank = rank_at as [*]i32
+  let later = later_at as [*]i32
+  let moves = moves_at as [*]mut u32
+  // (rope, destination, order) triples, best first.
+  let tries = alloc(n * 12) as [*]mut i32
+  let count: u32 = 0
+  for i in n {
+    if off[i] >= 0 {
+      let to = slide_to(i)
+      if to != off[i] {
+        let r = rank[i]
+        if off[i] != 0 {
+          r = later[i]
+        }
+        // Order by (r * 2 + (leaves ? 0 : 1), rope). Ropes arrive in increasing
+        // order, so stopping at equal keys gives the stable sort's order.
+        let key = r * 2 + 1
+        if to < 0 {
+          key = r * 2
+        }
+        let k = count
+        while k > 0 && tries[(k - 1) * 3 + 2] > key {
+          tries[k * 3] = tries[(k - 1) * 3]
+          tries[k * 3 + 1] = tries[(k - 1) * 3 + 1]
+          tries[k * 3 + 2] = tries[(k - 1) * 3 + 2]
+          k -= 1
+        }
+        tries[k * 3] = i as i32
+        tries[k * 3 + 1] = to
+        tries[k * 3 + 2] = key
+        count += 1
+      }
+    }
+  }
+  for t in count {
+    let rope = tries[t * 3] as u32
+    let from = off[rope]
+    place(rope, tries[t * 3 + 1])
+    moves[depth] = rope
+    depth += 1
+    return true when search()
+    depth -= 1
+    place(rope, from)
+    return false when gave_up
+  }
+  give_up_on()
+  return false
+}
+
+// --- Entry point ----------------------------------------------------------------
+
+export func guide() -> u32 {
+  let call = mark()
+  defer reset(call)
+
+  width = word(0)
+  height = word(1)
+  let budget = word(2) as u32
+  let cells = (width * height) as u32
+  slope_at = alloc(cells * 4)
+  occ_at = alloc(cells * 4)
+  at_at = alloc_words(cells)
+  let slope = slope_at as [*]mut i32
+  let occ = occ_at as [*]mut i32
+  let at = at_at as [*]mut i32
+  for c in cells {
+    slope[c] = -1
+    occ[c] = -1
+  }
+  let k: u32 = 3
+  let mirrors = word(k) as u32
+  k += 1
+  for m in mirrors {
+    slope[(word(k + 1) * width + word(k)) as u32] = word(k + 2)
+    k += 3
+  }
+  n = word(k) as u32
+  k += 1
+  seq_at = alloc_words(n)
+  total_at = alloc_words(n)
+  len_at = alloc_words(n)
+  off_at = alloc(n * 4)
+  was_at = alloc_words(n)
+  now_at = alloc_words(n)
+  rank_at = alloc(n * 4)
+  later_at = alloc(n * 4)
+  let seq = seq_at as [*]mut u32
+  let total = total_at as [*]mut u32
+  let len = len_at as [*]mut u32
+  let off = off_at as [*]mut i32
+  let rank = rank_at as [*]mut i32
+  let later = later_at as [*]mut i32
+  let marks = alloc_words(cells) as [*]mut u32
+  left = 0
+  for i in n {
+    off[i] = -1
+    rank[i] = none
+    later[i] = none
+    let l = word(k) as u32
+    k += 1
+    if l > 0 {
+      // The track: the rope's own cells, then its way out, contiguous on the stack.
+      let track = alloc(0)
+      for p in l {
+        push_word((word(k + 1) * width + word(k)) as u32)
+        k += 2
+      }
+      let body = track as [*]u32
+      let hx = (body[l - 1] as i32) % width
+      let hy = (body[l - 1] as i32) / width
+      let dx = hx - (body[l - 2] as i32) % width
+      let dy = hy - (body[l - 2] as i32) / width
+      let out_cells: u32 = 0
+      if mirrors > 0 {
+        // The way out leaves the head's own mirror already turned.
+        let s = slope_of(hy * width + hx)
+        if s == 0 {
+          let t = dx
+          dx = 0 - dy
+          dy = 0 - t
+        } elif s == 1 {
+          let t2 = dx
+          dx = dy
+          dy = t2
+        }
+        let (ok:, count:) = ray_cells(hx, hy, dx, dy, marks, i + 1)
+        return 0xFFFFFFFF when !ok
+        out_cells = count
+      } else {
+        let x = hx + dx
+        let y = hy + dy
+        while x >= 0 && y >= 0 && x < width && y < height {
+          push_word((y * width + x) as u32)
+          out_cells += 1
+          x += dx
+          y += dy
+        }
+      }
+      seq[i] = track
+      total[i] = l + out_cells
+      len[i] = l
+      for j in l {
+        occ[body[j]] = i as i32
+        at[body[j]] = j as i32
+      }
+      off[i] = 0
+      left += 1
+    }
+  }
+  let prefers = word(k) as u32
+  k += 1
+  let prefer = ((inbuf as u32) + k * 4) as [*]i32
+  for p2 in prefers {
+    let rope = prefer[p2]
+    if rope >= 0 && (rope as u32) < n {
+      if rank[rope as u32] == none {
+        rank[rope as u32] = p2 as i32
+      }
+      later[rope as u32] = p2 as i32
+    }
+  }
+  let out = outbuf as [*]mut u32
+
+  // First the preferred order itself: an earlier exit can make later taps of the
+  // same rope redundant, and the old certificate often still solves the board.
+  let tapped: u32 = 0
+  for p3 in prefers {
+    let r3 = prefer[p3]
+    if r3 >= 0 && (r3 as u32) < n && off[r3 as u32] >= 0 {
+      let i3 = r3 as u32
+      let to = slide_to(i3)
+      break when to == off[i3]
+      place(i3, to)
+      out[3 + tapped] = i3
+      tapped += 1
+    }
+  }
+  if left == 0 {
+    out[0] = 1
+    out[1] = 0
+    out[2] = tapped
+    return 0
+  }
+  // Not solved that way: search from the start, where every rope still here is
+  // at offset 0. Lift the moved ropes first, so none is put back on cells another
+  // is still leaving.
+  for i2 in n {
+    if off[i2] > 0 {
+      place(i2, -1)
+    }
+  }
+  for i4 in n {
+    if len[i4] > 0 && off[i4] != 0 {
+      place(i4, 0)
+    }
+  }
+
+  limit = budget
+  if budget == 0 {
+    limit = 20000
+  }
+  mask = 15
+  while mask < limit * 2 {
+    mask = mask * 2 + 1
+  }
+  table_at = alloc_words((mask + 1) * 2)
+  pool = alloc((limit + 1) * n * 4)
+  moves_at = alloc((limit + 1) * 4)
+  nodes = 0
+  depth = 0
+  gave_up = false
+  let solved = search()
+  out[0] = 0
+  if solved {
+    out[0] = 1
+  } elif gave_up {
+    out[0] = 0xFFFFFFFF
+  }
+  out[1] = nodes
+  out[2] = depth
+  let moves = moves_at as [*]u32
+  for d in depth {
+    out[3 + d] = moves[d]
+  }
+  return 0
+}

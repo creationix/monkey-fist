@@ -9,8 +9,8 @@ comptime generics for the containers on top.
 
 | File | What it is |
 | --- | --- |
-| `defer.patch` | `defer` for the Encantis compiler, against `prep/finalize` (applies cleanly: grammar, AST, actions, checker, codegen) |
-| `stack.ents` | The bump stack: `mark`, `alloc`, `alloc_words`, `reset` (≈20 lines, plus a test) |
+| `defer.patch` | `defer` for the Encantis compiler, against `prep/finalize`. Superseded by creationix/encantis#2, which adds tests and docs |
+| `stack.ents` | The bump stack: `mark`, `alloc`, `extend`, `alloc_words`, `reset` (≈25 lines, plus tests) |
 | `features.ents`, `.wasm` | `reachableFeatures` on the stack, with `defer` |
 | `containers.draft.ents` | Draft syntax, not compiled: `Vec(T)` and `Set(K)` with comptime type parameters |
 
@@ -48,11 +48,15 @@ A small program checks the order of output across `return`, `return when`,
 ## The bump stack
 
 ```ents
-export func mark() -> u32 => top
-export func reset(m: u32) { top = m }
-export func alloc(n: u32) -> (p: u32) { … }        // 8-aligned bump; traps when full
-export func alloc_words(n: u32) -> (p: u32) { … }  // zeroed
+export func mark() -> u32 => (space as u32) + top   // marks are addresses
+export func reset(m: u32) { top = m - (space as u32) }
+export func alloc(n: u32) -> (p: u32) { … }         // 8-aligned bump; traps when full
+export func extend(n: u32) -> (p: u32) { … }        // grow the topmost allocation by exactly n
+export func alloc_words(n: u32) -> (p: u32) { … }   // zeroed
 ```
+
+`extend` was added for the solver (`../solver/`). It builds an array whose length
+isn't known in advance in place, from a mark.
 
 Scopes nest. In `reachable()`:
 - one scope covers the call: the per-cell tables;
