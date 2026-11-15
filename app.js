@@ -62,16 +62,19 @@ function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
 }
-// Workers can exist and still fail to load or start (some older iPads). After the
-// first such failure, every background job runs on the main thread instead.
-let workersWork = typeof Worker !== 'undefined';
+// After a worker fails to load, every background job runs on the main thread. A
+// worker that finished its job waits for the next one, so jobs don't each reload
+// the scripts (tens of milliseconds, far more on old iPads); cancelling terminates.
+let workersWork = typeof Worker !== 'undefined', spare = null;
 const WORKER = 'generator-worker.js?v=23';
+const takeWorker = () => { const worker = spare || new Worker(WORKER); spare = null; return worker; };
+const park = worker => { worker.onmessage = worker.onerror = null; if (spare) worker.terminate(); else spare = worker; };
 function startWorker(message, receive, fallback) {
   if (workersWork) try {
-    const worker = new Worker(WORKER);
-    worker.onmessage = ({ data }) => receive(data);
+    const worker = takeWorker(), job = { terminate: () => worker.terminate() };
+    worker.onmessage = ({ data }) => { job.terminate = () => {}; park(worker); receive(data); };
     worker.onerror = event => { event.preventDefault?.(); worker.terminate(); workersWork = false; fallback(); };
-    worker.postMessage(message); return worker;
+    worker.postMessage(message); return job;
   } catch { workersWork = false; }
   fallback(); return null;
 }
@@ -158,12 +161,12 @@ function weave(options) {
       retryTimer = null; attempts++;
       try {
         const url = WORKER + (attempts > 1 ? '&retry=' + Date.now().toString(36) : '');
-        const current = worker = new Worker(url);
+        const current = worker = attempts > 1 ? new Worker(url) : takeWorker();
         current.onmessage = ({ data }) => {
           if (settled || worker !== current) return;
           if (data?.error) { failed(); return; }
           if (!Array.isArray(data?.level?.ropes) || !Array.isArray(data.level.plan)) { failed(); return; }
-          finish(data.level);
+          worker = null; park(current); finish(data.level);
         };
         current.onerror = event => {
           if (settled || worker !== current) return;
@@ -425,8 +428,7 @@ function resize() {
   canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   restingCanvas.width = canvas.width; restingCanvas.height = canvas.height; restingContext.setTransform(dpr, 0, 0, dpr, 0, 0); restingKey = [];
   if (!G.level) return;
-  const points = H.cells(G.level).map(p => H.project(p, G.level)), minX = Math.min(...points.map(p => p.x)) - .6, maxX = Math.max(...points.map(p => p.x)) + .6;
-  const minY = Math.min(...points.map(p => p.y)) - .6, maxY = Math.max(...points.map(p => p.y)) + .6, w = maxX - minX, h = maxY - minY;
+  const points = H.cells(G.level).map(p => H.project(p, G.level)), { minX, maxX, minY, maxY } = bounds(points, .6), w = maxX - minX, h = maxY - minY;
   // Fit leaves the floating controls clear. Zooming/panning still uses the entire
   // screen. In portrait the controls sit above and below the board, so measure
   // them: a fixed allowance let tall control stacks cover the board's corners.
@@ -563,18 +565,20 @@ function springDrawing(i, flip) {
   if (t < .08) angle = Math.atan2(from.head.y, from.head.x) + Math.PI * ease(t / .08);
   return { points, head: { x: Math.cos(angle), y: Math.sin(angle) }, foldIndex: samples.indexOf(length) };
 }
+// The bounding box of points, widened by pad on every side.
+function bounds(points, pad = 0) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
+  return { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad };
+}
 function exitCleared(i) {
-  const points = visiblePath(i).map(screen), margin = G.view.scale * .52;
-  const minX = Math.min(...points.map(p => p.x)) - margin, maxX = Math.max(...points.map(p => p.x)) + margin;
-  const minY = Math.min(...points.map(p => p.y)) - margin, maxY = Math.max(...points.map(p => p.y)) + margin;
+  const { minX, maxX, minY, maxY } = bounds(visiblePath(i).map(screen), G.view.scale * .52);
   const outside = b => maxX < b.x || minX > b.x + b.w || maxY < b.y || minY > b.y + b.h;
   return outside({ x: 0, y: 0, w: width, h: height }) && outside(G.view.panel);
 }
 function drawRope(i, time) {
   const moving = G.moves.get(i), flip = springFlip(moving), drawing = flip ? springDrawing(i, flip) : ropeDrawing(i); if (!drawing) return;
-  const { points, head } = drawing, s = G.view.scale, col = color(i);
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of points) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
+  const { points, head } = drawing, s = G.view.scale, col = color(i), { minX, maxX, minY, maxY } = bounds(points);
   if (maxX < -s || minX > width + s || maxY < -s || minY > height + s) return;
   ctx.save();
   if (moving?.waiting) {
@@ -583,17 +587,11 @@ function drawRope(i, time) {
   if (flip && reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
-  const tip = points.at(-1);
   const { x: dx, y: dy } = head;
-  const arrow = (grow, fill) => {
-    const reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
-    path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
-    ctx.fillStyle = fill; ctx.fill();
-  };
   if (G.hint === i || G.selected === i) {
     const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
     MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting, save.graphics, head);
-    if (save.graphics !== 'tiles') arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
+    if (save.graphics !== 'tiles') arrowhead(points.at(-1), head, s * .53, s * .41, '#fff1b4'); ctx.shadowBlur = 0;
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
@@ -606,6 +604,12 @@ function drawRope(i, time) {
   } else MFRopeArt.draw(ctx, points, s * .4, col, { x: dx, y: dy }, animated, save.graphics);
   ctx.restore();
 }
+// A highlight's arrowhead: reach ahead of the tip, half its width behind it.
+function arrowhead(tip, { x: dx, y: dy }, reach, half, fill) {
+  const back = G.view.scale * .12;
+  path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
+  ctx.fillStyle = fill; ctx.fill();
+}
 function drawActivations() {
   // Flash the sprite that is actually on screen, including a paused route or
   // the outgoing side of a queued spring. The logical rope may already be gone.
@@ -613,14 +617,10 @@ function drawActivations() {
     const move = G.moves.get(id); if (!move && !G.paths[id]) continue;
     const flip = springFlip(move), drawing = flip ? springDrawing(id, flip) : ropeDrawing(id);
     if (!drawing) continue;
-    const { points, head } = drawing, s = G.view.scale, tip = points.at(-1);
+    const { points, head } = drawing, s = G.view.scale;
     ctx.save(); ctx.globalAlpha *= .28 * Math.min(1, remaining / .18);
     MFRopeArt.stroke(ctx, points, s * .4, s * .43, '#fff8dc', !!move && !move.waiting, save.graphics, head);
-    if (save.graphics !== 'tiles') {
-      const dx = head.x, dy = head.y, reach = s * .44, back = s * .12, half = s * .308;
-      path(ctx, [{ x: tip.x + dx * reach, y: tip.y + dy * reach }, { x: tip.x - dx * back - dy * half, y: tip.y - dy * back + dx * half }, { x: tip.x - dx * back + dy * half, y: tip.y - dy * back - dx * half }], true);
-      ctx.fillStyle = '#fff8dc'; ctx.fill();
-    }
+    if (save.graphics !== 'tiles') arrowhead(points.at(-1), head, s * .44, s * .308, '#fff8dc');
     ctx.restore();
   }
 }
@@ -685,14 +685,13 @@ function drawMirrors(activeSprings, dynamic = false) {
     const d = G.level.grid === 'hex' ? H.DIRS[mirror.axis] : mirror.slope === '/' ? [1, -1] : [1, 1];
     const a = screen(H.add(mirror.cell, d, -.37)), b = screen(H.add(mirror.cell, d, .37));
     const length = Math.hypot(b.x - a.x, b.y - a.y);
+    ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
     if (save.graphics === 'tiles') {
-      ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
       const alpha = ctx.globalAlpha, glass = new Path2D(); glass.rect(-length / 2, -s * .08, length, s * .16);
       ctx.globalAlpha = alpha * .4; ctx.fillStyle = '#8edce0'; ctx.fill(glass);
       ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#9ad7d4'; ctx.lineWidth = s * .03; ctx.lineJoin = 'bevel'; ctx.stroke(glass);
       ctx.restore(); continue;
     }
-    ctx.save(); ctx.globalAlpha *= opacity; ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2); ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
     ctx.lineCap = ctx.lineJoin = 'round';
     // Soft glass in a rounded, cord-bound frame. Both faces remain identical.
     path(ctx, [{ x: -length / 2, y: 0 }, { x: length / 2, y: 0 }]);

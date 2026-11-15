@@ -7,6 +7,7 @@ function harness(behavior, generate = () => { throw Error('Unexpected main-threa
   const calls = [], local = [], context = {setTimeout,clearTimeout,Date,Array,Error,Promise,
     H:{code:()=> 'J3-MONKEYFIST',generate:options=>{local.push(options);return generate(options);}},
     levelCache:new Map(),pendingGeneration:null,workersWork:true,WORKER:'generator-worker.js?v=23',local};
+  context.takeWorker=()=>new context.Worker(context.WORKER);context.park=w=>w.terminate();
   context.MFMoonBit={generate:async(options,fallback)=>fallback(options)};
   context.Worker = class {
     constructor(url) {this.url=url;this.terminated=false;calls.push(this);behavior(this,calls.length,'construct');}
