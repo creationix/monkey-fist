@@ -743,10 +743,15 @@ function drawGrid() {
   ctx.lineWidth = Math.max(.6, Math.min(1, s * .025)); ctx.stroke(v.grid.lines);
   ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots); ctx.restore();
 }
+// Path2D.roundRect needs Safari 16, so trace the corners for iOS 15 iPads.
+function roundedRect(path, x, y, w, h, r) {
+  path.moveTo(x + r, y); path.arcTo(x + w, y, x + w, y + h, r); path.arcTo(x + w, y + h, x, y + h, r);
+  path.arcTo(x, y + h, x, y, r); path.arcTo(x, y, x + w, y, r); path.closePath();
+}
 function drawRestingBoard(activeSprings) {
   ctx.clearRect(0, 0, width, height);
   const board = new Path2D(), b = G.view.panel, s = G.view.scale;
-  board.roundRect(b.x, b.y, b.w, b.h, Math.min(22, s * .4));
+  roundedRect(board, b.x, b.y, b.w, b.h, Math.min(22, s * .4));
   const surface = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
   surface.addColorStop(0, save.oled ? '#ffffff04' : '#ffffff0c'); surface.addColorStop(1, save.oled ? '#ffffff02' : '#ffffff06');
   ctx.fillStyle = surface; ctx.fill(board); ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 1.5; ctx.stroke(board);
