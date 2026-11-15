@@ -7067,17 +7067,17 @@ function _M0MP310monkeyfist2mf4core9SqMirrors3has(self, c) {
   return _M0MP310monkeyfist2mf4core9SqMirrors3get(self, c) >= 0;
 }
 function _M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env, path) {
-  const mirrors = _env._2;
-  const w = _env._1;
-  const h = _env._0;
+  const h = _env._2;
+  const mirrors = _env._1;
+  const w = _env._0;
   return _M0FP310monkeyfist2mf4core13self__blocked(path, w, h, mirrors);
 }
 function _M0FP310monkeyfist2mf4core5weaveN4growS3737(_env, start, first, straight) {
   const occ = _env._4;
-  const w = _env._3;
-  const cfg = _env._2;
-  const h = _env._1;
-  const rng = _env._0;
+  const h = _env._3;
+  const w = _env._2;
+  const rng = _env._1;
+  const cfg = _env._0;
   const want = cfg.len_lo + _M0MP310monkeyfist2mf4core3Rng5below(rng, (cfg.len_hi - cfg.len_lo | 0) + 1 | 0) | 0;
   const cells = new _M0TPB5ArrayGiE([start], 1);
   let last = -1;
@@ -7187,10 +7187,10 @@ function _M0FP310monkeyfist2mf4core5weaveN4growS3737(_env, start, first, straigh
   return cells;
 }
 function _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env, x, y, d) {
-  const mirrors = _env._3;
-  const occ = _env._2;
-  const w = _env._1;
-  const h = _env._0;
+  const occ = _env._3;
+  const h = _env._2;
+  const mirrors = _env._1;
+  const w = _env._0;
   const cells = new _M0TPB5ArrayGiE([], 0);
   const dx = d >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[d] : $oob();
   const dy = d >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[d] : $oob();
@@ -7243,20 +7243,20 @@ function _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env, path, st) {
   return _M0MP310monkeyfist2mf4core10Intentions5trial(ib, path, st, order.val);
 }
 function _M0FP310monkeyfist2mf4core5weaveN6commitS3740(_env, c) {
-  const bend_sum = _env._13;
-  const mirrors = _env._12;
-  const occ = _env._11;
-  const order = _env._10;
-  const total0 = _env._9;
-  const ib = _env._8;
-  const knots = _env._7;
-  const b = _env._6;
-  const mirror_used = _env._5;
-  const w = _env._4;
-  const traps = _env._3;
-  const rest = _env._2;
-  const covered = _env._1;
-  const mirrors_used = _env._0;
+  const mirror_used = _env._13;
+  const knots = _env._12;
+  const b = _env._11;
+  const total0 = _env._10;
+  const occ = _env._9;
+  const mirrors_used = _env._8;
+  const mirrors = _env._7;
+  const rest = _env._6;
+  const w = _env._5;
+  const order = _env._4;
+  const covered = _env._3;
+  const ib = _env._2;
+  const traps = _env._1;
+  const bend_sum = _env._0;
   const id = _M0MP310monkeyfist2mf4core10Intentions3add(ib, c.path, c.pull > 0 ? new _M0TPB5ArrayGiE([c.pull], 1) : new _M0TPB5ArrayGiE([], 0));
   if (mirrors.keys.len > 0) {
     const _bind$4 = b.seq;
@@ -7385,23 +7385,23 @@ function _M0FP310monkeyfist2mf4core5weaveN6commitS3740(_env, c) {
   }
 }
 function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
-  const mirrors = _env._16;
-  const _env$2 = _env._15;
-  const occ = _env._14;
-  const ahead = _env._13;
-  const up = _env._12;
-  const _env$3 = _env._11;
-  const xy = _env._10;
-  const total0 = _env._9;
-  const _env$4 = _env._8;
-  const ib = _env._7;
-  const mirror_used = _env._6;
-  const w = _env._5;
-  const cfg = _env._4;
-  const _env$5 = _env._3;
-  const h = _env._2;
-  const nn = _env._1;
-  const rng = _env._0;
+  const mirror_used = _env._16;
+  const ahead = _env._15;
+  const total0 = _env._14;
+  const occ = _env._13;
+  const h = _env._12;
+  const mirrors = _env._11;
+  const _env$2 = _env._10;
+  const _env$3 = _env._9;
+  const w = _env._8;
+  const nn = _env._7;
+  const rng = _env._6;
+  const _env$4 = _env._5;
+  const _env$5 = _env._4;
+  const xy = _env._3;
+  const ib = _env._2;
+  const cfg = _env._1;
+  const up = _env._0;
   let start = at >= 0 ? at : -1;
   let dir = -1;
   if (kind === 5) {
@@ -7642,7 +7642,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
               if (_tmp$10) {
                 break _L$3;
               }
-              const _bind$5 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$5, s.q, s.r, d);
+              const _bind$5 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$4, s.q, s.r, d);
               if (_bind$5 === undefined) {
                 break _L$3;
               } else {
@@ -7703,7 +7703,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
           }
           const path = _p;
           _M0MPC15array5Array14rev__in__placeGRP310monkeyfist2mf4core2PtE(path);
-          if (cells.len >= cfg.min_len && !_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, path)) {
+          if (cells.len >= cfg.min_len && !_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$5, path)) {
             _return_value = new _M0TP310monkeyfist2mf4core6Shaped(cells, path, o._1);
             break _L$2;
           }
@@ -7747,7 +7747,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
         const _ = _tmp$10;
         if (_ < _bind$5) {
           const p = _bind$6[_];
-          if (!_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, p)) {
+          if (!_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$5, p)) {
             const hd = _M0FP310monkeyfist2mf4core4last(p);
             const _bind$7 = _M0FP310monkeyfist2mf4core9head__dir(p);
             const _dx = _bind$7._0;
@@ -7777,7 +7777,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
               }
               _tmp$13 = _return_value$2;
             }
-            const _p$4 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$5, _tmp$11, _tmp$12, _tmp$13);
+            const _p$4 = _M0FP310monkeyfist2mf4core5weaveN8way__outS3738(_env$4, _tmp$11, _tmp$12, _tmp$13);
             let _tmp$14;
             if (_p$4 === undefined) {
               _tmp$14 = $panic();
@@ -7849,7 +7849,7 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
   } else {
     const _Some = _bind$4;
     const _c = _Some;
-    const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env$4, _c.path, new _M0TPB5ArrayGiE([], 0));
+    const sum = _M0FP310monkeyfist2mf4core5weaveN5trialS3739(_env$2, _c.path, new _M0TPB5ArrayGiE([], 0));
     if (sum < 0) {
       return undefined;
     }
@@ -7858,8 +7858,8 @@ function _M0FP310monkeyfist2mf4core5weaveN9candidateS3741(_env, kind, at) {
 }
 function _M0FP310monkeyfist2mf4core5weaveN5belowS3742(_env, blockers) {
   const stamp = _env._2;
-  const blk = _env._1;
-  const mark = _env._0;
+  const mark = _env._1;
+  const blk = _env._0;
   stamp.val = stamp.val + 1 | 0;
   const stack = _M0MPC15array5Array4copyGiE(blockers);
   const _bind$4 = stack.len;
@@ -7970,14 +7970,14 @@ function _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, cells) {
   return p;
 }
 function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
-  const _env$2 = _env._7;
-  const occ = _env._6;
-  const xy = _env._5;
-  const _env$3 = _env._4;
-  const w = _env._3;
-  const cfg = _env._2;
-  const h = _env._1;
-  const rng = _env._0;
+  const occ = _env._7;
+  const h = _env._6;
+  const w = _env._5;
+  const _env$2 = _env._4;
+  const rng = _env._3;
+  const _env$3 = _env._2;
+  const xy = _env._1;
+  const cfg = _env._0;
   const back = (spot.di + 2 | 0) % 4 | 0;
   const _p = k + 2 | 0;
   const _p$2 = cfg.len_lo + _M0MP310monkeyfist2mf4core3Rng5below(rng, (cfg.len_hi - cfg.len_lo | 0) + 1 | 0) | 0;
@@ -8019,7 +8019,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
           const nx = x + (di >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[di] : $oob()) | 0;
           const ny = y + (di >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[di] : $oob()) | 0;
           const nc = (Math.imul(ny, w) | 0) + nx | 0;
-          if (nx >= 0 && (ny >= 0 && (nx < w && (ny < h && ((nc >>> 0 < occ.length ? occ[nc] : $oob()) === -1 && (!body || !_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, nc))))))) {
+          if (nx >= 0 && (ny >= 0 && (nx < w && (ny < h && ((nc >>> 0 < occ.length ? occ[nc] : $oob()) === -1 && (!body || !_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$2, nc))))))) {
             _M0MPC15array5Array4pushGiE(opts, di);
           }
           _tmp$10 = di + 1 | 0;
@@ -8064,7 +8064,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
             const _p$6 = _tmp$11;
             if (_p$6 < _p$4) {
               const _p$7 = _p$5[_p$6];
-              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, ((Math.imul(y + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[_p$7] : $oob()) | 0, w) | 0) + x | 0) + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[_p$7] : $oob()) | 0)) {
+              if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$2, ((Math.imul(y + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dy.length ? _M0FP310monkeyfist2mf4core6sq__dy[_p$7] : $oob()) | 0, w) | 0) + x | 0) + (_p$7 >>> 0 < _M0FP310monkeyfist2mf4core6sq__dx.length ? _M0FP310monkeyfist2mf4core6sq__dx[_p$7] : $oob()) | 0)) {
                 _M0MPC15array5Array4pushGiE(_p$3, _p$7);
               }
               _tmp$11 = _p$6 + 1 | 0;
@@ -8105,7 +8105,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
         _M0MPC15array5Array4pushGiE(cells, nc);
       } else {
         _M0MPC15array5Array4pushGiE(tail, nc);
-        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$3, nc)) {
+        if (_M0FP310monkeyfist2mf4core5weaveN4tiedS3743(_env$2, nc)) {
           got = true;
         }
       }
@@ -8157,7 +8157,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
   if (_tmp$13 < (_p$3 > _p$4 ? _p$3 : _p$4)) {
     _tmp$12 = true;
   } else {
-    _tmp$12 = _M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, cells));
+    _tmp$12 = _M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$3, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, cells));
   }
   if (_tmp$12) {
     return undefined;
@@ -8181,7 +8181,7 @@ function _M0FP310monkeyfist2mf4core5weaveN4walkS3745(_env, spot, k) {
         break;
       }
     }
-    if (_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$2, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, joined))) {
+    if (_M0FP310monkeyfist2mf4core5weaveN7blockedS3736(_env$3, _M0FP310monkeyfist2mf4core5weaveN8to__pathS3744(xy, joined))) {
       return undefined;
     }
   }
@@ -8203,7 +8203,7 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
   const occ = $make_array_len_and_init(nn, -1);
   const mirrors = cfg.mirrors;
   const xy = (c) => new _M0TP310monkeyfist2mf4core2Pt(c % w | 0, c / w | 0);
-  const _env = { _0: h, _1: w, _2: mirrors };
+  const _env = { _0: w, _1: mirrors, _2: h };
   const _bind$4 = mirrors.keys;
   const _bind$5 = _bind$4.len;
   const _bind$6 = _bind$4.buf;
@@ -8234,10 +8234,10 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
   const mirror_used = $make_array_len_and_init(nn, false);
   const mirrors_used = new _M0TPB8MutLocalGiE(0);
   const rest = $make_array_len_and_init(nn, -1);
-  const _env$2 = { _0: rng, _1: h, _2: cfg, _3: w, _4: occ };
-  const _env$3 = { _0: h, _1: w, _2: occ, _3: mirrors };
+  const _env$2 = { _0: cfg, _1: rng, _2: w, _3: h, _4: occ };
+  const _env$3 = { _0: w, _1: mirrors, _2: h, _3: occ };
   const _env$4 = { _0: ib, _1: order };
-  const _env$5 = { _0: mirrors_used, _1: covered, _2: rest, _3: traps, _4: w, _5: mirror_used, _6: b, _7: knots, _8: ib, _9: total0, _10: order, _11: occ, _12: mirrors, _13: bend_sum };
+  const _env$5 = { _0: bend_sum, _1: traps, _2: ib, _3: covered, _4: order, _5: w, _6: rest, _7: mirrors, _8: mirrors_used, _9: occ, _10: total0, _11: b, _12: knots, _13: mirror_used };
   const ahead = new _M0TPB8MutLocalGRPB5ArrayGRPB5ArrayGiEEE(new _M0TPB5ArrayGRPB5ArrayGiEE([], 0));
   const blk = new _M0TPB8MutLocalGRPB5ArrayGRPB5ArrayGiEEE(new _M0TPB5ArrayGRPB5ArrayGiEE([], 0));
   let lanes;
@@ -8260,12 +8260,12 @@ function _M0FP310monkeyfist2mf4core5weave(rng, cfg) {
     lanes = _p;
   }
   const up = $make_array_len_and_init(nn, 0);
-  const _env$6 = { _0: rng, _1: nn, _2: h, _3: _env$3, _4: cfg, _5: w, _6: mirror_used, _7: ib, _8: _env$4, _9: total0, _10: xy, _11: _env$2, _12: up, _13: ahead, _14: occ, _15: _env, _16: mirrors };
+  const _env$6 = { _0: up, _1: cfg, _2: ib, _3: xy, _4: _env, _5: _env$3, _6: rng, _7: nn, _8: w, _9: _env$2, _10: _env$4, _11: mirrors, _12: h, _13: occ, _14: total0, _15: ahead, _16: mirror_used };
   const mark = $make_array_len_and_init(nn + 1 | 0, 0);
   const stamp = new _M0TPB8MutLocalGiE(0);
-  const _env$7 = { _0: mark, _1: blk, _2: stamp };
+  const _env$7 = { _0: blk, _1: mark, _2: stamp };
   const _env$8 = { _0: mark, _1: lanes, _2: stamp };
-  const _env$9 = { _0: rng, _1: h, _2: cfg, _3: w, _4: _env$8, _5: xy, _6: occ, _7: _env };
+  const _env$9 = { _0: cfg, _1: xy, _2: _env, _3: rng, _4: _env$8, _5: w, _6: h, _7: occ };
   const mean_len = ((cfg.len_lo + cfg.len_hi | 0) + 0) / 2 * 0.85;
   const cover_goal = cfg.cover * (nn + 0);
   const kinds_any = new _M0TPB5ArrayGiE([3], 1);
@@ -9146,13 +9146,13 @@ function _M0FP310monkeyfist2mf4core7key__of(a) {
 function _M0FP310monkeyfist2mf4core9sq__solveN6searchS4332(_env) {
   const later = _env._8;
   const limit = _env._7;
-  const gave_up = _env._6;
-  const nodes = _env._5;
-  const moves = _env._4;
-  const b = _env._3;
-  const hopeless = _env._2;
-  const rank = _env._1;
-  const n = _env._0;
+  const rank = _env._6;
+  const n = _env._5;
+  const b = _env._4;
+  const moves = _env._3;
+  const gave_up = _env._2;
+  const hopeless = _env._1;
+  const nodes = _env._0;
   if (b.left === 0) {
     return true;
   }
@@ -9267,7 +9267,7 @@ function _M0FP310monkeyfist2mf4core9sq__solve(paths, w, h, budget, prefer, m) {
   }
   const nodes = new _M0TPB8MutLocalGiE(0);
   const gave_up = new _M0TPB8MutLocalGbE(false);
-  const _env = { _0: n, _1: rank, _2: hopeless, _3: b, _4: moves, _5: nodes, _6: gave_up, _7: limit, _8: later };
+  const _env = { _0: nodes, _1: hopeless, _2: gave_up, _3: moves, _4: b, _5: n, _6: rank, _7: limit, _8: later };
   const solved = _M0FP310monkeyfist2mf4core9sq__solveN6searchS4332(_env);
   return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core9sq__solveN6constrS4333 : gave_up.val ? -1 : _M0FP310monkeyfist2mf4core9sq__solveN6constrS4334, moves, nodes.val);
 }
@@ -9362,15 +9362,15 @@ function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4398(_env) 
   return total;
 }
 function _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN6searchS4399(_env, remaining) {
-  const moves = _env._8;
+  const limit = _env._8;
   const gave_up = _env._7;
-  const tried = _env._6;
-  const _env$2 = _env._5;
-  const later = _env._4;
-  const rank = _env._3;
-  const nodes = _env._2;
-  const b = _env._1;
-  const limit = _env._0;
+  const _env$2 = _env._6;
+  const tried = _env._5;
+  const b = _env._4;
+  const moves = _env._3;
+  const later = _env._2;
+  const nodes = _env._1;
+  const rank = _env._0;
   if (_M0MP310monkeyfist2mf4core7SqBoard9all__free(b)) {
     return true;
   }
@@ -9501,7 +9501,7 @@ function _M0FP310monkeyfist2mf4core24sq__fewest__player__taps(paths, w, h, known
   const _p = b.left > 0 ? 1 : 0;
   const _p$2 = _M0FP310monkeyfist2mf4core24sq__fewest__player__tapsN5boundS4398(_env);
   const lower = _p > _p$2 ? _p : _p$2;
-  const _env$2 = { _0: limit, _1: b, _2: nodes, _3: rank, _4: later, _5: _env, _6: tried, _7: gave_up, _8: moves };
+  const _env$2 = { _0: rank, _1: nodes, _2: later, _3: moves, _4: b, _5: tried, _6: _env, _7: gave_up, _8: limit };
   let k = lower;
   while (true) {
     if (k < count && !gave_up.val) {
@@ -10026,14 +10026,14 @@ function _M0FP310monkeyfist2mf4core9to__fixed(x, digits) {
   return n / scale;
 }
 function _M0FP310monkeyfist2mf4core18graph__interactionN5visitS4650(_env, v) {
-  const next_index = _env._7;
+  const components = _env._7;
   const dependents = _env._6;
-  const low = _env._5;
-  const indices = _env._4;
-  const on_stack = _env._3;
-  const components = _env._2;
-  const stack = _env._1;
-  const component = _env._0;
+  const component = _env._5;
+  const on_stack = _env._4;
+  const low = _env._3;
+  const indices = _env._2;
+  const next_index = _env._1;
+  const stack = _env._0;
   if (v >>> 0 < indices.length) {
     indices[v] = next_index.val;
   } else {
@@ -10177,7 +10177,7 @@ function _M0FP310monkeyfist2mf4core18graph__interaction(dependents, n, revisited
   const stack = new _M0TPB5ArrayGiE([], 0);
   const components = new _M0TPB5ArrayGRPB5ArrayGiEE([], 0);
   const component = $make_array_len_and_init(n, 0);
-  const _env = { _0: component, _1: stack, _2: components, _3: on_stack, _4: indices, _5: low, _6: dependents, _7: next_index };
+  const _env = { _0: stack, _1: next_index, _2: indices, _3: low, _4: on_stack, _5: component, _6: dependents, _7: components };
   let _tmp$10 = 0;
   while (true) {
     const i = _tmp$10;
@@ -11218,11 +11218,11 @@ function _M0MP310monkeyfist2mf4core3Geo3key(self, paths) {
   return sb.val;
 }
 function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, current, preferred) {
-  const nodes = _env._5;
-  const visited = _env._4;
-  const self = _env._3;
-  const budget = _env._2;
-  const moves = _env._1;
+  const visited = _env._5;
+  const budget = _env._4;
+  const moves = _env._3;
+  const nodes = _env._2;
+  const self = _env._1;
   const unknown = _env._0;
   if (_M0FP310monkeyfist2mf4core9all__gone(current)) {
     return true;
@@ -11297,16 +11297,16 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, current,
   return false;
 }
 function _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4934(_env, current) {
-  const nodes = _env._9;
-  const visited = _env._8;
-  const self = _env._7;
-  const first = _env._6;
-  const moved = _env._5;
-  const budget = _env._4;
-  const lastk = _env._3;
-  const moves = _env._2;
-  const n = _env._1;
-  const unknown = _env._0;
+  const visited = _env._9;
+  const lastk = _env._8;
+  const budget = _env._7;
+  const n = _env._6;
+  const moves = _env._5;
+  const nodes = _env._4;
+  const first = _env._3;
+  const self = _env._2;
+  const unknown = _env._1;
+  const moved = _env._0;
   if (_M0FP310monkeyfist2mf4core9all__gone(current)) {
     return true;
   }
@@ -11395,7 +11395,7 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__full(self, paths, budget, prefer
   const nodes = new _M0TPB8MutLocalGiE(0);
   const unknown = new _M0TPB8MutLocalGbE(false);
   if (self.hex) {
-    const _env = { _0: unknown, _1: moves, _2: budget, _3: self, _4: visited, _5: nodes };
+    const _env = { _0: unknown, _1: self, _2: nodes, _3: moves, _4: budget, _5: visited };
     const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4933(_env, paths, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
     return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4935 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4936, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
   }
@@ -11422,7 +11422,7 @@ function _M0MP310monkeyfist2mf4core3Geo11solve__full(self, paths, budget, prefer
       break;
     }
   }
-  const _env = { _0: unknown, _1: n, _2: moves, _3: lastk, _4: budget, _5: moved, _6: first, _7: self, _8: visited, _9: nodes };
+  const _env = { _0: moved, _1: unknown, _2: self, _3: first, _4: nodes, _5: moves, _6: n, _7: budget, _8: lastk, _9: visited };
   const solved = _M0MP310monkeyfist2mf4core3Geo11solve__fullN6searchS4934(_env, paths);
   return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4937 : unknown.val ? -1 : _M0MP310monkeyfist2mf4core3Geo11solve__fullN6constrS4938, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
 }
@@ -12037,13 +12037,13 @@ function _M0MP310monkeyfist2mf4core8HexBoard4dead(self) {
   return false;
 }
 function _M0FP310monkeyfist2mf4core10hex__solveN6searchS5202(_env, preferred) {
-  const board = _env._6;
-  const seen = _env._5;
-  const budget = _env._4;
-  const exhausted = _env._3;
-  const moves = _env._2;
-  const nodes = _env._1;
-  const paths = _env._0;
+  const exhausted = _env._6;
+  const moves = _env._5;
+  const nodes = _env._4;
+  const paths = _env._3;
+  const budget = _env._2;
+  const board = _env._1;
+  const seen = _env._0;
   if (board.left === 0) {
     return true;
   }
@@ -12129,7 +12129,7 @@ function _M0FP310monkeyfist2mf4core10hex__solve(w, h, mirrors, paths, budget, pr
   const moves = new _M0TPB5ArrayGiE([], 0);
   const nodes = new _M0TPB8MutLocalGiE(0);
   const exhausted = new _M0TPB8MutLocalGbE(false);
-  const _env = { _0: paths, _1: nodes, _2: moves, _3: exhausted, _4: budget, _5: seen, _6: board };
+  const _env = { _0: seen, _1: board, _2: budget, _3: paths, _4: nodes, _5: moves, _6: exhausted };
   const solved = _M0FP310monkeyfist2mf4core10hex__solveN6searchS5202(_env, new _M0TPB9ArrayViewGiE(prefer.buf, 0, prefer.len));
   return new _M0TP310monkeyfist2mf4core6Solved(solved ? _M0FP310monkeyfist2mf4core10hex__solveN6constrS5203 : exhausted.val ? -1 : _M0FP310monkeyfist2mf4core10hex__solveN6constrS5204, solved ? moves : new _M0TPB5ArrayGiE([], 0), nodes.val);
 }
@@ -12520,8 +12520,8 @@ function _M0FP310monkeyfist2mf4core17hex__casual__wins(w, h, mirrors, ropes, rng
 }
 function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env) {
   const n = _env._2;
-  const blockers = _env._1;
-  const b = _env._0;
+  const b = _env._1;
+  const blockers = _env._0;
   _M0MPC15array10FixedArray12fill_2einnerGbE(blockers, false, 0, undefined);
   let count = 0;
   let _tmp$9 = 0;
@@ -12571,16 +12571,16 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env)
   return count;
 }
 function _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN6searchS5369(_env, remaining) {
-  const n = _env._9;
-  const tried = _env._8;
-  const nodes = _env._7;
-  const budget = _env._6;
-  const later = _env._5;
-  const exhausted = _env._4;
-  const _env$2 = _env._3;
-  const rank = _env._2;
-  const moves = _env._1;
-  const b = _env._0;
+  const budget = _env._9;
+  const later = _env._8;
+  const _env$2 = _env._7;
+  const moves = _env._6;
+  const n = _env._5;
+  const b = _env._4;
+  const rank = _env._3;
+  const tried = _env._2;
+  const exhausted = _env._1;
+  const nodes = _env._0;
   if (_M0MP310monkeyfist2mf4core8HexBoard4free(b)) {
     return true;
   }
@@ -12707,8 +12707,8 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__taps(w, h, mirrors, ro
   const nodes = new _M0TPB8MutLocalGiE(0);
   const exhausted = new _M0TPB8MutLocalGbE(false);
   const blockers = $make_array_len_and_init(n, false);
-  const _env = { _0: b, _1: blockers, _2: n };
-  const _env$2 = { _0: b, _1: moves, _2: rank, _3: _env, _4: exhausted, _5: later, _6: budget, _7: nodes, _8: tried, _9: n };
+  const _env = { _0: blockers, _1: b, _2: n };
+  const _env$2 = { _0: nodes, _1: exhausted, _2: tried, _3: rank, _4: b, _5: n, _6: moves, _7: _env, _8: later, _9: budget };
   const _p = _M0FP310monkeyfist2mf4core25hex__fewest__player__tapsN5boundS5368(_env);
   let taps = 1 > _p ? 1 : _p;
   while (true) {
@@ -12740,13 +12740,13 @@ function _M0FP310monkeyfist2mf4core25hex__fewest__player__taps(w, h, mirrors, ro
   return new _M0TP310monkeyfist2mf4core3Par(_M0MPC15array5Array4copyGiE(fallback), verified.taps, !exhausted.val);
 }
 function _M0FP310monkeyfist2mf4core15hex__intentionsN4stepS5444(_env, i) {
-  const released = _env._6;
-  const b = _env._5;
-  const moved_at = _env._4;
-  const moves = _env._3;
-  const stops = _env._2;
-  const cost = _env._1;
-  const done = _env._0;
+  const stops = _env._6;
+  const moves = _env._5;
+  const cost = _env._4;
+  const moved_at = _env._3;
+  const b = _env._2;
+  const done = _env._1;
+  const released = _env._0;
   const _tmp$9 = b.offsets;
   const from = i >>> 0 < _tmp$9.length ? _tmp$9[i] : $oob();
   const target = _M0MP310monkeyfist2mf4core8HexBoard2to(b, i);
@@ -12866,7 +12866,7 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
   const moved_at = $make_array_len_and_init(n, 0);
   const moves = new _M0TPB5ArrayGiE([], 0);
   const cost = new _M0TPB8MutLocalGiE(0);
-  const _env = { _0: done, _1: cost, _2: stops, _3: moves, _4: moved_at, _5: b, _6: released };
+  const _env = { _0: released, _1: done, _2: b, _3: moved_at, _4: cost, _5: moves, _6: stops };
   if (certificate === undefined) {
     let changed = true;
     while (true) {
@@ -12913,31 +12913,31 @@ function _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops
   return b.left > 0 ? undefined : new _M0TP310monkeyfist2mf4core9HexIntent(moves, cost.val);
 }
 function _M0FP310monkeyfist2mf4core10hex__buildN4freeS5496(_env, c) {
-  const kept = _env._2;
-  const occupied = _env._1;
-  const tile = _env._0;
+  const tile = _env._2;
+  const kept = _env._1;
+  const occupied = _env._0;
   return c >= 0 && ((c >>> 0 < occupied.length ? occupied[c] : $oob()) < 0 && (!(c >>> 0 < tile.length ? tile[c] : $oob()) && !(c >>> 0 < kept.length ? kept[c] : $oob())));
 }
 function _M0FP310monkeyfist2mf4core10hex__buildN6intentS5497(_env, cert) {
-  const mirrors = _env._4;
-  const stops = _env._3;
-  const ropes = _env._2;
-  const w = _env._1;
-  const h = _env._0;
+  const stops = _env._4;
+  const mirrors = _env._3;
+  const h = _env._2;
+  const ropes = _env._1;
+  const w = _env._0;
   return _M0FP310monkeyfist2mf4core15hex__intentions(w, h, mirrors, ropes, stops, cert);
 }
 function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env, want, aim) {
-  const points = _env._10;
+  const h = _env._10;
   const seen = _env._9;
-  const w = _env._8;
-  const rng = _env._7;
-  const area = _env._6;
-  const h = _env._5;
-  const bent = _env._4;
-  const neighbours = _env._3;
-  const stamp = _env._2;
-  const forward = _env._1;
-  const _env$2 = _env._0;
+  const bent = _env._8;
+  const neighbours = _env._7;
+  const points = _env._6;
+  const rng = _env._5;
+  const stamp = _env._4;
+  const w = _env._3;
+  const forward = _env._2;
+  const _env$2 = _env._1;
+  const area = _env._0;
   let head;
   if (aim === undefined) {
     head = -1;
@@ -13130,11 +13130,11 @@ function _M0FP310monkeyfist2mf4core10hex__buildN5shapeS5498(_env, want, aim) {
   return new _M0TP310monkeyfist2mf4core8HexShape(_p, body, ahead, turns);
 }
 function _M0FP310monkeyfist2mf4core10hex__buildN11note__turnsS5499(_env, path) {
-  const w = _env._4;
-  const turned_count = _env._3;
-  const turned_by = _env._2;
-  const h = _env._1;
-  const bent = _env._0;
+  const h = _env._4;
+  const turned_by = _env._3;
+  const bent = _env._2;
+  const turned_count = _env._1;
+  const w = _env._0;
   if (bent.keys.len > 0) {
     const t = new _M0TPB5ArrayGiE([], 0);
     _M0FP310monkeyfist2mf4core10ray__track(w, h, _M0FP310monkeyfist2mf4core9hex__cell(_M0FP310monkeyfist2mf4core4last(path), w), _M0FP310monkeyfist2mf4core11exit__index(w, path, bent), bent, new _M0TPB5ArrayGiE([], 0), t);
@@ -13247,9 +13247,9 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
     }
   }
   const kept = $make_array_len_and_init(area, false);
-  const _env = { _0: tile, _1: occupied, _2: kept };
-  const _env$2 = { _0: h, _1: w, _2: ropes, _3: stops, _4: mirrors };
-  const _env$3 = { _0: _env, _1: forward, _2: stamp, _3: neighbours, _4: bent, _5: h, _6: area, _7: rng, _8: w, _9: seen, _10: points };
+  const _env = { _0: occupied, _1: kept, _2: tile };
+  const _env$2 = { _0: w, _1: ropes, _2: h, _3: mirrors, _4: stops };
+  const _env$3 = { _0: area, _1: _env, _2: forward, _3: w, _4: stamp, _5: rng, _6: points, _7: neighbours, _8: bent, _9: seen, _10: h };
   if (cfg.initial_ropes.len > 0) {
     const used = $make_array_len_and_init(area, false);
     let size = 0;
@@ -13645,7 +13645,7 @@ function _M0FP310monkeyfist2mf4core10hex__build(rng, cfg) {
   let attempts = 0;
   const turned_by = $make_array_len_and_init(area, false);
   const turned_count = new _M0TPB8MutLocalGiE(0);
-  const _env$4 = { _0: bent, _1: h, _2: turned_by, _3: turned_count, _4: w };
+  const _env$4 = { _0: w, _1: turned_count, _2: bent, _3: turned_by, _4: h };
   const _bind$7 = ropes.len;
   const _bind$8 = ropes.buf;
   let _tmp$10 = 0;
@@ -15324,10 +15324,10 @@ function _M0FP310monkeyfist2mf4core13with__spinner(board, cell) {
   return undefined;
 }
 function _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6163(_env, group) {
-  const blocked = _env._3;
+  const g = _env._3;
   const rng = _env._2;
-  const g = _env._1;
-  const seen = _env._0;
+  const seen = _env._1;
+  const blocked = _env._0;
   const _p = new _M0TPB5ArrayGRP310monkeyfist2mf4core2PtE([], 0);
   const _p$2 = group.len;
   const _p$3 = group.buf;
@@ -15643,7 +15643,7 @@ function _M0FP310monkeyfist2mf4core13add__spinners(start, rng, count) {
       }
       const _bind$16 = [];
       const seen = _M0MPB3Map3MapGibE(new _M0TPB9ArrayViewGUibEE(_bind$16, 0, 0), undefined);
-      const _env = { _0: seen, _1: g, _2: rng, _3: blocked };
+      const _env = { _0: blocked, _1: seen, _2: rng, _3: g };
       const _bind$17 = _M0FP310monkeyfist2mf4core13add__spinnersN10try__cellsS6164(board, _M0FP310monkeyfist2mf4core13add__spinnersN5freshS6163(_env, routes));
       let placed;
       if (_bind$17 === undefined) {

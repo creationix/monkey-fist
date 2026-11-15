@@ -66,7 +66,7 @@ function updateURL() {
 // worker that finished its job waits for the next one, so jobs don't each reload
 // the scripts (tens of milliseconds, far more on old iPads); cancelling terminates.
 let workersWork = typeof Worker !== 'undefined', spare = null;
-const WORKER = 'generator-worker.js?v=25';
+const WORKER = 'generator-worker.js?v=26';
 const takeWorker = () => { const worker = spare || new Worker(WORKER); spare = null; return worker; };
 const park = worker => { worker.onmessage = worker.onerror = null; if (spare) worker.terminate(); else spare = worker; };
 function startWorker(message, receive, fallback) {
@@ -101,7 +101,7 @@ function requestFeatureCheck() {
     if (request !== featureVersion) return;
     featureWorker = startWorker({ type: 'features', level, paths, budget: 10000 },
       data => { if (data.features) done(data.features); else if (request === featureVersion) { featureWorker?.terminate(); featureWorker = null; } }, // Keep uncertain features visible.
-      () => { if (request === featureVersion) done(H.reachableFeatures(level, paths, 500)); });
+      () => MFMoonBit.ready().then(m => { if (request === featureVersion) done(m.reachableFeatures(level, paths, 500)); }));
   });
 }
 function updateFeatureVisibility(dt) {
@@ -202,7 +202,7 @@ function seekPlan(prefer = [], budget = 900, wantHint = false) {
   };
   // Keep the main-thread fallback bounded much more tightly.
   guideWorker = startWorker({ type: 'guide', level, paths, prefer, budget }, data => done(data.solution || { solved: null, moves: [] }),
-    () => setTimeout(() => { if (request === guideVersion) done(H.guide(level, paths, Math.min(40, budget), prefer)); }, 0));
+    () => MFMoonBit.ready().then(m => { if (request === guideVersion) done(m.guide(level, paths, Math.min(40, budget), prefer)); }));
 }
 async function start(index) {
   document.body.classList.remove('auto-solving'); cancelFeatureCheck();

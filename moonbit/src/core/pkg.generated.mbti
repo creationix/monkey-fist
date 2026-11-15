@@ -42,6 +42,8 @@ pub fn grid_generate(Spec) -> Level?
 
 pub let grid_version : Int32
 
+pub fn guide(Board, Array[Array[Pt]?], Int32, Array[Int32]) -> Solved
+
 pub fn hash_string(String) -> UInt32
 
 pub fn head_dir(Array[Pt]) -> (Int32, Int32)
@@ -111,6 +113,8 @@ pub fn mulberry32(Int32) -> Rng
 pub fn parse_code(String) -> SetOpts?
 
 pub fn ray_cells(Int32, Int32, Int32, Int32, Int32, Int32, SqMirrors, Array[Int32]) -> Bool
+
+pub fn reachable_features(Board, Array[Array[Pt]?], Int32) -> Array[Int32]
 
 pub fn rng_of(String) -> Rng
 

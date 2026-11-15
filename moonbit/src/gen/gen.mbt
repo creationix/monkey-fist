@@ -186,3 +186,73 @@ pub fn target_challenge(d : Double) -> Double {
 pub fn win_ceiling(d : Double) -> Double {
   @core.win_ceiling(d)
 }
+
+///|
+/// The board, current ropes and preferred order in the input buffer: hex, W, H,
+/// then counted lists of ropes (each a counted list of q, r), mirrors (q, r, kind)
+/// and springs (q, r), then the current paths (a count of 0 is a rope that left)
+/// and the preferred move order.
+fn read_position() -> (@core.Board, Array[@core.Path?], Array[Int32]) {
+  let mut k = 0
+  let next = () => {
+    k += 1
+    input[k - 1]
+  }
+  let cells = () => Array::makei(next(), _ => {
+    let q = next()
+    @core.Pt::{ q, r: next() }
+  })
+  let hex = next() == 1
+  let w = next()
+  let h = next()
+  let ropes = Array::makei(next(), _ => cells())
+  let mirrors = Array::makei(next(), _ => {
+    let q = next()
+    let r = next()
+    @core.Mirror::{ cell: @core.Pt::{ q, r }, kind: next() }
+  })
+  let springs = cells()
+  let paths : Array[@core.Path?] = Array::makei(next(), _ => {
+    let p = cells()
+    if p.length() == 0 {
+      None
+    } else {
+      Some(p)
+    }
+  })
+  let prefer = Array::makei(next(), _ => next())
+  (@core.Board::{ hex, w, h, ropes, mirrors, springs, plan: [] }, paths, prefer)
+}
+
+///|
+/// A plan from the position in the input buffer (game-engine.js guide). Output:
+/// solved (1, 0, or -1 when the budget ran out), nodes searched, then the moves.
+#export_name("guide")
+pub fn guide(budget : Int32) -> Unit {
+  let (b, paths, prefer) = read_position()
+  let s = @core.guide(b, paths, budget, prefer)
+  output.clear()
+  output.push(
+    match s.solved {
+      Some(true) => 1
+      Some(false) => 0
+      None => -1
+    },
+  )
+  output.push(s.nodes)
+  for m in s.moves {
+    output.push(m)
+  }
+}
+
+///|
+/// The mirrors and springs still within reach from the position in the input
+/// buffer, as indices (mirrors first, then springs) in the output buffer.
+#export_name("features")
+pub fn features(budget : Int32) -> Unit {
+  let (b, paths, _) = read_position()
+  output.clear()
+  for i in @core.reachable_features(b, paths, budget) {
+    output.push(i)
+  }
+}

@@ -96,56 +96,8 @@
     if (!tracked(b)) return b.grid === 'hex' ? R.solve(b, paths, budget, prefer) : M.solve(native(b), xy(paths), budget, prefer);
     return b.grid === 'hex' ? H.solve(b, paths, budget, prefer) : L.solve(xy(paths), b.W, b.H, budget, prefer, squareMirrors(b));
   }
-  function guide(b, paths, budget = 900, prefer = []) {
-    // An earlier exit can make later taps of the same rope redundant. Trim those
-    // before searching again; the old certificate often still contains a solution.
-    let current = paths; const moves = [];
-    for (const i of prefer) {
-      if (!current[i]) continue;
-      const move = tap(b, current, i); if (!move) break;
-      moves.push(i); current = move.paths;
-    }
-    if (current.every(p => !p)) return { solved: true, moves, nodes: 0 };
-    return solve(b, paths, budget, prefer);
-  }
   function direction(b, path) {
     return b.grid === 'hex' ? R.direction(b, path) : M.direction(native(b), xy([path])[0]);
-  }
-  function reachableFeatures(b, paths = b.ropes, budget = 10000) {
-    const key = H.key, mirrors = new Map((b.mirrors || []).map(m => [key(m.cell), m])), springs = new Set((b.springs || []).map(key));
-    const all = new Set([...mirrors.keys(), ...springs]), live = new Set(); let visited = 0;
-    if (!all.size) return [];
-    // Remove other ropes and allow stopping after every unit step. This is a
-    // superset of actual play, including pauses on mirrors and later reversals.
-    // A rope's trajectory is otherwise deterministic. Only a feature absent
-    // from every optimistic trajectory can safely disappear. Budget exhaustion
-    // keeps everything, rather than treating an unfinished search as proof.
-    for (const original of paths) {
-      if (!original) continue;
-      let path = original; const seen = new Set();
-      for (;;) {
-        if (visited++ >= budget) return [...all];
-        const cells = path.map(key), state = cells.join(';'); if (seen.has(state)) break; seen.add(state);
-        const head = path.at(-1), previous = path.at(-2), mirror = mirrors.get(key(head));
-        let dq = head.q - previous.q, dr = head.r - previous.r;
-        if (mirror) {
-          live.add(key(head));
-          if (b.grid === 'hex') {
-            const incoming = H.DIRS.findIndex(d => d[0] === dq && d[1] === dr);
-            [dq, dr] = H.DIRS[(2 * mirror.axis - incoming + 6) % 6];
-          } else if (mirror.slope === '/') [dq, dr] = [-dr, -dq];
-          else [dq, dr] = [dr, dq];
-        }
-        const next = { q: head.q + dq, r: head.r + dr }, at = key(next);
-        const inside = b.grid === 'hex' ? H.inside(b, next) : next.q >= 0 && next.r >= 0 && next.q < b.W && next.r < b.H;
-        if (!inside || cells.includes(at)) break;
-        if (all.has(at)) live.add(at);
-        if (live.size === all.size) return [...all];
-        path = path.slice(1).concat(next);
-        if (springs.has(at)) path.reverse();
-      }
-    }
-    return [...live];
   }
   function frozenRopes(b, paths = b.ropes) {
     if (tracked(b)) return b.grid === 'hex' ? H.compile(b, paths).frozen() : L.frozenRopes(xy(paths), b.W, b.H, squareMirrors(b));
@@ -197,9 +149,14 @@
       (board.springs || []).map(p => [p.q, p.r])]);
     return L.hashString(data).toString(36) + '-' + L.hashString('layout:' + data).toString(36);
   }
-  // Boards come from the MoonBit generator (moonbit/web/generator.js). This one is
-  // synchronous: in Node, or on a page that has loaded its JS build.
-  const generate = (options = {}) => (node ? require('./moonbit/web/generator.js') : root.MFMoonBit).local().generate(options);
+  // Boards, hints and feature checks come from MoonBit (moonbit/web/generator.js).
+  // These are synchronous: in Node, or on a page that has loaded its JS build.
+  const moonbit = () => (node ? require('./moonbit/web/generator.js') : root.MFMoonBit).local();
+  const generate = (options = {}) => moonbit().generate(options);
+  // A plan from paths, trying the preferred order before searching: { solved, moves, nodes }.
+  const guide = (b, paths, budget, prefer) => moonbit().guide(b, paths, budget, prefer);
+  // Keys of the mirrors and springs some rope could still reach (all, if the budget runs out).
+  const reachableFeatures = (b, paths, budget) => moonbit().reachableFeatures(b, paths, budget);
   const project = (p, b) => b.grid === 'hex' ? H.project(p) : { x: p.q, y: p.r };
   const cells = b => b.grid === 'hex' ? H.cells(b) : Array.from({ length: b.W * b.H }, (_, i) => ({ q: i % b.W, r: Math.floor(i / b.W) }));
   const available = (o, chapters = 1) => normalize(o).kind === 'journey' ? Math.min(120, Math.max(1, chapters) * 10) : normalize(o).count;
