@@ -1,0 +1,123 @@
+// DRAFT, proposed syntax: generic containers on the bump stack, written with
+// comptime type parameters. This does not compile today. features.ents contains
+// the hand expansion of Set([]u32): probe, grow, fill and see are what the
+// compiler would generate from Set below for K = []u32.
+//
+// The proposal, in four rules:
+//  1. `type` is a comptime-only type. A parameter marked `comptime` must be known
+//     at compile time; types are the common case.
+//  2. A comptime function may return a type, so a generic type is just a function
+//     from types to a type: Vec(T), Set(K). No separate `<T>` syntax.
+//  3. Every distinct set of comptime arguments makes one monomorphic copy (named
+//     like push__u32). No boxing, no runtime type information: still plain wasm.
+//  4. Requirements are duck-typed at instantiation: Set(K) calls hash(k) and
+//     eq(a, b), resolved by UFCS for the concrete K. There are no traits; a missing
+//     function is an error at the instantiation site.
+// Comptime arguments that can be inferred from other arguments' types may be left
+// out, so v.push(x) works for a v: *mut Vec(u32) without naming u32.
+
+import "./stack" (
+  "mark" func mark() -> u32
+  "alloc" func alloc(n: u32) -> u32
+  "alloc_words" func alloc_words(n: u32) -> u32
+)
+
+// A growable array on the bump stack. Growing the topmost allocation is free (the
+// stack top just moves); otherwise it copies to the top and the old space stays
+// until the enclosing scope resets. Bounded, short-lived work makes that cheap.
+func Vec(comptime T: type) -> type => (ptr: [*]mut T, len: u32, cap: u32)
+
+func vec(comptime T: type, cap: u32) -> Vec(T) {
+  return Vec(T)(alloc(cap * sizeof(T)) as [*]mut T, 0, cap)
+}
+
+func push(comptime T: type, v: *mut Vec(T), x: T) {
+  if v.len == v.cap {
+    let bytes = v.cap * sizeof(T)
+    if (v.ptr as u32) + bytes == mark() {
+      // Topmost: extend in place.
+      alloc(bytes)
+    } else {
+      let moved = alloc(bytes * 2) as [*]mut T
+      for i in v.len {
+        moved[i] = v.ptr[i]
+      }
+      v.ptr = moved
+    }
+    v.cap *= 2
+  }
+  v.ptr[v.len] = x
+  v.len += 1
+}
+
+// An open-addressing hash set on the bump stack that doubles when half full.
+func Set(comptime K: type) -> type => (slots: [*]mut (used: bool, hash: u32, key: K), mask: u32, count: u32)
+
+func set(comptime K: type, bits: u32) -> Set(K) {
+  let size = 1 << bits
+  return Set(K)(alloc_words(size * sizeof((bool, u32, K)) / 4) as [*]mut (used: bool, hash: u32, key: K), size - 1, 0)
+}
+
+func slot(comptime K: type, s: *Set(K), h: u32, k: K) -> u32 {
+  let i = h & s.mask
+  loop {
+    return i when !s.slots[i].used
+    return i when s.slots[i].hash == h && eq(s.slots[i].key, k)
+    i = (i + 1) & s.mask
+  }
+  return i
+}
+
+// Adds k (the set stores k itself: copy what it points to first if the caller
+// will overwrite it). False if it was already there.
+func add(comptime K: type, s: *mut Set(K), k: K) -> bool {
+  let h = hash(k)
+  let i = s.slot(h, k)
+  return false when s.slots[i].used
+  if (s.count + 1) * 2 > s.mask + 1 {
+    let old = s.*
+    s.* = set(K, bits_of(s.mask + 1) + 1)
+    for j in old.mask + 1 {
+      if old.slots[j].used {
+        let at = s.slot(old.slots[j].hash, old.slots[j].key)
+        s.slots[at] = old.slots[j]
+      }
+    }
+    i = s.slot(h, k)
+  }
+  s.slots[i] = (true, h, k)
+  s.count += 1
+  return true
+}
+
+// The two functions Set([]u32) needs, found by UFCS when it is instantiated.
+func hash(k: []u32) -> (h: u32) {
+  h = 0x811c9dc5
+  for w in k {
+    h = (h ^ w) * 0x01000193
+  }
+}
+
+func eq(a: []u32, b: []u32) -> bool {
+  return false when a.len != b.len
+  for i in a.len {
+    return false when a[i] != b[i]
+  }
+  return true
+}
+
+// With these, the per-rope part of features.ents's reachable() becomes:
+//
+//   let scope = mark()
+//   defer reset(scope)
+//   let window = vec(u32, n + 1)
+//   ...
+//   let seen = set([]u32, 6)
+//   loop {
+//     return put_all(total) when visited >= budget
+//     visited += 1
+//     break when !seen.add(copy(window.slice(lo, hi)))
+//     ...
+//   }
+//
+// and probe, grow, fill and see (about 80 lines) disappear.

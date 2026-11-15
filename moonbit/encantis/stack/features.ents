@@ -1,0 +1,298 @@
+// reachableFeatures (game-engine.js, now src/core/assist.mbt) in Encantis, written
+// on the bump stack (stack.ents) with defer: every table is sized from this
+// board and freed when the call returns. Compare ../features.ents, the same
+// algorithm in today's Encantis, with worst-case static buffers for everything.
+//
+// JS writes i32 words at in_ptr(): hex, W, H, budget, nMirrors, (q, r, kind)*,
+// nSprings, (q, r)*, nPaths, (len, (q, r)*)* with len 0 for a rope that is gone.
+// reachable() returns how many feature indices (mirrors first, then springs) it
+// wrote at out_ptr(), in the order reached; every feature when the budget runs out.
+
+import "./stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "alloc_words" func alloc_words(n: u32) -> u32
+)
+
+export "mem" memory
+
+data inbuf = mut [0:u8; 1048576]
+data outbuf = mut [0:u8; 65536]
+data hex_dq = [1, 0, -1, -1, 0, 1]
+data hex_dr = [0, 1, 1, 0, -1, -1]
+
+// One entry of the seen set: an open-addressing slot for a rope state (len 0 is
+// an empty slot; states have at least two cells).
+type Slot = (hash: u32, start: u32, len: u32, unused: u32)
+
+// The current rope's seen set: a table that doubles when half full. A table it
+// outgrows stays on the stack until the rope's scope resets.
+global table: u32 = 0
+global mask: u32 = 0
+global count: u32 = 0
+
+global hex: bool = false
+global width: i32 = 0
+global height: i32 = 0
+
+export func in_ptr() -> u32 => inbuf as u32
+export func out_ptr() -> u32 => outbuf as u32
+
+func word(k: u32) -> i32 => inbuf.i32[k]
+
+func inside(q: i32, r: i32) -> bool {
+  return false when r < 0 || r >= height
+  return q >= 0 && q < width when !hex
+  let x = q + r / 2
+  return x >= 0 && x < width
+}
+
+// Callers check inside first, so r >= 0 and r / 2 is Math.floor(r / 2).
+func cell(q: i32, r: i32) -> u32 {
+  return (r * width + q) as u32 when !hex
+  return (r * width + q + r / 2) as u32
+}
+
+// FNV-1a over the cell words of a rope state.
+func state_hash(pc: [*]u32, lo: u32, hi: u32) -> (h: u32) {
+  h = 0x811c9dc5
+  let i = lo
+  while i < hi {
+    h = (h ^ pc[i]) * 0x01000193
+    i += 1
+  }
+}
+
+// A slot for hash h in the current table: its own state's, or the empty one where
+// it would go.
+func probe(h: u32, pc: [*]u32, lo: u32, hi: u32) -> u32 {
+  let slots = table as [*]mut Slot
+  let n = hi - lo
+  let s = h & mask
+  loop {
+    return s when slots[s].len == 0
+    if slots[s].hash == h && slots[s].len == n {
+      let old = slots[s].start as [*]u32
+      let same = true
+      for j in n {
+        if old[j] != pc[lo + j] {
+          same = false
+          break
+        }
+      }
+      return s when same
+    }
+    s = (s + 1) & mask
+  }
+  return s
+}
+
+// An empty table of 2^bits slots.
+func fresh(bits: u32) {
+  mask = (1 << bits) - 1
+  table = alloc_words((mask + 1) * 4)
+  count = 0
+}
+
+// Doubles the table, moving every state's slot (the states stay where they are).
+func grow() {
+  let old = table as [*]Slot
+  let size = mask + 1
+  mask = size * 2 - 1
+  table = alloc_words((mask + 1) * 4)
+  let slots = table as [*]mut Slot
+  for i in size {
+    if old[i].len > 0 {
+      let s = old[i].hash & mask
+      while slots[s].len != 0 {
+        s = (s + 1) & mask
+      }
+      slots[s].hash = old[i].hash
+      slots[s].start = old[i].start
+      slots[s].len = old[i].len
+    }
+  }
+}
+
+// Fills slot s of the current table.
+func fill(s: u32, h: u32, start: u32, n: u32) {
+  let slots = table as [*]mut Slot
+  slots[s].hash = h
+  slots[s].start = start
+  slots[s].len = n
+}
+
+// Adds the rope state pc[lo..hi] to the seen set, copying it onto the stack.
+// False if it was already there.
+func see(pc: [*]u32, lo: u32, hi: u32) -> bool {
+  let n = hi - lo
+  let h = state_hash(pc, lo, hi)
+  let s = probe(h, pc, lo, hi)
+  return false when (table as [*]Slot)[s].len != 0
+  if (count + 1) * 2 > mask + 1 {
+    grow()
+    s = probe(h, pc, lo, hi)
+  }
+  let copy = alloc(n * 4) as [*]mut u32
+  for i in n {
+    copy[i] = pc[lo + i]
+  }
+  fill(s, h, copy as u32, n)
+  count += 1
+  return true
+}
+
+func put_all(total: u32) -> u32 {
+  for k in total {
+    outbuf.u32[k] = k
+  }
+  return total
+}
+
+export func reachable() -> u32 {
+  // Everything below lives until this call returns, by whichever return.
+  let call = mark()
+  defer reset(call)
+
+  hex = word(0) == 1
+  width = word(1)
+  height = word(2)
+  let budget = word(3) as u32
+  let cells = (width * height) as u32
+  // Per cell: feature index + 1 (0 none), and mirror kind + 1 (0 none).
+  let feat = alloc_words(cells) as [*]mut u32
+  let mkind = alloc_words(cells) as [*]mut u32
+  let k: u32 = 4
+  let mirrors = word(k) as u32
+  k += 1
+  for m in mirrors {
+    let c = cell(word(k), word(k + 1))
+    feat[c] = m + 1
+    mkind[c] = (word(k + 2) + 1) as u32
+    k += 3
+  }
+  let springs = word(k) as u32
+  k += 1
+  for s in springs {
+    feat[cell(word(k), word(k + 1))] = mirrors + s + 1
+    k += 2
+  }
+  let total = mirrors + springs
+  return 0 when total == 0
+  let live = alloc_words(total) as [*]mut u32
+  let found: u32 = 0
+  let visited: u32 = 0
+  let ropes = word(k) as u32
+  k += 1
+  for rope in ropes {
+    let n = word(k) as u32
+    k += 1
+    if n > 0 {
+      // This rope's moving window and seen states, freed before the next rope.
+      let scope = mark()
+      defer reset(scope)
+      // The window only moves forward, at most once per visited state, and every
+      // entry is written before it is read: no zeroing.
+      let room = n + budget - visited + 1
+      let pq = alloc(room * 4) as [*]mut i32
+      let pr = alloc(room * 4) as [*]mut i32
+      let pc = alloc(room * 4) as [*]mut u32
+      fresh(6)
+      let lo: u32 = 0
+      let hi: u32 = n
+      for p in n {
+        let q = word(k)
+        let r = word(k + 1)
+        pq[p] = q
+        pr[p] = r
+        pc[p] = cell(q, r)
+        k += 2
+      }
+      loop {
+        return put_all(total) when visited >= budget
+        visited += 1
+        break when !see(pc, lo, hi)
+        let hq = pq[hi - 1]
+        let hr = pr[hi - 1]
+        let dq = hq - pq[hi - 2]
+        let dr = hr - pr[hi - 2]
+        let hc = pc[hi - 1]
+        let kind = mkind[hc]
+        if kind > 0 {
+          let f = feat[hc] - 1
+          if live[f] == 0 {
+            live[f] = 1
+            outbuf.u32[found] = f
+            found += 1
+          }
+          let axis = (kind - 1) as i32
+          if hex {
+            let incoming: i32 = 0
+            while incoming < 6 {
+              break when hex_dq.i32[incoming] == dq && hex_dr.i32[incoming] == dr
+              incoming += 1
+            }
+            let out = (2 * axis - incoming + 6) % 6
+            dq = hex_dq.i32[out]
+            dr = hex_dr.i32[out]
+          } elif axis == 0 {
+            let t = dq
+            dq = 0 - dr
+            dr = 0 - t
+          } else {
+            let t2 = dq
+            dq = dr
+            dr = t2
+          }
+        }
+        let nq = hq + dq
+        let nr = hr + dr
+        break when !inside(nq, nr)
+        let at = cell(nq, nr)
+        let hit = false
+        let w = lo
+        while w < hi {
+          if pc[w] == at {
+            hit = true
+            break
+          }
+          w += 1
+        }
+        break when hit
+        let fa = feat[at]
+        if fa > 0 && live[fa - 1] == 0 {
+          live[fa - 1] = 1
+          outbuf.u32[found] = fa - 1
+          found += 1
+        }
+        return put_all(total) when found == total
+        // path.slice(1).concat(next)
+        pq[hi] = nq
+        pr[hi] = nr
+        pc[hi] = at
+        hi += 1
+        lo += 1
+        if fa > mirrors {
+          // A spring reverses the rope.
+          let a = lo
+          let b = hi - 1
+          while a < b {
+            let tq = pq[a]
+            pq[a] = pq[b]
+            pq[b] = tq
+            let tr = pr[a]
+            pr[a] = pr[b]
+            pr[b] = tr
+            let tc = pc[a]
+            pc[a] = pc[b]
+            pc[b] = tc
+            a += 1
+            b -= 1
+          }
+        }
+      }
+    }
+  }
+  return found
+}

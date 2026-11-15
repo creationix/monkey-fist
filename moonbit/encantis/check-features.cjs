@@ -1,7 +1,7 @@
 // Checks features.wasm (Encantis reachableFeatures, plain wasm MVP) against the JS
 // reachableFeatures (game-engine.js at 134019d, copied below since deleted), the
 // MoonBit build, and moonbit/tests/assist-expected.json:
-// node moonbit/encantis/check-features.cjs
+// node moonbit/encantis/check-features.cjs [wasm, default features.wasm; stack/features.wasm for the bump-stack version]
 const fs = require('fs'), path = require('path');
 globalThis.MFGame = require('../../game-engine.js');
 const MFMoonBit = require('../web/generator.js'), H = require('../../hex/engine.js');
@@ -47,7 +47,7 @@ function reachableFeatures(b, paths = b.ropes, budget = 10000) {
 
 
 (async () => {
-  const { instance } = await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, 'features.wasm')), {});
+  const { instance } = await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, process.argv[2] || 'features.wasm')), {});
   const x = instance.exports;
   const { instance: g } = await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, '../dist/gen.wasm')), {});
   const gen = MFMoonBit.wrap(g.exports, 'wasm-gc'), moon = typeof g.exports.features === 'function';

@@ -1,0 +1,51 @@
+// A bump stack in linear memory: the one allocator the game's compute needs.
+// Every allocation is a pointer bump and nothing is freed one by one. A scope
+// frees everything it allocated by resetting to a mark, and defer ties that to
+// every way out of the scope:
+//
+//   let m = mark()
+//   defer reset(m)
+//
+// Nested scopes nest naturally (a call, then each attempt or rope inside it).
+// A result that must outlive a scope is allocated before entering it.
+
+def capacity = 16777216:u32
+data space = mut [0:u8; 16777216]
+global top: u32 = 0
+
+export func mark() -> u32 => top
+
+export func reset(m: u32) {
+  top = m
+}
+
+// n bytes, 8-byte aligned. Traps when the stack is full: the game's work is
+// bounded by board size and search budgets, so this is a sizing bug, not a
+// condition to recover from.
+export func alloc(n: u32) -> (p: u32) {
+  p = (space as u32) + top
+  top += (n + 7) & 0xFFFFFFF8
+  assert top <= capacity
+}
+
+// n u32 words, zeroed.
+export func alloc_words(n: u32) -> (p: u32) {
+  p = alloc(n * 4)
+  let w = p as [*]mut u32
+  for i in n {
+    w[i] = 0
+  }
+}
+
+test "scopes free what they allocate, on every exit" {
+  let base = mark()
+  let a = alloc(10)
+  assert mark() == base + 16
+  let inner = mark()
+  let b = alloc_words(4)
+  assert b == a + 16
+  reset(inner)
+  assert mark() == base + 16
+  reset(base)
+  assert mark() == base
+}
