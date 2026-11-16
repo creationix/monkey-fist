@@ -45,16 +45,15 @@ solver should be the biggest gain for the iPad mini 4 (not measured on Safari).
     reaches the edge, so it's built in place by growing the topmost allocation.
   - `alloc` aligns to 8, which would have left gaps between words. That was the
     one real bug in my port.
-- **Compiler PRs on creationix/encantis**, all against `prep/finalize`. This
-  directory was built with them merged together; each is independent.
+- **Compiler fixes,** all released in Encantis 0.1.0 (creationix/encantis
+  #2–#5):
   - #2 `defer`.
   - #3 `continue` in `for i in n` skipped the increment.
   - #4 `[*]mut Slot` wasn't assignable to `[*]mut Slot`.
   - #5 a trailing `if` in a function with named results produced invalid wasm.
-    `ray_cells` still ends with an explicit `return` to work around it.
 - **Still awkward in the language:**
-  - **Globals can't hold pointer types** (the annotation is ignored), so every
-    function rebinds typed views of them.
+  - **Globals can't hold pointer types** (the annotation is ignored, still so in
+    0.1.0), so every function rebinds typed views of them.
   - **A call result can't be indexed and assigned to** (`f(x)[i] = v`).
   - **No closures:** the search's shared state is module globals. That is fine
     for a single-threaded kernel, but it's the opposite of reentrant.
@@ -62,7 +61,6 @@ solver should be the biggest gain for the iPad mini 4 (not measured on Safari).
   MoonBit (`hex_solve`, `solve_full`). The square kernel is the representative
   case.
 
-To build: check out creationix/encantis `prep/finalize` with PRs #2–#4 merged
-(and #5 if you like), run `bun install` and
-`bun packages/compiler/scripts/bundle-grammar.ts`, then
-`bun packages/cli/src/cli.ts wasm moonbit/encantis/solver/solver.ents -o moonbit/encantis/solver/solver.wasm`.
+To build, with the Encantis 0.1.0 release binary (or `bun packages/cli/src/cli.ts`
+in a checkout of `v0.1.0`; both give byte-identical output):
+`encantis wasm moonbit/encantis/solver/solver.ents -o moonbit/encantis/solver/solver.wasm`.

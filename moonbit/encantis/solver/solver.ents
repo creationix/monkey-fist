@@ -120,8 +120,6 @@ func ray_cells(x0: i32, y0: i32, dx0: i32, dy0: i32, marks: [*]mut u32, stamp: u
       marks[cells[k]] = stamp
     }
   }
-  // Explicit: this compiler takes a trailing if as the named results' value.
-  return
 }
 
 // Where rope i would stop if tapped: its new offset, or -1 if it would leave.

@@ -9,7 +9,7 @@ comptime generics for the containers on top.
 
 | File | What it is |
 | --- | --- |
-| `defer.patch` | `defer` for the Encantis compiler, against `prep/finalize`. Superseded by creationix/encantis#2, which adds tests and docs |
+| `defer.patch` | The first version of `defer`, kept for the record. `defer` shipped in Encantis 0.1.0 (creationix/encantis#2) |
 | `stack.ents` | The bump stack: `mark`, `alloc`, `extend`, `alloc_words`, `reset` (≈25 lines, plus tests) |
 | `features.ents`, `.wasm` | `reachableFeatures` on the stack, with `defer` |
 | `containers.draft.ents` | Draft syntax, not compiled: `Vec(T)` and `Set(K)` with comptime type parameters |
@@ -116,13 +116,11 @@ of the 2–2.7× size gap against MoonBit came from.
 
 ## Compiler issues found along the way
 
-These are not language design questions; they are logged here so they're not lost:
-- A `[*]mut Slot` value can't be passed as, or reassigned to, a `[*]mut Slot`. The
-  checker reports "cannot assign [*]mut Slot to [*]mut Slot". `features.ents` works
-  around it by passing the table's address as `u32`.
-- `continue` inside `for i in n` jumps past the increment and loops forever. The
-  increment is emitted after the body, but `continue` branches to the loop head.
+Both are fixed in Encantis 0.1.0:
+- A `[*]mut Slot` value couldn't be passed as, or reassigned to, a `[*]mut Slot`
+  (creationix/encantis#4).
+- `continue` inside `for i in n` jumped past the increment and looped forever
+  (creationix/encantis#3).
 
-To build: apply `defer.patch` to a `prep/finalize` checkout, run
-`bun packages/compiler/scripts/bundle-grammar.ts`, then
-`bun packages/cli/src/cli.ts wasm moonbit/encantis/stack/features.ents -o …`.
+To build, with the Encantis 0.1.0 release binary (or a checkout of `v0.1.0`):
+`encantis wasm moonbit/encantis/stack/features.ents -o moonbit/encantis/stack/features.wasm`.
