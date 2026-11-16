@@ -1,0 +1,10 @@
+// Encantis 0.2.1: a large zero-filled buffer is free in the wasm (no data
+// segment), but not in the compiler: every command takes seconds per 16 MB.
+//   time encantis compile 15-large-zero-buffer-is-slow.ents -o /dev/null   -> about 5 s
+// With 65536 in place of 16777216 it takes 0.2 s. ../stack/stack.ents has such a
+// buffer, and weave.ents reaches it through three modules: `encantis wasm
+// weave.ents` takes 15 s, and 1.6 s with a 1 MB stack.
+
+data space = mut [0:u8; 16777216]
+
+export func first() -> u8 => space[0]
