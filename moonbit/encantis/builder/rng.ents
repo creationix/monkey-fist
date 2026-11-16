@@ -1,0 +1,63 @@
+// mulberry32 of random.js, bit for bit, and the ways the builder draws from it.
+// The state is one u32, so u32 arithmetic (which wraps) is all it needs: `*` is
+// Math.imul.
+//
+// Every draw is counted and traced for check-weave.cjs: `site` is the number of
+// the call site in dump-weave.cjs's SITES (1 to 23) and `n` the bound of a
+// below or the sum of a weighted pick (0 otherwise). Neither changes the draw.
+
+data tracebuf = mut [0:u8; 262144]   // 65,536 u32: site << 24 | n, one per draw
+
+global state: u32 = 0
+global count: u32 = 0
+
+export func seed(s: u32) {
+  state = s
+  count = 0
+}
+
+// How many draws since seed.
+export func draws() -> u32 => count
+
+export func trace_at() -> u32 => tracebuf as u32
+
+// The next number in [0, 1): k / 2^32 for a 32-bit k.
+export func rng(site: u32, n: i32) -> f64 {
+  if count < 65536 {
+    tracebuf.u32[count] = (site << 24) | ((n as u32) & 0xFFFFFF)
+  }
+  count += 1
+  state += 0x6D2B79F5
+  let a = state
+  let t: u32 = (a ^ (a >> 15)) * (1 | a)
+  t = (t + (t ^ (t >> 7)) * (61 | t)) ^ t
+  return f64(t ^ (t >> 14)) / 4294967296.0
+}
+
+// Math.floor(rng() * n): an index below n.
+export func below(site: u32, n: i32) -> i32 => i32(floor(rng(site, n) * f64(n)))
+
+// rng() < p
+export func chance(site: u32, p: f64) -> bool => rng(site, 0) < p
+
+test "mulberry32(1) gives the numbers random.js gives" {
+  seed(1)
+  // (mulberry32(1)() * 2 ** 32, three times, in node)
+  assert rng(1, 0) * 4294967296.0 == 2693262067.0
+  assert rng(1, 0) * 4294967296.0 == 11749833.0
+  assert rng(1, 0) * 4294967296.0 == 2265367787.0
+  assert draws() == 3
+}
+
+test "below and chance draw once each" {
+  seed(12345)
+  let a = below(3, 1000)
+  let b = below(3, 7)
+  let c = chance(2, 0.5)
+  assert draws() == 3
+  assert a == 979
+  assert b == 2
+  assert c
+  assert tracebuf.u32[0] == (3 << 24) | 1000
+  assert tracebuf.u32[2] == 2 << 24
+}

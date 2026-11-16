@@ -1,0 +1,17 @@
+// Encantis 0.2.1: taking a slice field straight from a call that returns a
+// struct, `f().chain.len`, leaves the struct's other values on the wasm stack.
+//   encantis wasm 13-field-of-call-result.ents
+//     -> WAT error: type mismatch ... expected [] but got [i32, i32]  (or similar)
+// (encantis check passes.) Workaround: `let s = f()` first.
+
+data buf = mut [0:u8; 64]
+type Lists = (tight: []i32, chain: []i32)
+
+func lists() -> Lists {
+  let w = buf as [*]i32
+  let a: []i32 = (w, 1:u32)
+  let b: []i32 = (w, 2:u32)
+  return Lists(a, b)
+}
+
+export func chains() -> u32 => lists().chain.len

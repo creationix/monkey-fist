@@ -1,0 +1,11 @@
+// Encantis 0.2.1: a function passed as an argument cannot be called (the
+// reference documents function types and calls through them).
+//   encantis wasm 10-call-function-parameter.ents
+//     -> WAT error: undefined function variable "$f"
+// (encantis check passes.) So a sort cannot take its comparator: weave.ents
+// writes survey's one sort out by hand.
+
+func descending(a: i32, b: i32) -> i32 => b - a
+func apply(f: (i32, i32) -> i32, a: i32, b: i32) -> i32 => f(a, b)
+
+export func seven() -> i32 => apply(descending, 3, 10)

@@ -1,0 +1,12 @@
+// Encantis 0.2.1: a field read or written through a pointer to one struct, `p.c`
+// with p: *mut Spot, is compiled as if p were a struct in locals.
+//   encantis wasm 06-field-through-pointer.ents
+//     -> WAT error: undefined local variable "$p_c"
+// (encantis check passes.) Workaround: pass a many-pointer and write p[0].c.
+
+type Spot = (c: i32, di: i32, room: i32)
+
+export func turn(p: *mut Spot) -> i32 {
+  p.c = 5
+  return p.di
+}

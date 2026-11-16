@@ -1,0 +1,13 @@
+// Encantis 0.2.1: a bare `return` in a function that has a result passes the
+// checker and fails only when the WAT is validated. The message names the
+// source file but gives a line and column of the generated WAT.
+//   encantis check 14-bare-return-with-result.ents  -> OK
+//   encantis wasm 14-bare-return-with-result.ents
+//     -> WAT error: 14-bare-return-with-result.ents:3:60: error: type mismatch in return, expected [i32] but got []
+
+export func sign(x: i32) -> i32 {
+  if x < 0 {
+    return
+  }
+  return 1
+}

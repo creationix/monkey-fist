@@ -1,0 +1,15 @@
+// Encantis 0.2.1: storing a slice returned by a call straight into memory
+// crashes the compiler.
+//   encantis wasm 09-store-returned-slice.ents
+//     -> error: Expected 2 v128 components, got 1: (call $make ...
+// Workaround used throughout weave.ents: `let s = make(); lists[k] = s`.
+
+data buf = mut [0:u8; 256]
+
+func make() -> []i32 => ((buf as [*]i32), 2:u32)
+
+export func keep() -> u32 {
+  let lists = ((buf as u32) + 128) as [*]mut []i32
+  lists[1] = make()
+  return lists[1].len
+}

@@ -1,0 +1,10 @@
+// Encantis 0.2.1: a global cannot be a slice: it is emitted as one wasm global
+// with two initializers.
+//   encantis wasm 08-slice-global.ents
+//     -> WAT error: type mismatch at end of initializer expression, expected [] but got [i32]
+// (encantis check passes.) Workaround used in weave.ents: a pointer global and a
+// length global (order, norder), and a function that pairs them (order_list).
+
+global order: []i32 = (0, 0)
+
+export func count() -> u32 => order.len

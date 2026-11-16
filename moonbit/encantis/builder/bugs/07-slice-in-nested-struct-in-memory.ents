@@ -1,0 +1,24 @@
+// Encantis 0.2.1: a slice field of a struct nested in a struct in memory cannot
+// be read: one value is loaded where two (pointer, length) are needed.
+//   encantis wasm 07-slice-in-nested-struct-in-memory.ents
+//     -> WAT error: type mismatch in local.set, expected [i32] but got []
+// (encantis check passes. A slice field of the struct itself, `opts[1].cells`,
+// works; so does the nested struct in locals.)
+// Workaround used in weave.ents (shape): Option repeats Lane's fields instead of
+// holding a Lane.
+
+data buf = mut [0:u8; 256]
+type Lane = (cells: []i32, free: i32)
+type Option = (d: i32, lane: Lane)
+
+export func total() -> i32 {
+  let w = buf as [*]mut i32
+  let opts = ((buf as u32) + 128) as [*]mut Option
+  opts[1].d = 3
+  opts[1].lane.cells = w[0..2]
+  let t = 0
+  for x in opts[1].lane.cells {
+    t += x
+  }
+  return t
+}

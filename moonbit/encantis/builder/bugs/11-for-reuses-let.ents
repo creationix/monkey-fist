@@ -1,0 +1,19 @@
+// Encantis 0.2.1: names are function-scoped, and the two ways of clashing are
+// treated differently. A `let` after a `for` of the same name is rejected
+// ("'c' is already declared in this scope"), and so is the same `let` in two
+// sibling blocks. But a `for` whose variable has the name of an earlier `let`
+// compiles, and silently takes over that variable.
+//   encantis test 11-for-reuses-let.ents  -> fails: after the loop, c is 3
+
+func after() -> u32 {
+  let c: u32 = 5
+  let t = 0
+  for c in 3 {
+    t += 1
+  }
+  return c
+}
+
+test "a loop variable does not clobber a variable of the same name" {
+  assert after() == 5
+}

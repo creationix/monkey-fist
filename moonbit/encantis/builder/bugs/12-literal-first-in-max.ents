@@ -1,0 +1,6 @@
+// Encantis 0.2.1: min and max reject an untyped literal as their first argument.
+//   encantis check 12-literal-first-in-max.ents
+//     -> max requires a numeric type, got float(1)
+// max(x, 1.0) and max(1.0:f64, x) are accepted.
+
+export func at_least_one(x: f64) -> f64 => max(1.0, x)

@@ -1,0 +1,20 @@
+// Encantis 0.2.1: loading a whole struct from memory, `let s = list[k]` or
+// passing `list[k]` to a function, emits one i32.load for all the fields.
+//   encantis wasm 05-struct-load-from-memory.ents
+//     -> WAT error: type mismatch in local.set, expected [i32] but got []
+// Workaround used in weave.ents (spot_at): build the value field by field,
+// Spot(list[k].c, list[k].di, list[k].room).
+
+data buf = mut [0:u8; 256]
+type Spot = (c: i32, di: i32, room: i32)
+
+func sum(s: Spot) -> i32 => s.c + s.di + s.room
+
+export func third() -> i32 {
+  let spots = buf as [*]mut Spot
+  spots[2].c = 20
+  spots[2].di = 1
+  spots[2].room = 2
+  let s = spots[2]
+  return sum(s)
+}

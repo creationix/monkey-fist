@@ -1,0 +1,21 @@
+// Encantis 0.2.1: abs(a - b) compiles to (a - b). The abs is dropped, silently.
+//   encantis test 01-abs-of-difference.ents     -> the first test fails
+//   encantis compile 01-abs-of-difference.ents  -> $gap is (f64.sub (local.get $a) (local.get $b))
+// abs of a variable, of a negation and of a parenthesised difference are right.
+// Workaround used in weave.ents (best_rope): take the difference into a local.
+
+func gap(a: f64, b: f64) -> f64 => abs(a - b)
+func gap_parens(a: f64, b: f64) -> f64 => abs((a - b))
+func gap_local(a: f64, b: f64) -> f64 {
+  let d = a - b
+  return abs(d)
+}
+
+test "abs(a - b) is not negative" {
+  assert gap(1.0, 2.5) == 1.5
+}
+
+test "abs((a - b)) and abs of a local are right" {
+  assert gap_parens(1.0, 2.5) == 1.5
+  assert gap_local(1.0, 2.5) == 1.5
+}

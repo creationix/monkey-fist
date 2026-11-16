@@ -1,0 +1,21 @@
+// Encantis 0.2.1: storing a whole struct into memory, `list[k] = Spot(...)` or
+// `list[k] = f()`, emits one i32.store with every field as an operand. That is
+// still valid wasm inside a function that ends in `return`, so nothing is
+// reported: it stores the last field at the address held in the field before
+// it, and the element is never written.
+//   encantis test 04-struct-store-to-memory.ents     -> fails
+//   encantis compile 04-struct-store-to-memory.ents  -> (i32.store (i32.add ...) (i32.const 20) (i32.const 1) (i32.const 2))
+// Workaround used in weave.ents (put_spot): store field by field.
+
+data buf = mut [0:u8; 256]
+type Spot = (c: i32, di: i32, room: i32)
+
+func third() -> i32 {
+  let spots = buf as [*]mut Spot
+  spots[2] = Spot(20, 1, 2)
+  return spots[2].c
+}
+
+test "a struct stored in an array can be read back" {
+  assert third() == 20
+}

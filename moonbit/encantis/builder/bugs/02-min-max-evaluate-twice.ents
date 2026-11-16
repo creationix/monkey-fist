@@ -1,0 +1,22 @@
+// Encantis 0.2.1: integer min and max evaluate each argument twice (they compile
+// to a select with the operands repeated), so an argument with a side effect
+// has it twice. Silent.
+//   encantis test 02-min-max-evaluate-twice.ents     -> fails
+//   encantis compile 02-min-max-evaluate-twice.ents  -> (select (call $next) (i32.const 0) (i32.gt_s (call $next) (i32.const 0)))
+// In weave.ents this would have drawn from the rng twice in walk():
+// max(k + 2, len_lo + below(...)). Workaround: draw into a local first.
+// (f64 min and max compile to f64.min / f64.max and are fine.)
+
+global calls: i32 = 0
+
+func next() -> i32 {
+  calls += 1
+  return calls
+}
+
+test "max calls its argument once" {
+  calls = 0
+  let m = max(next(), 0)
+  assert calls == 1
+  assert m == 1
+}
