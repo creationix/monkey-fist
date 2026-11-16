@@ -42,13 +42,11 @@ export func extend(n: u32) -> (p: u32) {
   assert top <= capacity
 }
 
-// n u32 words, zeroed.
+// n u32 words, zeroed (one memory.fill).
 export func alloc_words(n: u32) -> (p: u32) {
   p = alloc(n * 4)
   let w = p as [*]mut u32
-  for i in n {
-    w[i] = 0
-  }
+  w[0..n] = 0
 }
 
 test "scopes free what they allocate, on every exit" {

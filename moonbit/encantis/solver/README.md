@@ -17,25 +17,33 @@ It's written on the bump stack (`../stack/stack.ents`) with `defer`:
 
 ## Results
 
-`node moonbit/encantis/solver/check.cjs`:
+`node moonbit/encantis/solver/check.cjs`, built with Encantis 0.2.1:
 
 | | Result |
 | --- | --- |
 | Pinned JS results (`assist-expected.json`), square boards | 330 checks, 0 mismatches |
 | Every square Journey board plus 18 custom boards: plan states and random states, budgets 40 / 900 / 5000 | 1,013 positions, 3,039 checks, 0 mismatches against MoonBit's wasm-gc and JS builds |
-| Time for those 3,039 searches (Node) | Encantis 80 ms, MoonBit wasm-gc 192 ms, MoonBit JS build 365 ms |
-| wasm | 4.3 KB (plain wasm, no GC) |
-| Size against the MoonBit it replaces | 3,012 tokens against 2,493: 1.21× |
+| Time for those 3,039 searches (Node) | Encantis 57 ms, MoonBit wasm-gc 135 ms, MoonBit JS build 261 ms |
+| wasm | 4.1 KB, no GC; `memory.fill` (bulk memory) is the one post-MVP instruction |
+| Size against the MoonBit it replaces | 2,768 tokens against 2,493: 1.11× |
 
-**Speed.** Encantis is 2.4× faster than MoonBit's wasm-gc build, and 4.6× faster
-than its JS build. The JS build is what iOS 15 runs, so a plain-wasm Encantis
-solver should be the biggest gain for the iPad mini 4 (not measured on Safari).
+**Speed.** Encantis is about 2.4× faster than MoonBit's wasm-gc build, and 4.6×
+faster than its JS build. The JS build is what iOS 15 runs, so a plain-wasm
+Encantis solver should be the biggest gain for the iPad mini 4 (not measured on
+Safari).
 
-**Size.** The 1.21× uses no generics, closures or enums. Most of the extra is:
-- typed views of the board's globals (`let off = off_at as [*]i32`, since
-  globals can't hold pointer types yet);
-- the hand-written hash set;
-- an insertion sort in place of `ssort` with a comparator.
+**Size.** The 1.11× uses no generics, closures or enums. Most of the extra is the
+hand-written hash set, and an insertion sort in place of `ssort` with a comparator.
+
+## How it got here
+
+| Version | Tokens | × MoonBit |
+| --- | ---: | ---: |
+| First port, Encantis 0.1.0: board arrays as `u32` addresses, with typed views in every function | 3,011 | 1.21 |
+| Pointer globals (`global off: [*]mut i32 = 0`, creationix/encantis#9, in 0.2.1) | 2,774 | 1.11 |
+| Element loops over ranges (`for o in off[0..n]`, 0.2.0) | 2,768 | 1.11 |
+
+All three versions are exact on every check and run at the same speed.
 
 ## What the port needed
 
@@ -45,32 +53,24 @@ solver should be the biggest gain for the iPad mini 4 (not measured on Safari).
     reaches the edge, so it's built in place by growing the topmost allocation.
   - `alloc` aligns to 8, which would have left gaps between words. That was the
     one real bug in my port.
-- **Compiler fixes,** all released in Encantis 0.1.0 (creationix/encantis
-  #2–#5):
-  - #2 `defer`.
-  - #3 `continue` in `for i in n` skipped the increment.
-  - #4 `[*]mut Slot` wasn't assignable to `[*]mut Slot`.
-  - #5 a trailing `if` in a function with named results produced invalid wasm.
-- **Still awkward in the language:**
-  - **Globals can't hold pointer types** (the annotation is ignored, still so in
-    0.1.0), so every function rebinds typed views of them.
-  - **A call result can't be indexed and assigned to** (`f(x)[i] = v`).
+- **Compiler fixes** on creationix/encantis, all released:
+  - In 0.1.0: #2 `defer`; #3 `continue` in `for i in n` skipped the increment;
+    #4 `[*]mut Slot` wasn't assignable to `[*]mut Slot`; #5 a trailing `if` in a
+    function with named results produced invalid wasm.
+  - In 0.2.1: #9 pointer-typed globals; #10 destructuring inside tests; #11
+    positional destructuring (`let a, b = f()`); #12 struct constructors.
+- **Used from 0.2.0:** element loops over many-pointer ranges, and range fill
+  (`w[0..n] = 0`, one `memory.fill`) in the stack's `alloc_words`.
+- **Still awkward:**
   - **No closures:** the search's shared state is module globals. That is fine
-    for a single-threaded kernel, but it's the opposite of reentrant.
+    for a single-threaded kernel, but it isn't reentrant.
+  - **No generics:** the hash set is written for this one key type.
+  - **Copies with a runtime length** still need a loop or `memcpy` with sized
+    pointers. Range copy needs both lengths known at compile time.
 - **Not ported:** Hex boards and spinner boards, which use other kernels in
   MoonBit (`hex_solve`, `solve_full`). The square kernel is the representative
   case.
 
-## `solver.next.ents`: with pointer globals
-
-The same solver with the board's arrays in pointer globals
-(`global off: [*]mut i32 = 0`). It needs creationix/encantis#9, which isn't
-released yet. It drops 39 lines of typed views and comes to 2,774 tokens,
-**1.11× the MoonBit** (from 1.21×). It is equally exact (330 pinned and 3,039
-compared checks, 0 mismatches) and equally fast. When #9 is released, it replaces
-`solver.ents`. Check it with
-`node moonbit/encantis/solver/check.cjs <path to solver.next.wasm>`.
-
-To build, with the Encantis 0.1.0 release binary (or `bun packages/cli/src/cli.ts`
-in a checkout of `v0.1.0`; both give byte-identical output):
+To build, with the Encantis 0.2.1 release binary (or `bun packages/cli/src/cli.ts`
+in a checkout of `v0.2.1`):
 `encantis wasm moonbit/encantis/solver/solver.ents -o moonbit/encantis/solver/solver.wasm`.

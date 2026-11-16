@@ -52,7 +52,7 @@ export func mark() -> u32 => (space as u32) + top   // marks are addresses
 export func reset(m: u32) { top = m - (space as u32) }
 export func alloc(n: u32) -> (p: u32) { … }         // 8-aligned bump; traps when full
 export func extend(n: u32) -> (p: u32) { … }        // grow the topmost allocation by exactly n
-export func alloc_words(n: u32) -> (p: u32) { … }   // zeroed
+export func alloc_words(n: u32) -> (p: u32) { … }   // zeroed: w[0..n] = 0, one memory.fill
 ```
 
 `extend` was added for the solver (`../solver/`). It builds an array whose length
@@ -122,5 +122,5 @@ Both are fixed in Encantis 0.1.0:
 - `continue` inside `for i in n` jumped past the increment and looped forever
   (creationix/encantis#3).
 
-To build, with the Encantis 0.1.0 release binary (or a checkout of `v0.1.0`):
+To build, with the Encantis 0.2.1 release binary (or a checkout of `v0.2.1`):
 `encantis wasm moonbit/encantis/stack/features.ents -o moonbit/encantis/stack/features.wasm`.
