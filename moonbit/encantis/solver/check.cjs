@@ -1,7 +1,7 @@
 // Checks solver.wasm (Encantis guide for square boards without spinners) against
 // MoonBit's guide (src/core/assist.mbt, both builds) and the JS results pinned
 // in moonbit/tests/assist-expected.json, and times them:
-//   node moonbit/encantis/solver/check.cjs
+//   node moonbit/encantis/solver/check.cjs [wasm, default solver.wasm]
 const fs = require('fs'), path = require('path');
 const G = require('../../../game-engine.js'), L = require('../../../levels.js');
 const MFMoonBit = require('../../web/generator.js');
@@ -25,7 +25,7 @@ function encantis(instance) {
 }
 
 (async () => {
-  const enc = encantis((await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, 'solver.wasm')), {})).instance);
+  const enc = encantis((await WebAssembly.instantiate(fs.readFileSync(process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, 'solver.wasm')), {})).instance);
   const wasm = MFMoonBit.wrap((await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, '../../dist/gen.wasm')), {})).instance.exports, 'wasm-gc');
   const js = MFMoonBit.local();
   const same = (a, b) => JSON.stringify([a.solved, a.moves, a.nodes]) === JSON.stringify([b.solved, b.moves, b.nodes]);

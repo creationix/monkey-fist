@@ -61,6 +61,16 @@ solver should be the biggest gain for the iPad mini 4 (not measured on Safari).
   MoonBit (`hex_solve`, `solve_full`). The square kernel is the representative
   case.
 
+## `solver.next.ents`: with pointer globals
+
+The same solver with the board's arrays in pointer globals
+(`global off: [*]mut i32 = 0`). It needs creationix/encantis#9, which isn't
+released yet. It drops 39 lines of typed views and comes to 2,774 tokens,
+**1.11× the MoonBit** (from 1.21×). It is equally exact (330 pinned and 3,039
+compared checks, 0 mismatches) and equally fast. When #9 is released, it replaces
+`solver.ents`. Check it with
+`node moonbit/encantis/solver/check.cjs <path to solver.next.wasm>`.
+
 To build, with the Encantis 0.1.0 release binary (or `bun packages/cli/src/cli.ts`
 in a checkout of `v0.1.0`; both give byte-identical output):
 `encantis wasm moonbit/encantis/solver/solver.ents -o moonbit/encantis/solver/solver.wasm`.
