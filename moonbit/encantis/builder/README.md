@@ -103,7 +103,7 @@ Like the MoonBit port, it leaves out what the generator never asks for:
 3. **Lifetimes on the bump stack are decided by hand.** The chosen candidate
    must outlive its try; a track must outlive every scope but the call's; a list
    that ropes are committed under must be allocated before the first rope. That
-   took `keep`, three functions that exist only to close a scope (there is no
+   took `keep`, two functions that exist only to close a scope (there is no
    bare block), and six capacity bounds worked out from the algorithm, with no
    bounds check behind them. No bug came of it, with asserts watching.
 4. **Lists that grow in turns.** Only one list can grow at the top of the stack.

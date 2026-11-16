@@ -184,8 +184,8 @@ Lifetimes on the bump stack, in the order I had to decide them:
    needs a bound on a candidate's rope: `max(len_hi, pull + 2)` cells, from
    reading `walk`.
 2. **No bare block**, so a scope needs a function, a loop body or an `if`.
-   `next_addition`, `spot_try` and `gap_rope` exist as functions because each
-   must close its scope before `commit` runs.
+   `spot_try` and `gap_rope` exist as functions only because a try must close
+   its scope before its result is committed or the next try begins.
 3. **`pack_gaps` commits ropes while it walks its shuffled list of cells**, so
    that list is allocated before the first rope (`spare` in `weave`) and passed
    in.
@@ -310,3 +310,21 @@ earlier only because bug 3 fails loudly for f64, and I read the WAT round it.
 Bug 3 probably has one cause: the type of a binary expression seems to be
 looked up by where it ends, and the right operand of a comparison ends where
 the comparison does.
+
+## What would have removed the most
+
+Measured on this port only:
+
+| If Encantis had | It would remove |
+| --- | --- |
+| Correct `abs`, `min`, `max` and comparisons (bugs 1 to 3) | the three workarounds, and the need to read the WAT |
+| Struct values that can be stored and loaded (bugs 4 to 7) | `put_spot`, `spot_at`, the `Option` type that repeats `Lane` |
+| Optional struct values (`?Cand`), or enums | 4 `ok` fields, 4 empty constructors, 33 `no_...()` returns, and the chance of reading a value that is not there |
+| Block scope, and a bare block | 2 functions that only carry a scope; about a dozen names chosen to avoid a clash |
+| Slice globals (bug 8) | the `order` / `norder` pair and `order_list()` |
+| A signed loop variable, or signed lengths | most of the 52 `as i32` |
+| A list that can grow while another does | the counting pass for `lanes`, the worst-case room in `knot_spots`, 6 hand-derived capacities |
+| Callable function values (bug 10), or generics | the hand-written sort; with generics also a `push` for the two struct lists |
+| Closures | 6 loops written out for `filter`, `some` and `map`. Not the 25 closures of `weave`: globals did those at no cost in lines |
+| Imports by name alone | 70 lines |
+
