@@ -1,0 +1,21 @@
+// Encantis 0.2.1: an element loop over a slice of structs, `for s in list` with
+// list: []Spot, loads one value for all the fields (the same fault as bugs/05).
+//   encantis check 18-element-loop-over-structs.ents  -> OK
+//   encantis wasm 18-element-loop-over-structs.ents
+//     -> WAT error: type mismatch in local.set, expected [i32] but got []
+// So the element loop, the best thing about slices of i32, is not there for the
+// two struct lists of weave.ents (Spot, Option): they are read by index, field
+// by field.
+
+data buf = mut [0:u8; 256]
+type Spot = (c: i32, di: i32, room: i32)
+
+export func total() -> i32 {
+  let spots = buf as [*]mut Spot
+  let list: []Spot = (spots, 3:u32)
+  let t = 0
+  for s in list {
+    t += s.c + s.di + s.room
+  }
+  return t
+}

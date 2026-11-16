@@ -1,0 +1,23 @@
+// Encantis 0.2.1: `for i in n` compares unsigned, whatever the type of n. With an
+// i32 count that is negative the loop does not run zero times: it runs until i
+// reaches n as a u32, about four thousand million times. Silent.
+//   encantis test 20-for-over-negative-count.ents     -> fails: count(-1) is 1001
+//   encantis compile 20-for-over-negative-count.ents  -> (br_if $break (i32.ge_u (local.get $i) (local.get $n)))
+// weave.ents and board.ents have 26 loops over an i32 count (n, area, open ...).
+// None can be negative inside the contract; two come straight from the input
+// (ncore, nmirrors). MoonBit's `for i in 0..<n` runs zero times.
+
+func count(n: i32) -> i32 {
+  let t = 0
+  for i in n {
+    t += 1
+    break when t > 1000
+  }
+  return t
+}
+
+test "a loop over a negative count does not run" {
+  assert count(3) == 3
+  assert count(0) == 0
+  assert count(-1) == 0
+}

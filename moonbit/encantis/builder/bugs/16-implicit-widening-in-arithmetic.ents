@@ -1,0 +1,11 @@
+// Encantis 0.2.1: the reference says an i32 widens to f64 implicitly (2.10), and
+// the checker accepts i32 mixed with f64 in arithmetic and comparisons, but no
+// conversion is emitted.
+//   encantis check 16-implicit-widening-in-arithmetic.ents  -> OK
+//   encantis wasm 16-implicit-widening-in-arithmetic.ents
+//     -> WAT error: type mismatch in f64.mul, expected [f64, f64] but got [f64, i32]
+// The same happens for `n - d`, `covered >= goal` and `goal < covered`.
+// (`let s: f64 = a + b` with two i32 is rejected by the checker: "cannot assign
+// i32 to f64".) So every mixed expression needs f64(n): 17 sites in weave.ents.
+
+export func scale(r: f64, n: i32) -> f64 => r * n

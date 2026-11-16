@@ -1,0 +1,19 @@
+// Encantis 0.2.1: storing a whole struct through a pointer to one, `p.* = Spot(...)`,
+// is miscompiled like bugs/04 (one i32.store with every field as an operand).
+// It builds, and the element is never written. Silent.
+//   encantis test 17-struct-store-through-pointer.ents  -> fails
+// (Loading the other way, `let s = p.*`, is invalid wasm, like bugs/05.)
+
+data buf = mut [0:u8; 256]
+type Spot = (c: i32, di: i32, room: i32)
+
+func write_through() -> i32 {
+  let p = ((buf as u32) + 48) as *mut Spot
+  p.* = Spot(1, 2, 3)
+  let spots = buf as [*]mut Spot
+  return spots[4].c + spots[4].di * 10 + spots[4].room * 100
+}
+
+test "a struct stored through a pointer can be read back" {
+  assert write_through() == 321
+}

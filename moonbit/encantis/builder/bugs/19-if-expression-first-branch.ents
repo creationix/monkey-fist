@@ -1,0 +1,27 @@
+// Encantis 0.2.1: `let v = if c { A } else { B }` is given the type () when the
+// first branch A is an operator or index expression (`p - l`, `xs[i]`), and the
+// checker then rejects every use of v.
+//   encantis check 19-if-expression-first-branch.ents
+//     -> cannot assign () to i32   (at the `return v` of $bad_sum and $bad_index)
+// A name, a literal, a call or a parenthesised expression as the first branch is
+// accepted, and so is any expression in the other branches; so is the same
+// `if` as a function's expression body. Workaround: parentheses, { (p - l) }.
+// (weave.ents does not use if expressions; rewriting its 15 "let x = default,
+// then if ... { x = other }" places with them needs this at 5.)
+
+func bad_sum(c: bool, p: i32, l: i32) -> i32 {
+  let v = if c { p - l } else { -1 }
+  return v
+}
+
+func bad_index(c: bool, xs: [*]i32) -> i32 {
+  let v = if c { xs[2] } else { -1 }
+  return v
+}
+
+func good(c: bool, p: i32, l: i32) -> i32 {
+  let v = if c { (p - l) } else { p + l }
+  return v
+}
+
+func good_body(c: bool, p: i32, l: i32) -> i32 => if c { p - l } else { -1 }
