@@ -1,0 +1,59 @@
+name: iOS cloud build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ios-cloud-build]
+    paths:
+      - flutter/**
+      - .github/workflows/ios-build.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile iPad/iPhone release
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Flutter 3.50.0
+        run: |
+          git clone --depth 1 --branch 3.50.0 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter-sdk"
+          echo "$RUNNER_TEMP/flutter-sdk/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter-sdk/bin/flutter" --version
+      - name: Inspect Apple toolchain
+        run: |
+          xcodebuild -version
+          flutter doctor -v
+      - name: Resolve packages
+        run: flutter pub get
+      - name: Compile unsigned release for physical devices
+        run: flutter build ios --release --no-codesign --build-number "$GITHUB_RUN_NUMBER"
+      - name: Package unsigned app
+        run: |
+          tar -C build/ios/iphoneos -czf build/ios/monkey-fist-unsigned-ios.tar.gz Runner.app
+          {
+            echo '### iOS release compiled'
+            echo 'This unsigned artifact verifies compilation. Signing and an App Store Connect app record are required before it can be installed through TestFlight.'
+            echo "Source: $GITHUB_SHA"
+            echo "Build number: $GITHUB_RUN_NUMBER"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Run Flutter tests
+        run: flutter test
+      - name: Save unsigned build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monkey-fist-unsigned-ios-${{ github.run_number }}
+          path: flutter/build/ios/monkey-fist-unsigned-ios.tar.gz
+          retention-days: 7
