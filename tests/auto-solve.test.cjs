@@ -11,7 +11,7 @@ test('auto-solve queues a full plan immediately, finishes with zero stars, and p
       const planned = await page.evaluate(() => G.plan.length);
       await page.click('#autoSolve');
       assert.equal(await page.locator('.hud').isVisible(), false);
-      assert.equal(await page.locator('#zoomControls').isVisible(), false);
+      assert.equal(await page.locator('.actions').isVisible(), false);
       assert.equal(await page.locator('#notice').isVisible(), false);
       assert.equal(await page.locator('#result').isVisible(), false);
       assert.deepEqual(await page.evaluate(() => ({ left: G.paths.filter(Boolean).length, taps: G.taps, motions: allMotions().length, advanced: allMotions().some(m => m.progress > 0) })),

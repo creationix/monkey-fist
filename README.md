@@ -35,9 +35,16 @@ hand-picked:
 Both grids share the same full-screen canvas, floating controls, menus, scoring,
 audio, zoom, panning, and responsive orientation. There is no separate Hex app.
 
+The web game and the Flutter app (`flutter/`) share one layout: **Levels** (the
+home list with your stars and a Play or Continue button), the **puzzle**, and
+**Settings**. The gear in the top-right corner of Levels and of the puzzle opens
+Settings; the back arrow on a puzzle opens Levels. In portrait the title and score
+sit above the board and the actions below it; on wide screens they move to the
+sides so the board keeps the full height.
+
 ## Custom sets
 
-Open **Menu → Custom** to choose:
+Open **Levels → Custom** to choose:
 
 - Square + Hex, square only, or Hex only.
 - Mirrors and springs, independently.
@@ -135,7 +142,7 @@ fewer taps. Boards without spinners, mirrors included, search on the compact
 offset kernels; spinner boards with up to twelve ropes use a full-geometry
 search. An unfinished search keeps the best verified solution.
 
-Graphics can switch between braided Rope and translucent Tiles. Tiles use
+**Settings → Art style** switches between braided Rope and translucent Tiles. Tiles use
 flat, beveled panels with clear rims. Mirrors
 match the glass-like panels; bouncers have a spinning gear profile in both styles.
 The setting is shared by square and Hex and saved across sessions.
@@ -234,17 +241,17 @@ thinks, and return within two bars of the next tap.
 
 A soft swish plays when a rope starts moving. The exit sound plays as soon as
 the entire rope clears both the board and the visible viewport; animation does
-not wait for an invisible extended route. The sound-effects and music buttons
-each cycle **Off → Soft → Full**. Effects start Soft (a quarter of Full's gain);
+not wait for an invisible extended route. **Settings** chooses **Off**, **Soft** or
+**Full** for sound effects and music independently. Effects start Soft (a quarter of Full's gain);
 music starts Off, and its Full is about twice Soft, still below the limiter.
 Audio initializes on the first gesture, pauses in the background, and music
-pauses in menus.
+pauses in Levels and Settings.
 Mirror turns make a low, hollow pluck tuned to the current music, timed to the
 head reaching each mirror. Sliding away from a mirror does not repeat its sound.
 Spring impacts make a low, damped boing when the coil compresses.
 
-In **Menu**, toggle **Dark mode** for a black page background and nearly black
-board and menu surfaces. It preserves rope colors, works on both grids, and
+In **Settings**, turn on **High contrast** for a black page background, nearly black
+board and menu surfaces, and clearer grid lines. It preserves rope colors, works on both grids, and
 remembers the setting across sessions, including offline play.
 
 The shared save key is `monkey-fist-unified-v1`. It stores chapter unlocks,

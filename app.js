@@ -20,12 +20,10 @@ save.sound = MFAudio.setting('sound', save.sound).id; save.music = MFAudio.setti
 const MOVE_SPEEDS = { slow: .5, normal: 1, fast: 2 };
 if (!Object.hasOwn(MOVE_SPEEDS, save.moveSpeed)) save.moveSpeed = 'normal';
 if (save.graphics !== 'tiles') save.graphics = 'rope';
+// Settings radios are named after their save keys; the switch is High contrast (save.oled).
 function syncDisplay() {
-  $('graphics').textContent = 'Graphics: ' + (save.graphics === 'tiles' ? 'Tiles' : 'Rope');
-  const speed = save.moveSpeed[0].toUpperCase() + save.moveSpeed.slice(1);
-  $('moveSpeed').textContent = 'Speed: ' + speed; $('moveSpeed').setAttribute('aria-label', 'Rope speed: ' + speed);
+  for (const input of $('settings').querySelectorAll('input')) input.checked = input.type === 'radio' ? save[input.name] === input.value : !!save.oled;
   document.documentElement.classList.toggle('oled', !!save.oled);
-  $('oled').setAttribute('aria-pressed', !!save.oled); $('oled').textContent = 'Dark mode: ' + (save.oled ? 'on' : 'off');
   document.querySelector('meta[name="theme-color"]').content = save.oled ? '#000000' : '#0b1f2a';
 }
 syncDisplay();
@@ -37,7 +35,7 @@ const headDirection = path => H.direction(G.level, path);
 let noticeTimer, lastTime = 0, width = 1, height = 1, drawNext = true, cameraTween = null, motionNo = 0;
 const gameAudio = MFAudio.createAudio(() => ({
   // Music pauses in the background and in menus.
-  sound: save.sound, music: document.hidden || $('chooser').open || $('result').open ? 'off' : save.music, level: G.index + 1,
+  sound: save.sound, music: document.hidden || menuOpen() ? 'off' : save.music, level: G.index + 1,
 }));
 const { init: audio, sfx } = gameAudio;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -50,14 +48,8 @@ function refreshFrozen() {
   G.frozen = new Set(G.level && !G.auto && !G.plan.length ? H.frozenRopes(G.level, G.paths) : []);
 }
 function notice(text) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = setTimeout(() => $('notice').classList.remove('show'), 2400); }
-function syncMusic() {
-  for (const [id, kind, name] of [['sound', 'sound', 'Sound effects'], ['music', 'music', 'Music']]) {
-    const level = MFAudio.setting(kind, save[kind]);
-    $(id).textContent = (kind === 'music' ? '♫ Music: ' : 'Sound: ') + level.label;
-    $(id).setAttribute('aria-pressed', level.id !== 'off'); $(id).setAttribute('aria-label', name + ': ' + level.label);
-  }
-  gameAudio.sync();
-}
+const menuOpen = () => $('chooser').open || $('settings').open || $('result').open;
+const syncMusic = () => gameAudio.sync();
 function updateURL() {
   const u = new URL(location.href); u.searchParams.set('set', H.code(opts)); u.searchParams.set('level', G.index + 1); history.replaceState(null, '', u);
   save.code = H.code(opts); save.level = G.index + 1; persist();
@@ -214,7 +206,7 @@ async function start(index) {
     const level = await weave({ ...opts, index: G.index }); if (request !== generation || !level) return;
     G.level = level; springRotations.delete(level); G.paths = level.ropes; G.plan = level.plan.slice(); G.loading = false;
     Object.assign(G, { frozen: new Set(), taps: 0, undos: 3, history: [], auto: false, usedAutoSolve: false, clearOutro: null, ended: false, hint: -1, hintTime: 0, selected: -1, bump: null, lost: false, clearNo: 0, combo: 0, assisted: new Set(), camera: { zoom: 1, x: 0, y: 0 } });
-    resetFeatures(); resize(); hud(); draw(0);
+    resetFeatures(); hud(); resize(); draw(0);
   } catch (error) {
     if (request !== generation) return;
     console.error('Could not load Monkey Fist level', { set: H.code(opts), level: G.index + 1 }, error);
@@ -226,16 +218,13 @@ function hud() {
   const l = G.level, left = G.paths.filter(Boolean).length;
   $('levelName').innerHTML = 'Level ' + (G.index + 1) + ' <span>/ ' + opts.count + '</span>';
   $('loading').hidden = !G.loading; $('boardWrap').setAttribute('aria-busy', G.loading);
-  $('zoomControls').hidden = !l;
   $('autoSolve').disabled = G.loading || !l || G.ended || G.usedAutoSolve || G.autoSolveRequested || G.paths.every(p => !p);
-  if (!l) {
-    $('chapter').textContent = 'WEAVING YOUR TANGLE'; $('remaining').textContent = G.loading ? 'Weaving long ropes…' : 'Try another seed or restart.';
-    $('score').textContent = ''; $('hint').disabled = $('undo').disabled = true; return;
-  }
-  $('chapter').textContent = opts.kind === 'journey' ? 'JOURNEY · ' + (Math.floor(G.index / 10) + 1) + ' / 12' : 'YOUR CUSTOM SET';
-  $('gridType').textContent = l.grid === 'hex' ? 'HEX' : 'SQUARE'; $('gridMark').textContent = l.grid === 'hex' ? '⬡' : '◇';
-  $('remaining').textContent = left + ' ropes left';
-  $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + l.par;
+  const kind = H.spec(opts, G.index).grid; $('gridMark').setAttribute('href', '#i-' + kind);
+  $('chapter').textContent = (kind === 'hex' ? 'Hex · ' : 'Square · ') + (opts.kind === 'journey' ? 'Chapter ' + (Math.floor(G.index / 10) + 1) : 'Custom set');
+  $('par').parentNode.hidden = !l;
+  if (!l) { $('hint').disabled = $('undo').disabled = true; return; }
+  $('remaining').textContent = left + (left === 1 ? ' rope left' : ' ropes left');
+  $('score').textContent = G.taps + (G.taps === 1 ? ' tap' : ' taps'); $('par').textContent = 'Par ' + l.par;
   $('undos').textContent = G.undos;
   $('undo').disabled = !G.undos || !G.history.length || G.auto || G.ended;
   $('hint').disabled = G.auto || G.ended || G.lost || G.moves.has(G.plan[0]);
@@ -349,13 +338,14 @@ function finish() {
   const previous = chaptersFor(opts);
   if (opts.kind === 'journey') save.chapterSets[code] = H.unlock(previous, G.index);
   persist();
+  $('resultTitle').textContent = stars ? 'Untangled!' : 'Solved';
   $('stars').innerHTML = '★'.repeat(stars) + '<span>' + '★'.repeat(3 - stars) + '</span>'; $('stars').setAttribute('aria-label', stars + ' out of 3 stars');
   $('resultText').textContent = G.usedAutoSolve ? 'Auto-solved · 0 stars' : G.taps + (G.taps === 1 ? ' tap' : ' taps') + ' · par ' + G.level.par;
   $('unlocked').textContent = chaptersFor(opts) > previous ? 'Levels ' + (previous * 10 + 1) + '–' + (chaptersFor(opts) * 10) + ' unlocked!' : opts.kind === 'journey' && G.index === 119 ? 'Journey complete. Make a new tangle in Custom.' : '';
   $('next').hidden = G.index + 1 >= H.available(opts, chaptersFor(opts)); $('result').showModal(); syncMusic(); sfx.win(stars);
 }
 function update(dt) {
-  if (!G.level || $('chooser').open) return;
+  if (!G.level || $('chooser').open || $('settings').open) return;
   if (cameraTween) {
     const t = cameraTween; t.time = Math.min(1, t.time + dt / .22); const ease = 1 - Math.pow(1 - t.time, 3);
     G.camera = Object.fromEntries(['zoom', 'x', 'y'].map(k => [k, t.from[k] + (t.to[k] - t.from[k]) * ease]));
@@ -430,7 +420,7 @@ function resize() {
   // Fit leaves the floating controls clear. Zooming/panning still uses the entire
   // screen. In portrait the controls sit above and below the board, so measure
   // them: a fixed allowance let tall control stacks cover the board's corners.
-  const wide = width > height * 1.2, band = freeBand(rect, wide);
+  const band = freeBand(rect, matchMedia('(min-aspect-ratio: 6/5)').matches);
   const usableW = Math.max(80, width - band.left - band.right), usableH = Math.max(80, height - band.top - band.bottom);
   const normal = Math.min(usableW / w, usableH / h), rotated = Math.min(usableW / h, usableH / w);
   const rot = rotated > normal, scale = Math.max(1, Math.min(110, rot ? rotated : normal));
@@ -439,16 +429,16 @@ function resize() {
   draw(0);
 }
 // The space the floating controls leave free. In portrait they sit along the top
-// and bottom edges; on wide screens, down the left and right sides.
+// and bottom edges; on wide screens (style.css switches at the same 6:5), down the sides.
 function freeBand(canvasRect, wide) {
   const boxes = selector => [...document.querySelectorAll(selector)].map(el => el.getBoundingClientRect()).filter(box => box.width && box.height);
   const edge = (selector, measure) => boxes(selector).reduce((most, box) => Math.max(most, measure(box)), 0) + 8;
   if (wide) return { top: 14, bottom: 14,
-    left: Math.max(14, edge('.brand, #audioControls, .actions', box => box.right - canvasRect.left)),
-    right: Math.max(14, edge('.readout, #zoomControls', box => canvasRect.right - box.left)) };
+    left: Math.max(14, edge('.heading, .actions', box => box.right - canvasRect.left)),
+    right: Math.max(14, edge('.corner, .scoreline', box => canvasRect.right - box.left)) };
   return { left: 12, right: 12,
-    top: Math.max(14, edge('.brand, .readout, #audioControls', box => box.bottom - canvasRect.top)),
-    bottom: Math.max(14, edge('.actions, #zoomControls', box => canvasRect.bottom - box.top)) };
+    top: Math.max(14, edge('.heading, .corner, .scoreline', box => box.bottom - canvasRect.top)),
+    bottom: Math.max(14, edge('.actions', box => canvasRect.bottom - box.top)) };
 }
 function applyCamera() {
   if (!G.level) return;
@@ -458,7 +448,7 @@ function applyCamera() {
   v.scale = v.fit * c.zoom; v.ox = v.centerX + c.x - v.cx * v.scale; v.oy = v.centerY + c.y - v.cy * v.scale;
   v.panel = { x: v.centerX - bw / 2 + c.x - 8, y: v.centerY - bh / 2 + c.y - 8, w: bw + 16, h: bh + 16 };
   canvas.setAttribute('aria-label', (G.level.grid === 'hex' ? 'Hexagonal' : 'Square') + ' rope puzzle. Tap a rope to slide it. ' + (v.zoomable ? 'Pinch or scroll to zoom; drag when zoomed in. ' : '') + 'Arrow keys select ropes; Enter slides the selected rope.');
-  canvas.classList.toggle('zoomed', c.zoom > 1);
+  $('game').classList.toggle('zoomed', c.zoom > 1); $('zoomFit').hidden = c.zoom <= 1;
   canvas.classList.toggle('pannable', v.panX || v.panY);
 }
 function setCamera(camera, smooth = false) {
@@ -476,7 +466,7 @@ function focusRope(i) {
   if (!G.paths[i]) return;
   const p = screen(G.paths[i].at(-1)), pad = Math.min(48, width / 4, height / 4);
   const r = canvas.getBoundingClientRect(), x = p.x + r.left, y = p.y + r.top;
-  const covered = [...document.querySelectorAll('.brand, .readout, .actions, #audioControls, #zoomControls')].some(el => {
+  const covered = [...document.querySelectorAll('.heading, .corner, .scoreline, .actions')].some(el => {
     const box = el.getBoundingClientRect(); return x >= box.left - 8 && x <= box.right + 8 && y >= box.top - 8 && y <= box.bottom + 8;
   });
   if (covered || p.x < pad || p.x > width - pad || p.y < pad || p.y > height - pad) {
@@ -825,11 +815,12 @@ for (const name of ['touchstart', 'touchmove', 'touchend']) canvas.addEventListe
 for (const name of ['contextmenu', 'selectstart', 'dragstart']) $('game').addEventListener(name, consume);
 document.addEventListener('contextmenu', e => { if (e.target.closest('button')) consume(e); });
 for (const name of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(name, e => {
-  if (!$('chooser').open && !$('result').open) consume(e);
+  if (!menuOpen()) consume(e);
 }, { passive: false });
 canvas.addEventListener('wheel', e => { consume(e); zoomTo(G.camera.zoom * Math.exp(-e.deltaY * .002), pointerPosition(e)); }, { passive: false });
 // Pinch, drag and the scroll wheel zoom and pan; + − 0 do the same from a keyboard.
 function fitBoard() { resetInput(); setCamera({ zoom: 1, x: 0, y: 0 }, true); }
+$('zoomFit').onclick = fitBoard;
 $('fullscreen').hidden = !document.fullscreenEnabled;
 $('fullscreen').onclick = async () => {
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
@@ -865,21 +856,33 @@ function renderChooser() {
   $('share').textContent = 'Copy set link'; $('share').title = code;
   $('setSummary').textContent = journey ? '120 tangles · square + hex' : draft.count + ' tangles · ' + draft.width + ' × ' + draft.height + ' · ' + ({ mixed: 'square + hex', square: 'square', hex: 'hex' }[draft.grid]);
   $('unlockRule').textContent = journey ? 'Clear each group’s last level to open the next ten. Play any open level.' : 'Every level is open. Ropes fill the chosen grid; difficulty changes how much unlocking they need.';
-  const scores = save.sets[code] || {}; $('grid').replaceChildren();
+  const scores = save.sets[code] || {}, stars = Object.values(scores).reduce((n, best) => n + best.stars, 0);
+  $('starTotal').textContent = stars + ' / ' + draft.count * 3 + ' ★'; $('starBar').style.width = 100 * stars / (draft.count * 3) + '%';
+  // Home offers the level in progress, or else the first open level without a score.
+  [$('playLabel').textContent, $('play').onclick] = code === H.code(opts) && G.level && !G.ended ? ['Continue level ' + (G.index + 1), closeChooser]
+    : ['Play level ' + (resumeIndex(draft) + 1), () => play(resumeIndex(draft))];
+  $('grid').replaceChildren();
   for (let i = 0; i < draft.count; i++) {
     if (i % 10 === 0) {
-      const heading = document.createElement('h3'); heading.textContent = 'Levels ' + (i + 1) + '–' + Math.min(draft.count, i + 10);
-      if (i >= available) heading.textContent += ' · clear ' + i + ' to open';
+      const heading = document.createElement('h3'), range = 'Levels ' + (i + 1) + '–' + Math.min(draft.count, i + 10);
+      heading.innerHTML = journey ? 'Chapter ' + (i / 10 + 1) + (i < available ? '<small>' + range : '<svg><use href="#i-lock"/></svg><small>' + range + ' · Clear level ' + i + ' to unlock') + '</small>' : range;
       $('grid').append(heading);
     }
-    const button = document.createElement('button'), kind = H.spec(draft, i).grid;
-    button.className = i === G.index && code === H.code(opts) ? 'current' : '';
-    button.innerHTML = '<span class="level-icon" aria-hidden="true">' + (kind === 'hex' ? '⬡' : '◇') + '</span>' + (i + 1) + '<small>' + (scores[i] ? '★'.repeat(scores[i].stars) : '') + '</small>';
+    const button = document.createElement('button'), kind = H.spec(draft, i).grid, best = scores[i];
+    button.classList.toggle('current', i === G.index && code === H.code(opts)); button.classList.toggle('solved', !!best);
+    button.innerHTML = '<svg aria-hidden="true"><use href="#i-' + kind + '"/></svg>' + (i + 1) + '<small>' + (best ? '★'.repeat(best.stars) + '☆'.repeat(3 - best.stars) : '') + '</small>';
     button.dataset.level = i + 1; button.disabled = i >= available;
-    button.setAttribute('aria-label', 'Level ' + (i + 1) + ', ' + kind + (button.disabled ? ', locked' : scores[i] ? ', ' + scores[i].stars + ' stars' : ''));
-    button.onclick = () => { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }; $('grid').append(button);
+    button.setAttribute('aria-label', 'Level ' + (i + 1) + ', ' + kind + (button.disabled ? ', locked' : best ? ', ' + best.stars + ' stars' : ''));
+    button.onclick = () => play(i); $('grid').append(button);
   }
 }
+function resumeIndex(options) {
+  const scores = save.sets[H.code(options)] || {};
+  let i = 0; while (scores[i]) i++; return Math.min(i, H.available(options, chaptersFor(options)) - 1);
+}
+function play(i) { opts = { ...draft }; if (opts.kind === 'custom') save.custom = opts; audio(); start(i); }
+function closeChooser() { $('chooser').close(); syncMusic(); }
+function openSettings() { resetInput(); $('settings').showModal(); syncMusic(); }
 function chooser() { resetInput(); cameraTween = null; $('result').close(); draft = { ...opts }; renderChooser(); $('chooser').showModal(); syncMusic(); }
 function settings(changed = '') {
   let min = Number($('minDifficulty').value), max = Number($('maxDifficulty').value);
@@ -891,10 +894,11 @@ function settings(changed = '') {
   if (draft.kind === 'custom') { save.custom = draft; persist(); } renderChooser();
 }
 $('levels').onclick = chooser; $('resultLevels').onclick = chooser;
-$('closeLevels').onclick = () => { $('chooser').close(); syncMusic(); };
+$('openSettings').onclick = $('homeSettings').onclick = openSettings;
 $('journey').onclick = () => { draft = { ...H.DEFAULT }; renderChooser(); };
 $('custom').onclick = () => { const previous = draft.kind === 'custom' ? draft : save.custom; draft = H.normalize({ ...previous, kind: 'custom', seed: previous?.seed || 'MONKEYFIST', count: previous?.count || 120, grid: previous?.grid || 'mixed' }); renderChooser(); };
-$('chooser').addEventListener('cancel', e => { e.preventDefault(); $('closeLevels').click(); });
+$('chooser').addEventListener('cancel', e => { e.preventDefault(); closeChooser(); });
+$('settings').addEventListener('close', syncMusic);
 $('result').addEventListener('cancel', e => { e.preventDefault(); chooser(); });
 $('restart').onclick = () => start(G.index); $('again').onclick = () => start(G.index); $('next').onclick = () => start(G.index + 1);
 $('undo').onclick = undo; $('hint').onclick = hint; $('autoSolve').onclick = autoSolve;
@@ -902,14 +906,11 @@ for (const id of ['seed', 'gridChoice', 'mirrors', 'springs', 'colossal']) $(id)
 for (const id of ['count', 'minDifficulty', 'maxDifficulty', 'gridWidth', 'gridHeight']) $(id).oninput = () => settings(id);
 $('dice').onclick = () => { const n = new Uint32Array(2); crypto.getRandomValues(n); $('seed').value = (n[0].toString(36) + n[1].toString(36)).slice(0, 10).toUpperCase(); settings(); };
 $('defaultSeed').onclick = () => { $('seed').value = 'MONKEYFIST'; settings(); };
-$('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); notice('Set link copied'); } catch { notice(H.code(draft)); } };
-$('music').onclick = () => { save.music = MFAudio.nextSetting('music', save.music); audio(); persist(); syncMusic(); };
-$('sound').onclick = () => { save.sound = MFAudio.nextSetting('sound', save.sound); persist(); syncMusic(); };
-$('graphics').onclick = () => { save.graphics = save.graphics === 'tiles' ? 'rope' : 'tiles'; persist(); syncDisplay(); restingKey = []; drawNext = true; };
-$('moveSpeed').onclick = () => { const choices = ['normal', 'fast', 'slow']; save.moveSpeed = choices[(choices.indexOf(save.moveSpeed) + 1) % choices.length]; persist(); syncDisplay(); };
-$('oled').onclick = () => {
-  save.oled = !save.oled; persist(); syncDisplay(); drawNext = true;
-};
+$('share').onclick = async () => { const u = new URL(location.href); u.searchParams.set('set', H.code(draft)); u.searchParams.delete('level'); try { await navigator.clipboard.writeText(u.href); $('share').textContent = 'Link copied'; } catch { $('share').textContent = H.code(draft); } };
+$('settings').addEventListener('change', e => {
+  if (e.target.type === 'radio') save[e.target.name] = e.target.value; else save.oled = e.target.checked;
+  audio(); persist(); syncDisplay(); syncMusic(); restingKey = []; drawNext = true;
+});
 new ResizeObserver(resize).observe($('boardWrap'));
 start(Math.max(0, Number(params.get('level') || (save.code === H.code(opts) && save.level) || 1) - 1));
 function frame(time) { const dt = Math.min(.05, (time - lastTime) / 1000); lastTime = time; update(dt); if (drawNext || G.moving || G.activations.size || G.hintTime > 0 || G.bump || G.selected >= 0) draw(time / 1000); requestAnimationFrame(frame); }

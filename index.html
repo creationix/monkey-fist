@@ -9,56 +9,118 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
+<svg hidden aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.1 10.5 21.5 10.8 21.5 13.2 19.1 13.5 18.1 16 19.6 17.9 17.9 19.6 16 18.1 13.5 19.1 13.2 21.5 10.8 21.5 10.5 19.1 8 18.1 6.1 19.6 4.4 17.9 5.9 16 4.9 13.5 2.5 13.2 2.5 10.8 4.9 10.5 5.9 8 4.4 6.1 6.1 4.4 8 5.9 10.5 4.9 10.8 2.5 13.2 2.5 13.5 4.9 16 5.9 17.9 4.4 19.6 6.1 18.1 8Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></symbol>
+  <symbol id="i-hint" viewBox="0 0 24 24"><path d="M9 20h6M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8Z"/></symbol>
+  <symbol id="i-solve" viewBox="0 0 24 24"><path d="m3 5 8 7-8 7ZM13 5l8 7-8 7Z"/></symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5"/></symbol>
+  <symbol id="i-hex" viewBox="0 0 24 24"><path d="M12 3.5 19.4 7.75v8.5L12 20.5l-7.4-4.25v-8.5Z"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9ZM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+  <symbol id="i-speed" viewBox="0 0 24 24"><path d="m12 14 4.5-4.5M3.5 18a9 9 0 1 1 17 0"/></symbol>
+  <symbol id="i-style" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5ZM3 13l9 5 9-5"/></symbol>
+</svg>
 <main id="game">
-  <aside class="hud">
-    <div class="brand"><span class="mark" id="gridMark" aria-hidden="true">◇</span><span>MONKEY FIST<small id="gridType">SQUARE</small></span></div>
-    <div class="readout"><div class="eyebrow" id="chapter">YOUR JOURNEY</div><h1 id="levelName">Level 1 <span>/ 120</span></h1><p id="remaining"></p><p id="score"></p></div>
+  <div class="hud">
+    <header class="heading">
+      <button id="levels" class="icon" title="Levels" aria-label="Levels"><svg><use href="#i-back"/></svg></button>
+      <div><h1 id="levelName">Level 1 <span>/ 120</span></h1><p class="subtitle"><svg aria-hidden="true"><use id="gridMark" href="#i-square"/></svg><span id="chapter">Weaving your tangle…</span></p></div>
+    </header>
+    <div class="corner">
+      <button id="fullscreen" class="icon" title="Enter fullscreen" aria-label="Fullscreen" aria-pressed="false" hidden><svg><use href="#i-fullscreen"/></svg></button>
+      <button id="openSettings" class="icon tonal" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+    </div>
+    <p class="scoreline"><b id="score"></b><span id="par"></span><span id="remaining"></span></p>
     <nav class="actions" aria-label="Game controls">
-      <button id="levels" title="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><small>Menu</small></button>
-      <button id="restart" title="Restart this level"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg><small>Restart</small></button>
-      <button id="hint" title="Hint costs two taps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20h6M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8Z"/></svg><small>Hint +2</small></button>
-      <button id="undo" title="Undo costs one tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M3 10h11a6 6 0 0 1 0 12"/></svg><small>Undo <b id="undos">3</b></small></button>
-      <button id="autoSolve" title="Auto-solve this level for zero stars" aria-label="Auto-solve this level for zero stars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 8 7-8 7ZM13 5l8 7-8 7Z"/></svg><small>Solve 0★</small></button>
+      <button id="undo" title="Undo costs one tap"><svg><use href="#i-undo"/></svg><small>Undo <b id="undos">3</b></small></button>
+      <button id="hint" title="Hint costs two taps"><svg><use href="#i-hint"/></svg><small>Hint <b>+2</b></small></button>
+      <button id="autoSolve" title="Auto-solve this level for zero stars" aria-label="Auto-solve this level for zero stars"><svg><use href="#i-solve"/></svg><small>Solve <b>0★</b></small></button>
+      <button id="restart" title="Restart this level"><svg><use href="#i-restart"/></svg><small>Restart</small></button>
+      <button id="zoomFit" title="Fit the board to the screen" hidden><svg><use href="#i-fit"/></svg><small>Fit</small></button>
     </nav>
-  </aside>
+  </div>
   <div id="boardWrap">
     <canvas id="board" tabindex="0" aria-label="Rope puzzle. Tap a rope to slide it. Drag to explore; pinch or scroll to zoom. Arrow keys select ropes; Enter slides the selected rope."></canvas>
     <div id="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Weaving your tangle…</div>
-    <nav id="zoomControls" aria-label="Board view" hidden><div><button id="fullscreen" title="Enter fullscreen" aria-label="Fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div></nav>
   </div>
   <div id="notice" role="status" aria-live="polite"></div>
 </main>
-<dialog id="chooser">
-  <div class="dialog-head"><div><div class="eyebrow">MONKEY FIST</div><h2>Your next tangle</h2></div><button class="close" id="closeLevels" aria-label="Close menu">×</button></div>
-  <div class="set-tabs" aria-label="Level set"><button id="journey" aria-pressed="true">Journey <span>120 levels</span></button><button id="custom" aria-pressed="false">Custom <span>Make it yours</span></button></div>
-  <div id="audioControls" aria-label="Sound, display and movement settings"><button id="sound" class="quiet" aria-label="Sound effects: Soft" aria-pressed="true">Sound: Soft</button><button id="music" class="quiet" aria-label="Music: Off" aria-pressed="false">♫ Music: Off</button><button id="oled" class="quiet" aria-pressed="false" title="Use black backgrounds and dimmer panels">Dark mode: off</button><button id="moveSpeed" class="quiet" title="Rope speed: Slow ½×, Normal 1×, Fast 2×">Speed: Normal</button><button id="graphics" class="quiet" title="Choose braided rope or translucent geometric tiles">Graphics: Rope</button></div>
-  <div id="customSettings" class="settings" hidden>
-    <label class="seed-setting">Seed or set code<div class="seed-row"><input id="seed" maxlength="48" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
-    <label class="grid-setting">Grid<select id="gridChoice"><option value="mixed">Square + hex</option><option value="square">Square only</option><option value="hex">Hex only</option></select></label>
-    <label class="slider-setting count-setting"><span>Levels<output id="countValue" for="count">120</output></span><input id="count" type="range" min="1" max="200" value="120" aria-label="Number of levels"></label>
-    <fieldset class="slider-group difficulty"><legend>Difficulty · 1 to 100</legend>
-      <label class="slider-setting"><span>From<output id="minDifficultyValue" for="minDifficulty">1</output></span><input id="minDifficulty" type="range" min="1" max="100" value="1" aria-label="Minimum difficulty"></label>
-      <label class="slider-setting"><span>To<output id="maxDifficultyValue" for="maxDifficulty">100</output></span><input id="maxDifficulty" type="range" min="1" max="100" value="100" aria-label="Maximum difficulty"></label>
-    </fieldset>
-    <fieldset class="slider-group board-size"><legend>Size · grid dimensions</legend>
-      <label class="slider-setting"><span>Width<output id="gridWidthValue" for="gridWidth">10</output></span><input id="gridWidth" type="range" min="4" max="24" value="10" aria-label="Grid width"></label>
-      <label class="slider-setting"><span>Height<output id="gridHeightValue" for="gridHeight">14</output></span><input id="gridHeight" type="range" min="4" max="24" value="14" aria-label="Grid height"></label>
-      <p id="gridSizeHint" class="settings-hint" hidden>Mirrors and springs need at least an 8 × 8 grid.</p>
-    </fieldset>
-    <div class="feature-options"><label class="check"><input id="mirrors" type="checkbox"> Mirrors</label><label class="check"><input id="springs" type="checkbox"> Springs</label><label class="check"><input id="colossal" type="checkbox" aria-describedby="colossalHint"> Colossal maps</label></div>
-    <p id="colossalHint" class="settings-hint" hidden>Enables grids up to 48 × 48. Use zoom to explore.</p>
+<dialog id="chooser" class="page" aria-label="Levels">
+  <header class="page-head"><div class="column">
+    <div class="grow"><h2 tabindex="-1" autofocus>Monkey Fist</h2><p id="setSummary">120 tangles · square + hex</p></div>
+    <button id="homeSettings" class="icon tonal" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+  </div></header>
+  <div class="column">
+    <div class="set-tabs" aria-label="Level set"><button id="journey" aria-pressed="true">Journey <span>120 levels</span></button><button id="custom" aria-pressed="false">Custom <span>Make it yours</span></button></div>
+    <section class="card hero">
+      <div id="progress"><div class="progress-head"><h3>Your progress</h3><span id="starTotal"></span></div><div class="bar"><span id="starBar"></span></div></div>
+      <div id="customSettings" class="settings" hidden>
+        <label class="seed-setting">Seed or set code<div class="seed-row"><input id="seed" maxlength="48" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="dice" title="Random seed" aria-label="Random seed">⚄</button><button id="defaultSeed" title="Restore default seed" aria-label="Restore default seed">↺</button></div></label>
+        <label class="grid-setting">Grid<select id="gridChoice"><option value="mixed">Square + hex</option><option value="square">Square only</option><option value="hex">Hex only</option></select></label>
+        <label class="slider-setting count-setting"><span>Levels<output id="countValue" for="count">120</output></span><input id="count" type="range" min="1" max="200" value="120" aria-label="Number of levels"></label>
+        <fieldset class="slider-group difficulty"><legend>Difficulty · 1 to 100</legend>
+          <label class="slider-setting"><span>From<output id="minDifficultyValue" for="minDifficulty">1</output></span><input id="minDifficulty" type="range" min="1" max="100" value="1" aria-label="Minimum difficulty"></label>
+          <label class="slider-setting"><span>To<output id="maxDifficultyValue" for="maxDifficulty">100</output></span><input id="maxDifficulty" type="range" min="1" max="100" value="100" aria-label="Maximum difficulty"></label>
+        </fieldset>
+        <fieldset class="slider-group board-size"><legend>Size · grid dimensions</legend>
+          <label class="slider-setting"><span>Width<output id="gridWidthValue" for="gridWidth">10</output></span><input id="gridWidth" type="range" min="4" max="24" value="10" aria-label="Grid width"></label>
+          <label class="slider-setting"><span>Height<output id="gridHeightValue" for="gridHeight">14</output></span><input id="gridHeight" type="range" min="4" max="24" value="14" aria-label="Grid height"></label>
+          <p id="gridSizeHint" class="settings-hint" hidden>Mirrors and springs need at least an 8 × 8 grid.</p>
+        </fieldset>
+        <div class="feature-options"><label class="check"><input id="mirrors" type="checkbox"> Mirrors</label><label class="check"><input id="springs" type="checkbox"> Springs</label><label class="check"><input id="colossal" type="checkbox" aria-describedby="colossalHint"> Colossal maps</label></div>
+        <p id="colossalHint" class="settings-hint" hidden>Enables grids up to 48 × 48. Use zoom to explore.</p>
+      </div>
+      <p id="unlockRule" class="rules"></p>
+      <div class="hero-actions"><button id="play" class="primary"><svg aria-hidden="true"><use href="#i-play"/></svg><span id="playLabel">Play level 1</span></button><button id="share" class="quiet">Copy set link</button></div>
+    </section>
+    <div id="grid" aria-label="Levels"></div>
+    <footer class="menu-footer"><p>Tap to slide. Mirrors turn. Springs reverse.</p></footer>
   </div>
-  <div class="set-line"><span id="setSummary">120 tangles · square + hex</span><button id="share" class="quiet">Copy set link</button></div>
-  <p id="unlockRule" class="rules"></p>
-  <div id="grid" aria-label="Levels"></div>
-  <footer class="menu-footer"><p>Tap to slide. Mirrors turn. Springs reverse.</p></footer>
+</dialog>
+<dialog id="settings" class="page" aria-label="Settings">
+  <header class="page-head"><div class="column narrow">
+    <form method="dialog"><button id="closeSettings" class="icon" title="Back" aria-label="Back"><svg><use href="#i-back"/></svg></button></form><h2 class="grow" tabindex="-1" autofocus>Settings</h2>
+  </div></header>
+  <div class="column narrow">
+    <h3 class="section">Audio</h3>
+    <div class="card">
+      <fieldset class="choice"><legend><svg aria-hidden="true"><use href="#i-sound"/></svg>Sound effects</legend><div class="segmented">
+        <label><input type="radio" name="sound" value="off"><span>Off</span></label><label><input type="radio" name="sound" value="soft"><span>Soft</span></label><label><input type="radio" name="sound" value="full"><span>Full</span></label>
+      </div></fieldset>
+      <fieldset class="choice"><legend><svg aria-hidden="true"><use href="#i-music"/></svg>Music</legend><div class="segmented">
+        <label><input type="radio" name="music" value="off"><span>Off</span></label><label><input type="radio" name="music" value="soft"><span>Soft</span></label><label><input type="radio" name="music" value="full"><span>Full</span></label>
+      </div></fieldset>
+      <p class="settings-hint">Music plays during puzzles and pauses in menus.</p>
+    </div>
+    <h3 class="section">Gameplay</h3>
+    <div class="card">
+      <fieldset class="choice"><legend><svg aria-hidden="true"><use href="#i-speed"/></svg>Movement speed</legend><div class="segmented">
+        <label><input type="radio" name="moveSpeed" value="slow"><span>Slow</span></label><label><input type="radio" name="moveSpeed" value="normal"><span>Normal</span></label><label><input type="radio" name="moveSpeed" value="fast"><span>Fast</span></label>
+      </div></fieldset>
+    </div>
+    <h3 class="section">Appearance</h3>
+    <div class="card">
+      <fieldset class="choice"><legend><svg aria-hidden="true"><use href="#i-style"/></svg>Art style</legend><div class="segmented">
+        <label><input type="radio" name="graphics" value="rope"><span>Rope</span></label><label><input type="radio" name="graphics" value="tiles"><span>Tiles</span></label>
+      </div></fieldset>
+      <label class="switch"><span><b>High contrast</b><small>Black backgrounds and clearer grid lines.</small></span><input id="oled" type="checkbox" role="switch"></label>
+    </div>
+    <p class="saved">Changes are saved automatically.</p>
+  </div>
 </dialog>
 <dialog id="result">
-  <div class="eyebrow">KNOT CLEARED</div><h2>Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p><p id="unlocked"></p>
-  <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Choose a level</button>
+  <div class="eyebrow">KNOT CLEARED</div><h2 id="resultTitle">Untangled!</h2><div id="stars" aria-label="Stars earned"></div><p id="resultText"></p><p id="unlocked"></p>
+  <button id="next" class="primary">Next level →</button><button id="again">Play again</button><button id="resultLevels" class="quiet">Levels</button>
 </dialog>
 <script src="random.js?v=1"></script>
 <script src="levels.js?v=37"></script>
@@ -75,6 +137,6 @@
 <script src="sounds.js?v=10"></script>
 <script src="audio.js?v=4"></script>
 <script src="input.js?v=3"></script>
-<script src="app.js?v=48"></script>
+<script src="app.js?v=49"></script>
 </body>
 </html>

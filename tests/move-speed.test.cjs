@@ -6,15 +6,16 @@ test('saved Slow, Normal and Fast settings scale exits and bounces on both grids
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.addInitScript(() => { requestAnimationFrame = () => 0; });
-    await page.goto(base); await ready(page); await page.click('#levels');
-    assert.equal(await page.locator('#moveSpeed').textContent(), 'Speed: Normal');
-    await page.click('#moveSpeed'); assert.equal(await page.locator('#moveSpeed').textContent(), 'Speed: Fast');
-    await page.reload(); await ready(page); await page.click('#levels');
-    assert.equal(await page.locator('#moveSpeed').textContent(), 'Speed: Fast');
-    await page.click('#moveSpeed'); assert.equal(await page.locator('#moveSpeed').textContent(), 'Speed: Slow');
-    await page.click('#moveSpeed'); assert.equal(await page.locator('#moveSpeed').textContent(), 'Speed: Normal');
+    const speed = value => '[name=moveSpeed][value=' + value + ']';
+    await page.goto(base); await ready(page); await page.click('#openSettings');
+    assert.equal(await page.isChecked(speed('normal')), true);
+    await page.check(speed('fast')); assert.equal(await page.evaluate(() => save.moveSpeed), 'fast');
+    await page.reload(); await ready(page); await page.click('#openSettings');
+    assert.equal(await page.isChecked(speed('fast')), true);
+    await page.check(speed('slow')); assert.equal(await page.evaluate(() => save.moveSpeed), 'slow');
+    await page.check(speed('normal')); assert.equal(await page.evaluate(() => save.moveSpeed), 'normal');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await page.click('#closeLevels');
+    await page.click('#closeSettings');
     const times = await page.evaluate(() => {
       const results = [], p = (q, r) => ({ q, r });
       for (const grid of ['square', 'hex']) for (const id of [0, 2]) for (const speed of ['normal', 'fast', 'slow']) {

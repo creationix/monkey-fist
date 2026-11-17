@@ -16,7 +16,7 @@ test('custom sliders update board dimensions live and the generated game queues 
       page.on('pageerror', e => errors.push(e.message));
       await page.addInitScript(() => { requestAnimationFrame = () => 0; });
       await page.goto(base + `?set=U3-${grid}-1-100-10-14-3-N-SLIDERS`); await ready(page);
-      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('button', { name: 'Levels', exact: true }).click();
       for (const id of ['gridWidth', 'gridHeight', 'count', 'minDifficulty', 'maxDifficulty']) assert.equal(await page.locator('#' + id).getAttribute('type'), 'range');
       await page.locator('#gridWidth').scrollIntoViewIfNeeded();
       const track = await page.locator('#gridWidth').boundingBox();
@@ -50,7 +50,7 @@ test('touch-friendly bounds keep difficulty ordered and reserve enough grid spac
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
     await page.goto(base + '?set=U3-S-1-100-4-4-1-N-LIMITS'); await ready(page);
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Levels', exact: true }).click();
     await slide(page, 'minDifficulty', 90); await slide(page, 'maxDifficulty', 20);
     const minimum = Number(await page.inputValue('#minDifficulty')), maximum = Number(await page.inputValue('#maxDifficulty'));
     assert.ok(minimum <= maximum, 'the From/To range cannot invert');

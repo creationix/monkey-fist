@@ -21,14 +21,14 @@ test('square and Hex share the real swish; sound and music mute independently', 
       await page.evaluate(() => __game.update(1 / 60));
       assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001 && n.energy > 10).length), 1);
       assert.equal(await page.evaluate(() => __game.music.state.enabled), false);
-      await page.click('#levels'); await page.click('#sound'); await page.click('#music');
+      await page.click('#openSettings'); await page.check('[name=sound][value=off]'); await page.check('[name=music][value=soft]');
       assert.equal(await page.evaluate(() => __game.sound.state.enabled), false);
-      await page.click('#closeLevels'); assert.equal(await page.evaluate(() => __game.music.state.enabled), true);
+      await page.click('#closeSettings'); await page.waitForFunction(() => __game.music.state.enabled, null, { polling: 50 });
       const before = await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length);
       await page.click('#restart'); await ready(page); await clickNext(page); await page.evaluate(() => __game.update(1 / 60));
       assert.equal(await page.evaluate(() => __noise.filter(n => Math.abs(n.duration - .3) < .001).length), before);
       // Sound Off to Soft; music Soft to Full to Off.
-      await page.click('#levels'); await page.click('#sound'); await page.click('#music'); await page.click('#music'); await page.click('#closeLevels');
+      await page.click('#openSettings'); await page.check('[name=sound][value=soft]'); await page.check('[name=music][value=full]'); await page.check('[name=music][value=off]'); await page.click('#closeSettings');
       assert.equal(await page.evaluate(() => __game.sound.state.enabled), true); assert.equal(await page.evaluate(() => __game.music.state.enabled), false);
       assert.deepEqual(errors, []); await page.close();
     }
