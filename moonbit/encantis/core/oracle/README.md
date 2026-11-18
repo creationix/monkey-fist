@@ -58,6 +58,21 @@ the files the tests and scripts expect around the wasm you give it.
 | `wasm-reps.mjs` | Journey generation in R rounds in one process, with the cost of the ABI apart |
 | `custom-times.mjs` | Time per case of the 15-case custom sample, beside the JS's |
 
+## The unit oracles of the port (G1 on)
+
+Each group checks its units against the JS at 9e69e3a, function by function, with
+`check-gN.cjs` on its `test/gN.wasm` (built by `../build.sh`). The shared tooling:
+
+| File | What it does |
+| --- | --- |
+| `ref.cjs` | Loads the reference (`MF_REF`, default `/home/user/mf-core-scratch/ref-9e69e3a`, made with `git archive 9e69e3a` if missing) with random.js's `mulberry32` swapped for a counting one whose state can be read. Gives the 135 boards of `reference.json` as JS boards, the position words of `read_position`, the level words of `put_level`, and positions on a board (plan prefixes and random play through `G.tap`) |
+| `wasm.cjs` | `load(path)`: instantiates with `{}` and throws if the module has imports. `fake(hooks)`: the same shape over JS functions, for `--js` |
+| `capture.cjs` | Records calls during real generation, module-object calls (`H.build`, `L.weave`, ...) and grid-generator.js's internal functions (through a patched copy), and replays each from its numbers alone |
+| `check-g1.cjs` | G1: draws, hashes, pow, rounding, codes and specs, the layout key, the ABI through web/generator.js's own `wrap` and `decode`, keys. `--js` (the positive control) and `--controls` (one spoiled expected value per kind of output must fail and name its case) |
+| `check-all.sh` | Every `check-gN.cjs` there is: run it after a compiler change |
+| `size.cjs` | Tokens and lines against the MoonBit replaced, imports and restated types apart |
+| `gen-journey-ents.cjs` | Writes `../journey.ents` from grid-journey.js |
+
 ## Commands
 
 Run these from the repository root. Wrap timings and whole suites in

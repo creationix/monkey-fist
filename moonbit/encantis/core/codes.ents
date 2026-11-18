@@ -103,6 +103,7 @@ func part(t: []u8, k: u32) -> (s: []u8, next: u32) {
 // ASCII is never part of a valid code (the JS trims every JS space and upper-cases
 // U+0131 to I and U+017F to S, and so takes a few codes MoonBit refuses: the oracle
 // counts them). The opts and their seed are on the stack.
+// enum: none is `0 as ?*SetOpts` (7 returns)
 export func parse_code(units: []i32) -> ?*SetOpts {
   let lo: u32 = 0
   let hi = units.len

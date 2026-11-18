@@ -590,6 +590,40 @@ a file, the count is estimated from the line share.
   - `fmt` and `hover` tried once.
 - **Done when:** all 8 checks pass, the controls behave, and the work is committed.
   **About 4 to 5 hours.**
+- **As built (what G2 to G7 import; the DX-LOG's G1 section has the why):**
+  - `random.ents`: `rng(seed) -> *mut Rng` (on the stack), `r.next()`, `r.below(n)`,
+    `r.chance(p)`, `r.one_of(T, xs)`; `draws()`, `reset_draws(on)` and `traced(k)` (the bound of
+    each draw, with tracing on). Text goes to a sink given as a comptime function:
+    `fnv().text("casual/", hash_byte).text(seed, hash_byte).text("/", hash_byte).dec(attempt,
+    hash_byte)` is `hashString('casual/' + seed + '/' + attempt)`; `base36(s, u, upper, put)`;
+    `collect` is the sink into a `Vec(u8)`. `js_round(x) -> f64` (keeps -0), `round_i(x) ->
+    i32` (random.mbt's `js_round`), `floor_div`, and generic `index_from`, `contains`,
+    `unique`, `reverse`. `min`/`max` are the builtins.
+  - `fmath.ents`: `pow` is **V8's** fdlibm (not textbook fdlibm, which MoonBit has: they
+    differ by one ulp on 3% of inputs); `to_fixed(x, digits)` is exact `Number(x.toFixed(d))`
+    (metrics.mbt's scale-and-round is not).
+  - `board.ents`: the canonical type block; `gone()` (the none of a `?[]Pt`), `some_paths`,
+    `all_gone`, `last`; `SqMirrors` with `no_mirrors()`, `sq_mirrors(b: *Board)`,
+    `m.set_at(c, s)` (`set` is a keyword), `m.at(c)` (MoonBit's `get`), `m.has(c)`, `m.size()`,
+    keys in `m.keys`; `has_dup(cells: []i32)`; `max_w`, `max_h`, `max_area` (a `def` is lower
+    case).
+  - `keys.ents`: `keyset(W, keys, words)`, `s.add_key(k)`, `s.has_key(k)`; `keymap(W, V, keys,
+    words)`, `m.set_key(k, v)`, `m.get_key(k, fallback)`, `m.ref_key(k) -> ?*mut V`. Import
+    `"KeySet" func KeySet(comptime W: type) -> type` and `KeyMap` likewise: no fields to
+    restate. Passing the reserve traps.
+  - `codes.ents`: `parse_code(units: []i32) -> ?*SetOpts`, `level_spec(o, i) -> Spec`,
+    `code(s, o, put)`, `layout_json(s, b: Board, put)`, `layout_key(s, b: Board, put)`,
+    `target_challenge`, `win_ceiling`. `journey.ents`: `journey() -> []Spec`.
+  - `abi.ents`: the buffers (`in_reset`, `in_push`, `out_len`, `out_get`, `outf_get`: an entry
+    imports them under other local names and exports its own), `input()`, `input_bytes()`,
+    `put`, `putf`, `put_byte` (a sink), `begin_count()`/`end_count(at)`, `put_string`,
+    `pts_at`/`mirrors_at` (the one cast), `read_position()`, `read_level(words)`,
+    `put_level(l: *Level)` (the key is computed from the board).
+  - `oracle/`: `ref.cjs` (the reference with a counting `mulberry32`, `boards()`,
+    `position()`, `levelWords()`, `positions()`), `wasm.cjs` (`load` asserts no imports;
+    `fake` for `--js`), `capture.cjs` (records and replays real calls), `size.cjs` (add your
+    group to `GROUPS`), `check-all.sh`. `check-g1.cjs` shows the `--js` and `--controls`
+    pattern (spoil the k-th expected value of each kind).
 
 ### G2: The square world (square kernel, about 4.7k tokens, about 55% covered; weave reused)
 
@@ -872,7 +906,7 @@ G1 ──┬── G2 (square, weave) ──┬───────────
 
 | Group | Engineer | Compiler commit | Status | Commit | Oracle result |
 | --- | --- | --- | --- | --- | --- |
-| G1 | | | not started | | |
+| G1 | Claude (port G1) | 03225bc (origin/main; the tree of cb3fc4f) | done | see the G1 commits of 18 Nov (`git log --grep 'core G1'`) | `check-g1.cjs`: 8 checks, 4.4M comparisons, 0 failed; `--js` passes; `--controls` 24 of 24 |
 | G2 | | | not started | | |
 | G3 | | | not started | | |
 | G4 | | | not started | | |
