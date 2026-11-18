@@ -86,3 +86,44 @@ These also work:
 - `&&` and `||` short-circuit;
 - import cycles are refused with a message that names the files:
   `Import cycle detected: a.ents → b.ents → a.ents`.
+
+## 18 Nov: mapping the oracles and the measurements (no port code yet)
+
+- **Compiler:** a84f5e64d434f6cebc937ecfe946c4790e4a70bd (origin/claude/generics-modules).
+- **The map:** `/home/user/mf-core-scratch/MAP-ORACLES.md`. The harness to check and time
+  an Encantis core with the existing tests, unchanged: `oracle/` (see its README).
+- **Probe:** a 40-line module with the 12 exports of `src/gen` (scratch:
+  `/home/user/mf-core-scratch/abi-probe/probe.ents`).
+
+### Pleasant
+
+- **The ABI ports as it is.** Exports of `i32` and `f64` with the MoonBit names build to
+  a 955-byte module with no imports. `web/generator.js` and the unchanged tests drive
+  it: level 1 passes, levels 2 to 120 are reported. No JS shim is needed.
+- **Tooling speed.** `check` of the probe: 0.12 s. `check` of builder-v2's `weave.ents`
+  (240 declarations, 6 modules): 0.99 s; `wasm`: 1.10 s.
+
+### Friction
+
+1. **Run-time indexes, 4 of 4 in the probe.** Wanted `inbuf[n] = c` and `outbuf[i]`.
+   Wrote `if let p = &inbuf[n] { p.* = c }` (2 writes) and `outbuf[i] ?? 0` (2 reads).
+   It cost 2 minutes. The messages were clear and named the fix:
+   ```
+   writing to an element needs an index known to be in range: use a constant or ranged index, or if let on its address (&xs[i])
+   runtime index on *[65536]i32 requires 'if let' or '??' (no optional type for i32)
+   ```
+   A trapping index would remove it (not planned).
+2. **A host import breaks the glue, silently in the game.** `import "Math" "pow"` builds
+   and is exact against V8. But every loader instantiates with `{}` (6 places: see
+   `oracle/README.md`), and that throws
+   `TypeError: WebAssembly.instantiate(): Import #0 module="Math": module is not an object or function`.
+   The tests fail loudly. In the game, `web/generator.js` catches the error and quietly
+   loads the MoonBit JS build instead. So there are two choices: port fdlibm `pow` into
+   the module (2 call sites), or change the 6 loaders. The MoonBit builds ignore the
+   extra import object.
+3. **No memory growth.** `memory-grow` is "not yet implemented" (reference §10.3), and
+   `lib/stack` is a fixed 256 KiB. The core needs a stack sized at compile time for its
+   largest case, the colossal maps (40x40 square, 32x32 Hex); builder v1 alone peaked at
+   605 KB on 40x40. Resizing today means copying `stack.ents`. Comptime value
+   parameters (`comptime n: u32` with `[n]T`) would make the size a parameter instead of
+   a copy.
