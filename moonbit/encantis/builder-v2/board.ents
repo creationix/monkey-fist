@@ -288,12 +288,12 @@ export func relax() -> i32 {
   let moved = true
   while moved && waiting > 0 {
     moved = false
-    for j in n {
-      continue when was[j] == gone
-      let s = seq[j].ptr
-      let total = seq[j].len as i32
-      let l = len[j]
-      let r = was[j]
+    for i in n {
+      continue when was[i] == gone
+      let s = seq[i].ptr
+      let total = seq[i].len as i32
+      let l = len[i]
+      let r = was[i]
       loop {
         let p = r + l
         if p >= total {
@@ -303,19 +303,19 @@ export func relax() -> i32 {
         let c = s[p]
         let z = occ[c]
         // still in the way (a rope's own body always is)
-        break when z != -1 && (z == j as i32 || was[z] <= at[c])
+        break when z != -1 && (z == i as i32 || was[z] <= at[c])
         r += 1
       }
-      if r != was[j] {
-        now[j] = r
+      if r != was[i] {
+        now[i] = r
         moved = true
         if r == gone {
           waiting -= 1
         }
       }
     }
-    for k in n {
-      was[k] = now[k]
+    for i in n {
+      was[i] = now[i]
     }
   }
   return waiting

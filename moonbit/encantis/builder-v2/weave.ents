@@ -535,9 +535,9 @@ func pick_parent(kind: i32) -> i32 {
   }
   return -1 when sum == 0
   let r = rng(7, sum) * sum
-  for j in n {
-    r -= parent_weight(kind, j as i32)
-    return j as i32 when r < 0.0
+  for i in n {
+    r -= parent_weight(kind, i as i32)
+    return i as i32 when r < 0.0
   }
   return n - 1
 }
@@ -855,20 +855,6 @@ func trap(spot: Spot) -> ?*Cand {
   return 0
 }
 
-// One try at a knot or a trap, in a scope of its own.
-func spot_try(spots: Spots, is_knot: bool, budget: i32) -> ?*Cand {
-  let scope = mark()
-  defer reset(scope)
-  // a knot goes against another knot's resting place half the time, if there is one
-  let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
-  return 0 when list.len == 0
-  let spot = list.ptr[below(21, list.len as i32)]
-  if let c = fits(if is_knot { knot(spot) } else { trap(spot) }, budget) {
-    return keep(c)
-  }
-  return 0
-}
-
 // While the level still wants knots or traps, try for one first, spreading them
 // over the build. Places for them are scarce, so one that fits is taken.
 // Whichever kind the level is shorter of gets the first tries.
@@ -883,8 +869,16 @@ func knot_or_trap(room: f64, budget: i32) -> ?*Cand {
     let is_knot = knot_first == (half == 0)
     continue when (is_knot && want_knots <= 0) || (!is_knot && want_traps <= 0)
     for t in knot_tries {
-      if let c = spot_try(spots, is_knot, budget) {
-        return c
+      // each try in a scope of its own: a candidate that fits is kept before
+      // the scope is freed
+      let scope = mark()
+      defer reset(scope)
+      // a knot goes against another knot's resting place half the time, if there is one
+      let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
+      continue when list.len == 0
+      let spot = list.ptr[below(21, list.len as i32)]
+      if let c = fits(if is_knot { knot(spot) } else { trap(spot) }, budget) {
+        return keep(c)
       }
     }
   }
@@ -1342,8 +1336,8 @@ test "weave gives the board the JS gives" {
   let before = mark()
   assert weave() == 1
   assert mark() == before
-  for j, v in case_out {
-    assert outbuf.i32[j] == v
+  for i, v in case_out {
+    assert outbuf.i32[i] == v
   }
   assert draws() == 231
 }
