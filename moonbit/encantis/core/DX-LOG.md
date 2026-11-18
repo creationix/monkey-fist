@@ -972,9 +972,12 @@ timing (with the inlining); 30 the log, sizes and counts.
     past W * H) through every kernel that compiles, and a turning way out past max_area.
   - **Mutants** (`mutate-g3.sh`, 60 seeded one-line changes of `hex.ents`): `check-g3` on a
     quarter of the positions of the boards up to 30 ropes kills 48; the wide check kills 7 more
-    that passed it (4 of the solver's budget and seen-set rules, and 3 that passed the whole of
-    `check-g3` too: the ray cap at W*H, no duplicate check, and a single mirror ignored); 5
-    survive every check, and none can change an output:
+    that passed it. 3 of those (the solve budget off by one, a search going on once out of
+    budget, out of budget read as "no way") fail the whole of `check-g3` too; 4 pass all of
+    it and only the wide check sees them: the ray cap at W*H, no duplicate check, a single
+    mirror ignored, and the seen set never asked (on the reference boards, solve finds its
+    way before it meets a position twice). 5 survive every check, and none can change an
+    output:
     - `relaxed: own body by reach` (the round's starting reach for the rope's own body, not the
       reach so far): it stops a rope that chases its own tail one round early, but the next
       round starts from there and passes, so the fixpoint, the only thing read, is the same
@@ -1181,7 +1184,7 @@ and its library has `FixedVec(n, T)`, `Ring(n, T)` and a bitset with them. In G3
 | --- | ---: |
 | seeded mutants of `hex.ents` | 60 |
 | killed by a quarter of `check-g3` | 48 |
-| killed only by the wide check | 7 (3 of them passed all of `check-g3`) |
+| then killed by the wide check | 7 (4 of them pass all of `check-g3`) |
 | surviving, shown unable to change an output | 5 |
 | compiler bugs | 0 |
 
