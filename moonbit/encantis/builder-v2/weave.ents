@@ -64,6 +64,7 @@ import "./rng" (
   "rng" func rng(site: u32, n: i32) -> f64
   "below" func below(site: u32, n: i32) -> i32
   "chance" func chance(site: u32, p: f64) -> bool
+  "one_of" func one_of(comptime T: type, site: u32, xs: []T) -> T
 )
 
 import "./board" (
@@ -288,7 +289,7 @@ func grow(start: i32, first: i32, straightness: f64) -> []i32 {
     break when opts.len == 0
     let go = first
     if cells.len > 1 || first < 0 {
-      go = if went >= 0 && opts.items().contains(went) && chance(2, straightness) { went } else { opts.ptr[below(3, opts.len as i32)] }
+      go = if went >= 0 && opts.items().contains(went) && chance(2, straightness) { went } else { one_of(3, opts.items()) }
     } elif !opts.items().contains(first) {
       break
     }
@@ -366,7 +367,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> ?*Shaped {
         }
       }
       let behind = grow(start, (o.d + 2) % 4, straightness)
-      let path = reversed(behind)
+      let path = behind.reversed()
       if behind.len as i32 >= min_len && !self_blocked(path) {
         return new(Shaped(path, o.lane))
       }
@@ -375,7 +376,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> ?*Shaped {
   }
   let body = grow(start, -1, straightness)
   return 0 when (body.len as i32) < min_len
-  let back = reversed(body)
+  let back = body.reversed()
   let forth = lane_of(body)
   let backward = lane_of(back)
   if let a = forth {
@@ -405,13 +406,13 @@ func fits(c: ?*Cand, budget: i32) -> ?*Cand {
 // outlives the scope it was tried in. There is one set of buffers: keeping a
 // candidate overwrites the one kept before.
 func keep(c: *Cand) -> *Cand {
-  kept.* = Cand(copy(c.path, kept_path), 0, c.gain, c.bends, c.pull, copy(c.rest, kept_rest), copy(c.gap, kept_gap))
+  kept.* = Cand(c.path.copy_to(kept_path), 0, c.gain, c.bends, c.pull, c.rest.copy_to(kept_rest), c.gap.copy_to(kept_gap))
   return kept
 }
 
 // xs, copied to a list that lasts for the call. It is filled in a try's scope,
 // so it must not grow: it was given room for the most it can hold.
-func copy(xs: []i32, to: *mut Vec(i32)) -> []i32 {
+func copy_to(xs: []i32, to: *mut Vec(i32)) -> []i32 {
   assert xs.len <= to.cap
   to.clear()
   to.push_all(xs)
@@ -555,7 +556,7 @@ func aimed() -> (start: i32, di: i32) {
     }
   }
   return when idle.len == 0
-  let m = idle.ptr[below(8, idle.len as i32)]
+  let m = one_of(8, idle.items())
   di = below(9, 4)
   let j = 1 + below(10, 3)
   let x = m % width - dx_of(di) * j
@@ -582,7 +583,7 @@ func candidate(kind: i32, at: i32) -> ?*Cand {
     parent = pick_parent(kind)
   }
   if parent >= 0 {
-    start = ahead[parent].ptr[below(11, ahead[parent].len as i32)]
+    start = one_of(11, ahead[parent])
   }
   let tries = 0
   while start < 0 && tries < 6 {
@@ -762,7 +763,7 @@ func walk(spot: Spot, k: i32) -> ?*Walked {
       } elif opts.items().contains(went) && chance(14, straight) {
         di = went
       } else {
-        di = opts.ptr[below(15, opts.len as i32)]
+        di = one_of(15, opts.items())
       }
     } else {
       // the tail of a knot heads for a tied cell if it has not found one yet
@@ -774,7 +775,7 @@ func walk(spot: Spot, k: i32) -> ?*Walked {
           }
         }
       }
-      di = if ties.len > 0 { ties.ptr[below(16, ties.len as i32)] } else { opts.ptr[below(17, opts.len as i32)] }
+      di = if ties.len > 0 { one_of(16, ties.items()) } else { one_of(17, opts.items()) }
     }
     went = di
     let next = (y + dy_of(di)) * width + x + dx_of(di)
@@ -795,9 +796,9 @@ func walk(spot: Spot, k: i32) -> ?*Walked {
   for cell in w.tail {
     grid[cell] = -1
   }
-  return 0 when cells.len < max(min_len, k + 2) as u32 || self_blocked(reversed(w.cells))
+  return 0 when cells.len < max(min_len, k + 2) as u32 || self_blocked(w.cells.reversed())
   if k > 0 {
-    return 0 when tail.len < k as u32 || !got || self_blocked(slid(w, k))
+    return 0 when tail.len < k as u32 || !got || self_blocked(w.slid(k))
   }
   return w
 }
@@ -819,7 +820,7 @@ func knot(spot: Spot) -> ?*Cand {
     return 0 when tied(spot.c)
     let k = 1 + below(18, min(pull, spot.room - 1))
     if let w = walk(spot, k) {
-      let first = slid(w, k)
+      let first = w.slid(k)
       let st = vec(i32, 1)
       st.push(k)
       let sum = trial(first, st.items(), order.items())
@@ -838,7 +839,7 @@ func trap(spot: Spot) -> ?*Cand {
     mark_below(lane.ids, -1)
     return 0 when tied(spot.c) || !any_tied(gap)
     if let w = walk(spot, 0) {
-      let path = reversed(w.cells)
+      let path = w.cells.reversed()
       let sum = trial(path, [], order.items())
       return 0 when sum < 0
       // (This leaves the board with the rope slid into the gap, and then
@@ -876,8 +877,8 @@ func knot_or_trap(room: f64, budget: i32) -> ?*Cand {
       // a knot goes against another knot's resting place half the time, if there is one
       let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
       continue when list.len == 0
-      let spot = list.ptr[below(21, list.len as i32)]
-      if let c = fits(if is_knot { knot(spot) } else { trap(spot) }, budget) {
+      let spot = one_of(21, list)
+      if let c = (if is_knot { knot(spot) } else { trap(spot) }).fits(budget) {
         return keep(c)
       }
     }
@@ -908,7 +909,7 @@ func best_rope(budget: i32, desire: f64, need: i32) -> ?*Cand {
     let scope = mark()
     defer reset(scope)
     let kind = if aim && k == 0 { at_mirror } else { kinds.i32[row * 8 + k as i32] }
-    if let c = fits(candidate(kind, -1), budget) {
+    if let c = candidate(kind, -1).fits(budget) {
       if let lane = c.lane {
         let lands = need > 0 && c.gain + c.bends >= need && covered + c.path.len as i32 >= min_coverage_slide * area
         let reaches = aim && reaches_idle_mirror(lane.cells)
@@ -959,7 +960,7 @@ func lay_ropes() {
 func gap_rope(cell: i32, budget: i32) -> ?*Cand {
   let scope = mark()
   defer reset(scope)
-  if let c = fits(candidate(if budget < 1 { plain } else { any }, cell), budget) {
+  if let c = candidate(if budget < 1 { plain } else { any }, cell).fits(budget) {
     return keep(c)
   }
   return 0

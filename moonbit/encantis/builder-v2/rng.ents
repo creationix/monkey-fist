@@ -37,6 +37,9 @@ export func rng(site: u32, n: i32) -> f64 {
 // Math.floor(rng() * n): an index below n.
 export func below(site: u32, n: i32) -> i32 => i32(floor(rng(site, n) * f64(n)))
 
+// xs[below(xs.length)]: an element of xs, at random.
+export func one_of(comptime T: type, site: u32, xs: []T) -> T => xs.ptr[below(site, xs.len as i32)]
+
 // rng() < p
 export func chance(site: u32, p: f64) -> bool => rng(site, 0) < p
 
@@ -47,6 +50,13 @@ test "mulberry32(1) gives the numbers random.js gives" {
   assert rng(1, 0) * 4294967296.0 == 11749833.0
   assert rng(1, 0) * 4294967296.0 == 2265367787.0
   assert draws() == 3
+}
+
+test "one_of draws once, an index below the length" {
+  seed(12345)
+  let a = one_of(3, [10, 20, 30, 40, 50]:*[5]i32)
+  // the first draw of seed 12345 is 0.979... (979 of 1000, in the test below)
+  assert a == 50 && draws() == 1
 }
 
 test "below and chance draw once each" {
