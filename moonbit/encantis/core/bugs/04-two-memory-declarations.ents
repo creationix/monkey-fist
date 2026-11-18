@@ -1,7 +1,7 @@
 // bugs/04: two modules that declare memory. `encantis check` says OK; `encantis wasm`
 // (and `compile`) crash with a Bun stack trace instead of reporting the error.
 //
-//   encantis check bugs/04-two-memory-declarations.ents   -> OK: 2 declarations across 2 modules
+//   encantis check bugs/04-two-memory-declarations.ents   -> OK: 5 declarations across 2 modules
 //   encantis wasm bugs/04-two-memory-declarations.ents -o /tmp/x.wasm
 //     -> codegen.ts:4063 throw new Error(...) printed with the compiler's source and stack:
 //        "error: Multiple memory declarations: '04-two-memory-declarations.ents' and
