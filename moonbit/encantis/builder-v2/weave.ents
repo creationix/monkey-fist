@@ -818,9 +818,10 @@ func knot(spot: Spot) -> ?*Cand {
     let k = 1 + below(18, min(pull, spot.room - 1))
     if let w = walk(spot, k) {
       let first = w.slid(k)
-      let st = vec(i32, 1)
-      st.push(k)
-      let sum = trial(first, st.items(), order.items())
+      // [k] is one cell, written again at each knot tried: enough for a
+      // trial, which drops the rope before the next one (commit() gives a
+      // kept rope a list of its own)
+      let sum = trial(first, [k], order.items())
       return 0 when sum < 0
       return new(Cand(first, 0, sum - total0, bends_of(first), k, part(w.cells.ptr, 0, k), []))
     }
@@ -1081,8 +1082,8 @@ func finished() -> i32 {
   }
   // Enough rope on the board and, beyond the narrowest boards, at least half
   // the ropes blocked. (Divide, then compare, as the JS does.)
-  let filled = f64(cells) / f64(width * height)
-  let share = f64(blocked) / f64(n)
+  let filled = f64(cells) / (width * height)
+  let share = f64(blocked) / n
   if width <= small_w {
     return 0 when filled < min_coverage_small
   } elif filled < min_coverage_slide || share < min_blocked_share {
