@@ -604,7 +604,8 @@ a file, the count is estimated from the line share.
 - **Not ported:** `sq_play`, `bends_of`, `sq_blockers`, `groups_of` and `sq_looped`. Only
   weave uses them, and builder-v2 has them.
 - **Weave**, taken from builder-v2, not ported again:
-  - Copy `weave.ents` and `board.ents` (as `weave-board.ents`).
+  - Copy `weave.ents` and `board.ents` (as `weave-board.ents`) from builder-v2 at its
+    latest commit (721f6a3 or later), and record which.
   - Point their imports at `core/lib`. One stack: two copies of `lib/stack` would be two
     stacks.
   - Replace `rng.ents` with `weave-rng.ents`, which has the same API (`rng(site, n)`,
@@ -960,4 +961,4 @@ All are in `/home/user/mf-core-scratch/plan-probes/`, at cb3fc4f:
 | p2 as first written, and p6 | `&base[k] as [*]Pt` compiles and reads the word's value as an address (`bugs/01`). `&base[1] as u32` is an error, so the mistake is silent only for a cast to a pointer |
 | p4 | `dynamic index on value type [6]i32 — use a pointer or slice for dynamic access` |
 | p5 | `*[6]i32` indexed by `k % 6`, proven, no fallback |
-| builder-v2 at cb3fc4f | `weave.ents` rebuilds to the committed 18,384 bytes, byte for byte. `check-weave.cjs`: 249 cases, 0 mismatches (not timed under the lock) |
+| builder-v2 at cb3fc4f | `weave.ents` as of dbebdcc rebuilds to the committed 18,384 bytes, byte for byte. `check-weave.cjs`: 249 cases, 0 mismatches (not timed under the lock). builder-v2's review revised it after this plan was written (721f6a3: `[k]` for a knot's trial, one `f64()` per division; 18,385 bytes). G2 takes builder-v2 as it stands then, and records its commit |
