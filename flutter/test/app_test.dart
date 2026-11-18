@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:monkey_fist/core/engine.dart';
 import 'package:monkey_fist/game/levels.dart';
 import 'package:monkey_fist/game/progress.dart';
 import 'package:monkey_fist/main.dart';
@@ -138,7 +139,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await choose('speed', 'Slow');
     await choose('graphics', 'Rope');
-    expect(game.clock, pausedClock, reason: 'opening settings pauses the puzzle immediately');
+    expect(
+      game.clock,
+      pausedClock,
+      reason: 'opening settings pauses the puzzle immediately',
+    );
     await tester.tap(find.byTooltip('Back'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -161,6 +166,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(painter().graphics, 'tiles');
+    // Levels keeps the puzzle in progress: Continue resumes the same board.
+    await tester.tap(find.byTooltip('Levels'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Continue level 1'), findsOneWidget);
+    await tester.tap(find.text('Continue level 1'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final resumed = tester.state(find.byType(GameScreen)) as dynamic;
+    expect(identical(resumed.game, game), isTrue);
     await _shot(tester, 'app-level1', GameScreen);
 
     // Play the par plan with real taps on each rope's head.
@@ -178,8 +193,68 @@ void main() {
     expect(game.ended, isTrue);
     expect(game.stars, 3);
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Next level'), findsOneWidget);
+    expect(find.text('Next level →'), findsOneWidget);
     expect(progress.scores[0]?.stars, 3);
     await _shot(tester, 'app-result', GameScreen);
+  });
+
+  testWidgets('Custom sets: options, a pasted set code, and a Custom level', (tester) async {
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final progress = Progress.memory();
+    await tester.pumpWidget(
+      MonkeyFistApp(progress: progress, store: LevelStore(), audio: SfxPlayer(enabled: false)),
+    );
+    await tester.pump();
+    expect(find.text('Chapter 1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('set-custom')));
+    await tester.pump();
+    expect(find.text('120 tangles · 10 × 14 · square + hex'), findsOneWidget);
+    expect(find.text('Chapter 1'), findsNothing);
+    // Mirrors need room to turn: switching them on explains the size limit.
+    expect(find.text('Mirrors and springs need at least an 8 × 8 grid.'), findsNothing);
+    // Center it: the pinned header covers the top edge of the list.
+    Scrollable.ensureVisible(tester.element(find.byKey(const ValueKey('custom-mirrors'))), alignment: .5);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('custom-mirrors')));
+    await tester.pump();
+    expect(find.text('Mirrors and springs need at least an 8 × 8 grid.'), findsOneWidget);
+    expect(progress.custom?.mirrors, isTrue);
+    await _shot(tester, 'app-custom', HomeScreen);
+    // A pasted set code replaces every option.
+    const code = 'U3-H-5-50-8-9-30-MS-TESTSEED';
+    await tester.enterText(find.byKey(const ValueKey('custom-seed')), code);
+    await tester.pump();
+    expect(find.text('30 tangles · 8 × 9 · hex'), findsOneWidget);
+    expect(setCode(progress.custom!), code);
+    Scrollable.ensureVisible(tester.element(find.byKey(const ValueKey('home-play'))), alignment: .5);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('home-play')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final state = tester.state(find.byType(GameScreen)) as dynamic;
+    for (var k = 0; k < 400 && state.game == null; k++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(state.game, isNotNull);
+    expect(find.text('Hex · Custom set'), findsOneWidget);
+    expect(progress.code, code);
+    // Levels comes back to the same set, with the puzzle to continue.
+    await tester.tap(find.byTooltip('Levels'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Continue level 1'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 3000));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('set-journey')));
+    await tester.pump();
+    expect(find.text('120 tangles · square + hex'), findsOneWidget);
+    expect(find.text('Play level 1'), findsOneWidget);
+    expect(find.text('Chapter 1'), findsOneWidget);
   });
 }

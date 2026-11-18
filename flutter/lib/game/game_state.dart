@@ -9,6 +9,7 @@ import '../core/hex.dart';
 import '../core/mech.dart';
 import '../core/square.dart';
 import '../core/util.dart';
+import 'curve.dart';
 
 /// Sound effects, as in sounds.js. `arg` carries a pitch index or the star count.
 enum Sfx { activate, slide, reflect, spring, pop, bump, thud, blocked, undo, hint, win }
@@ -22,8 +23,14 @@ class Motion {
   final int event;
   final Path? finalPath;
   final double distance;
-  final double impactAt; // bounce: progress at which the head reaches the spring; -1 otherwise
-  final Pt? spring;
+  final Pt? spring; // the spring a bounce reflects from
+  // A bounce's head enters the spring cell, then the rope folds back over its
+  // own drawn line for bounceDuration seconds (hold counts down). rotation is
+  // the spinner's resting angle when the approach began.
+  double hold = 0, bounceDuration = 0, bounceLength = 0;
+  double? rotation;
+  Trace? springTrace;
+  String springTraceKey = '';
   double progress = 0;
   double speed = 0;
   bool impacted = false;
@@ -44,7 +51,6 @@ class Motion {
     required this.event,
     required this.finalPath,
     required this.distance,
-    required this.impactAt,
     required this.spring,
     required this.automatic,
     required this.visits,
@@ -65,6 +71,15 @@ class Snapshot {
 class Vec {
   final double x, y;
   const Vec(this.x, this.y);
+}
+
+/// What the painter draws for a rope: screen points, the arrowhead's unit
+/// direction, and where a reflecting rope folds back over itself (or -1).
+class RopeDrawing {
+  final List<Vec> points;
+  final Vec head;
+  final int foldIndex;
+  const RopeDrawing(this.points, this.head, [this.foldIndex = -1]);
 }
 
 int _cellKey(Pt p) => (p.q + 4096) * 8192 + p.r + 4096;
@@ -95,7 +110,15 @@ class GameState {
   double speedFactor = 1.0;
   double clock = 0;
   final Map<int, double> activations = {};
-  final Map<int, double> springAngle = {};
+  // Spinner angles by cell: each bounce turns its spinner half a turn.
+  final Map<int, double> springRotations = {};
+  // Mirrors and springs no rope can reach any more fade out (by cell).
+  final Map<int, double> _featureAlpha = {};
+  Set<int> _liveFeatures = {};
+  bool _featuresDirty = true;
+  bool fading = false;
+  String graphics = 'rope';
+  bool get tiles => graphics == 'tiles';
   String notice = '';
   double noticeTime = 0;
   void Function(int stars)? onFinish;
@@ -139,8 +162,55 @@ class GameState {
     stars = -1;
     frozen = [];
     activations.clear();
-    springAngle.clear();
+    springRotations.clear();
+    _resetFeatures();
     _say('');
+  }
+
+  void _resetFeatures() {
+    _featureAlpha.clear();
+    for (final m in board.mirrors) {
+      _featureAlpha[geo.cell(m.cell)] = 1;
+    }
+    for (final p in board.springs) {
+      _featureAlpha[geo.cell(p)] = 1;
+    }
+    _liveFeatures = _featureAlpha.keys.toSet();
+    _featuresDirty = true;
+    fading = false;
+  }
+
+  /// A mirror's or spring's opacity: 0 once no rope can reach it.
+  double featureOpacity(Pt p) => geo.inside(p) ? _featureAlpha[geo.cell(p)] ?? 1 : 1;
+
+  /// A feature stays while a cord occupies it or any queued animation will pass
+  /// through it, even when the logical board has already moved past that move.
+  void _updateFeatures(double dt) {
+    fading = false;
+    if (_featureAlpha.isEmpty) return;
+    if (_featuresDirty) {
+      _featuresDirty = false;
+      _liveFeatures = allGone(paths) ? <int>{} : reachableFeatures(geo, paths, 10000);
+    }
+    final live = Set<int>.of(_liveFeatures);
+    void keep(Pt p) {
+      if (geo.inside(p)) live.add(geo.cell(p));
+    }
+
+    for (final path in paths) {
+      path?.forEach(keep);
+    }
+    for (final m in allMotions()) {
+      for (var k = m.progress.floor(); k < m.route.length; k++) {
+        keep(m.route[k]);
+      }
+    }
+    for (final key in _featureAlpha.keys.toList()) {
+      final alpha = _featureAlpha[key]!, target = live.contains(key) ? 1.0 : 0.0;
+      final next = alpha + (target - alpha).sign * math.min((target - alpha).abs(), dt);
+      _featureAlpha[key] = next;
+      if (next != target) fading = true;
+    }
   }
 
   void _say(String text) {
@@ -165,7 +235,8 @@ class GameState {
   List<Pt> cells() => List<Pt>.generate(board.w * board.h, (c) => board.hex ? hexPoint(c, board.w) : Pt(c % board.w, c ~/ board.w));
 
   /// Fit the board between the control bands, rotating it by 90° when that
-  /// makes it larger (as app.js does). Resets zoom and pan.
+  /// makes it larger (as app.js does). Zoom and pan carry over, constrained to
+  /// the new view; a board that no longer zooms returns to fit.
   void resize(double w, double h, {double top = 80, double bottom = 90, double left = 12, double right = 12}) {
     width = w;
     height = h;
@@ -194,9 +265,11 @@ class GameState {
     _cy = rotated ? (x1 + x0) / 2 : (y1 + y0) / 2;
     _bw = (rotated ? bh : bw);
     _bh = (rotated ? bw : bh);
-    zoom = 1;
-    camX = 0;
-    camY = 0;
+    if (!zoomable) {
+      zoom = 1;
+      camX = 0;
+      camY = 0;
+    }
     _applyCamera();
   }
 
@@ -223,6 +296,7 @@ class GameState {
 
   void zoomAt(double factor, double px, double py) {
     if (!zoomable) return;
+    _tween = null;
     final next = (zoom * factor).clamp(1.0, 8.0);
     final ratio = next / zoom;
     camX = px - _centerX - (px - _centerX - camX) * ratio;
@@ -233,16 +307,45 @@ class GameState {
 
   void panBy(double dx, double dy) {
     if (zoom <= 1) return;
+    _tween = null;
     camX += dx;
     camY += dy;
     _applyCamera();
   }
 
-  void fit() {
-    zoom = 1;
-    camX = 0;
-    camY = 0;
+  // Fit eases the camera back over .22 s (ease-out cubic), as on the web.
+  (double, double, double, double)? _tween; // from zoom, x, y; elapsed 0..1
+  bool get cameraMoving => _tween != null;
+
+  void fit() => _tween = (zoom, camX, camY, 0);
+
+  void _stepCamera(double dt) {
+    final t = _tween;
+    if (t == null) return;
+    final (z, x, y, time) = t;
+    final now = math.min(1.0, time + dt / .22), ease = 1 - math.pow(1 - now, 3);
+    zoom = z + (1 - z) * ease;
+    camX = x * (1 - ease);
+    camY = y * (1 - ease);
+    _tween = now < 1 ? (z, x, y, now) : null;
     _applyCamera();
+  }
+
+  /// Bring a rope's head into view when zoomed in: near an edge or under the
+  /// controls, the camera centers it.
+  void _focus(int i) {
+    final path = paths[i];
+    if (path == null) return;
+    final p = screen(path.last), pad = math.min(48.0, math.min(width / 4, height / 4));
+    if (p.x < math.max(pad, padLeft) ||
+        p.x > width - math.max(pad, padRight) ||
+        p.y < math.max(pad, padTop) ||
+        p.y > height - math.max(pad, padBottom)) {
+      _tween = null;
+      camX += _centerX - p.x;
+      camY += _centerY - p.y;
+      _applyCamera();
+    }
   }
 
   // ---------------------------------------------------------------- play
@@ -284,15 +387,21 @@ class GameState {
 
   Map<int, double> _positions() => {for (final m in allMotions()) m.serial: m.progress};
 
+  /// The turn a mirror at route[index] gives the rope: (incoming, outgoing).
+  ((int, int), (int, int))? _mirrorTurn(List<Pt> route, int index) {
+    if (index < 1 || index >= route.length) return null;
+    final p = route[index], before = route[index - 1];
+    if (!geo.inside(p) || geo.mirror[geo.cell(p)] < 0) return null;
+    final incoming = (p.q - before.q, p.r - before.r), outgoing = geo.direction([before, p]);
+    return incoming == outgoing ? null : (incoming, outgoing);
+  }
+
   List<int> _mirrorCrossings(List<Pt> route, int length) {
-    final out = <int>[];
-    for (var i = length; i < route.length; i++) {
-      final p = route[i], before = route[i - 1];
-      if (!geo.inside(p) || geo.mirror[geo.cell(p)] < 0) continue;
-      final (oq, or) = geo.direction([before, p]);
-      if (oq != p.q - before.q || or != p.r - before.r) out.add(i - length + 1);
-    }
-    return out;
+    // A head already resting on a mirror has reflected on its previous move.
+    return [
+      for (var i = length; i < route.length; i++)
+        if (_mirrorTurn(route, i) != null) i - length + 1,
+    ];
   }
 
   /// Whether rope i accepts a tap now (not mid-flight, except a bouncing rope
@@ -330,7 +439,6 @@ class GameState {
     final route = List<Pt>.of(mv.route);
     var distance = mv.distance.toDouble();
     final reflections = _mirrorCrossings(route, path.length);
-    var impactAt = -1.0;
     Pt? spring;
     if (mv.event == evExit) {
       final a = route[route.length - 1], b = route[route.length - 2];
@@ -341,15 +449,7 @@ class GameState {
       }
       distance += extra;
     } else if (mv.event == evBounce) {
-      // Fold the route back over the rope's own body: the head enters the
-      // spring cell, then slides back to the old tail at the incoming speed.
       spring = route.last;
-      impactAt = distance;
-      final l = path.length;
-      for (var k = route.length - 2; k >= route.length - l; k--) {
-        route.add(route[k]);
-      }
-      distance += l - 1;
     }
     final visits = <int, int>{};
     for (var k = 0; k < route.length; k++) {
@@ -364,7 +464,6 @@ class GameState {
       event: mv.event,
       finalPath: mv.paths[i],
       distance: distance,
-      impactAt: impactAt,
       spring: spring,
       automatic: automatic,
       visits: visits,
@@ -372,6 +471,11 @@ class GameState {
       reflections: reflections,
       serial: serial,
     );
+    if (spring != null) {
+      final settled = [for (final c in route.sublist(route.length - path.length)) screen(c)];
+      m.hold = m.bounceDuration = 1;
+      m.bounceLength = Trace([for (final v in settled) (v.x, v.y)], scale * .4, tiles: tiles).length / scale;
+    }
     _prepareTraffic(m);
     m.waiting = m.distance > 0 && _motionLimit(m, _positions()) == 0;
     if (previous != null) {
@@ -409,6 +513,7 @@ class GameState {
       _seekPlan(previousPlan.where((k) => paths[k] != null).toList(), 900);
     }
     _refreshFrozen();
+    _featuresDirty = true;
     if (lost && !wasLost) {
       sfx(Sfx.bump, 0);
       _say('Knotted. Undo or restart.');
@@ -449,6 +554,8 @@ class GameState {
     lost = s.lost;
     moves.clear();
     activations.clear();
+    springRotations.clear();
+    _resetFeatures();
     bump = -1;
     undos--;
     taps++;
@@ -473,10 +580,12 @@ class GameState {
     if (moves.containsKey(plan[0])) return;
     if (hint == plan[0] && hintTime > 0) {
       hintTime = 3;
+      _focus(hint);
       return;
     }
     hint = plan[0];
     hintTime = 3;
+    _focus(hint);
     taps += 2;
     sfx(Sfx.hint, 0);
     _say('Hint · +2 taps');
@@ -553,6 +662,7 @@ class GameState {
   /// Advance the animation by dt seconds.
   void update(double dt) {
     clock += dt;
+    _stepCamera(dt);
     if (noticeTime > 0) {
       noticeTime -= dt;
       if (noticeTime <= 0) notice = '';
@@ -574,6 +684,8 @@ class GameState {
       }
     }
     final motionDt = dt * speedFactor;
+    // Use the earlier frame's tail positions, so a follower cannot cut through
+    // a crossing that its predecessor is still clearing during this frame.
     final pos = _positions();
     for (final id in moves.keys.toList()) {
       final m = moves[id];
@@ -582,7 +694,6 @@ class GameState {
       final travel = motionDt * (m.event == evExit ? 0.5 : 1.0);
       if (!m.impacted) m.speed = math.min(38.0, m.speed + travel * 100.0);
       final limit = _motionLimit(m, pos);
-      final before = m.progress;
       final proposed = m.progress + m.speed * travel;
       m.progress = math.min(limit, proposed);
       m.waiting = limit < m.distance && proposed >= limit;
@@ -591,39 +702,49 @@ class GameState {
         sfx(Sfx.slide, 0);
       }
       if (m.waiting) m.speed = 0;
+      if (m.spring != null && m.progress >= m.distance - 1) {
+        m.rotation ??= springRotations[geo.cell(m.spring!)] ?? 0;
+      }
       while (m.nextReflection < m.reflections.length && m.progress >= m.reflections[m.nextReflection]) {
         sfx(Sfx.reflect, m.nextReflection);
         m.nextReflection++;
       }
-      if (m.spring != null) {
-        // The coil spins from the dot before the spring until the tail settles.
-        final from = math.max(before, m.impactAt - 1), to = m.progress;
-        if (to > from) {
-          final key = _cellKey(m.spring!);
-          springAngle[key] = (springAngle[key] ?? 0) + math.pi * (to - from) / (m.distance - m.impactAt + 1);
-        }
-        if (!m.impacted && m.progress >= m.impactAt) {
-          m.impacted = true;
-          if (m.impactAt == 0) m.speed = 38;
-          sfx(Sfx.spring, 0);
-        }
+      if (m.progress < m.distance - 0.001 && !(m.event == evExit && _exitCleared(id))) continue;
+      var remaining = motionDt;
+      if (m.event == evBounce && !m.impacted) {
+        m.progress = m.distance;
+        final from = ropeDrawing(id)!;
+        final track = Trace([for (final v in from.points) (v.x, v.y)], scale * .4, tiles: tiles);
+        // Carry the incoming velocity through the reflection. An already
+        // adjacent rope starts its return at the normal cruising speed.
+        final speed = m.distance > 0 ? m.speed : 38.0;
+        m.speed = speed;
+        m.hold = m.bounceDuration = track.length / scale / speed;
+        remaining = m.distance > 0 ? math.max(0, (proposed - m.distance) / speed) : motionDt;
+        m.rotation ??= springRotations[geo.cell(m.spring!)] ?? 0;
+        m.impacted = true;
+        sfx(Sfx.spring, 0);
       }
-      if (m.progress >= m.distance - 0.001 || (m.event == evExit && _exitCleared(id))) {
-        if (m.queued != null) {
-          moves[id] = m.queued!;
-        } else {
-          moves.remove(id);
-        }
-        if (m.event == evExit) {
-          sfx(Sfx.pop, m.popNote);
-        } else if (m.event != evBounce && (m.reflections.isEmpty || m.reflections.last.toDouble() != m.distance)) {
-          sfx(Sfx.thud, 0);
-        }
+      m.hold -= remaining;
+      if (m.hold > 0) continue;
+      if (m.spring != null) springRotations[geo.cell(m.spring!)] = (m.rotation ?? 0) + math.pi;
+      if (m.queued != null) {
+        moves[id] = m.queued!;
+      } else {
+        moves.remove(id);
+      }
+      if (m.event == evExit) {
+        sfx(Sfx.pop, m.popNote);
+      } else if (m.event != evBounce && (m.reflections.isEmpty || m.reflections.last.toDouble() != m.distance)) {
+        sfx(Sfx.thud, 0);
       }
     }
+    _updateFeatures(motionDt);
     if (!ended && ropesLeft == 0 && moves.isEmpty) {
+      // After auto-solve the empty grid fades for a second (at normal speed);
+      // either way, the result waits for cleared features to fade.
       if (usedAuto) outro = math.min(1.0, outro + motionDt);
-      if (!usedAuto || outro >= 1.0) _finish();
+      if (!fading && (!usedAuto || outro >= 1.0)) _finish();
     } else if (auto && !ended) {
       for (var i = 0; i < paths.length; i++) {
         if (paths[i] != null && !moves.containsKey(i)) {
@@ -632,6 +753,128 @@ class GameState {
         }
       }
     }
+  }
+
+  // ---------------------------------------------------------------- drawing
+
+  /// The rope as drawn: screen points and its arrowhead direction. A head on a
+  /// mirror turns with the bend and leads out of it, so the arrow's neck
+  /// follows the reflected cord; [settled] gives a moving rope's final pose.
+  RopeDrawing? ropeDrawing(int i, {bool settled = false}) {
+    final m = moves[i];
+    final moving = settled ? null : m;
+    final Path? cells = settled ? (m?.finalPath ?? paths[i]) : (m == null ? paths[i] : null);
+    if (moving == null && (cells == null || cells.length < 2)) return null;
+    final points = moving != null
+        ? [for (final (q, r) in visible(i)) screenAt(q, r)]
+        : [for (final c in cells!) screen(c)];
+    final tip = points.last;
+    final route = moving?.route ?? cells!;
+    final end = moving != null ? moving.progress + moving.path.length - 1 : (cells!.length - 1).toDouble();
+    final Vec previous;
+    if (moving != null) {
+      final (q, r) = _pointAt(route, end - .001);
+      previous = screenAt(q, r);
+    } else {
+      final (dq, dr) = geo.direction(cells!);
+      previous = screenAt((cells.last.q - dq).toDouble(), (cells.last.r - dr).toDouble());
+    }
+    var length = math.sqrt(math.pow(tip.x - previous.x, 2) + math.pow(tip.y - previous.y, 2));
+    if (length == 0) length = 1;
+    var head = Vec((tip.x - previous.x) / length, (tip.y - previous.y) / length);
+    final index = end.round(), turn = _mirrorTurn(route, index), proximity = (end - index).abs();
+    if (turn != null && proximity < .5) {
+      final ((iq, ir), (oq, or)) = turn;
+      final at = route[index], center = screen(at);
+      final a = screenAt((at.q + iq).toDouble(), (at.r + ir).toDouble());
+      final b = screenAt((at.q + oq).toDouble(), (at.r + or).toDouble());
+      final ax = a.x - center.x, ay = a.y - center.y, bx = b.x - center.x, by = b.y - center.y;
+      final t = ((end - index + .35) / .35).clamp(0.0, 1.0), ease = t * t * (3 - 2 * t);
+      final angle = math.atan2(ay, ax) + math.atan2(ax * by - ay * bx, ax * bx + ay * by) * ease;
+      head = Vec(math.cos(angle), math.sin(angle));
+      // Lead the arrow out of the bend so its neck follows the reflected cord.
+      // The lead fades on either side, keeping stopped and moving poses continuous.
+      final next = Pt(at.q + oq, at.r + or);
+      var clearance = .26;
+      for (var j = 0; j < paths.length; j++) {
+        final p = paths[j];
+        if (j == i || p == null || p.last != next) continue;
+        final (nq, nr) = geo.direction(p);
+        final from = screen(next), toward = screenAt((next.q + nq).toDouble(), (next.r + nr).toDouble());
+        final nx = toward.x - from.x, ny = toward.y - from.y;
+        // Leave room for the arrowhead of a facing neighbor, not just its cord.
+        if ((nx * bx + ny * by) / (math.sqrt(nx * nx + ny * ny) * math.sqrt(bx * bx + by * by)) < .51) clearance = .03;
+        break;
+      }
+      final lead = scale * clearance * (1 - proximity / .5);
+      points.add(Vec(tip.x + head.x * lead, tip.y + head.y * lead));
+    }
+    return RopeDrawing(points, head);
+  }
+
+  /// How far a bounce has folded back over itself (0..1), or null.
+  double? springTurn(Motion? m) {
+    if (m == null || !m.impacted || m.bounceDuration == 0) return null;
+    return (1 - m.hold / m.bounceDuration).clamp(0.0, 1.0);
+  }
+
+  /// The spin a bounce gives its spinner: half a turn from the dot before the
+  /// spring until the rope has folded back.
+  double springSpin(Motion? m) {
+    if (m == null) return 0;
+    final approach = (m.progress - (m.distance - 1)).clamp(0.0, 1.0);
+    final returned = (springTurn(m) ?? 0) * m.bounceLength;
+    return math.pi * (approach + returned) / (1 + m.bounceLength);
+  }
+
+  /// A reflecting rope: its drawn line folds back on itself at the spring, the
+  /// returning strand on top, while the arrowhead turns around.
+  RopeDrawing? _springDrawing(int i, double turn) {
+    final from = ropeDrawing(i), to = ropeDrawing(i, settled: true);
+    if (from == null || to == null) return from ?? to;
+    if (turn <= 0) return from;
+    if (turn >= 1) return to;
+    final m = moves[i]!, s = scale;
+    final key = '$ox,$oy,$s,$rotated,$graphics';
+    if (m.springTraceKey != key) {
+      m.springTraceKey = key;
+      m.springTrace = Trace([for (final v in from.points) (v.x, v.y)], s * .4, tiles: tiles);
+    }
+    final track = m.springTrace!, length = track.length, progress = length * turn;
+    // A 180-degree turn folds the route directly back onto itself. Include the
+    // reflection point exactly; the returning head is painted after the body.
+    (double, double) at(double d) => track.at(d <= length ? d : 2 * length - d);
+    final count = math.max(2, (length / (s * .12)).ceil());
+    final samples = <double>[progress, progress + length];
+    for (var n = 1; n < count; n++) {
+      samples.add(progress + length * n / count);
+    }
+    if (progress > 0 && progress < length) samples.add(length);
+    for (final anchor in track.breaks ?? const <double>[]) {
+      for (final d in [anchor, 2 * length - anchor]) {
+        if (d > progress && d < progress + length) samples.add(d);
+      }
+    }
+    samples.sort();
+    final points = <Vec>[];
+    for (final d in samples) {
+      final (x, y) = at(d);
+      points.add(Vec(x, y));
+    }
+    final tip = points.last;
+    final (bx, by) = track.at(length - progress + .01);
+    var angle = math.atan2(tip.y - by, tip.x - bx);
+    if (turn < .08) {
+      final e = turn / .08;
+      angle = math.atan2(from.head.y, from.head.x) + math.pi * e * e * (3 - 2 * e);
+    }
+    return RopeDrawing(points, Vec(math.cos(angle), math.sin(angle)), samples.indexOf(length));
+  }
+
+  /// The rope as it appears this frame, including a fold at a spring.
+  RopeDrawing? drawing(int i) {
+    final turn = springTurn(moves[i]);
+    return turn != null ? _springDrawing(i, turn) : ropeDrawing(i);
   }
 
   // ---------------------------------------------------------------- input
@@ -644,13 +887,6 @@ class GameState {
     return math.sqrt(ex * ex + ey * ey);
   }
 
-  /// Unit vector of the rope's head in screen space.
-  Vec headUnit(List<Vec> pts) {
-    final a = pts[pts.length - 2], b = pts[pts.length - 1];
-    final len = math.sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
-    return len == 0 ? const Vec(0, -1) : Vec((b.x - a.x) / len, (b.y - a.y) / len);
-  }
-
   /// The rope under a screen point, or -1.
   int pick(double px, double py) {
     if (auto) return -1;
@@ -658,11 +894,10 @@ class GameState {
     var distance = math.max(scale * 0.43, 14.0);
     for (var i = 0; i < paths.length; i++) {
       if (paths[i] == null || !tappable(i)) continue;
-      final pts = [for (final (q, r) in visible(i)) screenAt(q, r)];
-      if (pts.length < 2) continue;
-      final h = headUnit(pts);
-      final tip = pts.last;
-      pts.add(Vec(tip.x + h.x * scale * 0.35, tip.y + h.y * scale * 0.35));
+      final d = drawing(i);
+      if (d == null) continue;
+      final tip = d.points.last;
+      final pts = [...d.points, Vec(tip.x + d.head.x * scale * 0.35, tip.y + d.head.y * scale * 0.35)];
       for (var j = 1; j < pts.length; j++) {
         final v = _segDistance(px, py, pts[j - 1].x, pts[j - 1].y, pts[j].x, pts[j].y);
         if (v < distance) {
@@ -681,6 +916,15 @@ class GameState {
     return i;
   }
 
-  /// Spinner rotation for drawing.
-  double springRotation(Pt p) => springAngle[_cellKey(p)] ?? 0;
+  /// A spinner's angle: its resting turn plus the spin of a rope bouncing on it.
+  double springRotation(Pt p) {
+    Motion? active;
+    for (final m in moves.values) {
+      if (m.spring == p) {
+        active = m;
+        break;
+      }
+    }
+    return (active?.rotation ?? springRotations[geo.cell(p)] ?? 0) + springSpin(active);
+  }
 }

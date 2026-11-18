@@ -27,6 +27,31 @@ class SetOpts {
     required this.colossal,
     required this.seed,
   });
+
+  /// A Custom set like this one, with some values changed and all in range.
+  SetOpts edit({
+    String? seed,
+    String? grid,
+    int? count,
+    int? min,
+    int? max,
+    int? w,
+    int? h,
+    bool? mirrors,
+    bool? springs,
+    bool? colossal,
+  }) =>
+      customSet(
+          seed: seed ?? this.seed,
+          grid: grid ?? this.grid,
+          count: count ?? this.count,
+          min: min ?? this.min,
+          max: max ?? this.max,
+          w: w ?? this.w,
+          h: h ?? this.h,
+          mirrors: mirrors ?? this.mirrors,
+          springs: springs ?? this.springs,
+          colossal: colossal ?? this.colossal);
 }
 
 const SetOpts journeyOpts = SetOpts(
@@ -43,6 +68,45 @@ const SetOpts journeyOpts = SetOpts(
     seed: 'MONKEYFIST');
 
 const String journeyCode = 'J3-MONKEYFIST';
+
+/// cleanSeed(): up to 12 letters and digits, or the default seed.
+String cleanSeed(String seed) {
+  final s = seed.toUpperCase().replaceAll(RegExp('[^A-Z0-9]'), '');
+  return s.isEmpty ? 'MONKEYFIST' : (s.length > 12 ? s.substring(0, 12) : s);
+}
+
+/// normalize(): a Custom set with every value in range. Mechanics need room to
+/// turn and bounce; colossal maps allow larger grids.
+SetOpts customSet({
+  String seed = 'MONKEYFIST',
+  String grid = 'M',
+  int count = 120,
+  int min = 1,
+  int max = 100,
+  int w = 10,
+  int h = 14,
+  bool mirrors = false,
+  bool springs = false,
+  bool colossal = false,
+}) {
+  final lo = mirrors || springs ? 8 : 4, hi = colossal ? 48 : 24;
+  final from = min.clamp(1, 100);
+  return SetOpts(
+      journey: false,
+      grid: const ['S', 'H', 'M'].contains(grid) ? grid : 'M',
+      min: from,
+      max: max.clamp(from, 100),
+      w: w.clamp(lo, hi),
+      h: h.clamp(lo, hi),
+      count: count.clamp(1, 200),
+      mirrors: mirrors,
+      springs: springs,
+      colossal: colossal,
+      seed: cleanSeed(seed));
+}
+
+/// How many levels of a set are open: Journey opens ten per chapter, Custom all.
+int setAvailable(SetOpts o, int chapters) => o.journey ? journeyAvailable(chapters) : o.count;
 
 String setCode(SetOpts o) {
   if (o.journey) return journeyCode;

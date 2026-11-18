@@ -2,32 +2,47 @@
 
 A native version of the Monkey Fist rope puzzle: one Dart/Flutter codebase for
 Android phones and tablets, iPhone and iPad. It plays the same 120 Journey levels
-as the web game. Every level is regenerated on the device from its seed with a
-Dart port of the generator, and it matches the JavaScript output exactly.
+and the same Custom sets as the web game. Every level is regenerated on the
+device from its seed with a Dart port of the generator, and it matches the
+JavaScript output exactly.
 
-On Android, all six web songs are synthesized offline, with the same score,
-grooves, seeded melody variations, four arrangements, and quieter thinking
-passages. **Music: Off → Soft → Full** is independent of sound effects and is
-saved between sessions. Music starts Off, plays during puzzles, and pauses on
-the level list, results, or when the app is backgrounded. It uses media volume.
-The Android audio stream is buffered continuously; no music files are downloaded
-or bundled. Music playback on iOS is not wired up yet.
+All six web songs are synthesized offline, with the same score, grooves, seeded
+melody variations, four arrangements, and quieter thinking passages.
+**Music: Off → Soft → Full** is independent of sound effects and is saved between
+sessions. Music starts Off, plays during puzzles, and pauses on the level list,
+results, or when the app is backgrounded. Bars stream over the
+`monkey_fist/music` channel to an AudioTrack on Android (media volume) and to
+AVAudioEngine on iOS (mixing with other audio, like the effects); one bar plays
+while the next waits. No music files are downloaded or bundled.
 
 See [REPORT.md](REPORT.md) for what was ported, parity results and timings.
 
-The **Settings** gear is in the top-right corner of both the journey and puzzle
-screens. The same settings screen contains:
+The app has the same three screens as the web game, laid out the same way:
+**Levels** (Journey or Custom, your stars, Play or Continue, and the levels), the
+**puzzle**, and **Settings**. Custom builds a set from a seed (or a pasted set
+code), grid, number of levels, difficulty range, size, mirrors, springs and
+colossal maps; every Custom level is open and each set keeps its own scores.
+**Copy set link** shares the set as a web link. The Settings gear is in the top-right corner of Levels and of the
+puzzle. Continue returns to the puzzle in progress with its taps and undos. The
+settings screen contains:
 
 - Sound effects and background music: Off / Soft / Full, independently.
 - Movement speed: Slow / Normal / Fast.
 - Art style: Rope / Tiles, including matching mirrors and springs.
 - High contrast: black backgrounds, clearer grid lines and stronger UI outlines.
 
+The board is drawn as on the web: springs fold a rope back over its own drawn
+line while its arrowhead turns around and the spinner spins half a turn; a head
+on a mirror turns with the bend; mirrors and springs no rope can reach any more
+fade away, and after auto-solve the empty grid fades before the result.
+
 Changes are saved automatically. Opening Settings pauses the puzzle and music;
 returning applies the preferences without resetting the board, taps or progress.
-The gameplay toolbar contains only Undo, Hint, Solve, Restart, and Fit when needed.
-The journey and settings screens scroll with persistent navigation, and controls
-adapt to small screens, landscape and larger text.
+The puzzle toolbar has Undo, Hint, Solve and Restart, plus Fit while zoomed in.
+In portrait the title and score sit above the board and the toolbar below it; on
+wide screens (wider than 6:5) the title and toolbar move to the left and the
+score to the right, so the board keeps the full height. Controls adapt to small
+screens, landscape and larger text.
 
 ## Layout
 
@@ -44,10 +59,12 @@ flutter/
     engine.dart      set codes, level specs, layoutKey, generate, unlocks (game-engine.js)
     journey_data.dart  the 120 Journey specs, generated from ../grid-journey.js
   lib/game/      game logic, pure Dart except progress.dart
-    game_state.dart  taps, queued motions, traffic, undo, hints, auto-solve, stars, camera, hit-testing
+    game_state.dart  taps, queued motions, traffic, undo, hints, auto-solve, stars, camera,
+                     hit-testing, spring folds, mirror turns and feature fades (as drawn)
+    curve.dart       the rope's filleted centerline, shared by the game layer and the painter
     sounds.dart      the sounds.js effects as offline synthesis to WAV
     levels.dart      level generation in an isolate, with a cache and prefetch
-    progress.dart    chapter unlocks and best scores (shared_preferences)
+    progress.dart    scores per set, chapter unlocks, Custom options (shared_preferences)
   lib/ui/        Flutter widgets: level list, game screen, CustomPainter, rope art, audio
   test/core/     parity and game-logic tests (`dart test`)
   test/          widget, rendering and storage tests (`flutter test`)

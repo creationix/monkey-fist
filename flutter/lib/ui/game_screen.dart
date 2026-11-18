@@ -1,6 +1,8 @@
-// One Journey level: the board, HUD, actions (undo, hint, auto-solve, restart,
-// fit), pinch zoom and pan on large boards, and the result card.
+// One level of a set, laid out like the web game's puzzle screen: the title and
+// score above the board and the actions below it in portrait, or down the left
+// and right sides on wide screens; pinch zoom and pan; and the result card.
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
@@ -16,17 +18,30 @@ import 'settings_screen.dart';
 
 const Map<String, double> moveSpeeds = {'slow': .5, 'normal': 1, 'fast': 2};
 
+/// The puzzle in progress. Levels keeps it while the player looks at the list,
+/// so Continue returns to the same board, taps and undos.
+class PlaySession {
+  SetOpts opts = journeyOpts;
+  int index = 0;
+  GameState? game;
+  bool get active => game != null && !game!.ended;
+}
+
 class GameScreen extends StatefulWidget {
+  final SetOpts opts;
   final int index;
   final Progress progress;
   final LevelStore store;
   final SfxPlayer audio;
+  final PlaySession session;
   const GameScreen({
     super.key,
+    this.opts = journeyOpts,
     required this.index,
     required this.progress,
     required this.store,
     required this.audio,
+    required this.session,
   });
 
   @override
@@ -36,6 +51,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   late int index = widget.index;
+  late final SetOpts opts = widget.opts;
+  late final String code = setCode(opts);
   GameState? game;
   bool failed = false;
   late final Ticker _ticker;
@@ -52,7 +69,13 @@ class _GameScreenState extends State<GameScreen>
     super.initState();
     _ticker = createTicker(_tick)..start();
     widget.audio.warmUp();
-    _load();
+    final session = widget.session;
+    if (session.active && session.index == index && setCode(session.opts) == code) {
+      _adopt(session.game!);
+      _startMusic();
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -60,6 +83,18 @@ class _GameScreenState extends State<GameScreen>
     widget.audio.music.pause();
     _ticker.dispose();
     super.dispose();
+  }
+
+  void _adopt(GameState g) {
+    g.speedFactor = moveSpeeds[widget.progress.speed] ?? 1;
+    g.graphics = widget.progress.graphics;
+    g.onFinish = _finished;
+    if (_size != Size.zero) _fit(g);
+    game = g;
+    widget.session
+      ..opts = opts
+      ..index = index
+      ..game = g;
   }
 
   Future<void> _load() async {
@@ -70,19 +105,17 @@ class _GameScreenState extends State<GameScreen>
       _resultShown = false;
     });
     final want = index;
-    final level = await widget.store.get(want);
+    final level = await widget.store.get(want, code);
     if (!mounted || want != index) return;
     if (level == null) {
       setState(() => failed = true);
       return;
     }
-    final g = GameState(level, sfx: widget.audio.play);
-    g.speedFactor = moveSpeeds[widget.progress.speed] ?? 1;
-    g.onFinish = _finished;
-    if (_size != Size.zero) _fit(g);
-    setState(() => game = g);
+    setState(() => _adopt(GameState(level, sfx: widget.audio.play)));
     _startMusic();
-    if (index + 1 < widget.progress.available) widget.store.prefetch(index + 1);
+    if (index + 1 < widget.progress.availableFor(opts)) {
+      widget.store.prefetch(index + 1, code);
+    }
   }
 
   void _fit(GameState g) {
@@ -108,6 +141,8 @@ class _GameScreenState extends State<GameScreen>
         g.bump >= 0 ||
         g.activations.isNotEmpty ||
         g.noticeTime > 0 ||
+        g.fading ||
+        g.cameraMoving ||
         (g.auto && !g.ended) ||
         (!g.ended && g.ropesLeft == 0);
     g.update(dt);
@@ -117,7 +152,7 @@ class _GameScreenState extends State<GameScreen>
   void _finished(int stars) {
     widget.audio.music.pause();
     final g = game!;
-    final opened = widget.progress.record(index, g.taps, stars);
+    final opened = widget.progress.record(index, g.taps, stars, code: code);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _showResult(stars, opened),
     );
@@ -128,80 +163,25 @@ class _GameScreenState extends State<GameScreen>
     _resultShown = true;
     final g = game!;
     final p = widget.progress;
-    final hasNext = index + 1 < p.available;
+    final hasNext = index + 1 < p.availableFor(opts);
     final unlocked = opened > 0
         ? 'Levels ${(p.chapters - opened) * 10 + 1}–${p.chapters * 10} unlocked!'
-        : (index == 119 ? 'Journey complete.' : '');
+        : (opts.journey && index == 119 ? 'Journey complete. Make a new tangle in Custom.' : '');
     final choice = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-        contentPadding: const EdgeInsets.fromLTRB(26, 30, 26, 10),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              stars == 0 ? 'Solved' : 'Untangled!',
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '★' * stars,
-                    style: const TextStyle(color: kAccent),
-                  ),
-                  TextSpan(
-                    text: '★' * (3 - stars),
-                    style: TextStyle(color: kAccent.withValues(alpha: .2)),
-                  ),
-                ],
-              ),
-              style: const TextStyle(fontSize: 38, letterSpacing: 7),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              g.usedAuto
-                  ? 'Auto-solved · 0 stars'
-                  : '${g.taps} ${g.taps == 1 ? 'tap' : 'taps'} · par ${g.par}',
-              style: const TextStyle(color: kMuted, fontSize: 15),
-            ),
-            if (unlocked.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                unlocked,
-                style: const TextStyle(
-                  color: kAccent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            if (hasNext)
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context, 'next'),
-                  child: const Text('Next level'),
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context, 'replay'),
-                child: const Text('Play again'),
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context, 'levels'),
-                child: const Text('Levels'),
-              ),
-            ),
-          ],
+      barrierColor: p.highContrast
+          ? const Color(0xcc000000)
+          : const Color(0xbb04131d),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+        child: _ResultCard(
+          stars: stars,
+          text: g.usedAuto
+              ? 'Auto-solved · 0 stars'
+              : '${g.taps} ${g.taps == 1 ? 'tap' : 'taps'} · par ${g.par}',
+          unlocked: unlocked,
+          hasNext: hasNext,
         ),
       ),
     );
@@ -223,25 +203,21 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     final g = game;
+    final hc = widget.progress.highContrast;
     return Scaffold(
       body: DecoratedBox(
-        decoration: appBackground(widget.progress.highContrast),
+        decoration: appBackground(hc),
         child: LayoutBuilder(
           builder: (context, box) {
             final size = Size(box.maxWidth, box.maxHeight);
-            final bands = EdgeInsets.fromLTRB(
-              12 + mq.padding.left,
-              mq.padding.top +
-                  (size.height < 480 ? 76 : 112) +
-                  math.max(0, mq.textScaler.scale(20) - 20) * 3,
-              12 + mq.padding.right,
-              mq.padding.bottom + 80 + mq.textScaler.scale(14) * 2,
-            );
-            if (size != _size || bands != _bands) {
+            final layout = _Layout(context, size, opts, index, g);
+            if (size != _size || layout.bands != _bands) {
               _size = size;
-              _bands = bands;
+              _bands = layout.bands;
               if (g != null) _fit(g);
             }
+            // While auto-solve plays, the board is the whole screen (as on the web).
+            final hud = g == null || !(g.usedAuto && !g.ended);
             return Stack(
               children: [
                 if (g != null)
@@ -272,60 +248,55 @@ class _GameScreenState extends State<GameScreen>
                           g,
                           _frame,
                           graphics: widget.progress.graphics,
-                          oled: widget.progress.highContrast,
+                          oled: hc,
                         ),
                         size: size,
                       ),
                     ),
                   ),
-                if (g == null)
-                  Center(
-                    child: failed
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'This tangle could not be woven.',
-                                style: TextStyle(color: kMuted),
-                              ),
-                              TextButton(
-                                onPressed: _load,
-                                child: const Text('Try again'),
-                              ),
-                            ],
-                          )
-                        : const Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 26,
-                                height: 26,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: kAccent,
-                                ),
-                              ),
-                              SizedBox(height: 14),
-                              Text(
-                                'Weaving your tangle…',
-                                style: TextStyle(color: kMuted),
-                              ),
-                            ],
-                          ),
-                  ),
+                if (g == null) Center(child: _loading()),
+                // A zoomed board passes under the title and score; keep them readable.
                 Positioned(
                   left: 0,
                   right: 0,
                   top: 0,
-                  child: SafeArea(bottom: false, child: _top(g)),
-                ),
-                if (g != null && !(g.usedAuto && !g.ended))
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: SafeArea(top: false, child: _actions(g)),
+                  height: mq.padding.top + 130,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: g != null && g.zoom > 1 ? .9 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Theme.of(context).scaffoldBackgroundColor,
+                              Theme.of(context).scaffoldBackgroundColor,
+                              Theme.of(context).scaffoldBackgroundColor
+                                  .withValues(alpha: 0),
+                            ],
+                            stops: const [0, .45, 1],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
+                ),
+                if (hud) ...[
+                  Positioned(
+                    left: layout.headingLeft,
+                    top: layout.top,
+                    child: _heading(layout),
+                  ),
+                  Positioned(
+                    right: layout.cornerRight,
+                    top: layout.top,
+                    child: SettingsButton(onPressed: _settings),
+                  ),
+                  if (g != null) _score(g, layout),
+                  if (g != null) _toolbar(g, layout),
+                ],
                 if (g != null && g.notice.isNotEmpty)
                   Center(
                     child: IgnorePointer(
@@ -335,7 +306,9 @@ class _GameScreenState extends State<GameScreen>
                           vertical: 11,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xffe9f5ee),
+                          color: hc
+                              ? const Color(0xffc1ccc8)
+                              : const Color(0xffe9f5ee),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Text(
@@ -357,6 +330,30 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  Widget _loading() => failed
+      ? Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This tangle could not be woven.',
+              style: TextStyle(color: kMuted),
+            ),
+            TextButton(onPressed: _load, child: const Text('Try again')),
+          ],
+        )
+      : const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2, color: kAccent),
+            ),
+            SizedBox(width: 14),
+            Text('Weaving your tangle…', style: TextStyle(color: kMuted)),
+          ],
+        );
+
   Future<void> _settings() async {
     if (_settingsOpen) return;
     _settingsOpen = true;
@@ -367,176 +364,249 @@ class _GameScreenState extends State<GameScreen>
       _settingsOpen = false;
     }
     if (!mounted) return;
-    setState(() => game?.speedFactor = moveSpeeds[widget.progress.speed] ?? 1);
+    setState(() {
+      game
+        ?..speedFactor = moveSpeeds[widget.progress.speed] ?? 1
+        ..graphics = widget.progress.graphics;
+    });
     if (game != null && !game!.ended) _startMusic();
   }
 
-  Widget _top(GameState? g) {
-    final compact = MediaQuery.sizeOf(context).height < 480;
-    final hex = levelSpec(journeyOpts, index).hex;
-    final showScore = g != null && !(g.usedAuto && !g.ended);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, compact ? 6 : 12, 16, 8),
-      child: Column(
-        children: [
-          Row(
+  Widget _heading(_Layout layout) {
+    final hex = levelSpec(opts, index).hex;
+    final muted = appMuted(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Levels',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        const SizedBox(width: 6),
+        DefaultTextStyle.merge(
+          style: TextStyle(shadows: _Layout.legible(context)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                tooltip: 'Levels',
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Text.rich(
+                TextSpan(
                   children: [
-                    Text(
-                      'Level ${index + 1}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                    TextSpan(text: 'Level ${index + 1}'),
+                    TextSpan(
+                      text: ' / ${opts.count}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: muted,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      compact && showScore
-                          ? '${g.taps} taps · par ${g.par} · ${g.ropesLeft} left'
-                          : '${hex ? 'Hex' : 'Square'} · Chapter ${index ~/ 10 + 1}',
-                      style: TextStyle(fontSize: 12, color: appMuted(context)),
                     ),
                   ],
                 ),
+                style: layout.titleStyle,
               ),
-              SettingsButton(onPressed: _settings),
-            ],
-          ),
-          if (!compact && showScore) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  GridIcon(hex: hex, size: 13),
+                  const SizedBox(width: 5),
                   Text(
-                    '${g.taps} taps',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: kAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Par ${g.par}',
-                    style: TextStyle(fontSize: 13, color: appMuted(context)),
-                  ),
-                  const Spacer(),
-                  Text(
-                    g.lost
-                        ? 'Knotted'
-                        : '${g.ropesLeft} ${g.ropesLeft == 1 ? 'rope' : 'ropes'} left',
-                    style: TextStyle(fontSize: 13, color: appMuted(context)),
+                    layout.subtitle,
+                    style: TextStyle(fontSize: layout.small, color: muted),
                   ),
                 ],
               ),
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _score(GameState g, _Layout layout) {
+    final muted = TextStyle(
+      fontSize: layout.small + 1,
+      color: appMuted(context),
+    );
+    final taps = Text(
+      '${g.taps} ${g.taps == 1 ? 'tap' : 'taps'}',
+      style: muted.copyWith(color: kAccent, fontWeight: FontWeight.w600),
+    );
+    final par = Text('Par ${g.par}', style: muted);
+    final left = Text(
+      '${g.ropesLeft} ${g.ropesLeft == 1 ? 'rope' : 'ropes'} left',
+      style: muted,
+    );
+    final style = TextStyle(shadows: _Layout.legible(context));
+    if (layout.wide) {
+      return Positioned(
+        right: layout.scoreRight,
+        top: layout.scoreTop,
+        child: DefaultTextStyle.merge(
+          style: style,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              taps,
+              const SizedBox(height: 2),
+              par,
+              const SizedBox(height: 2),
+              left,
+            ],
+          ),
+        ),
+      );
+    }
+    return Positioned(
+      left: layout.scoreSide.left,
+      right: layout.scoreSide.right,
+      top: layout.scoreTop,
+      child: DefaultTextStyle.merge(
+        style: style,
+        child: Row(
+          children: [
+            taps,
+            const SizedBox(width: 12),
+            par,
+            const Spacer(),
+            left,
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _action(
+    _Layout layout,
     IconData icon,
     String label,
     String? small,
-    VoidCallback? onTap,
-  ) => Expanded(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Opacity(
-        opacity: onTap == null ? (widget.progress.highContrast ? .55 : .35) : 1,
-        child: Material(
-          color: Colors.transparent,
+    VoidCallback? onTap, {
+    Color iconColor = kText,
+  }) => Opacity(
+    opacity: onTap == null ? (widget.progress.highContrast ? .55 : .35) : 1,
+    child: SizedBox(
+      width: layout.button.width,
+      height: layout.button.height,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: SizedBox(
-              height: 36 + MediaQuery.textScalerOf(context).scale(14) * 2,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 24, color: kText),
-                  const SizedBox(height: 2),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: label),
-                        if (small != null)
-                          TextSpan(
-                            text: ' $small',
-                            style: const TextStyle(color: kAccent),
-                          ),
-                      ],
-                    ),
-                    style: const TextStyle(fontSize: 11, color: kText),
-                  ),
-                ],
+          onTap: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: layout.large ? 28 : 24, color: iconColor),
+              const SizedBox(height: 3),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: label),
+                    if (small != null)
+                      TextSpan(
+                        text: ' $small',
+                        style: const TextStyle(color: kAccent),
+                      ),
+                  ],
+                ),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+                style: TextStyle(
+                  fontSize: layout.large ? 12 : 11,
+                  color: kText,
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     ),
   );
 
-  Widget _actions(GameState g) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+  Widget _toolbar(GameState g, _Layout layout) {
+    final buttons = [
+      _action(
+        layout,
+        Icons.undo_rounded,
+        'Undo',
+        '${g.undos}',
+        g.canUndo ? () => setState(g.undo) : null,
+      ),
+      _action(
+        layout,
+        Icons.lightbulb_outline_rounded,
+        'Hint',
+        '+2',
+        g.canHint ? () => setState(g.showHint) : null,
+        iconColor: kAccent,
+      ),
+      _action(
+        layout,
+        Icons.fast_forward_rounded,
+        'Solve',
+        '0★',
+        g.canAutoSolve ? () => setState(g.autoSolve) : null,
+      ),
+      _action(
+        layout,
+        Icons.refresh_rounded,
+        'Restart',
+        null,
+        g.ended ? null : () => setState(g.restart),
+      ),
+      // Fit is an action only while zoomed in.
+      if (g.zoom > 1)
+        _action(
+          layout,
+          Icons.fit_screen_rounded,
+          'Fit',
+          null,
+          () => setState(g.fit),
+        ),
+    ];
+    final scheme = Theme.of(context).colorScheme;
+    final panel = BoxDecoration(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(layout.wide ? 20 : 22),
+      border: Border.all(color: scheme.outlineVariant),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x44000000),
+          blurRadius: 24,
+          offset: Offset(0, 6),
+        ),
+      ],
+    );
+    if (layout.wide) {
+      return Positioned(
+        left: layout.toolbarSide,
+        bottom: layout.toolbarBottom,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: panel,
+          child: SizedBox(
+            width: layout.button.width * 2 + 2,
+            child: Wrap(spacing: 2, runSpacing: 2, children: buttons),
           ),
         ),
-        child: Row(
-          children: [
-            _action(
-              Icons.undo_rounded,
-              'Undo',
-              '${g.undos}',
-              g.canUndo ? () => setState(g.undo) : null,
-            ),
-            _action(
-              Icons.lightbulb_outline_rounded,
-              'Hint',
-              '+2',
-              g.canHint ? () => setState(g.showHint) : null,
-            ),
-            _action(
-              Icons.auto_fix_high_rounded,
-              'Solve',
-              '0★',
-              g.canAutoSolve ? () => setState(g.autoSolve) : null,
-            ),
-            _action(
-              Icons.replay_rounded,
-              'Restart',
-              null,
-              g.ended ? null : () => setState(g.restart),
-            ),
-            if (g.zoomable)
-              _action(
-                Icons.fit_screen_rounded,
-                'Fit',
-                null,
-                g.zoom > 1 ? () => setState(g.fit) : null,
-              ),
-          ],
+      );
+    }
+    return Positioned(
+      left: 12,
+      right: 12,
+      bottom: layout.toolbarBottom,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          decoration: panel,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [for (final b in buttons) Flexible(child: b)],
+          ),
         ),
       ),
     );
@@ -545,5 +615,267 @@ class _GameScreenState extends State<GameScreen>
   void _startMusic() {
     widget.audio.music.setSetting(widget.progress.music);
     widget.audio.music.startLevel(index + 1);
+  }
+}
+
+/// Where the floating controls go, and the bands of the screen they cover.
+/// Portrait puts them above and below the board; wide screens (wider than 6:5,
+/// as on the web) put them down the left and right sides.
+class _Layout {
+  final bool wide, large;
+  final double top,
+      small,
+      headingLeft,
+      cornerRight,
+      scoreTop,
+      scoreRight,
+      toolbarSide,
+      toolbarBottom;
+  final EdgeInsets scoreSide;
+  final Size button;
+  final TextStyle titleStyle;
+  final String subtitle;
+  late final EdgeInsets bands;
+
+  static List<Shadow> legible(BuildContext context) {
+    final page = Theme.of(context).scaffoldBackgroundColor;
+    return [
+      Shadow(color: page, blurRadius: 6, offset: const Offset(0, 1)),
+      Shadow(color: page, blurRadius: 3),
+    ];
+  }
+
+  factory _Layout(BuildContext context, Size size, SetOpts opts, int index, GameState? g) {
+    final mq = MediaQuery.of(context);
+    final scaler = mq.textScaler;
+    final pad = mq.padding;
+    final wide = size.width > size.height * 1.2;
+    final large = size.width >= 900 && size.height >= 640;
+    final small = large ? 13.0 : 12.0;
+    final top = pad.top + (large ? 16 : 10);
+    final titleStyle = TextStyle(
+      fontSize: large ? 24 : 20,
+      fontWeight: FontWeight.w700,
+      height: 1.2,
+    );
+    final subtitle =
+        '${levelSpec(opts, index).hex ? 'Hex' : 'Square'} · ${opts.journey ? 'Chapter ${index ~/ 10 + 1}' : 'Custom set'}';
+    final button = Size(
+      large ? 76 : 66,
+      (large ? 68 : 60) + math.max(0, scaler.scale(11) - 11) * 1.5,
+    );
+    double width(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textScaler: scaler,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final w = painter.width;
+      painter.dispose();
+      return w;
+    }
+
+    final layout = _Layout._(
+      wide: wide,
+      large: large,
+      top: top,
+      small: small,
+      headingLeft: math.max(8, pad.left + 8),
+      cornerRight: pad.right + (large ? 18 : 12),
+      scoreTop: top + (large ? 64 : 58),
+      scoreRight: pad.right + 16,
+      scoreSide: EdgeInsets.only(left: pad.left + 24, right: pad.right + 24),
+      toolbarSide: pad.left + (large ? 16 : 12),
+      toolbarBottom: math.max(12, pad.bottom + 12),
+      button: button,
+      titleStyle: titleStyle,
+      subtitle: subtitle,
+    );
+    final scoreHeight = scaler.scale(small + 1) * 1.4;
+    if (wide) {
+      final heading =
+          48 +
+          6 +
+          math.max(
+            width('Level ${index + 1}', titleStyle) +
+                width(' / ${opts.count}', const TextStyle(fontSize: 13)),
+            18 + width(subtitle, TextStyle(fontSize: small)),
+          );
+      final scoreWidth = g == null
+          ? 0.0
+          : ['${g.taps} taps', 'Par ${g.par}', '${g.ropesLeft} ropes left']
+                .map(
+                  (t) => width(
+                    t,
+                    TextStyle(fontSize: small + 1, fontWeight: FontWeight.w600),
+                  ),
+                )
+                .reduce(math.max);
+      layout.bands = EdgeInsets.fromLTRB(
+        math.max(
+              layout.headingLeft + heading,
+              layout.toolbarSide + button.width * 2 + 14,
+            ) +
+            8,
+        14,
+        layout.scoreRight + math.max(48, scoreWidth) + 8,
+        14,
+      );
+    } else {
+      layout.bands = EdgeInsets.fromLTRB(
+        12 + pad.left,
+        layout.scoreTop + scoreHeight + 8,
+        12 + pad.right,
+        layout.toolbarBottom + button.height + 12 + 8,
+      );
+    }
+    return layout;
+  }
+
+  _Layout._({
+    required this.wide,
+    required this.large,
+    required this.top,
+    required this.small,
+    required this.headingLeft,
+    required this.cornerRight,
+    required this.scoreTop,
+    required this.scoreRight,
+    required this.scoreSide,
+    required this.toolbarSide,
+    required this.toolbarBottom,
+    required this.button,
+    required this.titleStyle,
+    required this.subtitle,
+  });
+}
+
+/// The web game's result card: an eyebrow, the title, stars, the score, and
+/// full-width actions in order of importance.
+class _ResultCard extends StatelessWidget {
+  final int stars;
+  final String text, unlocked;
+  final bool hasNext;
+  const _ResultCard({
+    required this.stars,
+    required this.text,
+    required this.unlocked,
+    required this.hasNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final wide = Size(double.infinity, 48);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+    );
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(26),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 370),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(26, 38, 26, 26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'KNOT CLEARED',
+                style: TextStyle(
+                  color: kAccent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                stars == 0 ? 'Solved' : 'Untangled!',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '★' * stars,
+                      style: const TextStyle(color: kAccent),
+                    ),
+                    TextSpan(
+                      text: '★' * (3 - stars),
+                      style: TextStyle(color: kAccent.withValues(alpha: .2)),
+                    ),
+                  ],
+                ),
+                semanticsLabel: '$stars out of 3 stars',
+                style: const TextStyle(fontSize: 38, letterSpacing: 7),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                text,
+                style: TextStyle(color: appMuted(context), fontSize: 15),
+              ),
+              if (unlocked.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  unlocked,
+                  style: const TextStyle(
+                    color: kAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              if (hasNext) ...[
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: wide,
+                    shape: shape,
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, 'next'),
+                  child: const Text('Next level →'),
+                ),
+                const SizedBox(height: 12),
+              ],
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: wide,
+                  shape: shape,
+                  foregroundColor: kText,
+                  backgroundColor: scheme.surfaceContainerHighest,
+                  side: BorderSide(color: scheme.outlineVariant),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
+                onPressed: () => Navigator.pop(context, 'replay'),
+                child: const Text('Play again'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: wide,
+                  foregroundColor: appMuted(context),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
+                onPressed: () => Navigator.pop(context, 'levels'),
+                child: const Text('Levels'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -73,6 +73,23 @@ class BoardPainter extends CustomPainter {
     for (final i in g.moves.keys) {
       _rope(canvas, i);
     }
+    // Accepted taps flash the rope as it appears, over everything else.
+    for (final MapEntry(key: i, value: remaining) in g.activations.entries) {
+      _flash(canvas, i, .28 * math.min(1.0, remaining / .18));
+    }
+  }
+
+  /// Fade a mirror or spring that no rope can reach any more.
+  bool _fade(Canvas canvas, Pt cell, double opacity) {
+    if (opacity <= 0) return false;
+    if (opacity >= 1) {
+      canvas.save();
+    } else {
+      final c = _o(g.screen(cell));
+      canvas.saveLayer(Rect.fromCircle(center: c, radius: g.scale * .75),
+          Paint()..color = Color.fromRGBO(0, 0, 0, opacity));
+    }
+    return true;
   }
 
   void _grid(Canvas canvas) {
@@ -109,6 +126,7 @@ class BoardPainter extends CustomPainter {
   void _mirrors(Canvas canvas) {
     final s = g.scale;
     for (final m in g.board.mirrors) {
+      if (!_fade(canvas, m.cell, g.featureOpacity(m.cell))) continue;
       final (dq, dr) = g.board.hex ? (hexDq[m.kind], hexDr[m.kind]) : (m.kind == 0 ? (1, -1) : (1, 1));
       final a = g.screenAt(m.cell.q - dq * .37, m.cell.r - dr * .37);
       final b = g.screenAt(m.cell.q + dq * .37, m.cell.r + dr * .37);
@@ -121,6 +139,7 @@ class BoardPainter extends CustomPainter {
         canvas.drawRect(glass, Paint()..color = const Color(0x668edce0));
         canvas.drawRect(glass, Paint()..style = PaintingStyle.stroke..strokeJoin = StrokeJoin.bevel
           ..strokeWidth = s * .03..color = const Color(0xe69ad7d4));
+        canvas.restore();
         canvas.restore();
         continue;
       }
@@ -154,6 +173,7 @@ class BoardPainter extends CustomPainter {
         }
       }
       canvas.restore();
+      canvas.restore();
     }
   }
 
@@ -177,7 +197,16 @@ class BoardPainter extends CustomPainter {
   }
 
   void _spring(Canvas canvas, Pt spring) {
-    if (tiles) { _tileSpring(canvas, spring); return; }
+    if (!_fade(canvas, spring, g.featureOpacity(spring))) return;
+    if (tiles) {
+      _tileSpring(canvas, spring);
+    } else {
+      _ropeSpring(canvas, spring);
+    }
+    canvas.restore();
+  }
+
+  void _ropeSpring(Canvas canvas, Pt spring) {
     final s = g.scale;
     final p = g.screen(spring);
     canvas.save();
@@ -234,22 +263,9 @@ class BoardPainter extends CustomPainter {
 
   void _rope(Canvas canvas, int i) {
     final s = g.scale;
-    final pts = [for (final (q, r) in g.visible(i)) g.screenAt(q, r)];
-    if (pts.length < 2) return;
-    final move = g.moves[i];
-    Vec head;
-    if (move == null) {
-      // A rope at rest points where it will leave: a mirror under its head turns it.
-      final path = g.paths[i]!;
-      final (dq, dr) = g.geo.direction(path);
-      final hd = path.last;
-      final a = g.screen(hd), b = g.screenAt((hd.q + dq).toDouble(), (hd.r + dr).toDouble());
-      final len = math.sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
-      head = Vec((b.x - a.x) / len, (b.y - a.y) / len);
-    } else {
-      head = g.headUnit(pts);
-    }
-    var points = [for (final v in pts) _o(v)];
+    final d = g.drawing(i);
+    if (d == null || d.points.length < 2) return;
+    final points = [for (final v in d.points) _o(v)];
     var minX = double.infinity, maxX = -double.infinity, minY = double.infinity, maxY = -double.infinity;
     for (final p in points) {
       minX = math.min(minX, p.dx);
@@ -258,16 +274,18 @@ class BoardPainter extends CustomPainter {
       maxY = math.max(maxY, p.dy);
     }
     if (maxX < -s || minX > g.width + s || maxY < -s || minY > g.height + s) return;
+    final move = g.moves[i];
+    final h = _o(d.head);
     canvas.save();
-    if (g.bump == i) {
-      final t = math.sin(g.bumpTime / .25 * math.pi) * .1 * s;
-      canvas.translate(head.x * t, head.y * t);
-    }
-    final moving = move != null && !move.waiting;
-    final h = Offset(head.x, head.y);
     if (move != null && move.waiting) {
       _stroke(canvas, points, s * .4, s * .51, const Color(0x33fff1b4), h);
     }
+    if (g.bump == i) {
+      final t = math.sin(g.bumpTime / .25 * math.pi) * .1 * s;
+      canvas.translate(h.dx * t, h.dy * t);
+    }
+    // Texture coordinates start at the moving tail; the weave moves with the rope.
+    final moving = move != null && !move.waiting;
     if (g.hint == i) {
       final pulse = .5 + .5 * math.sin(g.clock * 7);
       _stroke(canvas, points, s * .4, s * .56 + s * .2 * pulse, const Color(0x88fff0b0), h,
@@ -276,22 +294,24 @@ class BoardPainter extends CustomPainter {
       if (!tiles) _arrow(canvas, points.last, h, s, s * .09, const Color(0xfffff1b4));
     }
     final color = _color(i);
-    final fold = move != null && move.spring != null ? _foldIndex(move) : -1;
-    if (fold > 0 && fold < points.length - 1) {
-      // Paint the returning strand over the outgoing one, arrowhead on top.
-      _draw(canvas, points.sublist(0, fold + 1), s * .4, color, null, moving: moving);
-      _draw(canvas, points.sublist(fold), s * .4, color, h, moving: moving);
+    if (d.foldIndex > 0 && d.foldIndex < points.length - 1) {
+      // Paint the whole returning strand over the outgoing one, arrowhead on top.
+      _draw(canvas, points.sublist(0, d.foldIndex + 1), s * .4, color, null, moving: moving);
+      _draw(canvas, points.sublist(d.foldIndex), s * .4, color, h, moving: moving);
     } else {
       _draw(canvas, points, s * .4, color, h, moving: moving);
     }
-    final flash = g.activations[i];
-    if (flash != null) {
-      final a = .28 * math.min(1.0, flash / .18);
-      _stroke(canvas, points, s * .4, s * .43, const Color(0xfffff8dc).withValues(alpha: a), h, moving: moving);
-      if (!tiles) _arrow(canvas, points.last, h, s, 0, const Color(0xfffff8dc).withValues(alpha: a));
-    }
     canvas.restore();
-    points = const [];
+  }
+
+  void _flash(Canvas canvas, int i, double alpha) {
+    final d = g.drawing(i);
+    if (d == null || d.points.length < 2) return;
+    final s = g.scale, move = g.moves[i];
+    final points = [for (final v in d.points) _o(v)], h = _o(d.head);
+    final color = const Color(0xfffff8dc).withValues(alpha: alpha);
+    _stroke(canvas, points, s * .4, s * .43, color, h, moving: move != null && !move.waiting);
+    if (!tiles) _arrow(canvas, points.last, h, s, 0, color, half: s * .308);
   }
 
   void _draw(Canvas canvas, List<Offset> points, double width, Color color, Offset? head, {bool moving = false}) {
@@ -328,17 +348,9 @@ class BoardPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// Index of the spring cell among the visible points of a folding rope.
-  int _foldIndex(Motion m) {
-    final start = m.progress;
-    final end = start + m.path.length - 1;
-    if (!(m.impactAt > start && m.impactAt < end)) return -1;
-    // Visible points: the point at `start`, the route cells strictly between, the point at `end`.
-    return m.impactAt.floor() - start.floor();
-  }
-
-  void _arrow(Canvas canvas, Offset tip, Offset d, double s, double grow, Color fill) {
-    final reach = s * .44 + grow, back = s * .12, half = s * .32 + grow;
+  void _arrow(Canvas canvas, Offset tip, Offset d, double s, double grow, Color fill, {double? half}) {
+    final reach = s * .44 + grow, back = s * .12;
+    half ??= s * .32 + grow;
     final path = Path()
       ..moveTo(tip.dx + d.dx * reach, tip.dy + d.dy * reach)
       ..lineTo(tip.dx - d.dx * back - d.dy * half, tip.dy - d.dy * back + d.dx * half)

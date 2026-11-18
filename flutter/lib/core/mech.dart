@@ -406,3 +406,50 @@ extension BoardKernels on Board {
     return Par(List<int>.of(fallback), verified.taps, true);
   }
 }
+
+/// game-engine.js reachableFeatures(): the mirror and spring cells some
+/// optimistic future can still touch. Other ropes are removed and every unit
+/// step may stop, a superset of real play including pauses on mirrors and
+/// later reversals; only a feature absent from all of them can safely fade.
+/// Running out of budget keeps them all rather than treating an unfinished
+/// search as proof.
+Set<int> reachableFeatures(Geo g, List<Path?> paths, [int budget = 10000]) {
+  final all = <int>{
+    for (var c = 0; c < g.mirror.length; c++)
+      if (g.mirror[c] >= 0 || g.spring[c]) c,
+  };
+  final live = <int>{};
+  if (all.isEmpty) return live;
+  var visited = 0;
+  for (final original in paths) {
+    if (original == null || original.length < 2) continue;
+    var path = original;
+    final seen = <String>{};
+    while (true) {
+      if (visited++ >= budget) return all;
+      final cells = [for (final p in path) g.cell(p)];
+      if (!seen.add(cells.join(','))) break;
+      final head = path[path.length - 1], previous = path[path.length - 2];
+      var dq = head.q - previous.q, dr = head.r - previous.r;
+      final axis = g.mirror[cells.last];
+      if (axis >= 0) {
+        live.add(cells.last);
+        if (g.hex) {
+          final d = hexReflect(hexDirIndex(dq, dr), axis);
+          (dq, dr) = (hexDq[d], hexDr[d]);
+        } else {
+          (dq, dr) = turn(axis, dq, dr);
+        }
+      }
+      final next = Pt(head.q + dq, head.r + dr);
+      if (!g.inside(next)) break;
+      final at = g.cell(next);
+      if (cells.contains(at)) break;
+      if (all.contains(at)) live.add(at);
+      if (live.length == all.length) return all;
+      path = [...path.skip(1), next];
+      if (g.spring[at]) path = path.reversed.toList();
+    }
+  }
+  return live;
+}

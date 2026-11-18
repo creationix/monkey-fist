@@ -6,6 +6,8 @@ import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import '../game/curve.dart';
+
 Color shade(Color c, double amount) {
   int ch(double x) {
     final v = amount < 0 ? x * (1 + amount) : x + (255 - x) * amount;
@@ -15,100 +17,32 @@ Color shade(Color c, double amount) {
   return Color.fromARGB(255, ch(c.r * 255), ch(c.g * 255), ch(c.b * 255));
 }
 
-class _Seg {
-  // Straight: a + along * dir. Arc: center, radius, start angle, sign.
-  final Offset? a;
-  final double dx, dy;
-  final Offset? center;
-  final double radius, angle, sign;
-  final double start, end;
-  _Seg.line(this.a, this.dx, this.dy, this.start, this.end)
-      : center = null,
-        radius = 0,
-        angle = 0,
-        sign = 0;
-  _Seg.arc(this.center, this.radius, this.angle, this.sign, this.start, this.end)
-      : a = null,
-        dx = 0,
-        dy = 0;
-}
-
+/// The drawn centerline: game/curve.dart's fillets, as a Path for painting.
 class RopeCurve {
   final Path line;
-  final double length;
-  final List<_Seg> _segs;
-  final Offset _first;
-  RopeCurve._(this.line, this.length, this._segs, this._first);
+  final Curve _curve;
+  RopeCurve._(this.line, this._curve);
+
+  double get length => _curve.length;
 
   /// The point `s` along the centerline, offset `normal` to its left.
   Offset at(double s, [double normal = 0]) {
-    if (_segs.isEmpty) return _first;
-    var lo = 0, hi = _segs.length - 1;
-    while (lo < hi) {
-      final mid = (lo + hi) >> 1;
-      if (_segs[mid].end < s) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    final p = _segs[lo];
-    final along = s - p.start;
-    if (p.center == null) {
-      return Offset(p.a!.dx + along * p.dx - normal * p.dy, p.a!.dy + along * p.dy + normal * p.dx);
-    }
-    final angle = p.angle + p.sign * along / p.radius;
-    final radius = p.radius - p.sign * normal;
-    return Offset(p.center!.dx + radius * math.cos(angle), p.center!.dy + radius * math.sin(angle));
+    final (x, y) = _curve.at(s, normal);
+    return Offset(x, y);
   }
 
   static RopeCurve of(List<Offset> input) {
-    final points = <Offset>[];
-    for (var i = 0; i < input.length; i++) {
-      if (i == 0 || (input[i] - input[i - 1]).distance > .0001) points.add(input[i]);
-    }
-    final segs = <_Seg>[];
-    final line = Path();
-    var length = 0.0;
-    var end = points[0];
-    line.moveTo(end.dx, end.dy);
-    void straight(Offset b) {
-      final n = (b - end).distance;
-      if (n > .0001) {
-        segs.add(_Seg.line(end, (b.dx - end.dx) / n, (b.dy - end.dy) / n, length, length + n));
-        length += n;
-        line.lineTo(b.dx, b.dy);
+    final curve = Curve.rounded([for (final p in input) (p.dx, p.dy)]);
+    final line = Path()..moveTo(curve.x0, curve.y0);
+    for (final s in curve.segments) {
+      final n = s.end - s.start;
+      if (s.isArc) {
+        line.arcTo(Rect.fromCircle(center: Offset(s.cx, s.cy), radius: s.radius), s.angle, s.sign * n / s.radius, false);
+      } else {
+        line.lineTo(s.ax + s.dx * n, s.ay + s.dy * n);
       }
-      end = b;
     }
-
-    for (var i = 1; i < points.length - 1; i++) {
-      final a = points[i - 1], b = points[i], c = points[i + 1];
-      final before = (b - a).distance, after = (c - b).distance;
-      final ux = (b.dx - a.dx) / before, uy = (b.dy - a.dy) / before;
-      final vx = (c.dx - b.dx) / after, vy = (c.dy - b.dy) / after;
-      final turn = math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
-      if (turn.abs() < .001) continue;
-      if (turn.abs() > math.pi - .001) {
-        straight(b);
-        continue;
-      }
-      final tangent = math.tan(turn.abs() / 2);
-      final cut = math.min(.7 * tangent, math.min(before * .48, after * .48));
-      final radius = cut / tangent;
-      final sign = turn.sign;
-      final entry = Offset(b.dx - ux * cut, b.dy - uy * cut), exit = Offset(b.dx + vx * cut, b.dy + vy * cut);
-      straight(entry);
-      final center = Offset(entry.dx - uy * sign * radius, entry.dy + ux * sign * radius);
-      final angle = math.atan2(entry.dy - center.dy, entry.dx - center.dx);
-      final n = radius * turn.abs();
-      segs.add(_Seg.arc(center, radius, angle, sign, length, length + n));
-      length += n;
-      line.arcTo(Rect.fromCircle(center: center, radius: radius), angle, turn, false);
-      end = exit;
-    }
-    straight(points.last);
-    return RopeCurve._(line, length, segs, points[0]);
+    return RopeCurve._(line, curve);
   }
 }
 

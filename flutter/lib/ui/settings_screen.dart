@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../game/progress.dart';
@@ -52,129 +54,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = widget.progress;
+    final mq = MediaQuery.of(context);
+    final side = math.max(
+      pageSide(mq.size.width, max: 600),
+      math.max(mq.padding.left, mq.padding.right),
+    );
+    final music = widget.audio.music.supported;
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 72,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        leading: IconButton(
-          tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Settings',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-        ),
-      ),
       body: DecoratedBox(
         decoration: appBackground(p.highContrast),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                    sliver: SliverList.list(
-                      children: [
-                        _section('AUDIO', [
-                          _choice(
-                            'sound',
-                            'Sound effects',
-                            Icons.volume_up_outlined,
-                            p.soundLevel,
-                            const {
-                              'off': 'Off',
-                              'soft': 'Soft',
-                              'full': 'Full',
-                            },
-                            (v) => _change(() => p.soundLevel = v),
-                          ),
-                          if (widget.audio.music.supported) ...[
-                            const SizedBox(height: 24),
-                            _choice(
-                              'music',
-                              'Background music',
-                              Icons.music_note_outlined,
-                              p.music,
-                              const {
-                                'off': 'Off',
-                                'soft': 'Soft',
-                                'full': 'Full',
-                              },
-                              (v) => _change(() => p.music = v),
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-                          Text(
-                            'Music plays during puzzles. Uses your device’s media volume.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: appMuted(context),
-                            ),
-                          ),
-                        ]),
-                        _section('GAMEPLAY', [
-                          _choice(
-                            'speed',
-                            'Movement speed',
-                            Icons.speed_rounded,
-                            p.speed,
-                            const {
-                              'slow': 'Slow',
-                              'normal': 'Normal',
-                              'fast': 'Fast',
-                            },
-                            (v) => _change(() => p.speed = v),
-                          ),
-                        ]),
-                        _section('APPEARANCE', [
-                          _choice(
-                            'graphics',
-                            'Art style',
-                            Icons.layers_outlined,
-                            p.graphics,
-                            const {'rope': 'Rope', 'tiles': 'Tiles'},
-                            (v) => _change(() => p.graphics = v),
-                          ),
-                          const SizedBox(height: 24),
-                          const Divider(height: 1),
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            key: const ValueKey('settings-contrast'),
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'High contrast',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: const Text(
-                              'Black backgrounds and clearer grid lines.',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            value: p.highContrast,
-                            onChanged: (v) => _change(() => p.highContrast = v),
-                          ),
-                        ]),
-                        Text(
-                          'Changes are saved automatically.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: appMuted(context),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              // Back stays reachable however far the page scrolls.
+              pinned: true,
+              automaticallyImplyLeading: false,
+              titleSpacing: 0,
+              toolbarHeight: 72,
+              flexibleSpace: PageBackdrop(highContrast: p.highContrast),
+              title: Padding(
+                padding: EdgeInsets.symmetric(horizontal: side - 10),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Back',
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => Navigator.pop(context),
                     ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Settings',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                side,
+                8,
+                side,
+                24 + mq.padding.bottom,
+              ),
+              sliver: SliverList.list(
+                children: [
+                  _section('AUDIO', [
+                    _choice(
+                      'sound',
+                      'Sound effects',
+                      Icons.volume_up_outlined,
+                      p.soundLevel,
+                      const {'off': 'Off', 'soft': 'Soft', 'full': 'Full'},
+                      (v) => _change(() => p.soundLevel = v),
+                    ),
+                    if (music) ...[
+                      const SizedBox(height: 24),
+                      _choice(
+                        'music',
+                        'Music',
+                        Icons.music_note_outlined,
+                        p.music,
+                        const {'off': 'Off', 'soft': 'Soft', 'full': 'Full'},
+                        (v) => _change(() => p.music = v),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Music plays during puzzles and pauses in menus.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: appMuted(context),
+                        ),
+                      ),
+                    ],
+                  ]),
+                  _section('GAMEPLAY', [
+                    _choice(
+                      'speed',
+                      'Movement speed',
+                      Icons.speed_rounded,
+                      p.speed,
+                      const {
+                        'slow': 'Slow',
+                        'normal': 'Normal',
+                        'fast': 'Fast',
+                      },
+                      (v) => _change(() => p.speed = v),
+                    ),
+                  ]),
+                  _section('APPEARANCE', [
+                    _choice(
+                      'graphics',
+                      'Art style',
+                      Icons.layers_outlined,
+                      p.graphics,
+                      const {'rope': 'Rope', 'tiles': 'Tiles'},
+                      (v) => _change(() => p.graphics = v),
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      key: const ValueKey('settings-contrast'),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'High contrast',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Black backgrounds and clearer grid lines.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: p.highContrast,
+                      onChanged: (v) => _change(() => p.highContrast = v),
+                    ),
+                  ]),
+                  Text(
+                    'Changes are saved automatically.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: appMuted(context)),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -198,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Material(
           color: Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             side: BorderSide(
               color: Theme.of(context).colorScheme.outlineVariant,
             ),

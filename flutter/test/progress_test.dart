@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:monkey_fist/core/engine.dart';
 import 'package:monkey_fist/game/progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,4 +71,33 @@ void main() {
     expect(p.scores[9]!.stars, 2);
     expect(p.record(3, 5, 3), 0);
   });
+  test(
+    'Custom sets keep their own scores, and older Journey-only saves migrate',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'monkey-fist-unified-v1': jsonEncode({
+          'version': gridVersion,
+          'chapters': 3,
+          'scores': {
+            '0': {'taps': 4, 'stars': 3},
+          },
+        }),
+      });
+      final p = await Progress.load();
+      expect(p.scores[0]?.stars, 3);
+      expect(p.chapters, 3);
+      final custom = customSet(seed: 'abc', w: 6, h: 6);
+      final code = setCode(custom);
+      p.custom = custom;
+      p.code = code;
+      expect(p.record(9, 9, 1, code: code), 0);
+      final restored = await Progress.load();
+      expect(restored.scoresFor(code)[9]?.stars, 1);
+      expect(restored.scores.containsKey(9), isFalse);
+      expect(setCode(restored.custom!), code);
+      expect(restored.code, code);
+      expect(restored.availableFor(custom), 120);
+      expect(restored.chapters, 3);
+    },
+  );
 }

@@ -19,7 +19,12 @@ class MusicPlayer with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
-  bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  /// Android streams to AudioTrack (MainActivity.kt), iOS to AVAudioEngine
+  /// (AppDelegate.swift).
+  bool get supported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   double get _volume => setting == 'full' ? 1.0 : .55;
 
