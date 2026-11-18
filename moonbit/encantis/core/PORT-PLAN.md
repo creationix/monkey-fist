@@ -624,6 +624,22 @@ a file, the count is estimated from the line share.
     `fake` for `--js`), `capture.cjs` (records and replays real calls), `size.cjs` (add your
     group to `GROUPS`), `check-all.sh`. `check-g1.cjs` shows the `--js` and `--controls`
     pattern (spoil the k-th expected value of each kind).
+- **After G1's review** (DX-LOG, "review of G1"; commits 6294c9d and 01e6707):
+  - Limits that now trap instead of wrapping: `alloc`/`extend` past the room left;
+    `keyset` past 2^26 keys or 2^30 bytes of words; a negative or oversized count in
+    position words; `sq_mirrors` of a negative area; `input_bytes` of a code unit past 255.
+    `to_fixed` is exact for every x (it returns x once x * 10^d >= 2^53).
+  - `check-g1-wide.cjs` and `fixtures/g1-extra-boards.jsonl` (79 more boards: 4x4, 8x8 with
+    mechanics, strips, 48x48 colossal) are there to reuse: the 48x48 boards are the ones that
+    reach the limits.
+  - **A memory risk for G2 and G5.** The 48x48 colossal boards have up to 223 ropes. A
+    visited set keyed by one offset per rope, at `sq_solve`'s default budget of 20,000, needs
+    20,000 x 223 x 4 bytes = 17.8 MB of pool, more than the 16 MiB stack (it now traps
+    cleanly). MAP-CORE §8 assumed 50 ropes. Size such reserves from the board, or raise the
+    stack, and measure the peak on those boards.
+  - `pow` costs 140 ns a call against MoonBit's 50, of which a factor of 2 is the scratch
+    cell that stands in for reinterpret (`oracle/bench-g1-pow.cjs`). That matters if weave's
+    `knots_for` is hot.
 
 ### G2: The square world (square kernel, about 4.7k tokens, about 55% covered; weave reused)
 
