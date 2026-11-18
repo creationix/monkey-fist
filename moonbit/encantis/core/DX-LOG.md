@@ -373,3 +373,141 @@ The containers, as PORT-PLAN §10 says, and in G1 only one of them so far:
 | `// unchecked:` | 10 (`one_of`, `index_from`, `last`, 3 of the `SqMirrors` slope table, `has_dup`, 2 in `keys` probing, the `abi` reader) |
 | `// reserve:` | 3 (`sq_mirrors`'s keys, `keyset`, `keymap`) |
 | casts (`as i32`, `as u32`, `as u8`, `f64(...)`, `i32(...)`) | 69 (fmath 20, abi 18, board 9, random 10, keys 6, codes 6) |
+
+## 18 Nov: review of G1 (adversarial)
+
+- **Compiler:** 03225bc441cf37ce1b109e7839ecedd7470dab34, unchanged (origin/main had not moved).
+  Reviewed head 790a83e. The fixes are in 6294c9d and the commit after it.
+- **Reran first:** `build.sh` gave G1's `test/g1.wasm` byte for byte (23,804 bytes), and
+  `check-all.sh` passed (4.4 s). `bugs/01` prints "8 12" and `bugs/02` "8 101", as their
+  headers say.
+- **Extended:** `oracle/check-g1-wide.cjs` (15 s, 21.5M comparisons; `--js` passes; `--controls`
+  25 of 25). It has 10,000 seeds, 3.8M `pow` pairs over the whole range, and `to_fixed` for 0
+  to 8 decimals. It puts every UTF-16 code unit at 7 places in a code. It adds 79 boards from
+  the JS at 9e69e3a (`fixtures/g1-extra-boards.jsonl`): 4x4, 8x8 with mechanics, strips,
+  48x48 colossal square and Hex with up to 223 ropes, and random codes, each checked by JSON,
+  key, level words, decode, 20 random-play positions and SqMirrors. It also fills keys to
+  their exact reserve and tests the limits. It needed one new hook, `t_alloc`; the rest are
+  G1's hooks and converters (`check-g1.cjs` is now `require`-able).
+- **What it found in G1's wasm:** 54,206 failed comparisons and one hang.
+  - `to_fixed`: 54,199 values, all with x * 10^d >= 2^53, e.g. `67215938362.95128` to 7
+    decimals gave `...95129`. The generator's own values (challenge to 3 decimals,
+    interaction to 4) are far below that and were never wrong; the function's comment
+    promised every x below 1e21.
+  - `keys`: a reserve whose byte size passes 2^32 wrapped. 2^28 + 1 keys gave a table of 0
+    bytes; 2^30 + 1 words gave a pool of 4 bytes, after which the map's own header was
+    overwritten (count 16,711,680). A reserve of 2^32 - 1 keys looped for ever in `keyset`.
+  - `lib/stack`: `alloc` and `extend` add n to the top before the bound, so a sum past 2^32
+    passed (`bugs/03`; upstream's `lib/stack.ents` has it too). Through it, a position whose
+    W is -1 made `sq_mirrors` write -1 over all memory after the stack before the access out
+    of bounds. From then on all 120 Journey specs read wrong in that instance. G1's claim
+    that "the module works after a trap" held only for traps that are asserts.
+  - `input_bytes`: code units past 255 were narrowed in silence, so hashing them would differ
+    from `hashString`.
+- **Fixed:**
+  - `to_fixed` returns x from 2^53 up.
+  - `alloc` and `extend` bound n by the room left.
+  - `keyset` and `keymap` assert their sizes.
+  - `input_bytes` asserts bytes.
+  - `read_position` and `layout` bound the counts they read, and `sq_mirrors` asserts a
+    non-negative area.
+
+  `g1.wasm` is 23,976 bytes now (+172). All of `check-all.sh` passes: `check-g1.cjs`, then
+  the wide check. The old wasm fails the new limits, Journey integrity after a trap
+  included.
+- **Agreed with the JS everywhere else:** draws (10M), hashes, base 36, `pow` (3.8M, every
+  branch of e_pow.c reached by design: |y| > 2^64, |1 - x| < 2^-20, subnormal x and
+  results, overflow, odd and even integer y up to 2^60), `Math.round`, `floor_div` over all
+  of i32, codes and specs (with i anywhere in i32), and all 79 boards.
+- **Codes, more exactly than G1 said:** the JS takes, and MoonBit (and the port) refuse,
+  codes with any of 31 code units. These are the 25 spaces `trim` removes that MoonBit's
+  does not (U+000B, U+000C, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F,
+  U+3000, U+FEFF), plus 6 letters whose JS upper case is ASCII: U+0131, U+017F, U+00DF
+  (`ß` is `SS`, two letters), U+FB00 to U+FB06 (ligatures). `dist/gen.wasm` refuses all 83
+  such codes of the run. The game never sends one: `web/generator.js` passes
+  `E.code(options)`, a code the JS has already normalised.
+
+### Friction
+
+1. **No reinterpret between f64 and its bits costs run time, not only lines.**
+   `target_challenge` (one `pow`) takes 140 ns in the port, 69 ns with the three scratch-cell
+   helpers replaced by `i64.reinterpret_f64` in the WAT, 50 ns in MoonBit wasm-gc and 49 ns in
+   the JS (`oracle/bench-g1-pow.cjs`, median of 5 processes). So the scratch cell is 2.0x of
+   the port's 2.8x. The helpers are called 32 times in `fmath.ents` (`high` 8, `low` 5,
+   `of_words` 8, `with_low` 8, `with_high` 3), each a store and a load through memory. `pow`
+   runs once a level in `target_challenge`, but also in weave's `knots_for` (G2 and G4). None
+   of the planned features (closures, function values, comptime values, enums) removes it: it
+   needs a builtin, `bits(x: f64) -> u64` and `f64_bits(u: u64) -> f64`, or `as` between
+   types of one size. The other 1.4x is the rest of the generated code; not looked into.
+2. **u32 sizes wrap in silence.** `keys * 2`, `size * sizeof(Slot)`, `words * sizeof(W)`,
+   `nr * 8`, `np * 8`, `cells * 4` and the stack's `top + n` wrap with no trap. The review added
+   7 asserts (`alloc`, `extend`, `keyset`, `keymap`, `layout`, `read_position`, `sq_mirrors`)
+   at about 5 minutes each, once the failure was understood (the keys one took 20 minutes to
+   understand). A trapping (checked) multiply and add would remove them. No planned feature
+   does.
+3. **A trap names nothing.** `RuntimeError: unreachable at wasm-function[92]:0x2333`: the
+   wasm has no name section, and the CLI has no option for one. To find which `assert` fired:
+   `encantis compile` to WAT, then the compiler's own `node_modules/.bin/wat2wasm
+   --debug-names`, and run that. About 5 minutes the first time.
+4. **The copied `lib/stack` carries upstream's bug, and the fix does not go back.** That is the
+   `comptime n` case in G1. As `Stack(comptime n)` there would be one file to fix (upstream).
+   With the copy, the core's stack is fixed and `lib/stack.ents` is not (bugs/03 shows it).
+
+### Bugs
+
+- **bugs/02, a variant (silent wrong code).** An assignment to a parameter named like a def
+  compiles and writes the parameter (`local.set $limit`), but a read is still the def:
+  `func h(limit: i32) -> i32 { limit = 50; return limit }` returns 7. `limit += 5` does the
+  same. Outside such a function `limit = x` is refused ("cannot assign to 'limit': it is not a
+  variable"). A parameter named like a `data` block, a named result named like a def, and a
+  local are all fine. The scan of G1's files finds no parameter named like a def, so G1 is not
+  hit.
+- **bugs/03, `lib/stack` alloc wraps (the library that ships with the compiler).** See above.
+  Prints "16 0" at 03225bc: `alloc(16)` then `alloc(0xFFFFFFF0)` returns offset 16 and leaves
+  the top at 0.
+
+### Tooling
+
+- `check-g1-wide.cjs`: 21.5M comparisons in 14 to 15 s, about 0.7 us each, most of it the
+  JS-to-wasm call per comparison. The 79 extra boards took 77 s of JS to make; the 48x48 square
+  board with mirrors and springs took 14 s.
+- `encantis check test/g1.ents`: 1.2 s now (G1 said 1.0 to 1.1). The fixes compiled and passed
+  the first time.
+- `hover`: the help says `<file>:<line>:<col|name>`; `keys.ents:keyset` gives "Error: expected
+  <file>:<line>:<col>", and `keys.ents:46:assert` gives "'assert' not found on line 46" (a
+  keyword is not a name). G1 counted the first as a `file:name` form the help offers; the help
+  offers `file:line:name`.
+- `capture.cjs` (not run by `check-all.sh`): `valid` and `H.build` record and replay; 20 of 20
+  records with a spoiled result or draw count are caught; a spoiled `$rng` state is caught.
+  Its header listed a `state` field that records do not have (corrected).
+
+### Pleasant
+
+- G1's oracle was easy to widen. The hooks take words and give words, `same()` names every
+  case, and the `--js` and `--controls` pattern carried over unchanged. The wide check needed
+  one new hook.
+- An `assert` with `sizeof(W)` in a generic (`assert words <= 0x40000000 / sizeof(W)`)
+  compiles per instance with nothing more to write.
+- `encantis compile` gives WAT plain enough to edit by hand for an experiment (the reinterpret
+  build): three function bodies replaced by a regular expression.
+
+### Where `comptime n: u32` with `[n]T` would help (the review's view)
+
+G1's assessment holds: in G1 only the stack is a container sized at build time. The review
+adds two points:
+
+- The cost of the copy is real. `bugs/03` was fixed in the copy and is still in upstream's
+  `lib/stack.ents`.
+- None of the four defects above is something a comptime size would catch. They are run-time
+  sizes (a reserve from a budget, counts read from the input words, a board's W and H).
+  `Stack(comptime n)` needs the same overflow-proof bound.
+
+### Counts (review)
+
+| What | Sites |
+| --- | ---: |
+| asserts added against u32 wraps | 7 (`alloc`, `extend`, `keyset`, `keymap`, `layout`, `read_position`, `sq_mirrors`) |
+| asserts added against narrowing | 1 (`input_bytes`) |
+| scratch-cell bit accesses in `pow` (no reinterpret) | 32 calls of 5 helpers |
+| tags (`grep -c "// tag:"`, after the review made `enum:` and `reserve:` greppable) | enum 3, reserve 3, unchecked 10, comptime-n 1 |
+| minutes | about 45 reading, 30 widening the oracle, 25 fixing, 20 measuring |

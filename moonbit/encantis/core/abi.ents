@@ -164,6 +164,7 @@ func ints(r: *mut Reader) -> []i32 {
 // The ropes, the mirrors and the springs: the board but its plan.
 func layout(r: *mut Reader, hex: bool, w: i32, h: i32) -> Board {
   let nr = r.next() as u32
+  assert nr <= r.n  // a count read from the words: a negative one would wrap nr * 8
   let ropes = alloc(nr * 8) as [*]mut []Pt
   for i in nr {
     ropes[i] = r.cells()
@@ -193,6 +194,7 @@ export func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32) {
   let h = r.next()
   board = r.layout(hex, w, h)
   let np = r.next() as u32
+  assert np <= r.n
   let ps = alloc(np * 8) as [*]mut ?[]Pt
   for i in np {
     let p = r.cells()

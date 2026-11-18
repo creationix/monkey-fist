@@ -27,7 +27,7 @@
 //   __record calls the recorder when one is set, and the function alone otherwise.
 //   record() then runs the patched copy's generate(spec, G).
 //
-// A record is { name, n, args, result, draws, state }: the arguments and the result as
+// A record is { name, n, args, result, draws }: the arguments and the result as
 // plain data (a generator argument as { $rng: its state when the call began }, the
 // game-engine module as { $G: 1 }, a style of L.STYLES as { $ref: 'L.STYLES.i' }, other
 // functions as { $fn: name }, which cannot be replayed), and the draws the

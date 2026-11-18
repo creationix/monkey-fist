@@ -82,6 +82,7 @@ export func no_mirrors() -> *mut SqMirrors {
 // cell, so set_at never grows them.
 export func sq_mirrors(b: *Board) -> *mut SqMirrors {
   let cells = b.w * b.h
+  assert cells >= 0  // FixedArray::make panics too; cells * 4 would wrap
   let m = alloc(sizeof(SqMirrors)) as *mut SqMirrors
   let slope = alloc((cells as u32) * 4) as [*]mut i32
   for c in cells as u32 {

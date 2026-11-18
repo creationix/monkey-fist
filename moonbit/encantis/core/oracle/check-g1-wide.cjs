@@ -32,7 +32,8 @@
 //              included; reserves whose byte sizes pass 2^32 trap at once (port only)
 //   8 limits   (port only) the ABI's 65,536 input words: the last fits and the next traps;
 //              the largest board's words against that room; the stack's room, and blocks
-//              whose end passes 2^32; a code unit past 255 in text that is hashed traps
+//              whose end passes 2^32; negative counts in position words; a code unit past
+//              255 in text that is hashed traps
 'use strict';
 const fs = require('fs'), path = require('path');
 const R = require('./ref.cjs'), W = require('./wasm.cjs');
@@ -344,6 +345,21 @@ function wideLimits(port) {
   same('limits', 'alloc of a byte more than the room left traps', true, trapped(() => x.t_alloc(16, capacity - 15)));
   same('limits', 'alloc of 2^32 - 16 bytes traps', true, trapped(() => x.t_alloc(16, -16)));
   same('limits', 'alloc of 2^32 - 8 bytes traps', true, trapped(() => x.t_alloc(0, -8))); n += 4;
+  // counts read from the words: a negative one traps at once (its count * 8 wrapped)
+  port.push([0, 4, 4, -1]); same('limits', 'a negative rope count traps', true, trapped(() => x.t_paths()));
+  port.push([0, 4, 4, 0, 0, 0, 0x20000000]); same('limits', 'a path count of 2^29 traps', true, trapped(() => x.t_paths()));
+  port.push([0, -1, 4, 0, 0, 0, 0, 0]); same('limits', 'SqMirrors of a board of negative area traps', true, trapped(() => x.t_sq_mirrors()));
+  const b = R.boards()[1]; port.push(R.position(b)); x.t_layout_key();
+  same('limits', 'after those traps, a layout key is right', b.layoutKey, port.text());
+  // (G1's alloc wrapped on the last of them, and the loop that followed wrote -1 over the
+  // data after the stack: every Journey spec read wrong from then on)
+  let wrong = 0;
+  for (let i = 0; i < 120; i++) {
+    const s = G.spec(G.parseCode('J3-MONKEYFIST'), i);
+    port.pushText('J3-MONKEYFIST'); x.t_spec(i);
+    if (JSON.stringify(port.out()) !== JSON.stringify(specWords(s)) || !Object.is(port.outf(0), s.difficulty)) wrong++;
+  }
+  same('limits', 'after those traps, the 120 Journey specs are right', 0, wrong); n += 5;
   // text that is hashed is bytes: a code unit past 255 must trap, not hash differently
   port.pushText('SEEDĀ');
   same('limits', 'hashing a code unit past 255 traps', true, trapped(() => x.t_hash()));
