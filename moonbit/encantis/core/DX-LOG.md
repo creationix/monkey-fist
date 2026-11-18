@@ -924,3 +924,269 @@ timing (with the inlining); 30 the log, sizes and counts.
 | wide check: comparisons over the 4 seeds | about 423,000 (23M values), 0 failed |
 | bugs filed | 1 (bugs/05, tooling) |
 | minutes | about 40 reading the port against the MoonBit and the JS, 30 widening the oracle, 20 fixing and probing, 15 the hover repro, 70 the mutation run (mostly waiting), 20 timing |
+
+## 18 Nov: G3, the Hex offset kernel (geometry, ways out, HexBoard and its searches)
+
+- **Compiler:** 8f459f1b04de1e315cf9786702028710b2ecb676 (origin/main, which since G2's 03225bc
+  has #32, comptime value parameters, and #33, fix round 3). `build.sh` rebuilt G1's and G2's
+  three wasm files byte for byte with it, and `check-all.sh` passed before any G3 code was
+  written (G1 4.9 s, G1-wide 13.8 s, G2 31.6 s, G2 `--extra` 8.8 s, the weave scripts).
+- **Files:** `hex.ents`; `test/g3.ents`; `oracle/check-g3.cjs`, `oracle/check-g3-wide.cjs`,
+  `oracle/bench-g3.cjs`, `oracle/mutants-g3.cjs`, `oracle/mutate-g3.sh`; G3's lines in
+  `build.sh`, `size.cjs` and `check-all.sh`.
+- **Oracle** (`check-g3.cjs`, against `hex/engine.js` at 9e69e3a):
+  - the 33 Hex boards of `reference.json` without springs (28 Journey, 5 custom; 4x6 to 32x32,
+    up to 105 ropes, up to 7 mirrors), at 1,352 positions (the start, every plan prefix, 20 of
+    random play), 12 calls per position: compile (tracks, lengths, offsets, `to` of every rope
+    and of -1 and n, free, dead, frozen, the reach of `relaxed()`, left, `occupied` and `at` by
+    cell, the paths), rays (exit index, the way out as left even when refused, the turning
+    cells), turning, solve at 40, 900, 2,000 and 2,000 with no preferred order, replay of every
+    prefix, postpone, casual x1000 with its draws, fewest at 6,000 and at the generator's 2,500.
+    16,224 comparisons of 2,235,224 values, **0 failed**, in order and in reverse (210 s, of
+    which the JS is about 190: `fewestPlayerTaps` and casual play on C15's 105 ropes). Then the
+    geometry: `point` and `cell` on every size to 12x12 and 48x48, `cell` and `inside` off the
+    board, `reflect` for d and axis from -6 to 12, `dirIndex` for steps -3 to 3, `DIRS[d]`
+    (`hex_dir`) for d from -3 to 9: 41,175 comparisons, 0 failed.
+  - What hex/engine.js does not export (`relaxed()`, `at`, `point`, `dirIndex`, `rayTrack`,
+    `exitIndex`) is read from a copy of it made at run time by two text substitutions, each
+    checked to apply once; every position compares the copy's compile with the original's.
+  - `--js` passes (365 s); `--controls`: 14 of 14 kinds fail on one spoiled value and name it;
+    `--extra`, the 21 Hex boards without springs of G1's extra fixture (4x4 to 48x48 with 197
+    ropes, 48x8 with 6 mirrors), 234 positions: 2,808 comparisons of 480,115 values, 0 failed.
+  - `--moonbit`: MoonBit's `dist/mf.wasm` against the JS on the 28 Journey Hex boards
+    (`bench_par`, `bench_solve` at 40, 900 and 2,000, `bench_casual` x1, x100, x1000): 196
+    comparisons, 0 failed. So the oracle agrees with the build the game ships.
+  - **The port was exact on its first run** (the first `wasm` that built): no output of any
+    kind ever differed from the JS, on the reference set, the extra boards or the wide sets.
+  - **`check-g3-wide.cjs`** (G2's review's shape): 400 synthetic Hex boards (1x2 to 48x48,
+    mirrors of axis 0 to 2 on up to a third of the cells, ropes as self-avoiding walks over the
+    six neighbours) and 150 aimed ones (1 to 3 mirrors on a rope's straight way out or its
+    head), at 2,112 positions, with plans that solve, plans with a tap added (some out of
+    range) and random taps; budgets 0 and below, games 0 and below, junk in prefer. 48,589
+    comparisons of 2,632,695 values, 0 failed, in 8 s; `--js` passes; `--controls` 8 of 8. It
+    reaches what the generator's boards never do: 32 boards whose ways out pass a cell twice
+    (compile throws, and every kernel that compiles must trap), 199 ways out refused for a
+    repeated cell and 2 at the 2*W*H cap, 640 heads on a mirror, 143 boards with exactly one
+    mirror, 21 solves out of budget at 2,000, 1,710 plans that do not clear the board. And 24
+    calls that must trap where the JS answers: a body cell off the board (cell index below 0 or
+    past W * H) through every kernel that compiles, and a turning way out past max_area.
+  - **Mutants** (`mutate-g3.sh`, 60 seeded one-line changes of `hex.ents`): `check-g3` on a
+    quarter of the positions of the boards up to 30 ropes kills 48; the wide check kills 7 more
+    that passed it (4 of the solver's budget and seen-set rules, and 3 that passed the whole of
+    `check-g3` too: the ray cap at W*H, no duplicate check, and a single mirror ignored); 5
+    survive every check, and none can change an output:
+    - `relaxed: own body by reach` (the round's starting reach for the rope's own body, not the
+      reach so far): it stops a rope that chases its own tail one round early, but the next
+      round starts from there and passes, so the fixpoint, the only thing read, is the same
+      (probed: 404 such ropes on 3,000 synthetic boards, 0 differences);
+    - `hex_replay: a slide to 0 is an exit`: a slide always moves its rope forward, so it never
+      ends at offset 0;
+    - `deepen: dead positions retried` (0 for 1e6 in `tried`): a node is counted before the
+      table is asked, and `dead()` gives `false` again: the table only saves time;
+    - `postpone: one pass` and `postpone: last tap test skips one`: in the JS, neither variant
+      of `postponeExits` answers otherwise on 14,210 plans (the 1,352 reference positions and
+      the wide sets at 6 seeds); the second only repeats a trial the loop makes one step
+      earlier. (G2's review found the same of `postpone: one pass` on square boards.)
+- **Stack peak:** 2,860,176 bytes on the reference set (C15, `fewest` at 6,000), 5,254,740 on the
+  48x48 board of 197 ropes (the same). As in G2, nearly all of it is the visited keys, reserved
+  for the whole budget.
+- **Time** (`bench-g3.cjs` under the lock on a quiet machine, load 0.6 to 0.9: 5 processes, best
+  of 5 rounds each, the median over processes; port, MoonBit `dist/mf.wasm` and the JS
+  interleaved in each round, values checked to agree). The last column is MoonBit's time over
+  the port's: above 1, the port is faster.
+
+  | Kernel | port ms | MoonBit wasm-gc ms | JS ms | MoonBit / port |
+  | --- | ---: | ---: | ---: | ---: |
+  | L114 casual x1000 | 3.695 | 5.146 | 16.00 | 1.39x |
+  | L114 par (postpone, fewest 2500) | 1.883 | 2.486 | 14.18 | 1.32x |
+  | L114 solve 2000 | 0.043 | 0.065 | 0.124 | 1.51x |
+  | L116 casual x1000 | 5.065 | 6.217 | 19.33 | 1.23x |
+  | L116 par | 2.868 | 3.607 | 18.98 | 1.26x |
+  | L116 solve 2000 | 0.047 | 0.073 | 0.147 | 1.53x |
+
+  As first written (8906d3a, the same bench): casual 4.649 and 6.153 ms (1.05x and **0.97x**),
+  par 1.854 and 2.831 (1.33x, 1.27x), solve 0.040 and 0.048 (1.38x, 1.43x). Two changes found
+  with a CPU profile (friction 3) made casual faster than MoonBit on both boards: `hex_cell`
+  takes floor(r / 2) as `r >> 1` instead of calling `floor_div` (compile 26% faster, casual
+  15%), and casual play's scan has `to` inlined with the board's tables in locals (another 10%,
+  G2's `// inline:` again). Par and solve did not move. A compile is about half of casual play
+  (a compile per game, as MoonBit and the JS do): 1.56 and 2.19 ms of the 3.7 and 5.1. Solve
+  2000 looks at only 23 and 30 positions on these boards, so its 40 us is mostly reading the
+  position.
+- **Size** (`size.cjs G3`): `hex.ents` 548 code lines and 4,911 tokens against the 27
+  declarations of `hex.mbt` lines 1 to 668 (602 lines, 3,772 tokens): **1.30x**; 1.49x with its
+  41 lines of imports (576 tokens) and 7 lines of restated types (124). Without the hand
+  inlining, 1.28x. wasm: `test/g3.wasm` 31,620 bytes (14,048 gzipped); it carries `random`,
+  `board`, `keys`, `abi` and `codes` (the layout key, through `abi`) whole.
+- **What a generic over the board type would share** (the plan's question). 125 of `hex.ents`'s
+  555 code lines (imports left out; lines of more than 12 characters) are the same text as a
+  line of `square.ents`: `table`, `reserve`, `Try` and `first`, `bound`, most of `deepen` and of
+  the fewest driver, the casual player's loop, `postpone`'s trial loop, the shape of
+  `paths_now`. With overloads (`to(b: *HexBoard)` beside `slide_to(b: *SqBoard)`, `place` for
+  both, `free` and `all_free`, `dead` and `relax() > 0`) and the same field names, one generic
+  `deepen(comptime B: type, s: *mut Fewest(B), remaining)` and one casual game could serve both
+  kernels, the method calls resolved per board type at compile time. What differs is small and
+  real: hex's deepening starts at `max(1, bound)` and square's at `left > 0`; hex verifies the
+  fallback with a replay (which builds the paths), square with `sq_player_taps` (which stops
+  testing `all_free` once released); hex's solve asks its seen set before counting a node and
+  follows a preferred prefix, square's ranks by first and last tap; hex compiles per game,
+  square resets one board. Each would be a comptime function parameter or a flag. The plan
+  keeps the searches apart for parity, and so does this port: the sharing would be about 250
+  tokens, and every difference above is one a shared version would have to get exactly right.
+
+### Friction
+
+1. **A local may not take the name of an imported function.** `relaxed()`'s `let next = r` (the
+   JS's name) collides with `random.ents`'s `next`, imported for casual play's draws: `'next'
+   is already declared in this scope`. Renamed `got`. 1 site, 1 minute. The message names
+   neither the import nor its line, and "in this scope" reads as the function's scope. (G2 met
+   the converse: a parameter that hides a function.)
+2. **`assert` does not narrow a range, and there is no trap statement.** To index the direction
+   rows by a proven `u32#6`, a direction from the caller (an `i32`, -1 when a path's last step
+   is no direction) must trap outside 0 to 5, as the JS (`DIRS[-1]` is undefined) and MoonBit
+   do. `assert k < 6` traps but leaves `k` a `u32` (`cannot assign u32 to u32#6`), so it is
+   `if k >= 6 { assert false; return 0 }`, after which `k` is a `u32#6`: 4 lines for 1. The
+   `assert false` and then a dead `return` also end `hex_compile_exn`. 2 sites, 5 minutes with
+   the probe. A narrowing `assert`, or an `unreachable` that ends a branch, would remove both;
+   no planned feature does.
+3. **No inliner: small calls cost, and a profile has no names.** The first build's casual play
+   was 3% slower than MoonBit on L116. `node --cpu-prof` lists only `wasm-function[N]`, because
+   the wasm has no name section; the names came from the order of `(func` in `encantis
+   compile`'s WAT (a 10-line script). Then: `floor_div` (`random.ents`, one call per `hex_cell`)
+   was 8% of casual play, more than `place`; `r >> 1` is floor(r / 2) for every `i32` and is one
+   instruction. `vec.push` is 14% (the tracks, built per game), `board.at` (the mirror lookup per
+   ray cell) 3%, `hex_inside` 2%: each a call V8 does not inline. The scan's `b.to(i)` inlined by
+   hand (`// inline:`, as G2's `slide_to`) gave 10%. About 5 minutes of wall clock, the variants
+   timed under the lock. `inline func` (reference 3.5, parsed, not implemented) would remove the
+   hand inlining, and a name section the script. MoonBit's own optimizer does both.
+4. **Options by hand** (`// enum:`): 5 sites. `0 as ?*mut HexBoard` and `0 as ?*Par` for none,
+   `(0 as [*]i32, 0:u32)` for the none of `?[]i32`, -1 for a replay that does not clear the
+   board (`solved_taps`), and `Solved.solved`'s tri-state. The plan's out-parameter option
+   works as written: `ray_track(..., turns: ?*mut Vec(i32))` takes `0 as ?*mut Vec(i32)` for none
+   and a bare `*mut Vec(i32)` for some, and `if let t = turns` inside. Enums (`Option(T)`) would
+   remove the 5.
+5. **Closures** (`// closure:`): 7 sites. `search` of `hex_solve` and `bound` and `search` of
+   `hex_fewest_player_taps` are top-level functions over `Solve` and `Fewest` behind `*mut` (2
+   types, 3 lines, and 42 `s.` prefixes); the 2 comparator lambdas are one `first`; `path.map`,
+   `Array::makei` and `turns?.add(c)` (a JS `Set`: here `contains` then `push`, insertion
+   order kept) are loops. Closures would remove all 7.
+6. **The comparator that captures `p0`**, as the plan said: the rank (-1 for the preferred
+   rope, 0 for an exit, 1 for a slide) goes into each try when it is made, and the stable
+   `lib/sort` gives the JS's order: 2 lines, no global, exact on 5,408 solves and 19,008 in the
+   wide set. `preferred[1:]` is a `u32` offset into `prefer`, read `s.prefer[preferred] ?? -1`:
+   the checked index with its fallback is exactly the JS's `preferred[0]` being `undefined`
+   past the end.
+7. **Reserves** (`// reserve:`): 10 sites: the moves of both searches and the fewest plan (4),
+   the keys of both (2), casual play's exit and move lists, written inside each game's scope
+   (2), `hex_turning`'s result (1, sized by the mirrors: only a mirror's cell turns a way out)
+   and `hex_mirrors`' keys (1). Casual play's two are new against G2: G2's casual play resets
+   one board, but a compile per game (as MoonBit and the JS do) needs a scope per game, and a
+   list made outside it that grew inside would move into it.
+8. **Unchecked tables** (`// unchecked:`): 18 sites, every one a read or write through a board
+   table or a track's `.ptr`. Audited as G2's review did, before any review: every reason is
+   asserted or follows from a guard (body cells are asserted on the board; way-out cells come
+   from `hex_inside` points; rope indices from `to(i) != -2`, from `for i in n`, or from a plan a
+   replay accepted). The wide check's limit calls show the asserts trap.
+9. **Casts:** 25 `as i32`, 32 `as u32`, 3 `f64(...)`, 1 `i32(...)`. As in G2, most `as i32` are a
+   `for i in n` index (a `u32`) passed to `to(i as i32)` or pushed into an `i32` list.
+10. **The task's notes for G3 name two things that are not in its lines.** `neighbours` (a flat
+    `[*]mut i32` indexed `c * 6 + d`) and `done` (`i32`, where the JS's is a `Uint8Array`)
+    belong to `hex_intentions` and `hex_build` (hex.mbt lines 680 on), which are G4's. Nothing in
+    lines 1 to 668 has either.
+11. **An oracle in a copied directory does not run**: `check-g1.cjs` (which every check requires
+    for `readPosition`) finds `moonbit/scripts/cases.cjs` relative to itself, so a copy of
+    `oracle/` outside the repository fails to load. To keep a running mutation job on the old
+    oracle while `check-g3.cjs` changed, the copy went inside the worktree (untracked, removed
+    after). 3 minutes. Not a language matter.
+
+### Error messages (verbatim)
+
+1. `hex.ents:412:11: 'next' is already declared in this scope` (friction 1).
+2. `p1.ents:9:18: cannot assign u32 to u32#6`, after `assert k < 6` (friction 2): right, but
+   nothing says that `assert` does not narrow, nor what does.
+
+### Bugs
+
+- None. The compiler made no wrong code: what `check` let through was exact on 4.9M values
+  (reference, extra and wide sets). `bugs/04` (two memory declarations) was avoided by
+  declaring memory in `test/g3.ents` only.
+
+### Tooling
+
+- `check hex.ents` (7 modules, 188 declarations): 0.8 s; `check test/g3.ents` (13 modules, 358
+  declarations): 1.3 s; `wasm test/g3.ents`: 1.2 s, the same bytes every time; `test
+  hex.ents`: 0.9 s (quiet machine; 1.1 to 1.7 s with the mutation run beside them).
+- `check` found what was wrong with `hex.ents` in one pass (the name clash); `test/g3.ents`
+  checked clean the first time. An inline test caught one wrong expectation of my own (a way
+  out's length worked out by hand).
+- `hover hex.ents:571:p0` gives `local p0: i32` (1.0 s). Over `search` it prints `Solve` spelled
+  out in full, about 600 characters: a named type is never shown by its name (as G2 found).
+  `references` on `to` lists its 11 uses in `hex.ents`, method calls included, but not the
+  declaration, and not the uses in `test/g3.ents`.
+- `encantis fmt --check` says both files need formatting. Formatted, `hex.ents` builds the same
+  wasm, but 260 lines change: `n:i32` for `n: i32`, `[] ? []Pt` for `[]?[]Pt`, a type's second
+  line at column 0 (what G2's review described). Not used.
+- No name section in the wasm (friction 3).
+- The mutation run: 60 builds of `test/g3.wasm` (1.5 s each), each through a quarter of
+  `check-g3` (5 s), the wide check (8 s), 4 edge boards, and the full check only when those
+  passed: about 35 minutes under the lock, most of it the 5 full runs of the survivors.
+
+### Pleasant
+
+- **Exact on the first run again**, on 2.2M values of the reference set and, afterwards, on the
+  extra boards to 48x48 and 2.6M values of synthetic boards.
+- **The ranged direction index.** `data dirs: *[6]Pt = [(1, 0), (0, 1), ...]` reads like the
+  JS's `DIRS`, and is indexed by the `u32#6` that `turn` returns (`((2 * axis - d) % 6 + 6) as
+  u32 % 6`) with no check and no fallback; the trap for a bad direction is in one place, `dir`.
+- **G2's shape carried over whole**: the context struct, the node scope with `defer`,
+  `keys.ents` for the visited sets, the test entry's hooks, and the oracle's `--js`,
+  `--controls` and wide-check patterns. The test entry and the bench script are G2's with the
+  names changed.
+- **Speed**: every kernel is faster than MoonBit's wasm-gc on both boards (1.23x to 1.53x) and 3x
+  to 7.5x faster than the JS. The two speed-ups were found, timed and checked within minutes.
+- **Comptime values cost nothing to try** (probe `p2` below): a second 1 MiB arena compiles to
+  158 bytes of wasm.
+
+### Where `comptime n: u32` with `[n]T` would help G3 (it landed in 8f459f1)
+
+The task said comptime value parameters were not available; they are on origin/main since #32,
+and its library has `FixedVec(n, T)`, `Ring(n, T)` and a bitset with them. In G3:
+
+- **The direction rows** (1 site): `dirs: *[6]Pt` is already proven with a written 6. A grid
+  kernel generic over `comptime D: u32` (4 or 6) would share `ray_track` with square's
+  `ray_cells` only if the reflection were a comptime function as well; the searches stay
+  apart either way.
+- **A second arena for the visited keys** (2 sites). Probe `p2` **[ran]**: `func space(comptime
+  n: u32) -> *mut [n]u8 => mut [0:u8; n]` is a static buffer of its own for each `n`, and a bump
+  allocator over it works (its test passes). With it, the keys of `hex_solve` and
+  `hex_fewest_player_taps` could grow as found, in an arena the node scopes do not reset,
+  instead of being reserved for the whole budget (2.9 MB at fewest 6,000 on C15, 5.3 MB on the
+  48x48 board). That needs `keys.ents` (G1's) to take its room from such an arena: a change left
+  for G7 to weigh, across G2's and G3's four sets.
+- Nothing else: every other list is sized by the board, at run time.
+
+### Counts (tags in G3's files, sites; header mentions left out)
+
+| Tag | hex.ents | test/g3.ents |
+| --- | ---: | ---: |
+| `// closure:` | 7 | 0 |
+| `// fnvalue:` | 0 | 0 |
+| `// enum:` | 5 | 0 |
+| `// comptime-n:` | 3 | 0 |
+| `// unchecked:` | 18 | 0 |
+| `// reserve:` | 10 | 0 |
+| `// inline:` | 1 | 0 |
+
+| What | Count |
+| --- | ---: |
+| seeded mutants of `hex.ents` | 60 |
+| killed by a quarter of `check-g3` | 48 |
+| killed only by the wide check | 7 (3 of them passed all of `check-g3`) |
+| surviving, shown unable to change an output | 5 |
+| compiler bugs | 0 |
+
+Minutes, wall clock from the session's file times (one agent): about 4 reading the plan, the
+MoonBit, the JS and G2, and rerunning `check-all` at the new compiler; 3 the oracle's JS side; 7
+writing `hex.ents` (1 to clear `check`) and 1 the test entry; 4 the first full run; 6 timing,
+profiling and the two speed-ups; 20 the mutants and the wide check (most of it waiting on runs);
+15 the log, sizes and counts. The plan's estimate for the group was about 4 hours.

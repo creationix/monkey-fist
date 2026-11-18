@@ -44,7 +44,7 @@
 //             where it throws (the plan does not solve), or par, exact, nodes and the plan
 // Then the geometry, once: point and cell on every board size to 12x12 and 48x48, cell and
 // inside off the board (negative q and r), reflect for d and axis from -6 to 12, dirIndex for
-// steps from -3 to 3.
+// steps from -3 to 3, and DIRS[d] (hex_dir) for d from -3 to 9 (a trap outside 0 to 5).
 //
 // relaxed(), at, point, dirIndex, mirrorCells, rayTrack and exitIndex are not in hex/engine.js's
 // api. They are read from a copy of it made at run time with two text substitutions (in
@@ -193,6 +193,8 @@ const GEO = {
   },
   reflect: () => { const out = []; for (let d = -6; d <= 12; d++) for (let a = -6; a <= 12; a++) out.push([`reflect(${d}, ${a})`, H.reflect(d, a), x => x.t_reflect(d, a)]); return out; },
   dir_index: () => { const out = []; for (let dq = -3; dq <= 3; dq++) for (let dr = -3; dr <= 3; dr++) out.push([`dirIndex(${dq}, ${dr})`, HI.dirIndex([dq, dr]), x => x.t_dir_index(dq, dr)]); return out; },
+  // DIRS[d]; outside 0 to 5 the JS has undefined (and throws on its use) and the port traps
+  dir: () => { const out = []; for (let d = -3; d <= 9; d++) out.push([`DIRS[${d}]`, H.DIRS[d] ? [...H.DIRS[d]] : 'trap', x => { try { return [x.t_dir_q(d), x.t_dir_r(d)]; } catch (e) { if (e instanceof WebAssembly.RuntimeError) return 'trap'; throw e; } }]); return out; },
 };
 function checkGeometry(port, only) {
   let n = 0;
@@ -216,7 +218,9 @@ function jsHooks(io) {
   };
   const hooks = { draws: () => draws, stack_peak: () => 0,
     t_point_q: (c, w) => HI.point(c, w).q, t_point_r: (c, w) => HI.point(c, w).r, t_cell: (q, r, w) => H.cellIndex({ q, r }, w),
-    t_inside: (w, h, q, r) => bit(H.inside({ W: w, H: h }, { q, r })), t_reflect: H.reflect, t_dir_index: (dq, dr) => HI.dirIndex([dq, dr]) };
+    t_inside: (w, h, q, r) => bit(H.inside({ W: w, H: h }, { q, r })), t_reflect: H.reflect, t_dir_index: (dq, dr) => HI.dirIndex([dq, dr]),
+    t_dir_q: d => { if (!H.DIRS[d]) throw new WebAssembly.RuntimeError('DIRS[d] is undefined'); return H.DIRS[d][0]; },
+    t_dir_r: d => { if (!H.DIRS[d]) throw new WebAssembly.RuntimeError('DIRS[d] is undefined'); return H.DIRS[d][1]; } };
   for (const kind of Object.keys(CALL)) hooks[CALL[kind].toString().match(/x\.(t_\w+)/)[1]] = hook(kind);
   return hooks;
 }
@@ -348,7 +352,7 @@ if (require.main === module) {
   const boards = new Set(list.map(c => c.b.name)).size;
   console.log(`${failures.length ? 'FAIL' : 'ok  '} hex kernel: ${list.length} positions on ${boards} boards${REVERSE ? ' (in reverse)' : ''}, ${n} comparisons of ${values} values (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}), ${failures.length} failed (${((Date.now() - t1) / 1000).toFixed(1)} s; cases ${((t1 - t0) / 1000).toFixed(1)} s)`);
   const before = failures.length, tg = Date.now(), ng = checkGeometry(port);
-  console.log(`${failures.length > before ? 'FAIL' : 'ok  '} geometry: ${ng} comparisons (point, cell, inside, reflect, dirIndex), ${failures.length - before} failed (${Date.now() - tg} ms)`);
+  console.log(`${failures.length > before ? 'FAIL' : 'ok  '} geometry: ${ng} comparisons (point, cell, inside, reflect, dirIndex, DIRS), ${failures.length - before} failed (${Date.now() - tg} ms)`);
   for (const f of failures.slice(0, 12)) console.log(`  ${f.kind}: ${f.name}\n    want ${JSON.stringify(f.want)?.slice(0, 400)}\n    got  ${JSON.stringify(f.got)?.slice(0, 400)}`);
   console.log(`${port.name}: ${failures.length ? 'FAILED' : 'all passed'} in ${((Date.now() - t0) / 1000).toFixed(1)} s` + (JS ? ' (--js: the JS against itself)' : `; stack peak ${peak.bytes} bytes (${peak.where}); no imports`));
   process.exit(failures.length ? 1 : 0);

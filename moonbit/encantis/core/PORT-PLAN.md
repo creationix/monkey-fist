@@ -790,6 +790,39 @@ a file, the count is estimated from the line share.
     on) would have shared anything;
   - the `// comptime-n:` sites (direction rows).
 - **About 4 hours.**
+- **As built (what G4 to G7 import; the DX-LOG's G3 section has the why):**
+  - `hex.ents`, geometry: `hex_inside(w, h, p)`, `hex_cell(p, w)`, `hex_point(c, w)` (c >= 0),
+    `hex_reflect(d, axis)`, `hex_dir_index(dq, dr)` (-1 for none) and `hex_dir(d) -> Pt`, which is
+    MoonBit's `(hex_dq[d], hex_dr[d])` and traps outside 0 to 5. Ways out: `hex_mirrors(w, h,
+    mirrors) -> *mut SqMirrors` (board.ents's type, keyed by Hex cell), `ray_track(w, h, head, d0,
+    m, out: *mut Vec(i32), turns: ?*mut Vec(i32)) -> bool` (no list: `0 as ?*mut Vec(i32)`; each
+    turning cell once, in order), `exit_index(w, path, m)`, `hex_turning(w, h, mirrors, paths) ->
+    []i32`.
+  - The board: `hex_compile(w, h, mirrors, paths: []?[]Pt) -> ?*mut HexBoard` and
+    `hex_compile_exn`, with `b.to(i)` (-2: no such rope; -1: it leaves), `b.place(i, target)`,
+    `b.free()`, `b.paths_now()` (not `paths`: a kernel's `paths` parameter would hide it),
+    `b.relaxed()`, `b.dead()`, `b.frozen()`. Restate `HexBoard` from the file's head: `(w, n,
+    left, tracks, lengths, offsets, occupied, at, reach)`, MoonBit's field names.
+  - The kernels take the paths of a position (`[]?[]Pt`). MoonBit's `hex_postpone_exits`,
+    `hex_casual_wins`, `hex_fewest_player_taps` and `hex_turning` take the ropes, so a caller
+    with ropes passes `some_paths(ropes)`. `hex_replay(w, h, mirrors, moves, paths) -> Replayed`,
+    `hex_solve(w, h, mirrors, paths, budget, prefer) -> Solved` (the budget as given: at 0 it
+    looks at no position, where `sq_solve` takes 0 for its default 20,000), `hex_postpone_exits(w, h, mirrors, paths, plan) -> ?[]i32`,
+    `hex_casual_wins(w, h, mirrors, paths, r, games) -> f64` (a compile per game, in a scope per
+    game), `hex_fewest_player_taps(w, h, mirrors, paths, fallback, budget) -> ?*Par`: none where
+    `fallback` does not clear the board (MoonBit aborts, the JS throws); where nothing shorter is
+    found the plan is `fallback` itself, as with `sq_fewest_player_taps`. `Solved`, `Par` and
+    `Replayed`, and the `solved_*` and `ev_*` constants, are square.ents's.
+  - **Limits:** the visited keys are reserved for the whole budget, 4 bytes per rope per node:
+    `fewest` at 6,000 on 197 ropes peaks at 5.3 MB (measured). A body cell off its board (cell
+    index below 0 or past W * H) traps, where the JS's typed arrays ignore it; so does a turning
+    way out on a board past max_area (`has_dup`), as in G2. The JS's `Uint8Array` `done` and the
+    `neighbours` table are G4's (`hex_intentions`, `hex_build`), not in these lines.
+  - `oracle/check-g3.cjs` (`--js`, `--controls`, `--moonbit`, `--extra`, `--reverse`,
+    `--max-ropes`; its `WANT`, `CALL`, `context` and `internals()` are exported),
+    `check-g3-wide.cjs` (synthetic and aimed boards, the limits), `bench-g3.cjs`, and
+    `mutate-g3.sh` with `mutants-g3.cjs` (60 seeded changes: 55 killed, the other 5 shown unable
+    to change an output). Run `check-all.sh` after any change to `hex.ents`.
 
 ### G4: The Hex woven builder (about 3.4k tokens; the hottest code, 50% of generation)
 
@@ -973,7 +1006,7 @@ G1 ──┬── G2 (square, weave) ──┬───────────
 | --- | --- | --- | --- | --- | --- |
 | G1 | Claude (port G1) | 03225bc (origin/main; the tree of cb3fc4f) | done | see the G1 commits of 18 Nov (`git log --grep 'core G1'`) | `check-g1.cjs`: 8 checks, 4.4M comparisons, 0 failed; `--js` passes; `--controls` 24 of 24 |
 | G2 | Claude (port G2) | 03225bc (origin/main) | done | see the G2 commits of 18 Nov (`git log --grep 'core G2'`) | `check-g2.cjs`: 1,579 positions, 22,106 comparisons of 1.54M values, 0 failed; `--extra` (to 48x48) 275 positions, 0 failed; knots and styles 51,182 comparisons, 0 failed; `--js` passes; `--controls` 13 of 13; `check-weave.cjs` 249 cases, 0 mismatches on `test/weave.wasm` and `test/g2.wasm`; other seeds 4,980 and sizes 224, 0 mismatches |
-| G3 | | | not started | | |
+| G3 | Claude (port G3) | 8f459f1 (origin/main, with #32 comptime values and #33) | done | see the G3 commits of 18 Nov (`git log --grep 'core G3'`) | `check-g3.cjs`: 1,352 positions, 16,224 comparisons of 2.24M values, 0 failed (in order and in reverse); geometry 41,175; `--extra` (to 48x48) 234 positions, 0 failed; `check-g3-wide.cjs` 2,112 positions on 550 synthetic boards, 48,589 comparisons of 2.63M values, 0 failed; `--js` passes; `--controls` 14 of 14 and 8 of 8; `--moonbit` 196, 0 failed; mutants 55 of 60 killed, 5 equivalent |
 | G4 | | | not started | | |
 | G5 | | | not started | | |
 | G6 | | | not started | | |
@@ -997,7 +1030,9 @@ confirms them with its tags.
 ## 10. Where `comptime n: u32` with `[n]T` would help: the containers first
 
 The user asked about this. Comptime value parameters are not available yet
-(reference §8.8: "`[n]T` … is a syntax error"). The port does not wait for them. Instead
+(reference §8.8: "`[n]T` … is a syntax error"). (G3's note: they landed on origin/main in 8f459f1, #32, with
+`FixedVec(n, T)`, `Ring(n, T)` and a bitset in its `lib/`; a static arena per `n` works,
+probe `p2` in the DX-LOG's G3 section.) The port does not wait for them. Instead
 it marks where they would help, so that the gain can be counted, and later measured,
 when they land. Probes p4 and p5 **[ran]** settle how small lists work today:
 

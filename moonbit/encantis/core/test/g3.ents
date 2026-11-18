@@ -41,6 +41,7 @@ import "../hex" (
   "hex_point" func hex_point(c: i32, w: i32) -> Pt
   "hex_reflect" func hex_reflect(d: i32, axis: i32) -> i32
   "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_dir" func hex_dir(d: i32) -> Pt
   "hex_mirrors" func hex_mirrors(w: i32, h: i32, mirrors: []Mirror) -> *mut SqMirrors
   "ray_track" func ray_track(w: i32, h: i32, head: i32, d0: i32, m: *SqMirrors, out: *mut Vec(i32), turns: ?*mut Vec(i32)) -> bool
   "exit_index" func exit_index(w: i32, path: []Pt, m: *SqMirrors) -> i32
@@ -102,6 +103,8 @@ export func t_cell(q: i32, r: i32, w: i32) -> i32 => hex_cell(Pt(q, r), w)
 export func t_inside(w: i32, h: i32, q: i32, r: i32) -> i32 => bit(hex_inside(w, h, Pt(q, r)))
 export func t_reflect(d: i32, axis: i32) -> i32 => hex_reflect(d, axis)
 export func t_dir_index(dq: i32, dr: i32) -> i32 => hex_dir_index(dq, dr)
+export func t_dir_q(d: i32) -> i32 => hex_dir(d).q
+export func t_dir_r(d: i32) -> i32 => hex_dir(d).r
 
 // --- The position in the input ---
 
