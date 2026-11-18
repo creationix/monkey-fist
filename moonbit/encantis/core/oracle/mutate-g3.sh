@@ -6,6 +6,7 @@
 # mutant is killed when a check fails (or traps, or times out).
 #
 #   moonbit/encantis/core/oracle/mutate-g3.sh <work dir> [first] [last]
+#   MUTANTS=mutants-g3-review.cjs moonbit/encantis/core/oracle/mutate-g3.sh <work dir>
 #
 # Each mutant is built in its own copy of core/ under the work dir (never in place). One line
 # per mutant goes to <work dir>/results.tsv: index, name, then quick=<exit>, wide=<exit>,
@@ -16,17 +17,18 @@ W=$1
 ORA=$(cd "$(dirname "$0")" && pwd)
 CORE=$(dirname "$ORA")
 ENCANTIS=${ENCANTIS:-"bun /home/user/enc-wt/main/packages/cli/src/cli.ts"}
-N=$(node -e "console.log(require('$ORA/mutants-g3.cjs').length)")
+MUTANTS=${MUTANTS:-mutants-g3.cjs}  # or mutants-g3-review.cjs (the review's 15)
+N=$(node -e "console.log(require('$ORA/$MUTANTS').length)")
 FIRST=${2:-0}
 LAST=${3:-$((N - 1))}
 mkdir -p "$W"
 (cd "$CORE" && $ENCANTIS wasm test/g3.ents -o "$W/base.wasm" > /dev/null)
 kinds() { grep -oE '^  [a-z_]+:' "$1" | head -3 | tr -d ' :' | tr '\n' ,; }
 for k in $(seq "$FIRST" "$LAST"); do
-  name=$(node -e "console.log(require('$ORA/mutants-g3.cjs')[$k][0])")
+  name=$(node -e "console.log(require('$ORA/$MUTANTS')[$k][0])")
   rm -rf "$W/c$k" && mkdir -p "$W/c$k" && cp -r "$CORE/." "$W/c$k/" && rm -f "$W/c$k"/test/*.wasm
   if ! node -e "
-    const fs = require('fs'), [n, o, w] = require('$ORA/mutants-g3.cjs')[$k];
+    const fs = require('fs'), [n, o, w] = require('$ORA/$MUTANTS')[$k];
     const s = fs.readFileSync('$CORE/hex.ents', 'utf8'), i = s.indexOf(o);
     if (i < 0 || s.indexOf(o, i + 1) >= 0) process.exit(2);
     fs.writeFileSync('$W/c$k/hex.ents', s.slice(0, i) + w + s.slice(i + o.length));"; then

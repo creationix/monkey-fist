@@ -11,6 +11,7 @@ cd "$(dirname "$0")"
 fail=0
 for c in check-g*.cjs; do
   [ -f "$c" ] || continue
+  [ "$c" = check-g3-review.cjs ] && continue  # run below, on a share of its positions
   echo "== $c"
   node "$c" || fail=1
 done
@@ -27,5 +28,10 @@ done
 # in the loop above (about 210 s and 8 s; check-g3's JS is most of it: C15's fewest at 6,000).
 echo "== check-g3.cjs --extra"
 node check-g3.cjs --extra || fail=1
+# G3's review: the game's and the generator's own calls (solve 5000, par, small fewest budgets,
+# casual x32 at the generator's seeds) on 214 boards, 160 of them generated Hex levels. In full
+# it takes about 400 s (the JS's fewest at 6,000 on 48x48 boards); a quarter here.
+echo "== check-g3-review.cjs --frac 0.25"
+node check-g3-review.cjs --frac 0.25 || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
