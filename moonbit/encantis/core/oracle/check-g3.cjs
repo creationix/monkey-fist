@@ -7,7 +7,8 @@
 //   node moonbit/encantis/core/oracle/check-g3.cjs --moonbit        the JS against MoonBit's
 //            dist/mf.wasm (bench_par, bench_solve, bench_casual) on the Journey Hex boards
 //   options: --only L114,C12 (boards), --frac 0.2 (a share of the positions), --reverse
-//            (the positions in reverse order), --extra: the Hex boards without springs of
+//            (the positions in reverse order), --max-ropes 30 (leave out larger boards: C15's
+//            105 ropes take 80% of the JS's time), --extra: the Hex boards without springs of
 //            fixtures/g1-extra-boards.jsonl instead (21: 4x4 to 48x48, up to 197 ropes), at
 //            most 12 positions each (the start, plan prefixes evenly spread, 4 of random play),
 //            casual play of 200 games
@@ -59,11 +60,11 @@ const R = require('./ref.cjs'), W = require('./wasm.cjs');
 const { readPosition } = require('./check-g1.cjs');
 
 const args = process.argv.slice(2);
-const VALUED = ['--only', '--frac'];
+const VALUED = ['--only', '--frac', '--max-ropes'];
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
 const JS = args.includes('--js'), CONTROLS = args.includes('--controls'), MOONBIT = args.includes('--moonbit');
 const WASM = args.find((a, i) => !a.startsWith('--') && !VALUED.includes(args[i - 1])) || path.join(__dirname, '../test/g3.wasm');
-const ONLY = opt('--only', null), FRAC = Number(opt('--frac', 1)), EXTRA = args.includes('--extra'), REVERSE = args.includes('--reverse');
+const ONLY = opt('--only', null), FRAC = Number(opt('--frac', 1)), MAX_ROPES = Number(opt('--max-ropes', Infinity)), EXTRA = args.includes('--extra'), REVERSE = args.includes('--reverse');
 const { H, L } = R.js();
 const BENCH_SEED = L.hashString('bench');
 
@@ -236,6 +237,7 @@ function cases() {
   const out = [];
   let boards = (EXTRA ? extraBoards() : R.boards()).filter(b => b.grid === 'hex' && !b.springs.length);
   if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name.split(' ')[0]));
+  boards = boards.filter(b => b.ropes.length <= MAX_ROPES);
   for (const b of boards) {
     const ps = EXTRA ? sample(R.positions(b)) : R.positions(b);
     ps.forEach((p, k) => {

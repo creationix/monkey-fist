@@ -58,7 +58,6 @@ import "./lib/sort" (
 import "./random" (
   "next" func next(r: *mut Rng) -> f64
   "one_of" func one_of(comptime T: type, r: *mut Rng, xs: []T) -> T
-  "floor_div" func floor_div(a: i32, b: i32) -> i32
   "index_from" func index_from(comptime T: type, xs: []T, x: T, from: u32) -> i32
   "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
 )
@@ -135,8 +134,9 @@ export func hex_inside(w: i32, h: i32, p: Pt) -> bool {
   return x >= 0 && x < w
 }
 
-// The cell index of p (cell() of the JS).
-export func hex_cell(p: Pt, w: i32) -> i32 => p.r * w + p.q + floor_div(p.r, 2)
+// The cell index of p (cell() of the JS). r >> 1 is floor_div(r, 2) for every r, in one
+// instruction: the call to floor_div was 8% of casual play (nothing inlines it).
+export func hex_cell(p: Pt, w: i32) -> i32 => p.r * w + p.q + (p.r >> 1)
 
 // The point of cell c, c >= 0 (point() of the JS).
 export func hex_point(c: i32, w: i32) -> Pt {
@@ -627,10 +627,23 @@ export func hex_casual_wins(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, r
     loop {
       exits.clear()
       moves.clear()
+      let offsets = b.offsets
+      let tracks = b.tracks
+      let lengths = b.lengths
+      let occupied = b.occupied
       for i in n {
-        let o = b.offsets[i]
+        let o = offsets[i]
         if o >= 0 {
-          let t = b.to(i as i32)
+          // inline: b.to(i), with the board's tables in locals: 10% of the time of casual
+          // play (inline func is parsed but not yet implemented)
+          let track = tracks[i]
+          let total = track.len as i32
+          let length = lengths[i]
+          let p = o + length
+          while p < total && occupied[track.ptr[p]] < 0 {  // unchecked: p < total
+            p += 1
+          }
+          let t = if p == total { -1 } else { p - length }
           if t == -1 {
             exits.push(i as i32)
           } elif t != o {

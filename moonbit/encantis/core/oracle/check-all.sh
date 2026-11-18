@@ -23,5 +23,9 @@ for s in ../../builder/check-weave.cjs ../../builder-v2/other-seeds.cjs ../../bu
   out=$(node $s ../test/weave.wasm 2>&1) || fail=1
   echo "$out" | grep -v '^  ' | tail -2
 done
+# G3: the Hex kernel on the extra boards (48x48 included). check-g3.cjs and check-g3-wide.cjs run
+# in the loop above (about 210 s and 8 s; check-g3's JS is most of it: C15's fewest at 6,000).
+echo "== check-g3.cjs --extra"
+node check-g3.cjs --extra || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
