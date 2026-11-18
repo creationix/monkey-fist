@@ -348,6 +348,20 @@ These also work:
 - **The bump stack with `clear()` and `peak()`**: every hook starts at the base; check 8
   traps the reserve on purpose and the next call works.
 
+### Where `comptime n: u32` with `[n]T` would help G1
+
+The containers, as PORT-PLAN §10 says, and in G1 only one of them so far:
+
+- **The stack.** `lib/stack.ents` is copied to change two numbers (`capacity` and the size of
+  `space`, which must agree) and to add `clear()` and `peak()`. As `Stack(comptime n)` the size
+  would be an argument, and the copy would hold only what the core adds; a second arena (a
+  keep region the search scopes do not reset) would be one more instance, not a second copy.
+- **Not the keys.** `keyset(W, keys, words)` is sized by a search's budget, which is known only
+  at run time, so its reserve stays a run-time argument.
+- **Not the ABI buffers.** `inbuf`, `outbuf` (65,536 words) and `outf` (64 doubles) are three
+  `data` arrays whose writes are checked at run time (`if let p = &outbuf[out_n]`): the
+  index is a count that grows, so a ranged type would not prove it either.
+
 ### Counts (tags in G1's files)
 
 | Tag | Sites |
