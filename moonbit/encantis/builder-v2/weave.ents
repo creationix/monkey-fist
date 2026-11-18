@@ -20,6 +20,11 @@
 //   - A rope's track has to last for the call, so commit() runs only when no
 //     scope but the call's is open. It asserts that.
 //   - A function that returns a list builds it in its caller's scope.
+//   - A list made in one scope must not grow in a scope inside it: a Vec that
+//     grows where it is not at the top of the stack moves to new room, and
+//     that room would be freed with the inner scope. The lists that last for
+//     the call and are written in a try (taps, the kept candidate) are given
+//     their room up front, and assert that it is enough.
 
 import "./lib/stack" (
   "mark" func mark() -> u32
@@ -27,20 +32,24 @@ import "./lib/stack" (
   "alloc" func alloc(n: u32) -> u32
 )
 
-import "./ints" (
-  "ints" func ints(n: i32) -> [*]mut i32
-  "ints_of" func ints_of(n: i32, v: i32) -> [*]mut i32
-  "fill" func fill(p: [*]mut i32, n: i32, v: i32)
-  "span" func span(p: [*]i32, n: i32) -> []i32
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "pop" func pop(comptime T: type, v: *mut Vec(T)) -> T
+  "last" func last(comptime T: type, v: *Vec(T)) -> T
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+  "items_mut" func items_mut(comptime T: type, v: *mut Vec(T)) -> []mut T
+  "clear" func clear(comptime T: type, v: *mut Vec(T))
+)
+
+import "./lists" (
+  "table" func table(comptime T: type, n: i32, v: T) -> [*]mut T
   "part" func part(p: [*]i32, from: i32, to: i32) -> []i32
-  "nothing" func nothing() -> []i32
-  "begin" func begin() -> u32
-  "push" func push(v: i32)
-  "push_reversed" func push_reversed(xs: []i32)
-  "since" func since(start: u32) -> []i32
-  "contains" func contains(xs: []i32, v: i32) -> bool
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+  "push_all" func push_all(comptime T: type, v: *mut Vec(T), xs: []T)
+  "push_reversed" func push_reversed(comptime T: type, v: *mut Vec(T), xs: []T)
   "reversed" func reversed(xs: []i32) -> []i32
-  "copy_to" func copy_to(dst: [*]mut i32, xs: []i32)
 )
 
 import "./rng" (
@@ -57,21 +66,19 @@ import "./board" (
   "height" global height: i32
   "area" global area: i32
   "slope" global slope: [*]mut i32
-  "mirrors" global mirrors: i32
-  "mirror_at" global mirror_at: [*]mut i32
+  "mirrors" global mirrors: *mut Vec(i32)
   "n" global n: i32
   "seq" global seq: [*]mut []i32
   "len" global len: [*]mut i32
   "stops" global stops: [*]mut []i32
   "cost" global cost: [*]mut i32
   "dep" global dep: [*]mut i32
-  "taps" global taps: [*]mut i32
-  "ntaps" global ntaps: i32
+  "taps" global taps: *mut Vec(i32)
   "cost_sum" global cost_sum: i32
   "new_board" func new_board(w: i32, h: i32, max_taps: i32)
   "add_mirror" func add_mirror(c: i32, kind: i32)
   "head_dir" func head_dir(path: []i32) -> (dx: i32, dy: i32)
-  "ray" func ray(x: i32, y: i32, dx: i32, dy: i32) -> bool
+  "ray" func ray(way: *mut Vec(i32), x: i32, y: i32, dx: i32, dy: i32) -> bool
   "self_blocked" func self_blocked(path: []i32) -> bool
   "add" func add(path: []i32, st: []i32) -> i32
   "drop" func drop()
@@ -174,8 +181,7 @@ global grid: [*]mut i32 = 0         // the board as the level starts: per cell a
 global rest: [*]mut i32 = 0         // per cell: the knot that will come to rest here (it is empty for now), or -1
 global mirror_used: [*]mut i32 = 0  // per cell: 1 once the mirror here lies on some rope's track
 global mirrors_used: i32 = 0
-global order: [*]mut i32 = 0        // the ropes in the order the last replay first tapped them
-global norder: i32 = 0
+global order: *mut Vec(i32) = 0     // the ropes in the order the last replay first tapped them
 global total0: i32 = 0              // the total block cost of the board as it stands
 global bend_sum: i32 = 0
 global covered: i32 = 0             // cells under rope
@@ -185,7 +191,7 @@ global traps: i32 = 0
 // What survey() found, for one step.
 global ahead: [*]mut []i32 = 0      // per rope: the empty cells on its way out, along the track
 global blk: [*]mut []i32 = 0        // per rope: the ropes on its way out
-global lanes: [*]mut []mut i32 = 0  // per cell: the ropes whose way out crosses it (empty cells only)
+global lanes: [*]mut *mut Vec(i32) = 0  // per cell: the ropes whose way out crosses it (empty cells only)
 global up: [*]mut i32 = 0           // per rope: roughly how long a chain of ropes waits on it
 
 // mark_below() stamps the ropes it reaches.
@@ -193,10 +199,9 @@ global waits: [*]mut i32 = 0
 global stamp: i32 = 0
 
 // The step's choice, copied out of the scope it was tried in (keep).
-global kept_path: [*]mut i32 = 0
-global kept_rest: [*]mut i32 = 0
-global kept_gap: [*]mut i32 = 0
-global path_room: i32 = 0
+global kept_path: *mut Vec(i32) = 0
+global kept_rest: *mut Vec(i32) = 0
+global kept_gap: *mut Vec(i32) = 0
 
 // The top of the stack whenever only the call's scope is open: commit() checks
 // it, because the track it adds must not be freed by a step or a try.
@@ -230,14 +235,12 @@ type Option = (d: i32, lane: Lane)
 // A walked rope: its body cells from the head back, and for a knot its tail.
 type Walked = (ok: bool, cells: []i32, tail: []i32)
 
-func no_lane() -> Lane => Lane(false, nothing(), 0, nothing())
-func no_shape() -> Shaped => Shaped(false, nothing(), no_lane())
-func no_cand() -> Cand => Cand(false, nothing(), no_lane(), 0, 0, 0, nothing(), nothing())
-func no_walk() -> Walked => Walked(false, nothing(), nothing())
+func no_lane() -> Lane => Lane(false, [], 0, [])
+func no_shape() -> Shaped => Shaped(false, [], no_lane())
+func no_cand() -> Cand => Cand(false, [], no_lane(), 0, 0, 0, [], [])
+func no_walk() -> Walked => Walked(false, [], [])
 
 func inside(x: i32, y: i32) -> bool => x >= 0 && y >= 0 && x < width && y < height
-
-func order_list() -> []i32 => span(order, norder)
 
 func bends_of(path: []i32) -> i32 {
   let p = path.ptr
@@ -262,62 +265,57 @@ func bends_of(path: []i32) -> i32 {
 // carries straight on. Returns the cells, `start` first.
 func grow(start: i32, first: i32, straightness: f64) -> []i32 {
   let want = len_lo + below(1, len_hi - len_lo + 1)
-  let cells = ints(max(want, 1))
-  let opts = ints(4)
-  cells[0] = start
-  let count = 1
-  let last = -1
+  let cells = vec(i32, max(want, 1) as u32)
+  let opts = vec(i32, 4)
+  cells.push(start)
+  let went = -1
   grid[start] = walked
-  while count < want {
-    let c = cells[count - 1]
+  while (cells.len as i32) < want {
+    let c = cells.last()
     let x = c % width
     let y = c / width
-    let open = 0
+    opts.clear()
     for d in 4 {
       let nx = x + dir_x[d]
       let ny = y + dir_y[d]
       if inside(nx, ny) && grid[ny * width + nx] == -1 {
-        opts[open] = d as i32
-        open += 1
+        opts.push(d as i32)
       }
     }
-    break when open == 0
+    break when opts.len == 0
     let go = first
-    if count > 1 || first < 0 {
-      go = if last >= 0 && contains(span(opts, open), last) && chance(2, straightness) { last } else { opts[below(3, open)] }
-    } elif !contains(span(opts, open), first) {
+    if cells.len > 1 || first < 0 {
+      go = if went >= 0 && opts.items().contains(went) && chance(2, straightness) { went } else { opts.ptr[below(3, opts.len as i32)] }
+    } elif !opts.items().contains(first) {
       break
     }
-    last = go
+    went = go
     let nc = (y + dy_of(go)) * width + x + dx_of(go)
-    cells[count] = nc
-    count += 1
+    cells.push(nc)
     grid[nc] = walked
   }
-  let grown = span(cells, count)
-  for cell in grown {
+  for cell in cells.items() {
     grid[cell] = -1
   }
-  return grown
+  return cells.items()
 }
 
 // The way out from (x, y) in direction (dx, dy), not counting (x, y) itself.
 // With mirrors it bends; not ok if it would pass a cell twice.
 func way_out(x: i32, y: i32, dx: i32, dy: i32) -> Lane {
-  let start = begin()
-  return no_lane() when !ray(x, y, dx, dy)
-  let cells = since(start)
+  let cells = vec(i32, 16)
+  return no_lane() when !ray(cells, x, y, dx, dy)
   let free = 0
-  let found = begin()
-  for c in cells {
+  let ids = vec(i32, 4)
+  for c in cells.items() {
     let o = grid[c]
     if o == -1 {
       free += 1
-    } elif o >= 0 && !contains(since(found), o) {
-      push(o)
+    } elif o >= 0 && !ids.items().contains(o) {
+      ids.push(o)
     }
   }
-  return Lane(true, cells, free, since(found))
+  return Lane(true, cells.items(), free, ids.items())
 }
 
 // The way out of a rope with this path, or not ok if its own body is in it.
@@ -340,8 +338,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
   let sy = start / width
   if dir >= 0 || chance(4, 0.75) {
     // The directions the head could point, each with its way out.
-    let opts = alloc(4 * sizeof(Option)) as [*]mut Option
-    let open = 0
+    let opts = vec(Option, 4)
     let sum = 0
     for d in 4 {
       continue when dir >= 0 && d as i32 != dir
@@ -351,25 +348,24 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       continue when !inside(bx, by) || grid[by * width + bx] != -1
       let lane = way_out(sx, sy, dir_x[d], dir_y[d])
       continue when !lane.ok
-      opts[open] = Option(d as i32, lane)
-      open += 1
+      opts.push(Option(d as i32, lane))
       sum += lane.cells.len as i32 + 1
     }
-    if open > 0 {
+    if opts.len > 0 {
       // one of them, by weight: the length of its way out, plus one
       let r = rng(5, sum) * sum
-      let o = open - 1
-      for k in open {
-        r -= opts[k].lane.cells.len + 1
+      let o = opts.last()
+      for opt in opts.items() {
+        r -= opt.lane.cells.len + 1
         if r < 0.0 {
-          o = k as i32
+          o = opt
           break
         }
       }
-      let behind = grow(start, (opts[o].d + 2) % 4, straightness)
+      let behind = grow(start, (o.d + 2) % 4, straightness)
       let path = reversed(behind)
       if behind.len as i32 >= min_len && !self_blocked(path) {
-        return Shaped(true, path, opts[o].lane)
+        return Shaped(true, path, o.lane)
       }
     }
     return no_shape() when dir >= 0
@@ -397,23 +393,25 @@ func fits(c: Cand, budget: i32) -> bool => c.ok && c.gain + c.bends <= budget &&
 // Copies a candidate's cells to the buffers that last for the call, so that it
 // outlives the scope it was tried in. There is one set of buffers: keeping a
 // candidate overwrites the one kept before.
-func keep(c: Cand) -> Cand {
-  assert c.path.len as i32 <= path_room && c.rest.len as i32 <= pull && c.gap.len as i32 <= pull
-  copy_to(kept_path, c.path)
-  copy_to(kept_rest, c.rest)
-  copy_to(kept_gap, c.gap)
-  return Cand(true, span(kept_path, c.path.len as i32), no_lane(), c.gain, c.bends, c.pull,
-    span(kept_rest, c.rest.len as i32), span(kept_gap, c.gap.len as i32))
+func keep(c: Cand) -> Cand =>
+  Cand(true, copy(c.path, kept_path), no_lane(), c.gain, c.bends, c.pull, copy(c.rest, kept_rest), copy(c.gap, kept_gap))
+
+// xs, copied to a list that lasts for the call. It is filled in a try's scope,
+// so it must not grow: it was given room for the most it can hold.
+func copy(xs: []i32, to: *mut Vec(i32)) -> []i32 {
+  assert xs.len <= to.cap
+  to.clear()
+  to.push_all(xs)
+  return to.items()
 }
 
 // order = the ropes in the order the last replay first tapped them: the order
 // to try them in next time.
 func note_order() {
-  norder = 0
-  for i in span(taps, ntaps) {
-    if !contains(span(order, norder), i) {
-      order[norder] = i
-      norder += 1
+  order.clear()
+  for i in taps.items() {
+    if !order.items().contains(i) {
+      order.push(i)
     }
   }
 }
@@ -423,15 +421,12 @@ func commit(c: Cand) {
   // What is allocated here lasts for the rest of the call, so no step or try
   // may be open: its reset would free the track.
   assert mark() == settled
-  let st = nothing()
+  let st = vec(i32, 1)
   if c.pull > 0 {
-    let one = begin()
-    push(c.pull)
-    st = since(one)
+    st.push(c.pull)
   }
-  let id = add(c.path, st)
-  settled = mark()
-  if mirrors > 0 {
+  let id = add(c.path, st.items())
+  if mirrors.len > 0 {
     for cell in seq[id] {
       if slope[cell] >= 0 && mirror_used[cell] == 0 {
         mirror_used[cell] = 1
@@ -439,7 +434,7 @@ func commit(c: Cand) {
       }
     }
   }
-  replay_first(id, order_list())
+  replay_first(id, order.items())
   total0 = cost_sum
   note_order()
   for cell in path_of(id) {
@@ -461,6 +456,7 @@ func commit(c: Cand) {
       }
     }
   }
+  settled = mark()
 }
 
 // --- How the board stands --------------------------------------------------------------------
@@ -468,52 +464,33 @@ func commit(c: Cand) {
 // Fills ahead, blk, lanes and up for the board as the level starts. In the
 // caller's scope: they last for the step.
 func survey() {
-  ahead = alloc((n as u32) * 8) as [*]mut []i32
-  blk = alloc((n as u32) * 8) as [*]mut []i32
-  let crossed = ints_of(area, 0)   // per cell: how many ways out cross it
+  ahead = table([]i32, n, [])
+  blk = table([]i32, n, [])
+  lanes = alloc((area as u32) * sizeof(*mut Vec(i32))) as [*]mut *mut Vec(i32)
+  for cell in area {
+    lanes[cell] = vec(i32, 2)
+  }
   for i in n {
-    let track = seq[i].ptr
-    let total = seq[i].len as i32
-    // Two lists grow in turns here. The empty cells get room for the whole way
-    // out; the ropes are pushed on top.
-    let free = ints(total - len[i])
-    let count = 0
-    let found = begin()
-    for c in part(track, len[i], total) {
+    let free = vec(i32, seq[i].len - len[i] as u32)
+    let ids = vec(i32, 4)
+    for c in part(seq[i].ptr, len[i], seq[i].len as i32) {
       let o = grid[c]
       if o == -1 {
-        free[count] = c
-        count += 1
-        crossed[c] += 1
-      } elif o >= 0 && !contains(since(found), o) {
-        push(o)
+        free.push(c)
+        lanes[c].push(i as i32)
+      } elif o >= 0 && !ids.items().contains(o) {
+        ids.push(o)
       }
     }
-    let ids = since(found)
-    blk[i] = ids
-    let cells = span(free, count)
-    ahead[i] = cells
-  }
-  // lanes[cell] grows as the ropes are gone through, every cell's list in turn:
-  // each gets the room counted for it above, and is filled in rope order.
-  lanes = alloc((area as u32) * 8) as [*]mut []mut i32
-  for cell in area {
-    let room: []mut i32 = (ints(crossed[cell]), 0:u32)
-    lanes[cell] = room
-  }
-  for rope in n {
-    for c in ahead[rope] {
-      lanes[c].ptr[lanes[c].len] = rope as i32
-      lanes[c].len += 1
-    }
+    ahead[i] = free.items()
+    blk[i] = ids.items()
   }
   // up, from the costs and waits the last replay left. By cost, highest first:
   // the sort must be stable (ropes of equal cost stay in the order of `order`),
   // so an insertion sort.
-  fill(up, n, 0)
-  let by_cost = ints(norder)
-  for k in norder {
-    let id = order[k]
+  up[0..n as u32] = 0
+  let by_cost = table(i32, order.len as i32, 0)
+  for k, id in order.items() {
     let j = k as i32
     while j > 0 && cost[by_cost[j - 1]] < cost[id] {
       by_cost[j] = by_cost[j - 1]
@@ -521,7 +498,7 @@ func survey() {
     }
     by_cost[j] = id
   }
-  for x in span(by_cost, norder) {
+  for x in part(by_cost, 0, order.len as i32) {
     let d = dep[x]
     if d >= 0 && up[x] + 1 > up[d] {
       up[d] = up[x] + 1
@@ -562,13 +539,12 @@ func aimed() -> (ok: bool, start: i32, di: i32) {
   ok = false
   let scope = mark()
   defer reset(scope)
-  let found = begin()
-  for c in span(mirror_at, mirrors) {
+  let idle = vec(i32, mirrors.len)
+  for c in mirrors.items() {
     if mirror_used[c] == 0 {
-      push(c)
+      idle.push(c)
     }
   }
-  let idle = since(found)
   if idle.len == 0 {
     return
   }
@@ -619,9 +595,9 @@ func candidate(kind: i32, at: i32) -> Cand {
   return no_cand() when start < 0
   let s = shape(start, if kind == plain { 1.0 } else { straight }, dir)
   return no_cand() when !s.ok
-  let sum = trial(s.path, nothing(), order_list())
+  let sum = trial(s.path, [], order.items())
   return no_cand() when sum < 0
-  return Cand(true, s.path, s.lane, sum - total0, bends_of(s.path), 0, nothing(), nothing())
+  return Cand(true, s.path, s.lane, sum - total0, bends_of(s.path), 0, [], [])
 }
 
 // --- Knots and traps ------------------------------------------------------------------------------
@@ -633,15 +609,9 @@ func candidate(kind: i32, at: i32) -> Cand {
 // knot will come to rest, so that the two have to be slid in the right order;
 // `gapped` spots have a rope a short gap ahead.
 func knot_spots() -> Spots {
-  // The three lists grow in turns, so each gets room for every cell and
-  // direction: 4 * area spots of 20 bytes.
-  let room_for = (area as u32) * 4 * sizeof(Spot)
-  let tight = alloc(room_for) as [*]mut Spot
-  let chain = alloc(room_for) as [*]mut Spot
-  let gapped = alloc(room_for) as [*]mut Spot
-  let ntight = 0
-  let nchain = 0
-  let ngapped = 0
+  let tight = vec(Spot, 16)
+  let chain = vec(Spot, 16)
+  let gapped = vec(Spot, 16)
   for cell in area {
     let c = cell as i32
     continue when grid[c] != -1
@@ -666,51 +636,50 @@ func knot_spots() -> Spots {
         }
         if room >= 2 {
           if o >= 0 {
-            tight[ntight] = Spot(c, d as i32, room, against, 0)
-            ntight += 1
+            tight.push(Spot(c, d as i32, room, against, 0))
           } else {
-            chain[nchain] = Spot(c, d as i32, room, against, 0)
-            nchain += 1
+            chain.push(Spot(c, d as i32, room, against, 0))
           }
         }
         continue
       }
-      if mirrors > 0 {
-        // the gap follows the bending way out; mirror cells in it stay passable
-        let scope = mark()
-        defer reset(scope)
-        let start = begin()
-        continue when !ray(x, y, dx, dy)
-        let way = since(start).ptr
-        let length = since(start).len as i32
-        let run = 0
-        while run < length && run <= pull && (grid[way[run]] == -1 || grid[way[run]] == mirror) {
-          run += 1
-        }
-        if run > 0 && run <= pull && run < length && grid[way[run]] >= 0 {
-          gapped[ngapped] = Spot(c, d as i32, 0, -1, run)
-          ngapped += 1
-        }
-        continue
-      }
-      let gap = 0
-      let nx = ax
-      let ny = ay
-      while gap <= pull && inside(nx, ny) && grid[ny * width + nx] == -1 {
-        gap += 1
-        nx += dx
-        ny += dy
-      }
-      if gap > 0 && gap <= pull && inside(nx, ny) && grid[ny * width + nx] >= 0 {
-        gapped[ngapped] = Spot(c, d as i32, 0, -1, gap)
-        ngapped += 1
+      let gap = gap_ahead(x, y, dx, dy)
+      if gap > 0 {
+        gapped.push(Spot(c, d as i32, 0, -1, gap))
       }
     }
   }
-  let t: []Spot = (tight, ntight as u32)
-  let ch: []Spot = (chain, nchain as u32)
-  let g: []Spot = (gapped, ngapped as u32)
-  return Spots(t, ch, g)
+  return Spots(tight.items(), chain.items(), gapped.items())
+}
+
+// The empty cells a head at (x, y) pointing (dx, dy) has ahead of it before a
+// rope, if they are 1 to pull of them; 0 otherwise. With mirrors the gap
+// follows the bending way out, and mirror cells in it stay passable.
+func gap_ahead(x: i32, y: i32, dx: i32, dy: i32) -> i32 {
+  if mirrors.len > 0 {
+    let scope = mark()
+    defer reset(scope)
+    let way = vec(i32, 16)
+    return 0 when !ray(way, x, y, dx, dy)
+    let cells = way.ptr
+    let length = way.len as i32
+    let run = 0
+    while run < length && run <= pull && (grid[cells[run]] == -1 || grid[cells[run]] == mirror) {
+      run += 1
+    }
+    return run when run > 0 && run <= pull && run < length && grid[cells[run]] >= 0
+    return 0
+  }
+  let gap = 0
+  let nx = x + dx
+  let ny = y + dy
+  while gap <= pull && inside(nx, ny) && grid[ny * width + nx] == -1 {
+    gap += 1
+    nx += dx
+    ny += dy
+  }
+  return gap when gap > 0 && gap <= pull && inside(nx, ny) && grid[ny * width + nx] >= 0
+  return 0
 }
 
 // Marks every rope the ropes in `blockers` (and `also`, unless -1) are waiting
@@ -719,25 +688,20 @@ func mark_below(blockers: []i32, also: i32) {
   let scope = mark()
   defer reset(scope)
   stamp += 1
-  let stack = ints(blockers.len as i32 + 1 + n)
-  let top = 0
+  let todo = vec(i32, blockers.len + 1)
   for z in blockers {
-    stack[top] = z
-    top += 1
+    todo.push(z)
     waits[z] = stamp
   }
   if also >= 0 {
-    stack[top] = also
-    top += 1
+    todo.push(also)
     waits[also] = stamp
   }
-  while top > 0 {
-    top -= 1
-    for y in blk[stack[top]] {
+  while todo.len > 0 {
+    for y in blk[todo.pop()] {
       if waits[y] != stamp {
         waits[y] = stamp
-        stack[top] = y
-        top += 1
+        todo.push(y)
       }
     }
   }
@@ -746,7 +710,7 @@ func mark_below(blockers: []i32, also: i32) {
 // A cell is tied if a marked rope has its way out through it: a rope lying
 // there would close a loop.
 func tied(cell: i32) -> bool {
-  for id in lanes[cell] {
+  for id in lanes[cell].items() {
     return true when waits[id] == stamp
   }
   return false
@@ -765,79 +729,74 @@ func any_tied(cells: []i32) -> bool {
 // straight, so that it can start k cells back.
 func walk(spot: Spot, k: i32) -> Walked {
   let back = (spot.di + 2) % 4
+  // (want is at least 2 and k at least 0, so the counts below compare as u32.)
   let want = max(k + 2, len_lo + below(13, len_hi - len_lo + 1))
-  let cells = ints(want)
-  let tail = ints(k)
-  let opts = ints(4)
-  let ties = ints(4)
-  cells[0] = spot.c
-  let ncells = 1
-  let ntail = 0
-  let last = back
+  let cells = vec(i32, want as u32)
+  let tail = vec(i32, k as u32)
+  let opts = vec(i32, 4)
+  let ties = vec(i32, 4)
+  cells.push(spot.c)
+  let went = back
   let got = false
   grid[spot.c] = walked
-  while ncells + ntail < want + k {
-    let body = ncells < want
-    let c = if !body && ntail > 0 { tail[ntail - 1] } else { cells[ncells - 1] }
+  while cells.len + tail.len < (want + k) as u32 {
+    let body = cells.len < want as u32
+    let c = if !body && tail.len > 0 { tail.last() } else { cells.last() }
     let x = c % width
     let y = c / width
-    let open = 0
+    opts.clear()
     for d in 4 {
       let nx = x + dir_x[d]
       let ny = y + dir_y[d]
       if inside(nx, ny) && grid[ny * width + nx] == -1 && (!body || !tied(ny * width + nx)) {
-        opts[open] = d as i32
-        open += 1
+        opts.push(d as i32)
       }
     }
-    break when open == 0
+    break when opts.len == 0
     let di = back
     if body {
       // the first step is straight back, and a knot's first k + 1 are
-      if ncells <= k + 1 {
-        break when !contains(span(opts, open), back)
-      } elif contains(span(opts, open), last) && chance(14, straight) {
-        di = last
+      if cells.len <= (k + 1) as u32 {
+        break when !opts.items().contains(back)
+      } elif opts.items().contains(went) && chance(14, straight) {
+        di = went
       } else {
-        di = opts[below(15, open)]
+        di = opts.ptr[below(15, opts.len as i32)]
       }
     } else {
       // the tail of a knot heads for a tied cell if it has not found one yet
-      let nties = 0
+      ties.clear()
       if !got {
-        for o in span(opts, open) {
+        for o in opts.items() {
           if tied((y + dy_of(o)) * width + x + dx_of(o)) {
-            ties[nties] = o
-            nties += 1
+            ties.push(o)
           }
         }
       }
-      di = if nties > 0 { ties[below(16, nties)] } else { opts[below(17, open)] }
+      di = if ties.len > 0 { ties.ptr[below(16, ties.len as i32)] } else { opts.ptr[below(17, opts.len as i32)] }
     }
-    last = di
+    went = di
     let next = (y + dy_of(di)) * width + x + dx_of(di)
     grid[next] = walked
     if body {
-      cells[ncells] = next
-      ncells += 1
+      cells.push(next)
     } else {
-      tail[ntail] = next
-      ntail += 1
+      tail.push(next)
       if tied(next) {
         got = true
       }
     }
   }
-  let w = Walked(true, span(cells, ncells), span(tail, ntail))
+  let w = Walked(true, cells.items(), tail.items())
   for cell in w.cells {
     grid[cell] = -1
   }
   for cell in w.tail {
     grid[cell] = -1
   }
-  return no_walk() when ncells < max(min_len, k + 2) || self_blocked(reversed(w.cells))
+  return no_walk() when cells.len < max(min_len, k + 2) as u32 || self_blocked(reversed(w.cells))
   if k > 0 {
-    return no_walk() when ntail < k || !got || self_blocked(slid(w, k))
+    return no_walk() when tail.len < k as u32 || !got || self_blocked(slid(w, k))
   }
   return w
 }
@@ -845,10 +804,10 @@ func walk(spot: Spot, k: i32) -> Walked {
 // A knot's rope where it starts, k cells back from where it was walked: without
 // the first k cells behind the head, and with the tail. From tail to head.
 func slid(w: Walked, k: i32) -> []i32 {
-  let start = begin()
-  push_reversed(w.tail)
-  push_reversed(part(w.cells.ptr, k, w.cells.len as i32))
-  return since(start)
+  let path = vec(i32, w.tail.len + w.cells.len)
+  path.push_reversed(w.tail)
+  path.push_reversed(part(w.cells.ptr, k, w.cells.len as i32))
+  return path.items()
 }
 
 // A knot at a spot where there is something to stop against: shaped in the
@@ -862,11 +821,11 @@ func knot(spot: Spot) -> Cand {
   let w = walk(spot, k)
   return no_cand() when !w.ok
   let first = slid(w, k)
-  let one = begin()
-  push(k)
-  let sum = trial(first, since(one), order_list())
+  let st = vec(i32, 1)
+  st.push(k)
+  let sum = trial(first, st.items(), order.items())
   return no_cand() when sum < 0
-  return Cand(true, first, no_lane(), sum - total0, bends_of(first), k, part(w.cells.ptr, 0, k), nothing())
+  return Cand(true, first, no_lane(), sum - total0, bends_of(first), k, part(w.cells.ptr, 0, k), [])
 }
 
 // A trap at a spot with a gap ahead. Sliding it into the gap must leave ropes
@@ -880,17 +839,17 @@ func trap(spot: Spot) -> Cand {
   let w = walk(spot, 0)
   return no_cand() when !w.ok
   let path = reversed(w.cells)
-  let sum = trial(path, nothing(), order_list())
+  let sum = trial(path, [], order.items())
   return no_cand() when sum < 0
   // (This leaves the board with the rope slid into the gap, and then dropped:
   // every replay sets the board up again first.)
-  let id = add(path, nothing())
+  let id = add(path, [])
   set_up()
   place(id, spot.gap)
   let dead = relax()
   drop()
   return no_cand() when dead == 0
-  return Cand(true, path, no_lane(), sum - total0, bends_of(path), 0, nothing(), gap)
+  return Cand(true, path, no_lane(), sum - total0, bends_of(path), 0, [], gap)
 }
 
 // One try at a knot or a trap, in a scope of its own.
@@ -942,7 +901,7 @@ func reaches_idle_mirror(cells: []i32) -> bool {
 // out, one try per step aims at it).
 func best_rope(budget: i32, desire: f64, need: i32) -> Cand {
   let row = if n == 0 { 0 } elif budget < 1 { 1 } elif desire >= 2.0 { 2 } elif desire >= 1.0 { 3 } else { 4 }
-  let aim = mirrors > mirrors_used && n >= 1
+  let aim = mirrors.len as i32 > mirrors_used && n >= 1
   let best = no_cand()
   let best_miss = 1.0e300
   for k in tries_per_step {
@@ -1005,26 +964,28 @@ func gap_rope(cell: i32, budget: i32) -> Cand {
 }
 
 // Packs the gaps: goes round the cells still empty, in a random order, and
-// fits a rope into each that will take one. `empty` has room for every cell;
-// it was allocated before the first rope, because ropes are committed here.
-func pack_gaps(empty: [*]mut i32) {
+// fits a rope into each that will take one. The list of cells lasts for the
+// call, under the ropes committed while it is gone through.
+func pack_gaps() {
+  let empty = vec(i32, area as u32)
+  settled = mark()
   for sweep in 2 {
-    let count = 0
+    empty.clear()
     for cell in area {
       if grid[cell] == -1 {
-        empty[count] = cell as i32
-        count += 1
+        empty.push(cell as i32)
       }
     }
-    let i = count - 1
+    let cells = empty.ptr
+    let i = empty.len as i32 - 1
     while i > 0 {
       let j = below(23, i + 1)
-      let swap = empty[i]
-      empty[i] = empty[j]
-      empty[j] = swap
+      let swap = cells[i]
+      cells[i] = cells[j]
+      cells[j] = swap
       i -= 1
     }
-    for c in span(empty, count) {
+    for c in empty.items() {
       continue when grid[c] != -1
       let budget = s_max - total0 - bend_sum
       for t in 3 {
@@ -1053,17 +1014,14 @@ func seed_core(at: i32, count: i32, plan: []i32, planned: bool) -> bool {
     covered += l
     j += 2 + l + ns
   }
-  settled = mark()
   if planned {
-    copy_to(order, plan)
-    norder = plan.len as i32
+    order.push_all(plan)
   } else {
     for i in n {
-      order[i] = i as i32
+      order.push(i as i32)
     }
-    norder = n
   }
-  return false when !replay(order_list(), -1)
+  return false when !replay(order.items(), -1)
   total0 = cost_sum
   for rope in n {
     let id = rope as i32
@@ -1091,7 +1049,7 @@ func seed_core(at: i32, count: i32, plan: []i32, planned: bool) -> bool {
 func core_fits(at: i32, count: i32) -> bool {
   let scope = mark()
   defer reset(scope)
-  let taken = ints_of(area, 0)
+  let taken = table(i32, area, 0)
   let j = at
   for r in count {
     let l = word(j)
@@ -1131,12 +1089,12 @@ func finished() -> i32 {
     return 0
   }
   // cannot happen; but never hand out a level without its solution
-  return 0 when !plays_out(span(taps, ntaps))
+  return 0 when !plays_out(taps.items())
   // Count the knots that really are one (a rope meant to slide that starts in a
   // loop), and the slides open at the start that would leave ropes that can
   // never get out.
   set_up()
-  let looped = ints_of(n, 0)
+  let looped = table(i32, n, 0)
   find_loops(looped)
   let tied_up = 0
   let fatal = 0
@@ -1168,9 +1126,9 @@ func finished() -> i32 {
       k += 1
     }
   }
-  out[k] = ntaps
+  out[k] = taps.len as i32
   k += 1
-  for t in span(taps, ntaps) {
+  for t in taps.items() {
     out[k] = t
     k += 1
   }
@@ -1182,9 +1140,8 @@ func finished() -> i32 {
 // An empty board and a build that has not begun, in the caller's scope: every
 // global above is set here or in new_board, so that nothing is left over from
 // the call before. `core_stops` is how many stops the core's ropes have between
-// them and `plan_len` the length of its plan; the rope lengths and `pull` must
-// be set already.
-func start_build(w: i32, h: i32, core_stops: i32, plan_len: i32) {
+// them; the rope lengths and `pull` must be set already.
+func start_build(w: i32, h: i32, core_stops: i32) {
   // Ropes have two cells or more, so there are at most area / 2 of them, and
   // one being tried. Each is tapped once to leave, and once per stop: a knot
   // has one stop, a core rope has what the input gives it.
@@ -1192,27 +1149,25 @@ func start_build(w: i32, h: i32, core_stops: i32, plan_len: i32) {
   // The result is at most 4 words, a length and the cells per rope, and a
   // length and the taps: it must fit outbuf's 16,384 words.
   assert area * 5 / 2 + 8 + core_stops <= 16384
-  grid = ints_of(area, -1)
-  rest = ints_of(area, -1)
-  mirror_used = ints_of(area, 0)
+  grid = table(i32, area, -1)
+  rest = table(i32, area, -1)
+  mirror_used = table(i32, area, 0)
   mirrors_used = 0
-  order = ints(max(area, plan_len))
-  norder = 0
+  order = vec(i32, area as u32)
   total0 = 0
   bend_sum = 0
   covered = 0
   knots = 0
   traps = 0
-  up = ints_of(area, 0)
-  waits = ints_of(area + 1, 0)
+  up = table(i32, area, 0)
+  waits = table(i32, area + 1, 0)
   stamp = 0
   // The longest rope a candidate can have: a walk wants at most
-  // max(len_hi, pull + 2) cells.
-  path_room = max(len_hi, pull + 2)
-  kept_path = ints(path_room)
-  kept_rest = ints(pull)
-  kept_gap = ints(pull)
-  settled = mark()
+  // max(len_hi, pull + 2) cells. A knot rests on at most pull cells, and a
+  // trap keeps at most pull empty.
+  kept_path = vec(i32, max(len_hi, pull + 2) as u32)
+  kept_rest = vec(i32, pull as u32)
+  kept_gap = vec(i32, pull as u32)
 }
 
 // Builds one board from the input. Returns output word 0: 1 if a board was
@@ -1240,7 +1195,7 @@ export func weave() -> i32 {
   cover_goal = cover * (w * h)
 
   // The core and the plan lie behind the mirrors: find them first, because
-  // they decide how large some tables are.
+  // the core's stops decide how many taps a replay can make.
   let nmirrors = word(11)
   let core_at = 12 + 2 * nmirrors
   let ncore = word(core_at)
@@ -1253,27 +1208,24 @@ export func weave() -> i32 {
     j += 2 + l + ns
   }
   let planned = word(j) >= 0
-  let plan = if planned { words(j + 1, word(j)) } else { nothing() }
+  let plan: []i32 = if planned { words(j + 1, word(j)) } else { [] }
 
-  start_build(w, h, core_stops, plan.len as i32)
+  start_build(w, h, core_stops)
   for m in nmirrors {
     let pair = 12 + 2 * m as i32
     add_mirror(word(pair), word(pair + 1))
   }
-  for c in span(mirror_at, mirrors) {
+  for c in mirrors.items() {
     grid[c] = mirror
   }
-  // pack_gaps's list of cells, taken here because ropes are committed while
-  // it is in use.
-  let spare = ints(area)
-  settled = mark()
 
   if ncore > 0 {
     return 0 when !seed_core(core_at + 1, ncore, plan, planned)
   }
+  settled = mark()
   lay_ropes()
-  pack_gaps(spare)
-  return 0 when n < min_ropes || !replay(order_list(), -1)
+  pack_gaps()
+  return 0 when n < min_ropes || !replay(order.items(), -1)
   return finished()
 }
 
@@ -1286,15 +1238,15 @@ func test_board() {
   len_hi = 5
   min_len = 2
   pull = 3
-  start_build(4, 4, 0, 0)
+  start_build(4, 4, 0)
 }
 
 func list3(a: i32, b: i32, c: i32) -> []i32 {
-  let start = begin()
-  push(a)
-  push(b)
-  push(c)
-  return since(start)
+  let v = vec(i32, 3)
+  v.push(a)
+  v.push(b)
+  v.push(c)
+  return v.items()
 }
 
 test "bends are counted along a path" {
@@ -1303,13 +1255,11 @@ test "bends are counted along a path" {
   test_board()
   assert bends_of(list3(0, 1, 2)) == 0
   assert bends_of(list3(0, 1, 5)) == 1
-  let zigzag = begin()
-  push(0)
-  push(4)
-  push(5)
-  push(9)
-  push(13)
-  assert bends_of(since(zigzag)) == 2
+  let zigzag = vec(i32, 5)
+  for c in [0, 4, 5, 9, 13]:*[5]i32 {
+    zigzag.push(c)
+  }
+  assert bends_of(zigzag.items()) == 2
 }
 
 test "a way out lists its cells, the empty ones and the ropes in it" {
@@ -1337,7 +1287,7 @@ test "a grown rope stays on the board and leaves the grid as it was" {
   assert cells.ptr[0] == 5
   assert cells.ptr[1] == 9
   assert draw_count() >= 1
-  for c in span(grid, 16) {
+  for c in part(grid, 0, 16) {
     assert c == -1
   }
 }
@@ -1359,8 +1309,8 @@ test "knot_spots finds heads against a rope, and heads a gap away from one" {
   assert spots.gapped.len == 4
   let g = spots.gapped.ptr[0]
   assert g.c == 0 && g.di == 0 && g.gap == 2
-  let last = spots.gapped.ptr[3]
-  assert last.c == 15 && last.di == 3 && last.gap == 2
+  let end = spots.gapped.ptr[3]
+  assert end.c == 15 && end.di == 3 && end.gap == 2
   // where a knot will come to rest counts as something to stop against
   rest[11] = 5
   let again = knot_spots()
