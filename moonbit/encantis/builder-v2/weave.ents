@@ -14,7 +14,7 @@
 //   the call   the board's tables, the ropes' tracks, the tables below
 //   a step     what survey() finds, the places for a knot or trap
 //   a try      one candidate: its lanes, its cells, the rope's trial on the board
-// A scope frees everything on the way out (defer). Three things follow from it:
+// A scope frees everything on the way out (defer). Four things follow from it:
 //   - A candidate is tried in a scope of its own, so the step's choice is copied
 //     out of it, to buffers that last for the call (keep).
 //   - A rope's track has to last for the call, so commit() runs only when no
