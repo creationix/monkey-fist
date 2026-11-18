@@ -726,6 +726,31 @@ a file, the count is estimated from the line share.
     `len_hi_of(style, w)`. One builder runs at a time (module globals).
   - `oracle/check-g2.cjs` (its `WANT` and `context` are exported), `bench-g2.cjs`; `test/weave.ents`
     keeps builder-v2's buffer contract, and `test/g2.ents` re-exports it.
+- **After G2's review** (DX-LOG, "review of G2"; commits 56f8116 and the ones after it):
+  - `self_blocked` asserts `w * h <= 2304` once the board has a mirror. Past max_area its
+    unchecked reads of `body_marks` ran on into the next data block (weave-rng's trace
+    buffer) and answered from whatever was there; `has_dup` already trapped on such boards
+    when a way out turned. The game's boards are 48 x 48 at most, so nothing it makes changes.
+  - **The budgets the game passes**, for the limit above: `solve` at 900 (hints), 5,000
+    (auto-solve: app.js `seekPlan([], 5000)`, MoonBit's `seek_plan([], 5000)`), 2,000 and
+    `round(12000 / ropes)` (the generator); `fewest` at 2,500; casual play 32 games. On the
+    223-rope colossal board `sq_solve` at 5,000 reserves 4.5 MB of keys (5.42 MB peak,
+    measured) and matches the JS; only budget 0 (20,000) traps there.
+  - **`sq_fewest_player_taps` returns `known` itself** as `Par.plan` when it finds nothing
+    shorter (MoonBit and the JS copy it). G7's `score` passes `sq_postpone_exits(...) ??
+    plan`: keep that list's scope open as long as the plan is used, or copy it.
+  - **Paths must lie on their board: `sq_board` now traps on a body cell off it** (c < 0 or
+    c >= w * h). `occ` and `at` are written at the body's cells unchecked, so before the
+    review such a cell wrote over the stack around them and the kernels answered wrong
+    (`free` 0 where the JS says 1); the JS ignores a write off a typed array and answers.
+    `check-g2-wide.cjs` checks that both limits trap (34 calls). The game never sends one, and
+    `read_position` does not check; a q/r swap on a board that is not square would.
+  - `check-g2-wide.cjs` has an "aimed" set (boards with exactly 1 to 3 mirrors on the ways
+    out) and takes `--seed`: run `check-all.sh` after any change to `square.ents`.
+    `oracle/mutate-g2.sh` runs the review's 55 seeded changes of `square.ents` against the
+    oracles: 51 fail them, and the other 4 cannot change an output or never did in 36,190
+    tries (DX-LOG). A hook's output past the ABI's 65,536 words traps in `put` (`rays` on a
+    48x45 board of 688 mirrors would write 96,537); the wide check counts that as a limit.
 
 ### G3: The hex offset kernel (about 4.0k tokens, uncovered apart from geometry)
 

@@ -169,6 +169,10 @@ global stamp: i32 = 0
 export func self_blocked(path: []Pt, w: i32, h: i32, m: *SqMirrors) -> bool {
   let hd = last(path)
   if m.size() > 0 {
+    // body_marks' room: on a board past max_area (the game's 48 x 48) the reads of ahead's
+    // cells below would run past it into the next data, so such a board traps here, as
+    // has_dup does on a way out that turns
+    assert w * h <= 2304
     let scope = mark()
     defer reset(scope)
     let dx, dy = exit_dir(path, w, m)
@@ -220,7 +224,11 @@ export func sq_board(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?*mut SqB
       }
       let s = vec(i32, path.len + 8)
       for c in path {  // closure: path.map(p => p.r * w + p.q)
-        s.push(c.r * w + c.q)
+        let cell = c.r * w + c.q
+        // occ and at are written at the body's cells unchecked (below, and in place); off
+        // the board that would write over the stack, where the JS's typed arrays ignore it
+        assert cell >= 0 && cell < w * h
+        s.push(cell)
       }
       if bent {
         return 0 as ?*mut SqBoard when !ray_cells(hd.q, hd.r, dx, dy, w, h, m, s)  // enum: none

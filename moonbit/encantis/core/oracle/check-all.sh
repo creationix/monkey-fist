@@ -4,7 +4,8 @@
 #
 #   moonbit/encantis/core/oracle/check-all.sh
 #
-# Each check-gN.cjs (and check-gN-wide.cjs) runs on its default wasm (test/gN.wasm).
+# Each check-gN*.cjs (check-gN.cjs, check-gN-wide.cjs, check-g2-weave-big.cjs) runs on its
+# default wasm (test/gN.wasm).
 # Groups add lines for more (the weave fixture of G2, the harness of G7).
 cd "$(dirname "$0")"
 fail=0

@@ -1,0 +1,22 @@
+// bugs/05: the CLI's `<file>:<line>:<name>` form takes the first place the name occurs on
+// the line as text (cli.ts: lineText.indexOf(name)), not the first identifier of that name,
+// and a word in a comment is resolved as if it were code:
+//
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:17:n       -> No info (the n of `func`)
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:17:11      -> local n: i32 (by column)
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:21:s       -> func size: ... (the s of `size`)
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:20:size    -> func size: ... (a word in a comment)
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:20:17      -> the same by column: hover and
+//                                     `definition` resolve a word of a comment as code
+//   encantis hover bugs/05-hover-name-is-a-substring.ents:15:marks   -> def marks: *mut [4]i32 (a data block, not a def)
+//
+// Seen at encantis 03225bc and 8f459f1. Work around: give the column.
+
+data marks = mut [0:i32; 4]
+
+func size(n: i32) -> i32 => n + 1
+
+export func main(s: i32) -> i32 {
+  let t = 1  // size
+  return size(s) + t + (marks[0] ?? 0)
+}
