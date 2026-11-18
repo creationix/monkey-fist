@@ -339,6 +339,7 @@ export func pow(x: f64, y: f64) -> f64 {
 // half is decided on it.
 export func to_fixed(x: f64, digits: u32) -> f64 {
   return x when !(abs(x) < 1.0e21)              // NaN, infinities, and what toFixed writes in exponent form
+  return 0.0 when x == 0.0                       // -0 too: (-0).toFixed(4) is "0.0000"
   return -to_fixed(-x, digits) when x < 0.0      // rounds half away from zero; -0.00001 gives -0
   let scale: f64 = 1.0
   for i in digits {

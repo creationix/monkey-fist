@@ -257,6 +257,30 @@ export func t_sq_mirrors() {
 
 // --- the ABI ---
 
+// The position in the input read back: each current path (its length, then q, r;
+// 0 for a rope that has left), then the preferred order, counted.
+export func t_paths() {
+  clear()
+  let (board:, paths:, prefer:) = read_position()
+  out_clear()
+  put(paths.len as i32)
+  for p in paths {
+    if let q = p {
+      put(q.len as i32)
+      for c in q {
+        put(c.q)
+        put(c.r)
+      }
+    } else {
+      put(0)
+    }
+  }
+  put(prefer.len as i32)
+  for i in prefer {
+    put(i)
+  }
+}
+
 data keep = mut [0:i32; 65536]
 
 // The level of the board in the input (its plan the preferred order) with par,
