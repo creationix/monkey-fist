@@ -734,3 +734,193 @@ The containers, again, and only there:
 Minutes, roughly: 60 reading the plan, the MoonBit, the JS and the earlier kernels; 40 writing
 `square.ents` (5 to clear `check`); 35 the weave adapter; 35 the oracle and its controls; 30
 timing (with the inlining); 30 the log, sizes and counts.
+
+## 18 Nov: review of G2 (adversarial)
+
+- **Compiler:** 03225bc441cf37ce1b109e7839ecedd7470dab34, as G2 used. origin/main moved during
+  the review to 8f459f1 (#32 comptime value parameters, #33 fix round 3). Built with that one
+  too, from a worktree of its own (`ENCANTIS=... build.sh`): every inline test passes, and
+  `g1.wasm`, `g2.wasm` and `weave.wasm` come out byte for byte as with 03225bc. Reviewed head
+  c8ea862. The machine restarted once in the middle of the review; the second half picked up
+  from the progress file.
+- **Reran first:** `build.sh` (11 s) gave G2's three wasm files byte for byte, and
+  `check-all.sh` passed: G2 22,106 comparisons, `--extra` 3,850, weave 249, 4,980 and 224, 0
+  mismatches. `check-g2 --controls` failed 13 of 13 kinds, as it should. `bugs/04` shows what
+  it says on both compilers. `check` exits 0 with "OK: 5 declarations across 2 modules" (its
+  header said 2; corrected), and `wasm` exits 1 with the Bun stack trace.
+- **Time again, on a quiet machine** (just after the restart, load average 0.1 to 0.5, under the
+  lock, the same `bench-g2.cjs`, 5 processes): within 2% of G2's numbers, which were taken at a
+  load of 2.3 to 2.8.
+
+  | Kernel | port ms | MoonBit ms | JS ms | MoonBit / port |
+  | --- | ---: | ---: | ---: | ---: |
+  | L107 casual x1000 | 13.93 | 15.27 | 22.98 | 1.10x |
+  | L107 par | 9.13 | 11.68 | 16.41 | 1.28x |
+  | L107 solve 2000 | 0.194 | 0.261 | 0.356 | 1.35x |
+  | L118 casual x1000 | 9.88 | 9.86 | 15.95 | 1.00x |
+  | L118 par | 5.96 | 7.72 | 11.15 | 1.29x |
+  | L118 solve 2000 | 0.095 | 0.124 | 0.203 | 1.31x |
+
+  Weave on `test/g2.wasm`: 289.5 ms against the JS's 641.6 (3 processes). After the review's
+  two asserts (below), again under the lock but at a load of 1.0: casual 13.98 and 9.90 ms,
+  solve 0.196 and 0.096 (within 1% of the quiet run), par 9.23 and 6.08 (1.1% and 2.0% slower:
+  postpone builds a board for every trial, and each board now checks its body cells; the load
+  counts too). MoonBit / port is 1.10x, 1.28x, 1.26x on L107 and 1.00x, 1.27x, 1.23x on L118.
+- **Extended:**
+  - `oracle/check-g2-wide.cjs` (written in the first half; 56f8116): 400 synthetic boards (1x2
+    to 48x48, mirrors on up to a third of the cells), the 33 square reference boards with
+    springs (springs ignored), and the 131 square boards of `fixtures/g2-review-boards.jsonl`.
+    That fixture is the JS game's own boards from 300 random codes, minus G1's. On top come
+    budgets 0 and below, games 0 and below, junk in prefer, and taps out of range. It
+    reaches what `check-g2` never does: `boardOf` throwing (26 boards), ways out capped at
+    2 * W * H (10) or passing a cell twice (217), `selfBlocked` true (1,990 times), a replay
+    ending unsolved, and solve giving up at 2,000.
+  - This half added an **aimed** set: 150 boards made as the synthetic ones, their mirrors
+    replaced by 1 (most), 2 or 3 placed on a rope's straight way out or on its head. The other
+    sets almost never make a board with exactly one mirror.
+  - **Other seeds** (`--seed`, which changes the synthetic and aimed boards): at the default
+    0x62, then 1, 2 and 0x5151 there are 714 boards and about 3,500 positions each, about
+    105,000 comparisons of 5.3M to 6.2M values each, 0 failed. Seed 2 turned up one trap where
+    the JS answers: `rays` on S276 (48x45, 272 ropes, 688 mirrors). That hook's output would be
+    96,537 words, and the ABI's buffer holds 65,536 (`put` traps; G1's limit). It is a limit
+    of the test hook, not of the kernel, and is now counted as a limit. The seed 0x5151 boards
+    are the ones where solve and fewest give up at their default budgets.
+  - **The review's limits are checked to trap**: 34 calls (a path with a cell at row -1, row
+    H or column -1 through every kernel that builds a board; `rays` on 49x48, 48x49, 50x50 and
+    2x1200 with a mirror). G2's committed wasm fails 32 of them by answering.
+  - `oracle/check-g2-weave-big.cjs`: 118 weave calls recorded from the real generator on
+    48x48 colossal maps (mirrors, cores), 24x24, 30x30, 48x40 and 48x8, replayed on the port:
+    0 mismatches.
+  - **A mutation run** (`oracle/mutate-g2.sh` with `oracle/mutants-g2.cjs`): 55 seeded one-line
+    changes of `square.ents` (a turn swapped, a bound off by one, a branch dropped, a default
+    changed, and so on), each built and run against `check-g2` and then `check-g2-wide`.
+    `check-g2` alone fails 34 of them. The wide check fails 17 more: the ray cap, the
+    duplicate check, all 5 changes to `self_blocked` (the one-mirror one only through the
+    aimed set), a way out passing a cell twice accepted, relax's own-body rule, junk in
+    prefer, both default budgets, budget -1, a plan that leaves ropes, a tap of a gone rope, a
+    replay past the end, and 0 games. 4 survive. 3 of them cannot change an output (below),
+    and `postpone: one pass` (postponeExits' second pass never run) changed nothing on 36,190
+    plans tried in the JS: 27,390 on synthetic boards at 6 seeds and 8,800 on the game's
+    boards.
+    - `search: relaxed knots not remembered` and `deepen: knot remembered as 0`: a position
+      relax gives up on is counted as a node before the visited set is asked, and relax gives
+      the same `false` again. The set only saves time.
+    - `replay: exit at offset 0` (`to <= 0` for `to < 0`): a slide always moves its rope
+      forward, so a slide never ends at offset 0.
+- **What it found:**
+  1. **`self_blocked` read past `body_marks` on boards past max_area.** With a mirror on the
+     board, the cells ahead of a rope were looked up in `body_marks` (2,304 entries) unchecked.
+     On a 50x50 board they ran on into the next data block, weave-rng's trace buffer: with the
+     next stamp's value left there, the port said a rope was blocked by its own body where
+     the JS says not (`probes/past-max-area.cjs` in the review's scratch). `has_dup` already
+     trapped on such boards when a way out turned. The game makes no board past 48 x 48, so
+     no game board was ever answered wrong.
+  2. **A body cell off its board wrote over the stack.** `sq_board` writes `occ` and `at` at the
+     body's cells unchecked. A path with a cell at r = H wrote past `occ` into `at` and on,
+     and the kernels answered wrong (`free` 0 where the JS says 1, solve "no way" where the JS
+     solves it; `probes/off-board.cjs`). The JS's typed arrays ignore such writes. The game
+     never sends such a path, and `read_position` does not check; a q/r swap in a later group
+     on a board that is not square would.
+  3. **The oracle did not try a board with exactly one mirror.** A mutant that took
+     `m.size() > 1` for `> 0` in `self_blocked` passed `check-g2`, `--extra` and the whole
+     wide check; the aimed set fails it 10 times.
+  4. **PORT-PLAN's budgets were incomplete.** The game also solves at 5,000 (auto-solve, in
+     app.js and in MoonBit's own game) and at `round(12000 / ropes)` in the generator. At
+     5,000 on the 223-rope board the port needs 5.42 MB and matches the JS (8 budgets from
+     900 to 9,000 tried); only the default 20,000 traps.
+  5. **Aliasing:** `sq_fewest_player_taps` returns `known` itself as the plan when it finds
+     nothing shorter, where MoonBit and the JS copy it. Nothing reads it after its scope today;
+     noted for G7's `score`.
+- **Fixed:** two asserts in `square.ents`. `self_blocked` asserts `w * h <= 2304` once the board
+  has a mirror, and `sq_board` asserts each body cell is in `0..w * h`. Both are traps where
+  the port had answered wrong. The WAT differs in those two places only; the timed kernels
+  are otherwise unchanged. `g2.wasm` is 51,422 bytes (+42). `check-all.sh` passes on it (187
+  s): G1, G1-wide, the weave on big boards (118 calls), the wide check, G2 (22,106
+  comparisons), `--extra` (3,850), and the weave fixture, seeds and sizes, with 0 failures and
+  0 mismatches. `check-g2 --controls` gives 13 of 13, and the wide check's `--js` and
+  `--controls` (11 of 11) pass.
+- **Unchanged:** for every board the game makes, the port agreed with the JS before the review
+  and does now: 0 failures in all the review's runs.
+
+### Friction
+
+1. **An unchecked many-pointer drops the length the data block had.** `data body_marks = mut
+   [0:i32; 2304]` is a `*mut [2304]i32`, and indexing it is checked. G2 cast it to `[*]mut
+   i32` for speed and wrote `// unchecked: a cell of the board`. That reason held only up to
+   max_area, which nothing asserted, and past it the reads went on into the next module's data,
+   silently. Of G2's 16 `// unchecked:` sites, the review found 2 whose reason was not
+   asserted anywhere. One is this. The other is `occ[c] = i` in `sq_board`, where "a cell of
+   the board" assumed the path lies on the board. Both are now asserts, at about 10 minutes
+   each with a probe. `self_blocked` is not hot: the checked form, `body_marks[c] ?? 0`, would
+   have cost nothing measurable. A "debug" build that checks `[*]T` against the block it came
+   from would find both. No planned feature does that.
+2. **`??` binds loosest** (G2's friction 7, met again): `return s + marks[0] ?? 0` in the
+   bugs/05 repro is a parse error listing about 60 alternatives. Wrote `(marks[0] ?? 0)`. 1
+   site, 1 minute.
+3. **Diffing two builds' WAT needs the generated names normalised.** One added `assert` renumbers
+   every `$__for_ptr_NNNN` local after it in the module (445 lines differ for one changed
+   line). `sed -E 's/_[0-9]+\b//g'` on both sides left the one real line. 5 minutes.
+
+### Error messages (verbatim)
+
+1. `return s + marks[0] ?? 0`: `Expected "}", "a".."z", "false", "true", "'", ... "||", or "&&"`
+   at the `??` (about 60 alternatives; nothing says that `??` binds looser than `+`).
+
+### Bugs
+
+- **bugs/05-hover-name-is-a-substring.ents (tooling).** The CLI's `<file>:<line>:<name>` form
+  takes the first place the name occurs on the line as text (cli.ts `lineText.indexOf(name)`),
+  not the first identifier of that name. `hover square.ents:106:n` on `func table(n: i32, ...)`
+  says "No info" (the n of `func`). On a comment line (`// reserve: a hopeless key per node`),
+  `hover square.ents:503:s` said `func reserve: ...`, because the s of the comment's
+  "reserve" was taken and the comment's word resolved as code. By column too, `hover` and
+  `definition` resolve a word of a comment as the function it names. And a `data` block
+  hovers as `def marks: *mut [4]i32` (a def is a compile-time constant, a data block is
+  memory). Same at 03225bc and 8f459f1. 10 minutes to see why `s` gave `reserve`.
+- **bugs/04 holds** at 8f459f1 too (now `codegen.ts:4116`).
+- No wrong code from the compiler: both defects above were the port's.
+
+### Tooling
+
+- `check square.ents` 0.83 s, `check test/g2.ents` (17 modules, 606 declarations) 1.66 s,
+  `test square.ents` 0.83 s, `build.sh` 11 s, on a quiet machine.
+- `encantis fmt` on `square.ents` changes 116 of its lines and keeps the wasm the same. It is
+  idempotent. But it writes `n:i32` where the reference writes `n: i32` (171 of the 191
+  signatures in `docs/encantis.md` have the space). It writes the type `[]?[]Pt` as
+  `[] ? []Pt`. It puts a type declaration's second line at column 0, and it narrows the two
+  spaces before a trailing comment to one. The same at 8f459f1. G2 did not run it, and neither
+  does the review: the files keep their hand layout.
+- `hover square.ents:182:body` gives `local body: [*]mut i32`, and a parameter hovers as
+  `local n: i32` too. `references square.ents:166:stamp` lists the 3 uses, not the declaration.
+- The mutation run: 55 builds of `test/g2.wasm` (2.5 s each), then each mutant through a quarter
+  of `check-g2` and 150 wide boards, and the full checks only when those passed. About 1
+  hour under the lock (43 minutes for the last 47).
+
+### Pleasant
+
+- **The tags made the audit fast.** `grep "unchecked:" square.ents` listed every unchecked
+  site with the reason it was thought safe. Checking the 16 reasons against the MoonBit and
+  the JS took 15 minutes and found both defects.
+- **A fix is one line and one rebuild.** `assert` with the reason beside it, 11 s for
+  `build.sh`, and the WAT shows exactly what was added.
+- **The oracle's shape carried a third set with no new hooks**: the aimed boards are 20 lines
+  of board making. `--js` and `--controls` (11 of 11) passed on them unchanged.
+- The port was stable across a compiler update: #32 and #33 changed 73 files of the compiler,
+  and the core's wasm did not change by a byte.
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| `// unchecked:` sites in `square.ents` audited | 16 |
+| of them, reasons not asserted anywhere (now asserts) | 2 |
+| asserts added | 2 (`self_blocked`, `sq_board`) |
+| seeded mutants of `square.ents` | 55 |
+| killed by `check-g2` alone | 34 |
+| killed only by the wide check (1 of them only by the aimed set) | 17 |
+| surviving, equivalent (no output can differ) | 3 |
+| surviving, not shown to differ on 36,190 plans (`postpone: one pass`) | 1 |
+| wide check: boards at each seed (400 synthetic, 33 springs, 131 generated, 150 aimed) | 714 |
+| wide check: comparisons over the 4 seeds | about 423,000 (23M values), 0 failed |
+| bugs filed | 1 (bugs/05, tooling) |
+| minutes | about 40 reading the port against the MoonBit and the JS, 30 widening the oracle, 20 fixing and probing, 15 the hover repro, 70 the mutation run (mostly waiting), 20 timing |
