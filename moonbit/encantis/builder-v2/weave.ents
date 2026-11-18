@@ -286,11 +286,7 @@ func grow(start: i32, first: i32, straightness: f64) -> []i32 {
     break when open == 0
     let go = first
     if count > 1 || first < 0 {
-      if last >= 0 && contains(span(opts, open), last) && chance(2, straightness) {
-        go = last
-      } else {
-        go = opts[below(3, open)]
-      }
+      go = if last >= 0 && contains(span(opts, open), last) && chance(2, straightness) { last } else { opts[below(3, open)] }
     } elif !contains(span(opts, open), first) {
       break
     }
@@ -366,10 +362,10 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
     }
     if open > 0 {
       // one of them, by weight: the length of its way out, plus one
-      let r = rng(5, sum) * f64(sum)
+      let r = rng(5, sum) * sum
       let o = open - 1
       for k in open {
-        r -= f64(opts[k].cells.len + 1)
+        r -= opts[k].cells.len + 1
         if r < 0.0 {
           o = k as i32
           break
@@ -560,9 +556,9 @@ func pick_parent(kind: i32) -> i32 {
     sum += parent_weight(kind, i as i32)
   }
   return -1 when sum == 0
-  let r = rng(7, sum) * f64(sum)
+  let r = rng(7, sum) * sum
   for j in n {
-    r -= f64(parent_weight(kind, j as i32))
+    r -= parent_weight(kind, j as i32)
     return j as i32 when r < 0.0
   }
   return n - 1
@@ -628,11 +624,7 @@ func candidate(kind: i32, at: i32) -> Cand {
     tries += 1
   }
   return no_cand() when start < 0
-  let straightness = straight
-  if kind == plain {
-    straightness = 1.0
-  }
-  let s = shape(start, straightness, dir)
+  let s = shape(start, if kind == plain { 1.0 } else { straight }, dir)
   return no_cand() when !s.ok
   let sum = trial(s.path, nothing(), order_list())
   return no_cand() when sum < 0
@@ -669,10 +661,7 @@ func knot_spots() -> Spots {
       let ay = y + dy
       continue when !inside(ax, ay)
       let o = grid[ay * width + ax]
-      let against = -1
-      if o == -1 {
-        against = rest[ay * width + ax]
-      }
+      let against = if o == -1 { rest[ay * width + ax] } else { -1 }
       if o >= 0 || against >= 0 {
         let room = 0
         let bx = x - dx
@@ -796,9 +785,7 @@ func any_tied(cells: []i32) -> bool {
 // straight, so that it can start k cells back.
 func walk(spot: Spot, k: i32) -> Walked {
   let back = (spot.di + 2) % 4
-  // (Drawn into a local first: 0.2.1's max evaluates its arguments twice.)
-  let drawn = len_lo + below(13, len_hi - len_lo + 1)
-  let want = max(k + 2, drawn)
+  let want = max(k + 2, len_lo + below(13, len_hi - len_lo + 1))
   let cells = ints(want)
   let tail = ints(k)
   let opts = ints(4)
@@ -811,10 +798,7 @@ func walk(spot: Spot, k: i32) -> Walked {
   grid[spot.c] = walked
   while ncells + ntail < want + k {
     let body = ncells < want
-    let c = cells[ncells - 1]
-    if !body && ntail > 0 {
-      c = tail[ntail - 1]
-    }
+    let c = if !body && ntail > 0 { tail[ntail - 1] } else { cells[ncells - 1] }
     let x = c % width
     let y = c / width
     let open = 0
@@ -848,11 +832,7 @@ func walk(spot: Spot, k: i32) -> Walked {
           }
         }
       }
-      if nties > 0 {
-        di = ties[below(16, nties)]
-      } else {
-        di = opts[below(17, open)]
-      }
+      di = if nties > 0 { ties[below(16, nties)] } else { opts[below(17, open)] }
     }
     last = di
     let next = (y + dy_of(di)) * width + x + dx_of(di)
@@ -937,23 +917,11 @@ func trap(spot: Spot) -> Cand {
 func spot_try(spots: Spots, is_knot: bool, budget: i32) -> Cand {
   let scope = mark()
   defer reset(scope)
-  let list = spots.gapped
-  if is_knot {
-    // against another knot's resting place half the time, if there is one
-    if spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) {
-      list = spots.chain
-    } else {
-      list = spots.tight
-    }
-  }
+  // a knot goes against another knot's resting place half the time, if there is one
+  let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
   return no_cand() when list.len == 0
   let spot = spot_at(list, below(21, list.len as i32))
-  let c = no_cand()
-  if is_knot {
-    c = knot(spot)
-  } else {
-    c = trap(spot)
-  }
+  let c = if is_knot { knot(spot) } else { trap(spot) }
   return no_cand() when !fits(c, budget)
   return keep(c)
 }
@@ -965,7 +933,7 @@ func knot_or_trap(room: f64, budget: i32) -> Cand {
   let want_knots = tie - knots
   let want_traps = bait - traps
   return no_cand() when n < 2 || (want_knots <= 0 && want_traps <= 0)
-  return no_cand() when !chance(19, f64(2 * (want_knots + want_traps)) / room)
+  return no_cand() when !chance(19, 2 * (want_knots + want_traps) / room)
   let spots = knot_spots()
   let knot_first = want_knots > 0 && (want_traps <= 0 || knots <= traps)
   for half in 2 {
@@ -993,16 +961,7 @@ func reaches_idle_mirror(cells: []i32) -> bool {
 // and one that brings an idle mirror into play (while any lies on no rope's way
 // out, one try per step aims at it).
 func best_rope(budget: i32, desire: f64, need: i32) -> Cand {
-  let row = 4
-  if n == 0 {
-    row = 0
-  } elif budget < 1 {
-    row = 1
-  } elif desire >= 2.0 {
-    row = 2
-  } elif desire >= 1.0 {
-    row = 3
-  }
+  let row = if n == 0 { 0 } elif budget < 1 { 1 } elif desire >= 2.0 { 2 } elif desire >= 1.0 { 3 } else { 4 }
   let aim = mirrors > mirrors_used && n >= 1
   let best = no_cand()
   let best_miss = 1.0e300
@@ -1010,31 +969,15 @@ func best_rope(budget: i32, desire: f64, need: i32) -> Cand {
     // each try in a scope of its own; the best so far is kept outside it
     let scope = mark()
     defer reset(scope)
-    let kind = kinds.i32[row * 8 + k as i32]
-    if aim && k == 0 {
-      kind = at_mirror
-    }
+    let kind = if aim && k == 0 { at_mirror } else { kinds.i32[row * 8 + k as i32] }
     let c = candidate(kind, -1)
     continue when !fits(c, budget)
-    // (Arithmetic is kept off the right of a comparison, which 0.2.1 miscompiles.)
-    let enough = min_coverage_slide * f64(area)
-    let lands = need > 0 && c.gain + c.bends >= need && f64(covered + c.path.len as i32) >= enough
+    let lands = need > 0 && c.gain + c.bends >= need && covered + c.path.len as i32 >= min_coverage_slide * area
     let reaches = aim && reaches_idle_mirror(c.lane.cells)
-    let long = 0.0
-    if desire >= 2.0 {
-      long = f64(min(c.lane.free, 4)) * 0.2
-    }
-    let landing = 0.0
-    if lands {
-      landing = 100.0
-    }
-    let reaching = 0.0
-    if reaches {
-      reaching = 1.5
-    }
-    // (The difference goes through a local: 0.2.1 compiles abs(a - b) as a - b.)
-    let off = f64(c.gain) - desire
-    let miss = abs(off) + rng(22, 0) * 0.6 - long - landing - reaching
+    let long = if desire >= 2.0 { min(c.lane.free, 4) * 0.2 } else { 0.0 }
+    let landing = if lands { 100.0 } else { 0.0 }
+    let reaching = if reaches { 1.5 } else { 0.0 }
+    let miss = abs(c.gain - desire) + rng(22, 0) * 0.6 - long - landing - reaching
     if miss < best_miss {
       best = keep(c)
       best_miss = miss
@@ -1049,7 +992,7 @@ func next_addition(score: i32) -> Cand {
   let scope = mark()
   defer reset(scope)
   let budget = s_max - score
-  let room = max(1.0:f64, (cover_goal - f64(covered)) / mean_len)
+  let room = max(1.0, (cover_goal - covered) / mean_len)
   survey()
   let c = knot_or_trap(room, budget)
   return c when c.ok
@@ -1060,7 +1003,7 @@ func lay_ropes() {
   let stuck = 0
   for guard in 2 * area {
     let score = total0 + bend_sum
-    break when score >= s_min && n >= min_ropes && f64(covered) >= cover_goal
+    break when score >= s_min && n >= min_ropes && covered >= cover_goal
     let best = next_addition(score)
     if !best.ok {
       stuck += 1
@@ -1076,11 +1019,7 @@ func lay_ropes() {
 func gap_rope(cell: i32, budget: i32) -> Cand {
   let scope = mark()
   defer reset(scope)
-  let kind = any
-  if budget < 1 {
-    kind = plain
-  }
-  let c = candidate(kind, cell)
+  let c = candidate(if budget < 1 { plain } else { any }, cell)
   return no_cand() when !fits(c, budget)
   return keep(c)
 }
@@ -1317,8 +1256,8 @@ export func weave() -> i32 {
   straight = finbuf.f64[0]
   let cover = finbuf.f64[1]
   tap_depth = finbuf.f64[2]
-  mean_len = f64(len_lo + len_hi) / 2.0 * 0.85
-  cover_goal = cover * f64(w * h)
+  mean_len = (len_lo + len_hi) / 2.0 * 0.85
+  cover_goal = cover * (w * h)
 
   // The core and the plan lie behind the mirrors: find them first, because
   // they decide how large some tables are.
@@ -1334,10 +1273,7 @@ export func weave() -> i32 {
     j += 2 + l + ns
   }
   let planned = word(j) >= 0
-  let plan = nothing()
-  if planned {
-    plan = words(j + 1, word(j))
-  }
+  let plan = if planned { words(j + 1, word(j)) } else { nothing() }
 
   start_build(w, h, core_stops, plan.len as i32)
   for m in nmirrors {

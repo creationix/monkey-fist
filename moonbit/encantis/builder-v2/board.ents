@@ -122,6 +122,9 @@ export func add_mirror(c: i32, kind: i32) {
   slope[c] = kind
 }
 
+// (dx, dy) turned by the mirror of slope s: '/' sends it to (-dy, -dx), '\' to (dy, dx).
+func turn(s: i32, dx: i32, dy: i32) -> (i32, i32) => if s == 0 { (0 - dy, 0 - dx) } else { (dy, dx) }
+
 // Which way a rope's head points: one step from the cell behind it. A path
 // runs from tail to head.
 export func head_dir(path: []i32) -> (dx: i32, dy: i32) {
@@ -148,17 +151,8 @@ export func ray(x0: i32, y0: i32, dx0: i32, dy0: i32) -> bool {
     break when x < 0 || y < 0 || x >= width || y >= height
     let c = y * width + x
     push(c)
-    let s = slope[c]
-    if s >= 0 {
-      // '/' sends (dx, dy) to (-dy, -dx); '\' sends it to (dy, dx)
-      let t = dx
-      if s == 0 {
-        dx = 0 - dy
-        dy = 0 - t
-      } else {
-        dx = dy
-        dy = t
-      }
+    if slope[c] >= 0 {
+      set (dx, dy) = turn(slope[c], dx, dy)
       turned = true
       return false when since(start).len > (2 * area) as u32
     }
@@ -181,16 +175,8 @@ export func self_blocked(path: []i32) -> bool {
   let dx, dy = head_dir(path)
   if mirrors > 0 {
     // A head lying on a mirror leaves it already turned.
-    let s = slope[h]
-    if s >= 0 {
-      let t = dx
-      if s == 0 {
-        dx = 0 - dy
-        dy = 0 - t
-      } else {
-        dx = dy
-        dy = t
-      }
+    if slope[h] >= 0 {
+      set (dx, dy) = turn(slope[h], dx, dy)
     }
     let scope = mark()
     defer reset(scope)
@@ -298,13 +284,11 @@ export func slide_to(i: i32) -> i32 {
 export func relax() -> i32 {
   let waiting = 0
   for i in n {
-    let v = gone
     if off[i] >= 0 {
-      v = off[i]
       waiting += 1
     }
-    was[i] = v
-    now[i] = v
+    was[i] = if off[i] >= 0 { off[i] } else { gone }
+    now[i] = was[i]
   }
   let moved = true
   while moved && waiting > 0 {
@@ -378,14 +362,8 @@ func tap(i: i32) -> bool {
     }
     p += 1
   }
-  let to = -1
-  if p < total {
-    to = p - l
-  }
-  let want = -1
-  if done[i] < stops[i].len as i32 {
-    want = stops[i].ptr[done[i]]
-  }
+  let to = if p < total { p - l } else { -1 }
+  let want = if done[i] < stops[i].len as i32 { stops[i].ptr[done[i]] } else { -1 }
   return false when to != want
   if to >= 0 {
     // what it stops against had to get there first
@@ -396,10 +374,7 @@ func tap(i: i32) -> bool {
     }
   }
   lay += 1
-  let end = from + l
-  if to >= 0 {
-    end = min(end, to)
-  }
+  let end = if to >= 0 { min(from + l, to) } else { from + l }
   for emptied in part(q, from, end) {
     cell_at[emptied] = lay
     cell_by[emptied] = i
