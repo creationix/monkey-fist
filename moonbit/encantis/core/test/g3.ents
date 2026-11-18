@@ -1,0 +1,327 @@
+// The entry of G3's oracle (oracle/check-g3.cjs): the ABI buffers, draws(), stack_peak(),
+// and a t_ hook for each kernel of hex.ents. Each hook reads the position in the input
+// (read_position's words: the board, the current paths, and a plan in the place of the
+// preferred order) and clears the stack first, as every export of the core does. The
+// geometry hooks take numbers.
+
+import "../lib/stack" (
+  "clear" func clear()
+  "peak" func peak() -> u32
+  "alloc" func alloc(n: u32) -> u32
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+)
+import "../lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "../random" (
+  "draws" func draws_made() -> u32
+  "reset_draws" func reset_draws(on: bool)
+  "rng" func new_rng(seed: u32) -> *mut Rng
+  "hash_text" func hash_text(s: []u8) -> u32
+)
+import "../board" (
+  "last" func last(p: []Pt) -> Pt
+)
+import "../abi" (
+  "in_reset" func abi_in_reset()
+  "in_push" func abi_in_push(c: i32)
+  "out_len" func abi_out_len() -> i32
+  "out_get" func abi_out_get(i: i32) -> i32
+  "outf_get" func abi_outf_get(i: i32) -> f64
+  "out_clear" func out_clear()
+  "put" func put(w: i32)
+  "read_position" func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32)
+)
+import "../hex" (
+  "hex_inside" func hex_inside(w: i32, h: i32, p: Pt) -> bool
+  "hex_cell" func hex_cell(p: Pt, w: i32) -> i32
+  "hex_point" func hex_point(c: i32, w: i32) -> Pt
+  "hex_reflect" func hex_reflect(d: i32, axis: i32) -> i32
+  "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_mirrors" func hex_mirrors(w: i32, h: i32, mirrors: []Mirror) -> *mut SqMirrors
+  "ray_track" func ray_track(w: i32, h: i32, head: i32, d0: i32, m: *SqMirrors, out: *mut Vec(i32), turns: ?*mut Vec(i32)) -> bool
+  "exit_index" func exit_index(w: i32, path: []Pt, m: *SqMirrors) -> i32
+  "hex_turning" func hex_turning(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> []i32
+  "hex_compile" func hex_compile(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> ?*mut HexBoard
+  "to" func to(b: *HexBoard, i: i32) -> i32
+  "free" func free(b: *HexBoard) -> bool
+  "dead" func dead(b: *HexBoard) -> bool
+  "frozen" func frozen(b: *HexBoard) -> []i32
+  "relaxed" func relaxed(b: *HexBoard) -> [*]mut i32
+  "paths_now" func paths_now(b: *HexBoard) -> []?[]Pt
+  "hex_replay" func hex_replay(w: i32, h: i32, mirrors: []Mirror, moves: []i32, paths: []?[]Pt) -> Replayed
+  "hex_solve" func hex_solve(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+  "hex_postpone_exits" func hex_postpone_exits(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, plan: []i32) -> ?[]i32
+  "hex_casual_wins" func hex_casual_wins(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, r: *mut Rng, games: i32) -> f64
+  "hex_fewest_player_taps" func hex_fewest_player_taps(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, fallback: []i32, budget: i32) -> ?*Par
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type HexBoard = (w: i32, n: i32, left: i32, tracks: [*]mut []i32, lengths: [*]mut i32, offsets: [*]mut i32,
+                 occupied: [*]mut i32, at: [*]mut i32, reach: [*]mut i32)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+
+export memory
+
+// --- The buffers ---
+
+export func in_reset() {
+  abi_in_reset()
+}
+
+export func in_push(c: i32) {
+  abi_in_push(c)
+}
+
+export func out_len() -> i32 => abi_out_len()
+
+export func out_get(i: i32) -> i32 => abi_out_get(i)
+
+export func outf_get(i: i32) -> f64 => abi_outf_get(i)
+
+export func draws() -> i32 => draws_made() as i32
+
+export func stack_peak() -> i32 => peak() as i32
+
+// --- The geometry ---
+
+export func t_point_q(c: i32, w: i32) -> i32 => hex_point(c, w).q
+export func t_point_r(c: i32, w: i32) -> i32 => hex_point(c, w).r
+export func t_cell(q: i32, r: i32, w: i32) -> i32 => hex_cell(Pt(q, r), w)
+export func t_inside(w: i32, h: i32, q: i32, r: i32) -> i32 => bit(hex_inside(w, h, Pt(q, r)))
+export func t_reflect(d: i32, axis: i32) -> i32 => hex_reflect(d, axis)
+export func t_dir_index(dq: i32, dr: i32) -> i32 => hex_dir_index(dq, dr)
+
+// --- The position in the input ---
+
+// A position on a Hex board: its size, its mirrors, the paths (none where a rope has left),
+// and the plan the hooks use.
+type Pos = (w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, plan: []i32)
+
+func position() -> Pos {
+  let (board:, paths:, prefer:) = read_position()
+  return Pos(board.w, board.h, board.mirrors, paths, prefer)
+}
+
+// A counted list of words.
+func put_list(xs: []i32) {
+  put(xs.len as i32)
+  for x in xs {
+    put(x)
+  }
+}
+
+func bit(b: bool) -> i32 => if b { 1 } else { 0 }
+
+// FNV-1a over words, as check-g3.cjs hashes them.
+func mix(h: u32, w: i32) -> u32 => (h ^ (w as u32)) * 0x01000193
+
+// The words of a position's paths (per rope its length, 0 if gone, then q, r), hashed.
+func paths_hash(paths: []?[]Pt) -> u32 {
+  let h: u32 = 0x811c9dc5
+  for p in paths {
+    if let path = p {
+      h = mix(h, path.len as i32)
+      for c in path {
+        h = mix(mix(h, c.q), c.r)
+      }
+    } else {
+      h = mix(h, 0)
+    }
+  }
+  return h
+}
+
+// The words of a position's paths, in full.
+func put_paths(paths: []?[]Pt) {
+  for path in paths {
+    if let ps = path {
+      put(ps.len as i32)
+      for c in ps {
+        put(c.q)
+        put(c.r)
+      }
+    } else {
+      put(0)
+    }
+  }
+}
+
+// --- The hooks ---
+
+// compile(level, paths): 0, writing nothing, where a way out passes a cell twice (the JS
+// throws). Else 1, writing per rope its track (counted), length, offset and to(i); to(-1),
+// to(n), free, dead, the frozen ropes, the reach of relaxed() (counted), left; occupied and at
+// by cell; and the hash of paths_now.
+export func t_compile() -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let b = hex_compile(p.w, p.h, p.mirrors, p.paths) {
+    for i in b.n {
+      put_list(b.tracks[i])
+      put(b.lengths[i])
+      put(b.offsets[i])
+      put(b.to(i as i32))
+    }
+    put(b.to(-1))
+    put(b.to(b.n))
+    put(bit(b.free()))
+    put(bit(b.dead()))
+    put_list(b.frozen())
+    put_list(b.relaxed()[0..b.n as u32])
+    put(b.left)
+    let area = (p.w * p.h) as u32
+    for c in b.occupied[0..area] {
+      put(c)
+    }
+    for c in b.at[0..area] {
+      put(c)
+    }
+    put(paths_hash(b.paths_now()) as i32)
+    return 1
+  }
+  return 0
+}
+
+// Per rope: -1 if it has left; else its exit_index, then ray_track from its head along it
+// into an empty list: 1 or 0 for false, the list as left (also when false), and the turning
+// cells.
+export func t_rays() {
+  clear()
+  let p = position()
+  out_clear()
+  let bent = hex_mirrors(p.w, p.h, p.mirrors)
+  for path in p.paths {
+    if let ps = path {
+      let d = exit_index(p.w, ps, bent)
+      let cells = vec(i32, 8)
+      let turns = vec(i32, 8)
+      put(d)
+      put(bit(ray_track(p.w, p.h, hex_cell(last(ps), p.w), d, bent, cells, turns)))
+      put_list(cells.items())
+      put_list(turns.items())
+    } else {
+      put(-1)
+    }
+  }
+}
+
+// turningMirrors(level, paths): counted, in insertion order.
+export func t_turning() {
+  clear()
+  let p = position()
+  out_clear()
+  put_list(hex_turning(p.w, p.h, p.mirrors, p.paths))
+}
+
+// solve(level, paths, budget, plan): solved (1, 0, or -1 when the budget ran out), nodes, then
+// the moves.
+export func t_solve(budget: i32) {
+  clear()
+  let p = position()
+  out_clear()
+  let s = hex_solve(p.w, p.h, p.mirrors, p.paths, budget, p.plan)
+  put(s.solved)
+  put(s.nodes)
+  put_list(s.moves)
+}
+
+// replay(level, plan[0..k], paths) for every k from 0 to the plan's length: solved, player
+// taps, the events (0 exit, 2 slide), and the paths after as a hash of their words. Then the
+// paths after the whole plan, rope by rope.
+export func t_replay() {
+  clear()
+  let p = position()
+  out_clear()
+  for k in p.plan.len + 1 {
+    let scope = mark()
+    defer reset(scope)
+    let r = hex_replay(p.w, p.h, p.mirrors, p.plan[0..k] ?? p.plan, p.paths)
+    put(bit(r.solved))
+    put(r.taps)
+    put_list(r.events)
+    put(paths_hash(r.paths) as i32)
+    if k == p.plan.len {
+      put_paths(r.paths)
+    }
+  }
+}
+
+// postponeExits(level, plan): 0 for null; else 1, writing the player taps of the new plan (a
+// replay's), then the plan.
+export func t_postpone() -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let best = hex_postpone_exits(p.w, p.h, p.mirrors, p.paths, p.plan) {
+    put(hex_replay(p.w, p.h, p.mirrors, best, p.paths).taps)
+    put_list(best)
+    return 1
+  }
+  return 0
+}
+
+// casualWins(level, mulberry32(seed), games): the share won; draws() is the draws it made.
+export func t_casual(games: i32, seed: i32) -> f64 {
+  clear()
+  let p = position()
+  let r = new_rng(seed as u32)
+  reset_draws(false)
+  return hex_casual_wins(p.w, p.h, p.mirrors, p.paths, r, games)
+}
+
+// fewestPlayerTaps(level, plan, budget): 0 where the plan does not clear the board (the JS
+// throws); else 1, writing par, exact, nodes and the plan.
+export func t_fewest(budget: i32) -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let f = hex_fewest_player_taps(p.w, p.h, p.mirrors, p.paths, p.plan, budget) {
+    put(f.par)
+    put(bit(f.exact))
+    put(f.nodes)
+    put_list(f.plan)
+    return 1
+  }
+  return 0
+}
+
+// --- Timing (the bench_* of src/api, on the start of the board in the input) ---
+
+// bench_par (score of gridgen.mbt): postponeExits of the plan, then fewestPlayerTaps from it
+// with budget 2,500. The par.
+export func t_par() -> i32 {
+  clear()
+  let p = position()
+  let start = hex_postpone_exits(p.w, p.h, p.mirrors, p.paths, p.plan) ?? p.plan
+  if let f = hex_fewest_player_taps(p.w, p.h, p.mirrors, p.paths, start, 2500) {
+    return f.par
+  }
+  return -1
+}
+
+// bench_solve: solve from the start with no preferred order. The nodes.
+export func t_bench_solve(budget: i32) -> i32 {
+  clear()
+  let p = position()
+  return hex_solve(p.w, p.h, p.mirrors, p.paths, budget, p.plan[0..0] ?? p.plan).nodes
+}
+
+// bench_casual: casual play from the start with rng_of("bench"), mulberry32(hashString("bench")).
+export func t_bench_casual(games: i32) -> f64 {
+  clear()
+  let p = position()
+  return hex_casual_wins(p.w, p.h, p.mirrors, p.paths, new_rng(hash_text("bench")), games)
+}

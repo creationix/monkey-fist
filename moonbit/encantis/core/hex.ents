@@ -1,0 +1,842 @@
+// hex.mbt of the MoonBit core, lines 1 to 668: Hex geometry, the ways out, and the compact
+// offset kernels of hex/engine.js at 9e69e3a, for Hex boards without spinners. Axial q/r
+// coordinates; a cell index is an offset column, r * w + q + floor(r / 2). (hex_intentions and
+// hex_build, the rest of hex.mbt, are G4's: hexbuild.ents.)
+//
+// A rope can only occupy cells of its own track: its body, then its way out as fixed mirrors
+// bend it. So a board is one offset per rope. A board is a HexBoard behind a *mut, made on the
+// stack by hex_compile: several are alive at once (the generator holds one while casual play
+// compiles others, and G4's builder compiles one per candidate). Its tables are many-pointers,
+// so indexing them is not checked: every cell index comes from a track, and every rope index
+// from 0..n, a plan a replay has checked, or a guard. Hot reads carry `// unchecked:`.
+//
+// These are not square.ents's kernels with other geometry, and do not share code with them:
+// hex_solve keeps a seen set and a preferred prefix and counts its budget otherwise than
+// sq_solve; relaxed() works in place where relax() double-buffers; the replay counts its taps
+// otherwise. What is shared is keys.ents (the visited sets), board.ents's SqMirrors (MoonBit's
+// hex uses its type too) and has_dup, and the layout of the tables.
+//
+// A search keeps what its JS closure captured in a context struct behind a *mut (Solve,
+// Fewest), and is a top-level recursive function over it (`// closure:`). Each search node
+// takes a scope for its list of tries, freed on return (defer). What outlives a node, the moves
+// found and the positions seen, is made before the search with all its room (`// reserve:`).
+// The positions seen are keys.ents sets keyed by the offsets themselves (MoonBit's
+// key_of(offsets) strings).
+//
+// The kernels take the paths of a position ([]?[]Pt: none where a rope has left), as
+// hex_compile, hex_replay and hex_solve do in MoonBit. MoonBit's hex_postpone_exits,
+// hex_casual_wins, hex_fewest_player_taps and hex_turning take the ropes and call
+// some_paths(ropes) first: here the caller does, so that they work from any position, as the
+// JS's do when given a level whose ropes are a position's paths.
+//
+// Lifetimes. A function that returns a list builds it in its caller's scope: hex_compile,
+// hex_mirrors, b.paths_now, b.frozen and hex_replay leave what they make there too; hex_solve,
+// hex_fewest_player_taps, hex_postpone_exits and hex_turning make their result there and do
+// the rest in a scope of their own. Functions that return a number leave nothing.
+//
+// Options: hex_compile and hex_fewest_player_taps return ?*T, hex_postpone_exits ?[]i32
+// (`// enum:`). Solved.solved is the tri-state solved_yes, solved_no, solved_unknown
+// (MoonBit's Bool?), and events are ev_exit, ev_slide.
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "pop" func pop(comptime T: type, v: *mut Vec(T)) -> T
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+  "items_mut" func items_mut(comptime T: type, v: *mut Vec(T)) -> []mut T
+  "clear" func clear(comptime T: type, v: *mut Vec(T))
+)
+import "./lib/sort" (
+  "sort" func sort(comptime T: type, xs: []mut T, comptime before: (T, T) -> bool)
+)
+import "./random" (
+  "next" func next(r: *mut Rng) -> f64
+  "one_of" func one_of(comptime T: type, r: *mut Rng, xs: []T) -> T
+  "floor_div" func floor_div(a: i32, b: i32) -> i32
+  "index_from" func index_from(comptime T: type, xs: []T, x: T, from: u32) -> i32
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+)
+import "./board" (
+  "gone" func gone() -> ?[]Pt
+  "last" func last(p: []Pt) -> Pt
+  "at" func slope_at(m: *SqMirrors, c: i32) -> i32
+  "set_at" func set_at(m: *mut SqMirrors, c: i32, s: i32)
+  "size" func size(m: *SqMirrors) -> i32
+  "has_dup" func has_dup(cells: []i32) -> bool
+)
+import "./keys" (
+  "KeySet" func KeySet(comptime W: type) -> type
+  "KeyMap" func KeyMap(comptime W: type, comptime V: type) -> type
+  "keyset" func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W)
+  "add_key" func add_key(comptime W: type, s: *mut KeySet(W), key: []W) -> bool
+  "has_key" func has_key(comptime W: type, s: *KeySet(W), key: []W) -> bool
+  "keymap" func keymap(comptime W: type, comptime V: type, keys: u32, words: u32) -> *mut KeyMap(W, V)
+  "set_key" func set_key(comptime W: type, comptime V: type, m: *mut KeyMap(W, V), key: []W, v: V) -> bool
+  "get_key" func get_key(comptime W: type, comptime V: type, m: *KeyMap(W, V), key: []W, fallback: V) -> V
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+
+// The compact board (compile() of hex/engine.js): tracks[i] is rope i's track (its body, then
+// its way out), lengths[i] its length, offsets[i] how far along it has slid (-1 once it has
+// left). By cell: occupied, the rope on it (-1 for none), and at, the cell's index along that
+// rope's track. reach is relaxed()'s table, written in place.
+type HexBoard = (w: i32, n: i32, left: i32, tracks: [*]mut []i32, lengths: [*]mut i32, offsets: [*]mut i32,
+                 occupied: [*]mut i32, at: [*]mut i32, reach: [*]mut i32)
+
+// What hex_solve found (square.ents's Solved). solved: solved_yes with the taps in moves,
+// solved_no when there is certainly no way, solved_unknown when the budget ran out first.
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+def solved_yes = 1:i32
+def solved_no = 0:i32
+def solved_unknown = -1:i32  // enum: MoonBit's Bool?
+
+// What hex_fewest_player_taps found: a plan, its player taps, whether the search finished,
+// and the positions it looked at (the JS's nodes; MoonBit drops them).
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+
+// What hex_replay did: whether the board emptied, the player taps, an event per tap, and the
+// paths as they were left (square.ents's Replayed).
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+def ev_exit = 0:i32
+def ev_slide = 2:i32
+
+def none = 1000000:i32    // the rank of a rope the fallback does not name (1e6), and a dead key's depth
+
+// n i32s, each v, on the stack.
+func table(n: i32, v: i32) -> [*]mut i32 {
+  assert n >= 0 && n < 0x10000000   // (n as u32) * 4 must not wrap
+  let p = alloc((n as u32) * 4) as [*]mut i32
+  p[0..n as u32] = v
+  return p
+}
+
+// --- Geometry ---
+
+// The six directions, (dq, dr) by index, in the JS's order (DIRS).
+// comptime-n: the [D]Pt rows of one grid kernel generic over D (4 on square, 6 on Hex)
+data dirs: *[6]Pt = [(1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1), (1, -1)]
+
+// Whether p is on a board of w columns and h rows.
+export func hex_inside(w: i32, h: i32, p: Pt) -> bool {
+  return false when p.r < 0 || p.r >= h
+  let x = p.q + p.r / 2  // r >= 0 here, so this is floor_div(r, 2)
+  return x >= 0 && x < w
+}
+
+// The cell index of p (cell() of the JS).
+export func hex_cell(p: Pt, w: i32) -> i32 => p.r * w + p.q + floor_div(p.r, 2)
+
+// The point of cell c, c >= 0 (point() of the JS).
+export func hex_point(c: i32, w: i32) -> Pt {
+  let r = c / w
+  return Pt(c % w - r / 2, r)
+}
+
+// Direction d after a mirror of this axis: 2 * axis - d, mod 6 (d itself when met edge-on).
+export func hex_reflect(d: i32, axis: i32) -> i32 => ((2 * axis - d) % 6 + 6) % 6
+
+// The index of direction (dq, dr), or -1.
+export func hex_dir_index(dq: i32, dr: i32) -> i32 {
+  for d in 6 {
+    let v = dirs[d]
+    return d as i32 when v.q == dq && v.r == dr
+  }
+  return -1
+}
+
+// d as a direction index. Traps on anything but 0 to 5, as the JS does (DIRS[d] is undefined)
+// and MoonBit does (hex_dq[d] is out of bounds).
+func dir(d: i32) -> u32#6 {
+  let k = d as u32
+  if k >= 6 {
+    assert false  // not a direction
+    return 0
+  }
+  return k
+}
+
+// hex_reflect on a direction index.
+func turn(d: u32#6, axis: i32) -> u32#6 => ((2 * axis - (d as i32)) % 6 + 6) as u32 % 6
+
+// The two cells at a path's head, as a step: the direction it points in. A path runs from
+// tail to head, and has two cells or more.
+func head_dir(path: []Pt) -> (dq: i32, dr: i32) {
+  assert path.len >= 2
+  let h = path.ptr[path.len - 1]  // unchecked: len >= 2
+  let p = path.ptr[path.len - 2]  // unchecked: len >= 2
+  dq = h.q - p.q
+  dr = h.r - p.r
+}
+
+// --- Mirrors and ways out ---
+
+// The fixed mirrors of a Hex board by cell: the axis, or -1 (mirrorCells() of the JS, a Map
+// there). Its keys have room for every mirror, so set_at never grows them.
+export func hex_mirrors(w: i32, h: i32, mirrors: []Mirror) -> *mut SqMirrors {
+  let cells = w * h
+  assert cells >= 0 && cells < 0x10000000  // cells * 4 must not wrap
+  let slope = alloc((cells as u32) * 4) as [*]mut i32
+  slope[0..cells as u32] = -1
+  let m = alloc(sizeof(SqMirrors)) as *mut SqMirrors
+  m.* = SqMirrors(slope, cells, vec(i32, mirrors.len))  // reserve: a key per mirror
+  for x in mirrors {
+    m.set_at(hex_cell(x.cell, w), x.kind)
+  }
+  return m
+}
+
+// Pushes onto out the cells ahead of cell `head` moving in direction d0, to the edge; a mirror
+// turns the head as it enters the mirror's cell. False if the way out would enter a cell twice
+// (the game refuses that tap), or runs on past twice the board. The mirror cells where it turns
+// go to turns, if given, once each, in the order met.
+export func ray_track(w: i32, h: i32, head: i32, d0: i32, m: *SqMirrors, out: *mut Vec(i32), turns: ?*mut Vec(i32)) -> bool {
+  let start = out.len
+  let p = hex_point(head, w)
+  let d = dir(d0)
+  let turned = false
+  loop {
+    let step = dirs[d]
+    p = Pt(p.q + step.q, p.r + step.r)
+    break when !hex_inside(w, h, p)
+    let c = hex_cell(p, w)
+    let axis = m.slope_at(c)
+    out.push(c)
+    if axis >= 0 {
+      let e = turn(d, axis)
+      if e != d {
+        turned = true
+        if let t = turns {
+          if !contains(t.items(), c) {  // closure: turns?.add(c), a Set
+            t.push(c)
+          }
+        }
+      }
+      d = e
+      return false when out.len - start > (2 * w * h) as u32
+    }
+  }
+  return !(turned && has_dup(out.ptr[start..out.len]))
+}
+
+// Which way a path's head leaves: its direction index, turned by a mirror on its own cell.
+// -1 when its last step is not a direction.
+export func exit_index(w: i32, path: []Pt, m: *SqMirrors) -> i32 {
+  let dq, dr = head_dir(path)
+  let d = hex_dir_index(dq, dr)
+  let axis = m.slope_at(hex_cell(last(path), w))
+  return d when axis < 0
+  return hex_reflect(d, axis)
+}
+
+// The mirror cells on which some rope's way out actually turns, in the order met, in the
+// caller's scope (turningMirrors() of the JS, a Set there).
+export func hex_turning(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> []i32 {
+  let turns = vec(i32, mirrors.len)  // reserve: only a mirror's cell can turn a way out
+  let scope = mark()
+  defer reset(scope)
+  let bent = hex_mirrors(w, h, mirrors)
+  let out = vec(i32, 16)
+  for p in paths {
+    if let path = p {
+      out.clear()
+      ray_track(w, h, hex_cell(last(path), w), exit_index(w, path, bent), bent, out, turns)
+    }
+  }
+  return turns.items()
+}
+
+// --- The board ---
+
+// The board of these paths (a path is none once its rope has left), on the stack in the
+// caller's scope. None if some rope's way out passes a cell twice.
+export func hex_compile(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> ?*mut HexBoard {
+  let n = paths.len as i32
+  let area = w * h
+  let tracks = alloc(paths.len * sizeof([]i32)) as [*]mut []i32
+  let lengths = table(n, 0)
+  let offsets = table(n, -1)
+  let occupied = table(area, -1)
+  let at = table(area, 0)
+  let bent = hex_mirrors(w, h, mirrors)
+  let left = 0
+  for i, p in paths {
+    tracks[i] = []
+    if let path = p {
+      let track = vec(i32, path.len + 8)
+      for c in path {  // closure: path.map(p => hex_cell(p, w))
+        let cell = hex_cell(c, w)
+        // occupied and at are written at the body's cells unchecked (below, and in place); off
+        // the board that would write over the stack, where the JS's typed arrays ignore it
+        assert cell >= 0 && cell < area
+        track.push(cell)
+      }
+      for j, c in track.items() {
+        occupied[c] = i as i32  // unchecked: a cell of the board
+        at[c] = j as i32
+      }
+      if bent.size() > 0 {
+        let head = track.ptr[path.len - 1]  // unchecked: the body's last cell
+        return 0 as ?*mut HexBoard when !ray_track(w, h, head, exit_index(w, path, bent), bent, track, 0 as ?*mut Vec(i32))  // enum: none
+      } else {
+        let dq, dr = head_dir(path)
+        let hd = last(path)
+        let q = Pt(hd.q + dq, hd.r + dr)
+        while hex_inside(w, h, q) {
+          track.push(hex_cell(q, w))
+          q = Pt(q.q + dq, q.r + dr)
+        }
+      }
+      tracks[i] = track.items()
+      lengths[i] = path.len as i32
+      offsets[i] = 0
+      left += 1
+    }
+  }
+  let b = alloc(sizeof(HexBoard)) as *mut HexBoard
+  b.* = HexBoard(w, n, left, tracks, lengths, offsets, occupied, at, table(n, 0))
+  return b
+}
+
+// hex_compile, for paths whose ways out pass no cell twice (traps otherwise).
+export func hex_compile_exn(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> *mut HexBoard {
+  if let b = hex_compile(w, h, mirrors, paths) {
+    return b
+  }
+  assert false  // A rope's way out passes a cell twice
+  return 0 as *mut HexBoard
+}
+
+// Where rope i would stop if tapped: its new offset, -1 if it would leave, -2 if there is no
+// rope i on the board (out of range, or gone).
+export func to(b: *HexBoard, i: i32) -> i32 {
+  return -2 when i < 0 || i >= b.n
+  let o = b.offsets[i]  // unchecked: i < n
+  return -2 when o < 0
+  let track = b.tracks[i]  // unchecked: i < n
+  let total = track.len as i32
+  let length = b.lengths[i]
+  let occupied = b.occupied
+  let p = o + length
+  while p < total && occupied[track.ptr[p]] < 0 {  // unchecked: p < total
+    p += 1
+  }
+  return -1 when p == total
+  return p - length
+}
+
+// Puts rope i at offset target (-1 takes it off the board). Also takes a move back.
+export func place(b: *mut HexBoard, i: i32, target: i32) {
+  let from = b.offsets[i]  // unchecked: a rope
+  let track = b.tracks[i].ptr
+  let length = b.lengths[i]
+  let occupied = b.occupied
+  if from >= 0 {
+    for c in track[from as u32..(from + length) as u32] {  // unchecked: the rope's cells
+      occupied[c] = -1
+    }
+    b.left -= 1
+  }
+  if target >= 0 {
+    let at = b.at
+    let j = target
+    for c in track[target as u32..(target + length) as u32] {  // unchecked: the rope's cells
+      occupied[c] = i
+      at[c] = j
+      j += 1
+    }
+    b.left += 1
+  }
+  b.offsets[i] = target
+}
+
+// True when no rope blocks another: every rope still on the board can leave at once.
+export func free(b: *HexBoard) -> bool {
+  for i in b.n {
+    return false when b.offsets[i] >= 0 && b.to(i as i32) != -1
+  }
+  return true
+}
+
+// The paths on the board, none where a rope has left, in the caller's scope (pathsNow()).
+export func paths_now(b: *HexBoard) -> []?[]Pt {  // closure: two Array::makei lambdas
+  let out = alloc((b.n as u32) * sizeof(?[]Pt)) as [*]mut ?[]Pt
+  for i in b.n {
+    let o = b.offsets[i]
+    if o < 0 {
+      out[i] = gone()
+    } else {
+      let l = b.lengths[i] as u32
+      let ps = alloc(l * sizeof(Pt)) as [*]mut Pt
+      for j, c in b.tracks[i].ptr[o as u32..o as u32 + l] {  // unchecked: the rope's cells
+        ps[j] = hex_point(c, b.w)
+      }
+      out[i] = ps[0..l]
+    }
+  }
+  return out[0..b.n as u32]
+}
+
+// The relaxation: optimistically lets every rope use the cells another could eventually
+// vacate, until none gets further; reach[i] is where rope i got to, -1 if out. In place: a rope
+// sees what the ropes before it got to in the same round. Anything still stuck under that
+// relaxation is certainly stuck.
+export func relaxed(b: *HexBoard) -> [*]mut i32 {
+  let n = b.n
+  let reach = b.reach
+  let occupied = b.occupied
+  let at = b.at
+  for i in n {
+    reach[i] = b.offsets[i]
+  }
+  let changed = true
+  while changed {
+    changed = false
+    for i in n {
+      let r = reach[i]
+      continue when r < 0
+      let track = b.tracks[i]  // unchecked: a rope
+      let total = track.len as i32
+      let length = b.lengths[i]
+      let got = r
+      loop {
+        let j = got + length
+        if j >= total {
+          got = -1
+          break
+        }
+        let c = track.ptr[j]  // unchecked: j < total
+        let owner = occupied[c]
+        // still in the way: its own body always is, another rope's until it could be past c
+        break when owner >= 0 && reach[owner] >= 0 && (if owner == (i as i32) { got } else { reach[owner] }) <= at[c]
+        got += 1
+      }
+      if got != r {
+        reach[i] = got
+        changed = true
+      }
+    }
+  }
+  return reach
+}
+
+// True when some rope can never leave, whatever is tapped.
+export func dead(b: *HexBoard) -> bool {
+  let reach = b.relaxed()
+  for i in b.n {
+    return true when reach[i] >= 0
+  }
+  return false
+}
+
+// The ropes that can never move again, in the caller's scope.
+export func frozen(b: *HexBoard) -> []i32 {
+  let reach = b.relaxed()
+  let out = vec(i32, b.n as u32)
+  for i in b.n {
+    let o = b.offsets[i]
+    if o >= 0 && reach[i] == o {
+      out.push(i as i32)
+    }
+  }
+  return out.items()
+}
+
+// --- Replays ---
+
+// Replays moves as the game does: each must move its rope, and player taps are counted until
+// no rope blocks another. Stops at the first move that moves nothing. Everything is in the
+// caller's scope.
+export func hex_replay(w: i32, h: i32, mirrors: []Mirror, moves: []i32, paths: []?[]Pt) -> Replayed {
+  let b = hex_compile_exn(w, h, mirrors, paths)
+  let events = vec(i32, moves.len)
+  let taps = 0
+  let automatic = false
+  for i in moves {
+    let target = b.to(i)
+    return Replayed(false, taps, events.items(), b.paths_now()) when target == -2 || target == b.offsets[i]
+    if !automatic {
+      taps += 1
+    }
+    b.place(i, target)
+    events.push(if target < 0 { ev_exit } else { ev_slide })
+    if b.free() {
+      automatic = true
+    }
+  }
+  return Replayed(b.left == 0, taps, events.items(), b.paths_now())
+}
+
+// The player taps of moves where they clear the board, else -1: hex_replay, in a scope of its
+// own.
+func solved_taps(w: i32, h: i32, mirrors: []Mirror, moves: []i32, paths: []?[]Pt) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  let r = hex_replay(w, h, mirrors, moves, paths)
+  return if r.solved { r.taps } else { -1 }  // enum: none
+}
+
+// Moves exits the rest of the solution does not need to the automatic release, while that
+// lowers the player taps (two passes at most). None if plan does not clear the board. The plan
+// is in the caller's scope.
+export func hex_postpone_exits(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, plan: []i32) -> ?[]i32 {
+  let taps = solved_taps(w, h, mirrors, plan, paths)
+  return (0 as [*]i32, 0:u32) when taps < 0  // enum: the none of a ?[]i32
+  let n = plan.len
+  let best = alloc(n * 4) as [*]mut i32
+  let trial = alloc(n * 4) as [*]mut i32
+  for k, i in plan {
+    best[k] = i
+  }
+  for pass in 2 {
+    let improved = false
+    let k = n as i32 - 1
+    while k >= 0 {
+      let i = best[k]
+      // only a rope's last tap is its exit
+      if index_from(best[0..n], i, (k + 1) as u32) < 0 {
+        // best without its k-th tap, then that tap last
+        for j, x in best[0..k as u32] {
+          trial[j] = x
+        }
+        for j, x in best[(k + 1) as u32..n] {
+          trial[k as u32 + j] = x
+        }
+        trial[n - 1] = i
+        let t = solved_taps(w, h, mirrors, trial[0..n], paths)
+        if t >= 0 && t < taps {
+          let was_best = best
+          best = trial
+          trial = was_best
+          taps = t
+          improved = true
+        }
+      }
+      k -= 1
+    }
+    break when !improved
+  }
+  return best[0..n]
+}
+
+// --- The solver ---
+
+// A tap to try: rope i to offset target, tried in order of rank, then of i.
+type Try = (i: i32, target: i32, rank: i32)
+func first(a: Try, b: Try) -> bool => a.rank < b.rank || (a.rank == b.rank && a.i < b.i)  // closure: 2 comparator lambdas
+
+// Room for a search's positions: keys of n words, one per node at most.
+func reserve(budget: i32, n: i32) -> (keys: u32, words: u32) {
+  keys = (max(budget, 0) + 1) as u32
+  assert keys <= 0x4000000 && (n == 0 || keys <= 0x10000000 / (n as u32))
+  words = keys * (n as u32)
+}
+
+// The search of hex_solve: its board, the positions seen, the taps so far, the preferred
+// order.
+type Solve = (b: *mut HexBoard, seen: *mut KeySet(i32), moves: *mut Vec(i32), prefer: []i32,
+              nodes: i32, budget: i32, exhausted: bool)
+
+// One node of the depth-first search, with the preferred order from prefer[preferred] on (the
+// JS's preferred.slice(1) is preferred + 1).
+func search(s: *mut Solve, preferred: u32) -> bool {  // closure: search() of hex_solve
+  let b = s.b
+  return true when b.left == 0
+  let key = b.offsets[0..b.n as u32]
+  return false when s.seen.has_key(key)
+  s.nodes += 1
+  if s.nodes > s.budget {
+    s.exhausted = true
+    return false
+  }
+  s.seen.add_key(key)
+  return false when b.dead()
+  // The JS's comparator puts the preferred rope p0 first, then the ropes that leave, then the
+  // slides, in the order found: as a rank in each try (-1, 0, 1), a stable sort gives the same
+  // order and the comparator captures nothing.
+  let p0 = s.prefer[preferred] ?? -1
+  let scope = mark()
+  defer reset(scope)
+  let tries = vec(Try, b.n as u32)
+  for i in b.n {
+    let target = b.to(i as i32)
+    if target != -2 && target != b.offsets[i] {
+      let rank = if (i as i32) == p0 { -1 } elif target < 0 { 0 } else { 1 }
+      tries.push(Try(i as i32, target, rank))
+    }
+  }
+  tries.items_mut().sort(first)
+  for t in tries.items() {
+    let from = b.offsets[t.i]
+    b.place(t.i, t.target)
+    assert s.moves.len < s.moves.cap  // reserve: moves outlives the node
+    s.moves.push(t.i)
+    return true when s.search(if t.i == p0 { preferred + 1 } else { preferred })
+    b.place(t.i, from)
+    s.moves.pop()
+    break when s.exhausted
+  }
+  return false
+}
+
+// An order of taps that clears the board: a depth-first search that gives up on positions
+// with a rope that can never leave (relaxed), follows `prefer` while it can, then tries ropes
+// that can leave before slides, and never looks at a position twice. `budget` caps the
+// positions looked at (every move only advances a rope: there are no cycles). The moves are in
+// the caller's scope.
+export func hex_solve(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved {
+  let room = reserve(budget, paths.len as i32)
+  let moves = vec(i32, room.keys)  // reserve: a move per node at most
+  let scope = mark()
+  defer reset(scope)
+  let b = hex_compile_exn(w, h, mirrors, paths)
+  let s = alloc(sizeof(Solve)) as *mut Solve
+  // reserve: a key per node
+  // comptime-n: in an arena of its own (a second Stack(n)) the keys could grow as found
+  s.* = Solve(b, keyset(i32, room.keys, room.words), moves, prefer, 0, budget, false)
+  let ok = s.search(0)
+  let state = if ok { solved_yes } elif s.exhausted { solved_unknown } else { solved_no }
+  return Solved(state, moves.items(), s.nodes)  // a search that fails takes back every move
+}
+
+// --- Casual play ---
+
+// The casual player of levels.js: taps a rope that can leave if there is one, otherwise any
+// rope that can move, at random. The share of `games` it wins. Each game compiles the board
+// again, as MoonBit and the JS do.
+export func hex_casual_wins(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, r: *mut Rng, games: i32) -> f64 {
+  let n = paths.len
+  let exits = vec(i32, n)  // reserve: one per rope, emptied each tap
+  let moves = vec(i32, 2 * n)  // reserve: two per rope
+  let wins = 0
+  for g in games {
+    let scope = mark()
+    defer reset(scope)
+    let b = hex_compile_exn(w, h, mirrors, paths)
+    loop {
+      exits.clear()
+      moves.clear()
+      for i in n {
+        let o = b.offsets[i]
+        if o >= 0 {
+          let t = b.to(i as i32)
+          if t == -1 {
+            exits.push(i as i32)
+          } elif t != o {
+            moves.push(i as i32)
+            moves.push(t)
+          }
+        }
+      }
+      if exits.len > 0 {
+        b.place(r.one_of(exits.items()), -1)
+      } elif moves.len > 0 {
+        let k = 2 * i32(floor(r.next() * f64(moves.len) / 2.0))
+        b.place(moves.ptr[k], moves.ptr[k + 1])  // unchecked: k < moves.len, even
+      } else {
+        break
+      }
+      if b.left == 0 {
+        wins += 1
+        break
+      }
+    }
+  }
+  return f64(wins) / f64(max(1, games))
+}
+
+// --- The fewest taps ---
+
+// The search of hex_fewest_player_taps.
+type Fewest = (b: *mut HexBoard, tried: *mut KeyMap(i32, i32), moves: *mut Vec(i32), rank: [*]i32, later: [*]i32,
+               blockers: [*]mut u8, nodes: i32, budget: i32, exhausted: bool)
+
+// Every rope standing in another's way out must move before all are free: a lower bound on
+// the player taps left.
+func bound(s: *Fewest) -> i32 {  // closure: bound() of hex_fewest_player_taps
+  let b = s.b
+  let blockers = s.blockers
+  let occupied = b.occupied
+  blockers[0..b.n as u32] = 0
+  let count = 0
+  for i in b.n {
+    let o = b.offsets[i]
+    if o >= 0 {
+      let track = b.tracks[i]  // unchecked: a rope
+      for c in track.ptr[(o + b.lengths[i]) as u32..track.len] {
+        let owner = occupied[c]  // unchecked: a cell of the board
+        if owner >= 0 && blockers[owner] == 0 {
+          blockers[owner] = 1
+          count += 1
+        }
+      }
+    }
+  }
+  return count
+}
+
+// One node of the deepening search: can the board be freed with `remaining` player taps?
+func deepen(s: *mut Fewest, remaining: i32) -> bool {  // closure: search() of hex_fewest_player_taps
+  let b = s.b
+  return true when b.free()
+  return false when remaining == 0 || s.bound() > remaining
+  s.nodes += 1
+  if s.nodes > s.budget {
+    s.exhausted = true
+    return false
+  }
+  let key = b.offsets[0..b.n as u32]
+  return false when s.tried.get_key(key, -1) >= remaining
+  if b.dead() {
+    s.tried.set_key(key, none)
+    return false
+  }
+  let scope = mark()
+  defer reset(scope)
+  let choices = vec(Try, b.n as u32)
+  for i in b.n {
+    let target = b.to(i as i32)
+    let o = b.offsets[i]
+    if target != -2 && target != o {
+      // a rope that has moved is ranked by its last tap in the fallback, else by its first
+      choices.push(Try(i as i32, target, if o != 0 { s.later[i] } else { s.rank[i] }))
+    }
+  }
+  choices.items_mut().sort(first)
+  for t in choices.items() {
+    let from = b.offsets[t.i]
+    b.place(t.i, t.target)
+    assert s.moves.len < s.moves.cap  // reserve: moves outlives the node
+    s.moves.push(t.i)
+    return true when s.deepen(remaining - 1)
+    s.moves.pop()
+    b.place(t.i, from)
+    return false when s.exhausted
+  }
+  s.tried.set_key(key, remaining)
+  return false
+}
+
+// A solution with as few player taps as can be found: a search that deepens one tap at a time
+// from a lower bound up to the player taps of `fallback` (a solution in hand, whose order ranks
+// the taps tried). `budget` caps the positions looked at. None if fallback does not clear the
+// board (the JS throws, MoonBit aborts). The plan is in the caller's scope; where nothing
+// shorter is found it is fallback itself.
+export func hex_fewest_player_taps(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, fallback: []i32, budget: i32) -> ?*Par {
+  let verified = solved_taps(w, h, mirrors, fallback, paths)
+  return 0 as ?*Par when verified < 0  // enum: none
+  let par = alloc(sizeof(Par)) as *mut Par
+  let moves = vec(i32, fallback.len + paths.len)  // reserve: fewer taps than fallback's, then the free ropes
+  let scope = mark()
+  defer reset(scope)
+  let b = hex_compile_exn(w, h, mirrors, paths)
+  let n = b.n
+  let rank = table(n, none)
+  let later = table(n, none)
+  for step, id in fallback {
+    if rank[id] == none {  // unchecked: a rope (the replay moved it)
+      rank[id] = step as i32
+    }
+    later[id] = step as i32
+  }
+  let room = reserve(budget, n)
+  let s = alloc(sizeof(Fewest)) as *mut Fewest
+  // reserve: a key per node
+  // comptime-n: as hex_solve's
+  s.* = Fewest(b, keymap(i32, i32, room.keys, room.words), moves, rank, later, alloc(n as u32) as [*]mut u8, 0, budget, false)
+  let taps = max(1, s.bound())
+  while taps < verified && !s.exhausted {
+    if s.deepen(taps) {
+      let manual = moves.len as i32
+      // each rope left is free: these taps are the automatic release
+      for i in n {
+        if b.offsets[i] >= 0 {
+          moves.push(i as i32)
+        }
+      }
+      par.* = Par(moves.items(), manual, true, s.nodes)
+      return par
+    }
+    taps += 1
+  }
+  par.* = Par(fallback, verified, !s.exhausted, s.nodes)
+  return par
+}
+
+// --- Tests ---
+
+test "geometry" {
+  assert hex_cell(Pt(0, 0), 4) == 0 && hex_cell(Pt(-1, 3), 4) == 12 && hex_cell(Pt(0, -1), 4) == -5
+  let p = hex_point(13, 4)
+  assert p.q == 0 && p.r == 3
+  assert hex_inside(4, 6, Pt(-1, 3)) && !hex_inside(4, 6, Pt(-2, 3)) && !hex_inside(4, 6, Pt(0, -1))
+  assert hex_reflect(0, 0) == 0 && hex_reflect(1, 0) == 5 && hex_reflect(-1, 2) == 5
+  assert hex_dir_index(-1, 1) == 2 && hex_dir_index(1, 1) == -1
+}
+
+// Paths from words q, r, ... cut at the given lengths (0: a rope that has left).
+func paths_of(words: []i32, lens: []i32) -> []?[]Pt {
+  let pts = alloc(words.len * 4) as [*]mut Pt
+  for k in words.len / 2 {
+    pts[k] = Pt(words[2 * k] ?? 0, words[2 * k + 1] ?? 0)
+  }
+  let out = alloc(lens.len * sizeof(?[]Pt)) as [*]mut ?[]Pt
+  let at: u32 = 0
+  for i, l in lens {
+    out[i] = if l == 0 { gone() } else { pts[at..at + l as u32] }
+    at += l as u32
+  }
+  return out[0..lens.len]
+}
+
+func no_mirrors() -> []Mirror => (alloc(0) as [*]Mirror)[0..0]
+
+test "a rope in another's way" {
+  let scope = mark()
+  defer reset(scope)
+  // on a 3 x 3 board: rope 0 on (0, 1), (1, 1), heading +q into rope 1 on (2, 2), (2, 1),
+  // which heads -r off the board
+  let paths = paths_of([0:i32, 1, 1, 1, 1, 2, 2, 1], [2:i32, 2])
+  let none_m = no_mirrors()
+  let b = hex_compile_exn(3, 3, none_m, paths)
+  assert b.n == 2 && b.left == 2
+  assert b.to(0) == 0 && b.to(1) == -1 && b.to(2) == -2 && b.to(-1) == -2
+  assert !b.free() && !b.dead() && b.frozen().len == 0
+  b.place(1, -1)
+  assert b.left == 1 && b.free() && b.to(0) == -1 && b.to(1) == -2
+  let s = hex_solve(3, 3, none_m, paths, 100, [])
+  assert s.solved == solved_yes && s.nodes == 2  // the empty board is not counted
+  assert s.moves.len == 2 && (s.moves[0] ?? -1) == 1 && (s.moves[1] ?? -1) == 0
+  let r = hex_replay(3, 3, none_m, s.moves, paths)
+  assert r.solved && r.taps == 1 && r.events.len == 2
+  if let f = hex_fewest_player_taps(3, 3, none_m, paths, s.moves, 100) {
+    assert f.par == 1 && f.exact
+  } else {
+    assert false
+  }
+  assert hex_fewest_player_taps(3, 3, none_m, paths, [0:i32, 1], 100) == 0
+}
+
+test "a mirror turns a way out" {
+  // on a 4 x 4 board, a rope on (0, 0), (1, 0) heads +q; a mirror of axis 1 on (2, 0) sends
+  // it to direction 2, (-1, 1): through (1, 1), (0, 2) and (-1, 3), cells 5, 9 and 12
+  let paths = paths_of([0:i32, 0, 1, 0], [2:i32])
+  let m = alloc(sizeof(Mirror)) as [*]mut Mirror
+  m[0] = Mirror(Pt(2, 0), 1)
+  let turns = hex_turning(4, 4, m[0..1], paths)
+  assert turns.len == 1 && (turns[0] ?? -1) == 2
+  let b = hex_compile_exn(4, 4, m[0..1], paths)
+  let t = b.tracks[0]
+  assert t.len == 6 && (t[2] ?? -1) == 2 && (t[3] ?? -1) == 5 && (t[5] ?? -1) == 12
+}

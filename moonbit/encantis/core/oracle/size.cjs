@@ -99,6 +99,15 @@ const GROUPS = {
     moonbit: [['core/weave.mbt', () => true], ['core/square.mbt', only(['sq_dx', 'sq_dy', 'sq_play', 'bends_of', 'sq_blockers', 'groups_of', 'sq_looped'])],
       ['core/gridgen.mbt', only(['knots_for'])]],
   },
+  // G3: the Hex offset kernel, hex.mbt lines 1 to 668 (all of it before HexIntent: G4 has the
+  // rest). Solved, Par and Replayed are square.mbt's types, restated in hex.ents.
+  G3: {
+    ents: [['hex.ents', ['HexBoard', 'Try', 'Solve', 'Fewest']]],
+    moonbit: [['core/hex.mbt', only(['hex_dq', 'hex_dr', 'hex_inside', 'hex_cell', 'hex_point', 'hex_reflect', 'hex_dir_index', 'hex_mirrors', 'ray_track',
+      'exit_index', 'hex_turning', 'HexBoard', 'hex_compile', 'hex_compile_exn', 'HexBoard::to', 'HexBoard::place', 'HexBoard::free', 'HexBoard::paths',
+      'HexBoard::relaxed', 'HexBoard::dead', 'HexBoard::frozen', 'offsets_key', 'hex_replay', 'hex_solve', 'hex_postpone_exits', 'hex_casual_wins',
+      'hex_fewest_player_taps'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);

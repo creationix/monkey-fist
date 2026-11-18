@@ -33,5 +33,9 @@ inline weave-rng.ents weave-board.ents weave.ents square.ents
 wasm test/weave.ents test/weave.wasm
 wasm test/g2.ents test/g2.wasm
 
+# --- G3: the Hex offset kernel ---
+inline hex.ents
+wasm test/g3.ents test/g3.wasm
+
 # --- G7: the core (once it exists) ---
 if [ -f core.ents ]; then wasm core.ents core.wasm; fi
