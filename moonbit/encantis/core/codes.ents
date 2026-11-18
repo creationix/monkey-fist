@@ -1,0 +1,301 @@
+// engine.mbt of the MoonBit core (game-engine.js) but generate: set codes, the
+// specification of a level, and the layout key; and gridgen.mbt's target_challenge
+// and win_ceiling.
+//
+// Text is bytes. A code arrives as UTF-16 code units (i32s) and is narrowed to
+// bytes only after it is trimmed and upper-cased. The code, the seed of a custom
+// level and the layout key's JSON are each written once, by a writer that is
+// generic over its sink (a comptime function, as in random.ents): hashed as it is
+// written, or collected where the text itself is wanted.
+
+import "./lib/stack" (
+  "alloc" func alloc(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "./lib/text" (
+  "eq" func eq(a: []u8, b: []u8) -> bool
+)
+import "./random" (
+  "fnv" func fnv() -> u32
+  "hash_byte" func hash_byte(h: u32, c: u8) -> u32
+  "text" func text(comptime S: type, s: S, t: []u8, comptime put: (S, u8) -> S) -> S
+  "dec" func dec(comptime S: type, s: S, v: i32, comptime put: (S, u8) -> S) -> S
+  "base36" func base36(comptime S: type, s: S, u: u32, upper: bool, comptime put: (S, u8) -> S) -> S
+  "collect" func collect(v: *mut Vec(u8), c: u8) -> *mut Vec(u8)
+)
+import "./fmath" (
+  "pow" func pow(x: f64, y: f64) -> f64
+)
+import "./journey" (
+  "journey" func journey() -> []Spec
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+type Spec = (hex: bool, w: i32, h: i32, difficulty: f64, mirrors: bool, springs: bool, seed: []u8,
+             require_slide: bool, min_mirrors: i32, min_springs: i32, colossal: bool)
+// --- end of the canonical type block ---
+
+// A set: the Journey, or a custom set of a U3 code. grid is 'S', 'H' or 'M'.
+type SetOpts = (journey: bool, grid: u8, min: i32, max: i32, w: i32, h: i32, count: i32,
+                mirrors: bool, springs: bool, colossal: bool, seed: []u8)
+
+data journey_code = "J3-MONKEYFIST"
+data flag_sets: *[8][]u8 = ["N", "M", "S", "MS", "C", "MC", "SC", "MSC"]
+
+// journey_opts of engine.mbt
+export func journey_opts() -> SetOpts => SetOpts(true, 'M', 1, 100, 10, 14, 120, true, true, false, "MONKEYFIST")
+
+// --- Codes ---
+
+// The code of a set (set_code): J3-MONKEYFIST, or U3-grid-min-max-W-H-count-flags-seed.
+export func code(comptime S: type, s: S, o: *SetOpts, comptime put: (S, u8) -> S) -> S {
+  return s.text(journey_code, put) when o.journey
+  s = s.text("U3-", put).put(o.grid)
+  s = s.put('-').dec(o.min, put).put('-').dec(o.max, put).put('-').dec(o.w, put).put('-').dec(o.h, put)
+  s = s.put('-').dec(o.count, put).put('-')
+  if !o.mirrors && !o.springs && !o.colossal {
+    s = s.put('N')
+  }
+  if o.mirrors {
+    s = s.put('M')
+  }
+  if o.springs {
+    s = s.put('S')
+  }
+  if o.colossal {
+    s = s.put('C')
+  }
+  return s.put('-').text(o.seed, put)
+}
+
+// t as a whole number of lo to hi digits, or -1 (digits of engine.mbt). enum: -1 for none
+func digits(t: []u8, lo: u32, hi: u32) -> i32 {
+  return -1 when t.len < lo || t.len > hi
+  let v: i32 = 0
+  for c in t {
+    return -1 when c < '0' || c > '9'
+    v = v * 10 + (c - '0')
+  }
+  return v
+}
+
+// The part of t from k to the next '-' (or the end), and where the part after it
+// starts: past the end where there is no '-'.
+func part(t: []u8, k: u32) -> (s: []u8, next: u32) {
+  let j = k
+  while j < t.len && (t[j] ?? 0) != '-' {
+    j += 1
+  }
+  s = t[k..j] ?? ""
+  next = j + 1
+}
+
+// parseCode: a Journey or U3 custom set code, or none. The code is UTF-16 code
+// units. As MoonBit's String::trim and to_upper do, it is trimmed of tabs, line
+// ends and spaces only, and upper-cased in ASCII only, so that a code unit past
+// ASCII is never part of a valid code (the JS trims every JS space and upper-cases
+// U+0131 to I and U+017F to S, and so takes a few codes MoonBit refuses: the oracle
+// counts them). The opts and their seed are on the stack.
+export func parse_code(units: []i32) -> ?*SetOpts {
+  let lo: u32 = 0
+  let hi = units.len
+  while lo < hi && is_space(units[lo] ?? 0) {
+    lo += 1
+  }
+  while hi > lo && is_space(units[hi - 1] ?? 0) {
+    hi -= 1
+  }
+  let n = hi - lo
+  let bytes = alloc(n) as [*]mut u8
+  for i in n {
+    let u = units[lo + i] ?? 0
+    return 0 as ?*SetOpts when u < 0 || u > 127
+    bytes[i] = if u >= 'a' && u <= 'z' { (u - 32) as u8 } else { u as u8 }
+  }
+  let t = bytes[0..n]
+  let o = alloc(sizeof(SetOpts)) as *mut SetOpts
+  if eq(t, journey_code) {
+    o.* = journey_opts()
+    return o
+  }
+  // U3-grid-min-max-W-H-count-flags-seed: nine parts
+  let (s: u3, next: k1) = part(t, 0)
+  let (s: grid, next: k2) = part(t, k1)
+  let (s: pmin, next: k3) = part(t, k2)
+  let (s: pmax, next: k4) = part(t, k3)
+  let (s: pw, next: k5) = part(t, k4)
+  let (s: ph, next: k6) = part(t, k5)
+  let (s: pcount, next: k7) = part(t, k6)
+  let (s: flags, next: k8) = part(t, k7)
+  let (s: seed, next: end) = part(t, k8)
+  return 0 as ?*SetOpts when end != n + 1 || k8 > n || !eq(u3, "U3") || grid.len != 1
+  let g = grid[0] ?? 0
+  return 0 as ?*SetOpts when g != 'S' && g != 'H' && g != 'M'
+  let min = digits(pmin, 1, 3)
+  let max = digits(pmax, 1, 3)
+  let w = digits(pw, 1, 2)
+  let h = digits(ph, 1, 2)
+  let count = digits(pcount, 1, 3)
+  return 0 as ?*SetOpts when min < 0 || max < 0 || w < 0 || h < 0 || count < 0
+  let known = false
+  for f in flag_sets {
+    known = known || eq(flags, f)
+  }
+  return 0 as ?*SetOpts when !known || seed.len < 1 || seed.len > 12
+  for c in seed {
+    return 0 as ?*SetOpts when !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z'))
+  }
+  let mirrors = has_byte(flags, 'M')
+  let springs = has_byte(flags, 'S')
+  let colossal = has_byte(flags, 'C')
+  let small = if mirrors || springs { 8 } else { 4 }
+  let large = if colossal { 48 } else { 24 }
+  if min < 1 || max > 100 || min > max || w < small || w > large || h < small || h > large || count < 1 || count > 200 {
+    return 0 as ?*SetOpts
+  }
+  o.* = SetOpts(false, g, min, max, w, h, count, mirrors, springs, colossal, seed)
+  return o
+}
+
+// The characters String::trim takes away by default.
+func is_space(c: i32) -> bool => c == ' ' || c == '\t' || c == '\n' || c == '\r'
+
+func has_byte(t: []u8, b: u8) -> bool {
+  for c in t {
+    return true when c == b
+  }
+  return false
+}
+
+// --- Specifications ---
+
+// The specification of level index of set o (level_spec). A custom level's seed is
+// hashString('grid/3/' + code + '/' + i).toString(36).toUpperCase(), streamed,
+// written on the stack.
+export func level_spec(o: *SetOpts, index: i32) -> Spec {
+  let i = max(0, min(o.count - 1, index))
+  if o.journey {
+    if let s = journey()[i as u32] {
+      return s
+    }
+    assert false
+  }
+  let hex = match o.grid {
+    'H' => true
+    'S' => false
+    _ => i % 2 == 1
+  }
+  let difficulty = f64(o.min) + f64((o.max - o.min) * i) / f64(max(1, o.count - 1))
+  let h = fnv().text("grid/3/", hash_byte).code(o, hash_byte).text("/", hash_byte).dec(i, hash_byte)
+  let seed = vec(u8, 7).base36(h, true, collect)
+  return Spec(hex, o.w, o.h, difficulty, o.mirrors, o.springs, seed.items(), false, 0, 0, o.colossal)
+}
+
+// --- The layout key ---
+
+// The text game-engine.js hashes for the layout key:
+// JSON.stringify([grid, W, H, ropes as [q, r] lists, mirrors as [q, r, axis or slope], springs]).
+export func layout_json(comptime S: type, s: S, b: Board, comptime put: (S, u8) -> S) -> S {
+  s = s.text(if b.hex { "[\"hex\"," } else { "[\"square\"," }, put)
+  s = s.dec(b.w, put).put(',').dec(b.h, put).put(',').put('[')
+  for i, path in b.ropes {
+    if i > 0 {
+      s = s.put(',')
+    }
+    s = s.put('[')
+    for j, p in path {
+      if j > 0 {
+        s = s.put(',')
+      }
+      s = s.pair(p, put)
+    }
+    s = s.put(']')
+  }
+  s = s.text("],[", put)
+  for i, m in b.mirrors {
+    if i > 0 {
+      s = s.put(',')
+    }
+    s = s.put('[').dec(m.cell.q, put).put(',').dec(m.cell.r, put).put(',')
+    if b.hex {
+      s = s.dec(m.kind, put)
+    } elif m.kind == 0 {
+      s = s.text("\"/\"", put)
+    } else {
+      s = s.text("\"\\\\\"", put)
+    }
+    s = s.put(']')
+  }
+  s = s.text("],[", put)
+  for i, p in b.springs {
+    if i > 0 {
+      s = s.put(',')
+    }
+    s = s.pair(p, put)
+  }
+  return s.text("]]", put)
+}
+
+// [q,r]
+func pair(comptime S: type, s: S, p: Pt, comptime put: (S, u8) -> S) -> S => s.put('[').dec(p.q, put).put(',').dec(p.r, put).put(']')
+
+// Two FNV-1a hashes at once: of the text, and of 'layout:' and the text.
+type Two = (plain: u32, prefixed: u32)
+func both(s: Two, c: u8) -> Two => Two(hash_byte(s.plain, c), hash_byte(s.prefixed, c))
+
+// The layout key of b: hashString(data).toString(36) + '-' + hashString('layout:' + data).toString(36),
+// the JSON hashed as it is written, both ways at once, with no text built.
+export func layout_key(comptime S: type, s: S, b: Board, comptime put: (S, u8) -> S) -> S {
+  let h = Two(fnv(), fnv().text("layout:", hash_byte)).layout_json(b, both)
+  return s.base36(h.plain, false, put).put('-').base36(h.prefixed, false, put)
+}
+
+// --- Selection targets (gridgen.mbt) ---
+
+export func target_challenge(d: f64) -> f64 => 0.5 + 9.5 * pow(max(0.0, min(100.0, d)) / 100.0, 1.3)
+
+export func win_ceiling(d: f64) -> f64 => 1.0 - 0.5 * max(0.0, min(1.0, (d - 30.0) / 70.0))
+
+// --- Tests ---
+
+data units_in: *[22]i32 = [32, 117, 51, 45, 104, 45, 49, 45, 49, 48, 48, 45, 54, 45, 56, 45, 49, 48, 45, 78, 45, 80]
+
+test "a code is parsed, and written back" {
+  // " u3-h-1-100-6-8-10-N-P": trimmed and upper-cased
+  if let o = parse_code(units_in) {
+    assert !o.journey && o.grid == 'H' && o.min == 1 && o.max == 100 && o.w == 6 && o.h == 8 && o.count == 10
+    assert !o.mirrors && eq(o.seed, "P")
+    let v = vec(u8, 4).code(o, collect)
+    assert eq(v.items(), "U3-H-1-100-6-8-10-N-P")
+  } else {
+    assert false
+  }
+  assert parse_code(units_in[0..20]) == 0
+}
+
+test "a custom level's seed, as game-engine.js makes it" {
+  // spec of U3-S-1-100-4-5-10-N-PARITY, index 3: hashString('grid/3/U3-S-1-100-4-5-10-N-PARITY/3')
+  let o = alloc(sizeof(SetOpts)) as *mut SetOpts
+  o.* = SetOpts(false, 'S', 1, 100, 4, 5, 10, false, false, false, "PARITY")
+  let s = level_spec(o, 3)
+  assert !s.hex && s.w == 4 && s.difficulty == 34.0
+  assert s.seed.len >= 1 && s.seed.len <= 7
+  let j = alloc(sizeof(SetOpts)) as *mut SetOpts
+  j.* = journey_opts()
+  let first = level_spec(j, 0)
+  assert first.hex && eq(first.seed, "1E36ZS5")
+}
+
+test "selection targets" {
+  assert target_challenge(0.0) == 0.5
+  assert target_challenge(100.0) == 10.0
+  assert win_ceiling(30.0) == 1.0
+  assert win_ceiling(100.0) == 0.5
+}

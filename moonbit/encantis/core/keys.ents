@@ -1,0 +1,195 @@
+// Sets and maps keyed by a list of words: the visited sets of the searches.
+//
+// MoonBit keys them by strings: key_of(offsets) and Geo::key(paths), one char per
+// word, in a Map[String, _]. Here the key is the words themselves, hashed in
+// place (FNV-1a over the words, then mixed): no string is built. A key that is
+// added is copied into a pool. Both the slots and the pool are taken from the
+// stack when the set is made, for as many keys and words as the caller reserves,
+// and never grow: a set made in an outer scope and written in an inner one stays
+// where it is (a lib/set would move to the top of the stack when it doubles,
+// into the inner scope's room). Going past the reserve traps (assert).
+//
+//   let seen = keyset(i32, budget, budget * n)    // *mut KeySet(i32)
+//   if seen.add_key(offsets) { ... }               // true where it is new
+//   let tried = keymap(i32, i32, budget, budget * n)
+//   tried.set_key(offsets, depth)
+//   tried.get_key(offsets, -1)
+//
+// W is the word: i32 or u32. Iteration order is not kept, and the searches never
+// need it.
+
+import "./lib/stack" (
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+
+// A slot: the key's hash, where its words start in the pool, and how many there
+// are plus one (0 is an empty slot, so a key of no words can be kept too).
+type Slot = (hash: u32, at: u32, len: u32)
+
+export func KeySet(comptime W: type) -> type => (slots: [*]mut Slot, mask: u32, count: u32, limit: u32, pool: [*]mut W, used: u32, room: u32)
+export func KeyMap(comptime W: type, comptime V: type) -> type => (keys: *mut KeySet(W), values: [*]mut V)
+
+// The hash of a key: FNV-1a over its words, then mixed, so that keys of small
+// numbers spread over the low bits the mask keeps.
+func key_hash(comptime W: type, key: []W) -> u32 {
+  let h: u32 = 0x811c9dc5
+  for w in key {
+    h = (h ^ (w as u32)) * 0x01000193
+  }
+  h = (h ^ (h >> 16)) * 0x45d9f3b
+  return h ^ (h >> 16)
+}
+
+// A set with room for `keys` keys of `words` words in all. reserve:
+export func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W) {
+  let size: u32 = 8
+  while size < keys * 2 {
+    size *= 2
+  }
+  let s = alloc(sizeof(KeySet(W))) as *mut KeySet(W)
+  s.* = KeySet(W)(zeroed(size * sizeof(Slot)) as [*]mut Slot, size - 1, 0, keys, alloc(words * sizeof(W)) as [*]mut W, 0, words)
+  return s
+}
+
+// The slot of key: its own, or the empty one where it would go.
+func slot_of(comptime W: type, s: *KeySet(W), h: u32, key: []W) -> u32 {
+  let slots = s.slots
+  let i = h & s.mask
+  let n = key.len + 1
+  loop {
+    let at = slots[i]  // unchecked: i <= mask
+    return i when at.len == 0
+    if at.hash == h && at.len == n {
+      let old = s.pool + at.at * sizeof(W)
+      let same = true
+      for j, w in key {
+        if old[j] != w {  // unchecked: the key kept has key.len words
+          same = false
+          break
+        }
+      }
+      return i when same
+    }
+    i = (i + 1) & s.mask
+  }
+}
+
+// Adds key, copying its words. True where it was not in the set. Traps when the
+// reserve is passed.
+export func add_key(comptime W: type, s: *mut KeySet(W), key: []W) -> bool {
+  let h = key_hash(key)
+  let i = s.slot_of(h, key)
+  return false when s.slots[i].len != 0
+  s.keep(i, h, key)
+  return true
+}
+
+// Fills the empty slot i with key.
+func keep(comptime W: type, s: *mut KeySet(W), i: u32, h: u32, key: []W) {
+  assert s.count < s.limit
+  assert s.used + key.len <= s.room
+  let to = s.pool + s.used * sizeof(W)
+  for j, w in key {
+    to[j] = w
+  }
+  s.slots[i] = Slot(h, s.used, key.len + 1)
+  s.used += key.len
+  s.count += 1
+}
+
+// Whether key is in the set.
+export func has_key(comptime W: type, s: *KeySet(W), key: []W) -> bool => s.slots[s.slot_of(key_hash(key), key)].len != 0
+
+// A map with room for `keys` keys of `words` words in all. reserve:
+export func keymap(comptime W: type, comptime V: type, keys: u32, words: u32) -> *mut KeyMap(W, V) {
+  let ks = keyset(W, keys, words)
+  let m = alloc(sizeof(KeyMap(W, V))) as *mut KeyMap(W, V)
+  m.* = KeyMap(W, V)(ks, alloc((ks.mask + 1) * sizeof(V)) as [*]mut V)
+  return m
+}
+
+// Sets key's value. True where key is new.
+export func set_key(comptime W: type, comptime V: type, m: *mut KeyMap(W, V), key: []W, v: V) -> bool {
+  let s = m.keys
+  let h = key_hash(key)
+  let i = s.slot_of(h, key)
+  let fresh = s.slots[i].len == 0
+  if fresh {
+    s.keep(i, h, key)
+  }
+  m.values[i] = v
+  return fresh
+}
+
+// A pointer to key's value, or none. It stays valid: the map never moves.
+export func ref_key(comptime W: type, comptime V: type, m: *KeyMap(W, V), key: []W) -> ?*mut V {
+  let s = m.keys
+  let i = s.slot_of(key_hash(key), key)
+  return 0 as ?*mut V when s.slots[i].len == 0
+  return &m.values[i]
+}
+
+// key's value, or fallback where it has none.
+export func get_key(comptime W: type, comptime V: type, m: *KeyMap(W, V), key: []W, fallback: V) -> V {
+  let s = m.keys
+  let i = s.slot_of(key_hash(key), key)
+  return fallback when s.slots[i].len == 0
+  return m.values[i]
+}
+
+// --- Tests ---
+
+data a3 = [1:i32, 2, 3]
+data b3 = [1:i32, 2, 4]
+data words = [5:u32, 0, 0, 7]
+
+test "a set of word lists" {
+  let s = keyset(i32, 4, 12)
+  assert s.add_key(a3)
+  assert !s.add_key(a3)
+  assert s.add_key(b3)
+  assert s.add_key(a3[0..2])
+  assert s.has_key(a3[0..2])
+  assert !s.has_key(a3[1..3])
+  assert s.add_key(a3[0..0])
+  assert !s.add_key(b3[3..3])
+  assert s.count == 4
+  assert s.used == 8
+}
+
+test "a map from word lists, changed in place" {
+  let m = keymap(u32, i32, 8, 32)
+  assert m.set_key(words, 1)
+  assert m.set_key(words[0..2], 2)
+  assert m.set_key(words[1..3], 3)
+  assert !m.set_key(words, 4)
+  assert m.get_key(words, -1) == 4
+  assert m.get_key(words[0..2], -1) == 2
+  assert m.get_key(words[2..4], -1) == -1
+  if let v = m.ref_key(words[1..3]) {
+    v.* += 10
+  } else {
+    assert false
+  }
+  assert m.get_key(words[1..3], -1) == 13
+  assert m.ref_key(words[3..4]) == 0
+}
+
+test "many keys, many collisions in the low bits" {
+  let s = keyset(i32, 1000, 2000)
+  let k = alloc(8) as [*]mut i32
+  for i in 1000 {
+    k[0] = (i as i32) * 4096
+    k[1] = (i as i32) % 3
+    assert s.add_key(k[0..2])
+  }
+  for i in 1000 {
+    k[0] = (i as i32) * 4096
+    k[1] = (i as i32) % 3
+    assert s.has_key(k[0..2])
+    k[1] = (i as i32) % 3 + 1
+    assert !s.has_key(k[0..2])
+  }
+  assert s.count == 1000
+}

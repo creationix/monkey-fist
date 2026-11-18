@@ -1,0 +1,179 @@
+// types.mbt of the MoonBit core, Spec and Level of gridgen.mbt, and the shared
+// parts of square.mbt every grid uses: SqMirrors and has_dup.
+//
+// The canonical type block below is copied, unchanged, into every module that
+// uses these types: a type is structural and is not imported (reference 7.1),
+// and its field order is its identity. Copy it; never retype it.
+//
+// A path is a []Pt. A position, MoonBit's Array[Path?], is a []?[]Pt: per rope its
+// path, or none once the rope has left.
+
+import "./lib/stack" (
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+type Spec = (hex: bool, w: i32, h: i32, difficulty: f64, mirrors: bool, springs: bool, seed: []u8,
+             require_slide: bool, min_mirrors: i32, min_springs: i32, colossal: bool)
+type Level = (board: Board, par: i32, exact: bool, coverage: f64, wins: f64, challenge: f64,
+              slides: i32, bounces: i32, repeated: i32, automatic: i32,
+              used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+// --- end of the canonical type block ---
+
+// The largest board a set code allows (parse_code: colossal maps are up to 48x48).
+// Tables by cell are sized for max_area.
+def max_w = 48
+def max_h = 48
+def max_area = 2304
+
+// Fixed two-sided mirrors of a square board by cell (y * W + x): -1 none, 0 '/',
+// 1 '\'. keys keeps the cells in the order they were set, as a JS Map does.
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+
+// --- Paths and positions ---
+
+// The none of a position's rope. enum: an option written by hand
+export func gone() -> ?[]Pt => (0 as [*]Pt, 0:u32)
+
+// Every rope still there: a position for ropes.
+export func some_paths(ropes: [][]Pt) -> []?[]Pt {
+  let p = alloc(ropes.len * 8) as [*]mut ?[]Pt
+  for i, rope in ropes {
+    p[i] = rope
+  }
+  return p[0..ropes.len]
+}
+
+// Whether every rope has left.
+export func all_gone(paths: []?[]Pt) -> bool {
+  for p in paths {
+    if let q = p {
+      return false
+    }
+  }
+  return true
+}
+
+// The head of a path. The path must not be empty.
+export func last(p: []Pt) -> Pt {
+  assert p.len > 0
+  return p.ptr[p.len - 1]  // unchecked: p.len > 0
+}
+
+// --- SqMirrors ---
+
+// No mirrors on any cell (SqMirrors::empty).
+export func no_mirrors() -> *mut SqMirrors {
+  let m = alloc(sizeof(SqMirrors)) as *mut SqMirrors
+  m.* = SqMirrors(alloc(0) as [*]mut i32, 0, vec(i32, 1))
+  return m
+}
+
+// The mirrors of square board b (SqMirrors::of_board). Its keys have room for every
+// cell, so set_at never grows them.
+export func sq_mirrors(b: *Board) -> *mut SqMirrors {
+  let cells = b.w * b.h
+  let m = alloc(sizeof(SqMirrors)) as *mut SqMirrors
+  let slope = alloc((cells as u32) * 4) as [*]mut i32
+  for c in cells as u32 {
+    slope[c] = -1
+  }
+  m.* = SqMirrors(slope, cells, vec(i32, cells as u32))  // reserve: a key per cell
+  for x in b.mirrors {
+    m.set_at(x.cell.r * b.w + x.cell.q, x.kind)
+  }
+  return m
+}
+
+// Puts mirror s on cell c, a cell of the board.
+export func set_at(m: *mut SqMirrors, c: i32, s: i32) {
+  assert c >= 0 && c < m.cells
+  if m.slope[c as u32] < 0 {  // unchecked: asserted
+    m.keys.push(c)
+  }
+  m.slope[c as u32] = s  // unchecked: asserted
+}
+
+// The mirror on cell c, or -1 where there is none or c is off the board.
+export func at(m: *SqMirrors, c: i32) -> i32 => if c >= 0 && c < m.cells { m.slope[c as u32] } else { -1 }  // unchecked: c in range
+
+export func has(m: *SqMirrors, c: i32) -> bool => m.at(c) >= 0
+
+// How many cells have a mirror.
+export func size(m: *SqMirrors) -> i32 => m.keys.len as i32
+
+// --- Duplicate checks ---
+
+// Stamps by cell: a cell is marked when its stamp is the current one.
+data marks = mut [0:i32; 2304]
+global stamp: i32 = 0
+
+// Whether a cell appears twice among cells (cells of a board of at most max_area).
+export func has_dup(cells: []i32) -> bool {
+  stamp += 1
+  let m = marks as [*]mut i32
+  for c in cells {
+    assert c >= 0 && c < max_area
+    return true when m[c as u32] == stamp  // unchecked: asserted
+    m[c as u32] = stamp
+  }
+  return false
+}
+
+// --- Tests ---
+
+test "a position, and its ropes gone" {
+  let ropes = alloc(16) as [*]mut []Pt
+  let a = alloc(16) as [*]mut Pt
+  a[0] = Pt(1, 2)
+  a[1] = Pt(3, 4)
+  ropes[0] = a[0..2]
+  ropes[1] = a[1..2]
+  let paths = some_paths(ropes[0..2])
+  assert !all_gone(paths)
+  let p = alloc(16) as [*]mut ?[]Pt
+  p[0] = gone()
+  p[1] = gone()
+  assert all_gone(p[0..2])
+  if let q = paths[0] {
+    assert last(q).r == 4
+  } else {
+    assert false
+  }
+}
+
+test "mirrors keep the order they were set in" {
+  let mirrors = alloc(2 * sizeof(Mirror)) as [*]mut Mirror
+  mirrors[0] = Mirror(Pt(2, 1), 1)
+  mirrors[1] = Mirror(Pt(0, 0), 0)
+  let b = alloc(sizeof(Board)) as *mut Board
+  b.* = Board(false, 4, 3, (alloc(0) as [*][]Pt)[0..0], mirrors[0..2], (alloc(0) as [*]Pt)[0..0], (alloc(0) as [*]i32)[0..0])
+  let m = sq_mirrors(b)
+  assert m.size() == 2
+  assert m.at(6) == 1 && m.at(0) == 0 && m.at(1) == -1
+  assert m.at(-1) == -1 && m.at(12) == -1
+  m.set_at(6, 0)
+  assert m.size() == 2
+  m.set_at(11, 1)
+  assert m.keys.ptr[2] == 11
+  assert !no_mirrors().has(3)
+}
+
+test "has_dup" {
+  let c = alloc(16) as [*]mut i32
+  c[0] = 5
+  c[1] = 7
+  c[2] = 5
+  assert !has_dup(c[0..2])
+  assert has_dup(c[0..3])
+  assert !has_dup(c[1..3])
+}

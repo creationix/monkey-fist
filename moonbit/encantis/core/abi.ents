@@ -1,0 +1,268 @@
+// The numbers ABI of src/gen (gen.mbt) without its exports: the word buffers, and
+// the readers and writers of positions, levels and strings. The entry module
+// (core.ents, or a test entry) exports the buffer functions under their own
+// names and calls clear() at the start of each other export.
+//
+// The words are the memory layout of the board: a run of q, r words is a []Pt (8
+// bytes a point), and a run of q, r, kind words a []Mirror (12 bytes). So a
+// position or a level is read as zero-copy views of its words: only the outer
+// lists ([][]Pt of the ropes, []?[]Pt of a position) are built, 8 bytes a rope.
+// A level that must outlive the stack is kept as its own level words, and read
+// back the same way (read_level).
+//
+// A cast binds tighter than `&`: `&base[k] as [*]Pt` is `&(base[k] as [*]Pt)`, the
+// VALUE of word k as an address, and it compiles (bugs/01). The view is written
+// once, here, in pts_at and mirrors_at.
+
+import "./lib/stack" (
+  "alloc" func alloc(n: u32) -> u32
+)
+import "./board" (
+  "gone" func gone() -> ?[]Pt
+)
+import "./codes" (
+  "layout_key" func layout_key(comptime S: type, s: S, b: Board, comptime put: (S, u8) -> S) -> S
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+type Level = (board: Board, par: i32, exact: bool, coverage: f64, wins: f64, challenge: f64,
+              slides: i32, bounces: i32, repeated: i32, automatic: i32,
+              used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+// --- end of the canonical type block ---
+
+def room = 65536:u32       // words in each buffer
+
+data inbuf = mut [0:i32; 65536]
+data outbuf = mut [0:i32; 65536]
+data outf = mut [0.0:f64; 64]
+global in_n: u32 = 0
+global out_n: u32 = 0
+
+// --- The buffers (the exports of gen.mbt) ---
+
+export func in_reset() {
+  in_n = 0
+}
+
+export func in_push(c: i32) {
+  if let p = &inbuf[in_n] {
+    p.* = c
+    in_n += 1
+  } else {
+    assert false
+  }
+}
+
+export func out_len() -> i32 => out_n as i32
+
+export func out_get(i: i32) -> i32 => outbuf[i as u32] ?? 0
+
+export func outf_get(i: i32) -> f64 => outf[i as u32] ?? 0.0
+
+// The input words.
+export func input() -> []i32 => (inbuf as [*]i32)[0..in_n]
+
+// The input as bytes: code units narrowed (seeds and codes are ASCII), on the stack.
+export func input_bytes() -> []u8 {
+  let b = alloc(in_n) as [*]mut u8
+  for i, c in input() {
+    b[i] = c as u8
+  }
+  return b[0..in_n]
+}
+
+export func out_clear() {
+  out_n = 0
+}
+
+// One more output word.
+export func put(w: i32) {
+  if let p = &outbuf[out_n] {
+    p.* = w
+    out_n += 1
+  } else {
+    assert false
+  }
+}
+
+// Output double k (0 to 63).
+export func putf(k: u32, x: f64) {
+  if let p = &outf[k] {
+    p.* = x
+  } else {
+    assert false
+  }
+}
+
+// A sink of text (random.ents's writers) that puts each byte as a word.
+export func put_byte(n: u32, c: u8) -> u32 {
+  put(c as i32)
+  return n + 1
+}
+
+// Starts a counted list of words whose length is known once they are written:
+// puts a 0 for the count, and returns where it is, for end_count.
+export func begin_count() -> u32 {
+  put(0)
+  return out_n - 1
+}
+
+// Ends the counted list begun at at: its count is the words written since.
+export func end_count(at: u32) {
+  if let p = &outbuf[at] {
+    p.* = (out_n - at - 1) as i32
+  }
+}
+
+// A counted string: its length, then its code units.
+export func put_string(s: []u8) {
+  put(s.len as i32)
+  for c in s {
+    put(c as i32)
+  }
+}
+
+// --- Views of words ---
+
+// n points from word k of base on: words q, r, q, r ...
+export func pts_at(base: [*]i32, k: u32, n: u32) -> []Pt => ((&base[k]) as [*]Pt)[0..n]
+
+// n mirrors from word k of base on: words q, r, kind ...
+export func mirrors_at(base: [*]i32, k: u32, n: u32) -> []Mirror => ((&base[k]) as [*]Mirror)[0..n]
+
+// A cursor over words.
+type Reader = (base: [*]i32, k: u32, n: u32)
+
+func next(r: *mut Reader) -> i32 {
+  assert r.k < r.n
+  r.k += 1
+  return r.base[r.k - 1]  // unchecked: k < n
+}
+
+// A counted list of points.
+func cells(r: *mut Reader) -> []Pt {
+  let n = r.next() as u32
+  assert r.k + 2 * n <= r.n
+  let p = pts_at(r.base, r.k, n)
+  r.k += 2 * n
+  return p
+}
+
+// A counted list of words.
+func ints(r: *mut Reader) -> []i32 {
+  let n = r.next() as u32
+  assert r.k + n <= r.n
+  let p = r.base[r.k..r.k + n]
+  r.k += n
+  return p
+}
+
+// The ropes, the mirrors and the springs: the board but its plan.
+func layout(r: *mut Reader, hex: bool, w: i32, h: i32) -> Board {
+  let nr = r.next() as u32
+  let ropes = alloc(nr * 8) as [*]mut []Pt
+  for i in nr {
+    ropes[i] = r.cells()
+  }
+  let nm = r.next() as u32
+  assert r.k + 3 * nm <= r.n
+  let mirrors = mirrors_at(r.base, r.k, nm)
+  r.k += 3 * nm
+  let springs = r.cells()
+  return Board(hex, w, h, ropes[0..nr], mirrors, springs, r.base[0..0])
+}
+
+func reader(words: []i32) -> *mut Reader {
+  let r = alloc(sizeof(Reader)) as *mut Reader
+  r.* = Reader(words.ptr, 0, words.len)
+  return r
+}
+
+// The board, current ropes and preferred order in the input (read_position of
+// gen.mbt): hex, W, H, then counted lists of ropes (each a counted list of q, r),
+// mirrors (q, r, kind) and springs (q, r), then the current paths (a count of 0 is
+// a rope that left) and the preferred move order. The board's plan is empty.
+export func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32) {
+  let r = reader(input())
+  let hex = r.next() == 1
+  let w = r.next()
+  let h = r.next()
+  board = r.layout(hex, w, h)
+  let np = r.next() as u32
+  let ps = alloc(np * 8) as [*]mut ?[]Pt
+  for i in np {
+    let p = r.cells()
+    ps[i] = if p.len == 0 { gone() } else { p }
+  }
+  paths = ps[0..np]
+  prefer = r.ints()
+}
+
+// The level written by put_level in words, as views of them: the words must stay.
+// The layout key in them is skipped (it is the board's).
+export func read_level(words: []i32) -> Level {
+  let r = reader(words)
+  let hex = r.next() == 1
+  let w = r.next()
+  let h = r.next()
+  let par = r.next()
+  let exact = r.next() == 1
+  let b = r.layout(hex, w, h)
+  b.plan = r.ints()
+  r.ints()
+  // the stats, in the order they are written (a constructor computes its values in order)
+  return Level(b, par, exact, 0.0, 0.0, 0.0, r.next(), r.next(), r.next(), r.next(), r.next(), r.next(), r.next(), r.next())
+}
+
+// The output words of level l (put_level of gen.mbt): hex, W, H, par, exact; the
+// ropes; mirrors; springs; plan; the layout key; then the 8 stats. Doubles 0 to 2:
+// wins, challenge, coverage.
+export func put_level(l: *Level) {
+  out_clear()
+  let b = l.board
+  put(if b.hex { 1 } else { 0 })
+  put(b.w)
+  put(b.h)
+  put(l.par)
+  put(if l.exact { 1 } else { 0 })
+  put(b.ropes.len as i32)
+  for p in b.ropes {
+    put(p.len as i32)
+    for c in p {
+      put(c.q)
+      put(c.r)
+    }
+  }
+  put(b.mirrors.len as i32)
+  for m in b.mirrors {
+    put(m.cell.q)
+    put(m.cell.r)
+    put(m.kind)
+  }
+  put(b.springs.len as i32)
+  for c in b.springs {
+    put(c.q)
+    put(c.r)
+  }
+  put(b.plan.len as i32)
+  for i in b.plan {
+    put(i)
+  }
+  let at = begin_count()
+  layout_key(0:u32, b, put_byte)
+  end_count(at)
+  put(l.slides)
+  put(l.bounces)
+  put(l.repeated)
+  put(l.automatic)
+  put(l.used_mirrors)
+  put(l.used_springs)
+  put(l.manual_mirrors)
+  put(l.manual_springs)
+  putf(0, l.wins)
+  putf(1, l.challenge)
+  putf(2, l.coverage)
+}

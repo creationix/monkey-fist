@@ -1,0 +1,25 @@
+// A parameter named like a module-level `def` is the def inside the body: the
+// argument is silently ignored.
+//
+// How to see it:
+//   encantis wasm 02-parameter-named-like-a-def.ents -o /tmp/b02.wasm
+//   node -e 'const x=new WebAssembly.Instance(new WebAssembly.Module(require("fs").readFileSync("/tmp/b02.wasm")),{}).exports; console.log(x.f(100), x.g(100))'
+// prints "8 101" at 03225bc (origin/main; the tree of cb3fc4f). f(100) should be 101,
+// as g(100) is: g's parameter has the name of a global, and the parameter wins.
+//
+// The reference (3.3) says a `let` cannot take the name of a def, and a loop
+// variable cannot either (5.2: "Nor can they have the name of a def or a data
+// block, which stand for a value wherever they are written"), each with an error.
+// A parameter gets neither the error nor its own value. When the parameter's type
+// differs, the uses are errors that name the def's type, which is how it was met:
+// `def words = 65536:u32` beside `func reader(words: []i32)` in abi.ents gave
+//   no field 'ptr' on type u32
+// at `words.ptr`. With the same type, as here, nothing is reported.
+//
+// Met writing core/abi.ents (5 minutes, to see why words was a u32).
+
+def limit = 7
+global cap: i32 = 7
+
+export func f(limit: i32) -> i32 => limit + 1
+export func g(cap: i32) -> i32 => cap + 1
