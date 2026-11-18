@@ -11,7 +11,7 @@ code simpler or clearer: `Vec(T)` and a sort with a comptime comparator from
 the container library (`lib/`), structs stored in memory, optional pointers
 resolved with `if let`, loop-scoped names, method calls, generics of its own.
 
-**v2 is exact on every oracle v1 had. It is 1,426 lines against v1's 1,611
+**v2 is exact on every oracle v1 had. It is 1,424 lines against v1's 1,611
 (MoonBit's 1,664), and 1.02x MoonBit's tokens against v1's 1.07x. Its stack
 peaks at 0.54x to 0.62x of v1's. It is 5% slower than v1 (13% when both are
 built with `-O`). The compiler made no wrong code: two bugs met, both reported
@@ -31,10 +31,10 @@ still decided by hand, with one new way to get them wrong.**
 | Time for the 249 cases, best of 5 rounds: median (range) of 5 processes | 278.5 ms (275.8 to 290.6); rebuilt with this compiler 275.8 (270.2 to 278.8) | 289.4 ms (286.4 to 293.8) | 635.3 ms (623.8 to 679.2), 25 processes |
 | ... median of 5 rounds | 291.3 ms (285.8 to 306.9); rebuilt 278.4 (272.7 to 285.8) | 303.8 ms (289.2 to 314.3) | 670.9 ms (642.7 to 726.0) |
 | ... with `encantis wasm -O`, best of 5 | rebuilt 245.1 ms (241.7 to 249.0) | 276.2 ms (274.2 to 278.4) | |
-| wasm (gzipped) | 17,950 (7,608); rebuilt 18,000 (7,709) | 18,384 (7,926) | |
-| ... with `-O` | rebuilt 33,545 (8,395) | 17,362 (7,348) | |
-| Peak of the bump stack, boards up to 12x16 / 24x24 / 40x40 (`peak.cjs`) | 75,040 / 225,580 / 605,360 bytes | 42,528 / 138,944 / 327,440 bytes | |
-| Source (`size.cjs`: code lines and tokens, without comments and tests) | 1,611 lines, 11,802 tokens: 1.07x MoonBit's tokens | 1,426 lines, 11,303 tokens: 1.02x | MoonBit: 1,664 lines, 11,030 tokens |
+| wasm (gzipped) | 17,950 (7,590); rebuilt 18,000 (7,693) | 18,385 (7,912) | |
+| ... with `-O` | rebuilt 33,545 (8,377) | 17,349 (7,341) | |
+| Peak of the bump stack, boards up to 12x16 / 24x24 / 40x40 (`peak.cjs`) | 75,040 / 225,580 / 605,360 bytes | 42,528 / 138,920 / 327,440 bytes | |
+| Source (`size.cjs`: code lines and tokens, without comments and tests) | 1,611 lines, 11,802 tokens: 1.07x MoonBit's tokens | 1,424 lines, 11,282 tokens: 1.02x (1.13x with `lib/vec` and `lib/sort`) | MoonBit: 1,664 lines, 11,030 tokens |
 | ... of it, import declarations | 84 lines, 836 tokens | 78 lines, 925 tokens | |
 | Inline tests (`encantis test` on each file) | 13, in four files | 14, in three files (and lib/'s 10) | |
 | Build (`encantis wasm`) | 15 s on 0.2.1; 1.0 s with this compiler | 1.0 s | |
@@ -46,8 +46,10 @@ still decided by hand, with one new way to get them wrong.**
   gzipped) and took 383 ms in v1's measurements; it was not measured again.
 - **Speed.** v2 is 5% slower than v1 rebuilt (289.4 against 275.8 ms, best of
   5), and 13% slower when both are built with `-O` (276.2 against 245.1). The
-  table under "What each step cost" shows where: the lists as `Vec`s (4%) and
-  the library's sort (2%). The JS takes 2.2x v2's time.
+  table under "What each step cost" shows where: the lists as `Vec`s (4%).
+  The library's sort costs nothing that can be measured. The JS takes 2.2x
+  v2's time. (The times are of v2 as it was before the review's change,
+  721f6a3, which measures the same: see Measurements.)
 - **wasm-opt.** `-O` (wasm-opt `-Oz`) nearly doubles v1 (18,000 to 33,545
   bytes): it inlines most of the builder into `weave`, which becomes one
   function of 20,866 bytes, and that is where v1's 11% gain from `-O` comes
@@ -70,7 +72,7 @@ How each was measured is under [Measurements](#measurements).
 | `weave.wasm` | Built from the above |
 | `bugs/` | A minimal file for each compiler bug met, with how to see it in its header |
 | `other-seeds.cjs`, `other-sizes.cjs` | The oracles beside the fixture: v1's scripts, which were never committed |
-| `bench.cjs`, `peak.cjs`, `size.cjs` | Time, the stack's peak, source size |
+| `bench.cjs`, `bench-mix.cjs`, `peak.cjs`, `size.cjs` | Time (one wasm per process; several side by side in one), the stack's peak, source size |
 
 The fixture and its harness are v1's: `../builder/check-weave.cjs`,
 `dump-weave.cjs` and `weave-expected.json`.
@@ -97,7 +99,7 @@ What changed from v1:
 
 - **Lists are `Vec(T)`** (`lib/vec`): `Vec(i32)` for cells, ropes and
   directions, `Vec(Spot)` and `Vec(Option)` for the two lists of structs. A
-  list travels as the slice its `items()` give. 34 `vec(...)` calls replace
+  list travels as the slice its `items()` give. 33 `vec(...)` calls replace
   v1's lists built in place (`begin`, `push`, `since`) and its lists in room
   taken first with a count beside them.
 - **What may be missing is an optional pointer.** `way_out`, `lane_of`,
@@ -127,7 +129,7 @@ without tests, as v1's were.
 
 | v1 wanted | v1 had | Now |
 | --- | --- | --- |
-| Correct `abs`, `min`, `max` and comparisons (bugs 1 to 3) | 3 workarounds, and the WAT read for every `min`, `max`, `abs` and comparison | **Removed.** `abs(c.gain - desire)`, `max(k + 2, len_lo + below(...))` and the coverage comparison are written as meant. With them went `max(1.0:f64, x)` (bug 12) and 13 of the 17 `f64(...)` conversions (bug 16: an i32 beside an f64 widens). The 4 left are in the two divisions of one integer by another |
+| Correct `abs`, `min`, `max` and comparisons (bugs 1 to 3) | 3 workarounds, and the WAT read for every `min`, `max`, `abs` and comparison | **Removed.** `abs(c.gain - desire)`, `max(k + 2, len_lo + below(...))` and the coverage comparison are written as meant. With them went `max(1.0:f64, x)` (bug 12) and 15 of the 17 `f64(...)` conversions (bug 16: an i32 beside an f64 widens). The 2 left are one for each division of one integer by another |
 | Struct values that can be stored and loaded (bugs 4 to 7) | `put_spot`, `spot_at`, and `Option` repeating `Lane`'s fields | **Removed.** `list.push(Spot(...))`, `for opt in opts.items()`, `Option = (d, lane)` |
 | Optional struct values, or enums | 4 `ok` fields, 4 empty constructors, 37 `no_...()`, 16 `.ok` reads, and nothing to stop reading a value that is not there | **Removed**, with optional pointers: 0 `ok` fields and constructors, 17 `if let`. A value that is not there cannot be read. `aimed()` returns a start of -1 for none, as the rest of the builder does for cells. The cost is nesting: see below |
 | Block scope, and a bare block | 2 functions that only carry a scope; about a dozen names chosen round a clash | **Smaller.** A loop's and an `if let`'s names are their body's: `pick_parent`'s and `relax`'s loops are all `i` again (v1: `i`, `j`, `k`). `spot_try` is gone: its body is the loop body of `knot_or_trap`, which is the try's scope, and `return keep(c)` keeps before `defer` frees. Still there: a `let` is the function's (`gap` and `run` in `gap_ahead`), and `gap_rope` stays a function, because its caller commits after the scope has closed |
@@ -138,32 +140,42 @@ without tests, as v1's were.
 | Closures | 6 loops written out for `filter`, `some` and `map`; the 25 closures as globals | **Still there**, and still cheap: the same loops, 56 globals and 73 functions in the two files (v1: 60 and 70) |
 | Imports by name alone | 70 restated signatures, 84 lines, 836 tokens (7% of the port) | **Still there**: 64 signatures, 78 lines, 925 tokens (8%). A generic's signature is longer (`"push" func push(comptime T: type, v: *mut Vec(T), x: T)`); merging `ints.ents` into `board.ents` saved some |
 
-Beyond that list, the idioms v1's verifier found unused are used: 18 `if`
+Beyond that list, the idioms v1's verifier found unused are used: 16 `if`
 expressions where a default was declared and then assigned, and `set (dx, dy)
-= turn(...)` for the mirror turn written once.
+= turn(...)` for the mirror turn written once (`turn` is a 17th `if`
+expression).
 
 ### What each step cost
 
 The steps are the commits of `builder-v2/`; each was exact on the fixture.
-Time: best of 5 rounds, median of 3 processes (`bench.cjs`).
+Time: best of 5 rounds, median of 5 processes, with every step's wasm, v1
+rebuilt (283.0 ms here) and the JS interleaved in each process
+(`bench-mix.cjs`, run in the review).
 
 | Step | Commit | Lines | Tokens | wasm | Time |
 | --- | --- | ---: | ---: | ---: | ---: |
-| v1, copied, on `lib/stack` | 184cbbb | 1,611 | 11,802 | 17,994 | 274.8 ms |
-| The workarounds for 0.2.1's expressions gone; `if` expressions | cbea785 | 1,524 | 11,764 | 17,888 | 271.6 |
-| Structs stored and loaded whole | 4afbeff | 1,510 | 11,564 | 17,764 | 274.8 |
-| Lists are `Vec(T)` | 8a5242b | 1,437 | 11,563 | 18,627 | 286.6 |
-| `lib/sort` with a comparator | a906a9f | 1,435 | 11,567 | 19,145 | 292.9 |
-| Optional pointers for the `ok` fields | 4a5c5ee | 1,446 | 11,506 | 18,483 | 288.9 |
-| Loop-scoped names; no function for a try's scope | 6d409eb | 1,440 | 11,466 | 18,427 | 291.6 |
-| `one_of`; method calls | 57879ac | 1,442 | 11,484 | 18,384 | 286.1 |
-| Three files: `lists.ents` into `board.ents` | 7c51e21 | 1,426 | 11,303 | 18,384 | 289.3 |
+| v1, copied, on `lib/stack` | 184cbbb | 1,611 | 11,802 | 17,994 | 284.2 ms |
+| The workarounds for 0.2.1's expressions gone; `if` expressions | cbea785 | 1,524 | 11,764 | 17,888 | 281.0 |
+| Structs stored and loaded whole | 4afbeff | 1,510 | 11,564 | 17,764 | 283.6 |
+| Lists are `Vec(T)` | 8a5242b | 1,437 | 11,563 | 18,627 | 295.1 |
+| `lib/sort` with a comparator | a906a9f | 1,435 | 11,567 | 19,145 | 295.6 |
+| Optional pointers for the `ok` fields | 4a5c5ee | 1,446 | 11,506 | 18,483 | 293.9 |
+| Loop-scoped names; no function for a try's scope | 6d409eb | 1,440 | 11,466 | 18,427 | 294.4 |
+| `one_of`; method calls | 57879ac | 1,442 | 11,484 | 18,384 | 298.9 |
+| Three files: `lists.ents` into `board.ents` | 7c51e21 | 1,426 | 11,303 | 18,384 | 294.8 |
+| Review: `[k]` for a knot's trial, one `f64()` per division | 721f6a3 | 1,424 | 11,282 | 18,385 | 302.4 |
 
-The time is in two steps: `Vec` (+12 ms, 4%: a call for every push, and a
-list per cell for `survey`'s lanes, made every step) and the library's sort
-(+6 ms, 2%: the comparator is a call per comparison, and a list of more than
-16 is merged through scratch). The rest is within the spread of the
-processes, which is about 5 ms.
+The time is in one step: `Vec`, +11.6 ms or 4% (per process +8.6 to +13.6
+ms): a call for every push, and a list per cell for `survey`'s lanes, made
+every step. The library's sort adds nothing that can be measured: +0.5 ms
+(per process -1.1 to +3.6), though the comparator is a call per comparison
+and a list of more than 16 is merged through scratch. Every other step is
+within the spread of the processes, the review's too (+2.5 ms here, per
+process -6.3 to +14.7; 0.99x of 7c51e21 in another 7 processes). An earlier
+measurement, one process per wasm, gave the sort +6 ms (2%): that was the
+spread between processes, which timing the steps side by side takes out. A
+second set of 5 processes gave the same as this one: `Vec` +11.5 ms, the sort
+-0.1.
 
 ## What still hurts
 
@@ -183,14 +195,17 @@ processes, which is about 5 ms.
    took 7 unchecked `.ptr[below(...)]` reads out of the builder's sight, but
    they are no more checked than before.
 3. **Lifetimes are still decided by hand, and a `Vec` adds a way to get them
-   wrong.** A `Vec` that grows where it is not at the top of the stack moves
-   to new room at the top, which belongs to whatever scope is open: if that
-   is a scope inside the one the `Vec` was made in, the room is freed with it
-   and the `Vec` points at memory the next allocation reuses. Nothing reports
-   it: given room for 4 taps and without its assert, `taps` makes 179 of the
-   249 cases weave another board, and none of them traps. So `taps` (written
-   by every replay, inside tries) and the three lists a kept candidate is
-   copied to are given their room up front, and assert it
+   wrong.** A `Vec` that grows takes its new room at the top of the stack
+   (it moves there, or grows in place if it is there already), and that room
+   belongs to whatever scope is open: if that is a scope inside the one the
+   `Vec` was made in, the room is freed with it and the `Vec` points at
+   memory the next allocation reuses. Nothing names it: given room for 4
+   taps and without its assert, `taps` makes 179 of the 249 cases go wrong.
+   110 of them (on a fresh instance each) weave another board, or none,
+   without a sign; 69 trap somewhere else, 41 on a memory access out of
+   bounds and 28 on an assert, none of which says anything of `taps`. So
+   `taps` (written by every replay, inside tries) and the three lists a kept
+   candidate is copied to are given their room up front, and assert it
    (`assert taps.len < taps.cap`, `assert xs.len <= to.cap`); `knot_spots`'s
    gap check moved into a function of its own (`gap_ahead`) so that no list
    grows inside its scope. The rest is as in v1: `keep`, `gap_rope` as a
@@ -204,8 +219,11 @@ processes, which is about 5 ms.
    and `weave` resets to the mark it took, not to the base (v1's verifier's
    finding 3).
 8. **A runtime value in an array literal is stored in one cell for that place
-   in the source** (reference 1.5), so `trial(path, [k], order)` would hand
-   every knot the same stop list. A stop list is a `Vec` of one.
+   in the source** (reference 1.5), so a list that must outlive the next time
+   the literal is evaluated cannot be one: `commit()` gives a kept knot its
+   stop list as a `Vec` of one, where the JS writes `[k]`. A trial's stop list
+   can be `[k]` (`knot` passes it so), because the trial drops its rope before
+   the next knot is tried.
 
 ## Compiler bugs
 
@@ -240,12 +258,30 @@ under a lock that the other long jobs take too (`flock`), so no two overlap.
   tables give the median and range of the processes. By board size, v2 / v1
   rebuilt / JS (best of 5): up to 12x16 164.6 / 157.9 / 334.8 ms, 24x24 59.3 /
   54.6 / 104.1, the 40x40 case 64.7 / 58.6 / 190.6.
+- **Time, side by side** (`bench-mix.cjs`, run in the review): every build and
+  the JS in one process, case by case, starting with a different one for each
+  case and round, so that load falls on all alike; 7 processes. Best of 5
+  rounds, median (range) of the processes: v1 as committed 277.7 ms (273.6 to
+  285.6), v1 rebuilt 275.3 (272.7 to 287.9), v2 288.7 (286.0 to 304.4), v2
+  `-O` 273.2 (272.5 to 281.1), v1 rebuilt `-O` 242.2 (239.9 to 252.0), the JS
+  664.3 (642.6 to 701.9); by board size v2 / v1 rebuilt / JS 163.8 / 157.8 /
+  358.3, 59.4 / 55.7 / 107.3, 64.9 / 59.7 / 191.6. These are the numbers
+  above within the noise (for the JS, 5% more, with the ranges overlapping).
+  Per process, v2 takes 1.05x v1 rebuilt's time, 1.13x with `-O`, and
+  the JS 2.27x v2's. Another 7 processes after 721f6a3 ran about 4% slower
+  throughout, the JS too, with the same ratios: 721f6a3 1.05x v1 rebuilt
+  (1.04 to 1.06), 1.14x with `-O`, and 0.99x (0.96 to 1.01) the v2 before
+  it.
 - **wasm size**: `encantis wasm` with and without `-O` (wasm-opt `-Oz`, via
-  npx), and `gzip -9`. Every `-O` build is exact on the fixture.
+  npx), and `gzip -9n` (without `-n` gzip stores the file's name, which adds
+  its length). Every `-O` build is exact on the fixture.
 - **Source** (`size.cjs`): v1's `size.cjs` with its tokenizer and MoonBit side
   unchanged, counting every `.ents` file of this directory; `lib/` is listed
   and not counted, as v1 did not count `../stack/stack.ents` (sort 762 tokens,
-  stack 171, vec 465, without their tests).
+  stack 171, vec 465, without their tests). v1 did count its own lists
+  (`ints.ents`, 424 tokens) and its sort, which `lib/vec` and `lib/sort`
+  replace: with those two counted, v2 is 1,567 lines and 12,509 tokens, 1.13x
+  MoonBit's.
 - **Peak** (`peak.cjs`): a copy whose stack records the highest top that
   `alloc` and `extend` reach. It is the same in every run, and it gives v1's
   reported numbers for v1 exactly.
