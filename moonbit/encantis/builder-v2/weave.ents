@@ -47,16 +47,6 @@ import "./lib/sort" (
   "sort" func sort(comptime T: type, xs: []mut T, comptime before: (T, T) -> bool)
 )
 
-import "./lists" (
-  "new" func new(comptime T: type, x: T) -> *mut T
-  "table" func table(comptime T: type, n: i32, v: T) -> [*]mut T
-  "part" func part(p: [*]i32, from: i32, to: i32) -> []i32
-  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
-  "push_all" func push_all(comptime T: type, v: *mut Vec(T), xs: []T)
-  "push_reversed" func push_reversed(comptime T: type, v: *mut Vec(T), xs: []T)
-  "reversed" func reversed(xs: []i32) -> []i32
-)
-
 import "./rng" (
   "seed" func seed(s: u32)
   "draws" func draw_count() -> u32
@@ -68,6 +58,13 @@ import "./rng" (
 )
 
 import "./board" (
+  "new" func new(comptime T: type, x: T) -> *mut T
+  "table" func table(comptime T: type, n: i32, v: T) -> [*]mut T
+  "part" func part(p: [*]i32, from: i32, to: i32) -> []i32
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+  "push_all" func push_all(comptime T: type, v: *mut Vec(T), xs: []T)
+  "push_reversed" func push_reversed(comptime T: type, v: *mut Vec(T), xs: []T)
+  "reversed" func reversed(xs: []i32) -> []i32
   "width" global width: i32
   "height" global height: i32
   "area" global area: i32
