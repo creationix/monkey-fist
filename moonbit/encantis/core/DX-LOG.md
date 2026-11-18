@@ -127,3 +127,65 @@ These also work:
    605 KB on 40x40. Resizing today means copying `stack.ents`. Comptime value
    parameters (`comptime n: u32` with `[n]T`) would make the size a parameter instead of
    a copy.
+
+## 18 Nov: writing the port plan (no port code yet)
+
+- **Compiler:** cb3fc4f3514fc834b4fb6c3e2ea5fcfd11a720da (origin/claude/generics-modules,
+  which merges claude/language-decisions on top of the maps' a84f5e6). origin/main
+  (584178d) still had no `lib/vec.ents`.
+- **The plan:** `PORT-PLAN.md`.
+- **Probes:** `/home/user/mf-core-scratch/plan-probes/`, p1 to p6.
+
+### Pleasant
+
+- **A random generator held by pointer reads like MoonBit.** `type Rng = (a: u32)` used
+  through a `*mut Rng`, with `r.below(n)` and `r.next()` as method calls. It built to
+  226 bytes with no imports and gave the JS's first draw (p1).
+- **The f64 bits for an fdlibm `pow` come from punning a scratch word.**
+  `scratch.f64[0] = x; scratch.u32[1]` gives `0x3ff80000` for 1.5 (p1).
+- **The ABI's words are the board's memory layout.** A `[]Pt` and a `[]Mirror` are
+  zero-copy views over the level words that `in_push` fills (p2). So a level that must
+  outlive its scope is kept as its own output words, and read back with no copy
+  (PORT-PLAN §3.3).
+- **A fixed-size list in memory is checked without a fallback.** A `*[6]i32` indexed by
+  `k % 6` is proven in range: no `??`, no `if let` (p5).
+- **builder-v2 rebuilds byte for byte at cb3fc4f** (18,384 bytes) and is still exact:
+  249 cases, 0 mismatches.
+- **Tooling.**
+  - `check` of a one-module probe: 0.12 s.
+  - `wasm` of builder-v2's `weave.ents` (6 modules): 0.89 s.
+
+### Friction
+
+1. **A cast binds tighter than `&`, and `&` of a pointer value is accepted: a silent wrong
+   address.**
+   - Wanted: a view of the words from index k on, written
+     `&base[k] as [*]Pt`. That is `&(base[k] as [*]Pt)`: the *value* of word k cast to
+     a pointer, then `&` of the pointer, which is the pointer.
+   - It compiled and summed garbage: 386132480 where 1009 was expected.
+   - Wrote `(&base[k]) as [*]Pt`. It cost 5 minutes.
+   - The same mistake with an integer cast, `&base[1] as u32`, is an error, so only a
+     cast to a pointer type is silent. That is exactly the cast a zero-copy view needs.
+   - Repro: `bugs/01-address-of-pointer-value.ents`.
+   - The precedence is as documented (reference, Precedence: unary 11, cast 12). The
+     reference's `&` (4.7) names a literal or an element, not a pointer value. The
+     checker's own message names "a pointer":
+     ```
+     & requires a literal, a pointer, or an element of an array, slice or many-pointer
+     ```
+   - The plan confines the cast to one helper in `abi.ents`.
+2. **A small list cannot live in registers.**
+   - Wanted: `(len: u32, items: [6]i32)` as a local, for `hex_build`'s `choices` and
+     `dirs`, so that the hottest loop (`shape`, 13% self time) does not allocate.
+   - Got (p4), twice:
+     ```
+     dynamic index on value type [6]i32 — use a pointer or slice for dynamic access
+     ```
+   - The plan takes a `*mut [6]i32` once per call, indexed by `k % 6`.
+   - Comptime value parameters (`comptime n: u32` with `[n]T`) would not put such a list
+     in registers. They would make one `Fixed(T, n)` with a proven index stand for every
+     size, where today each size is written out (PORT-PLAN §10).
+3. **`origin/main` does not have the container library yet.** The port has to pin a
+   branch commit and copy `lib/` into the port, as builder-v2 did. The stack is copied
+   anyway, to make it larger: 256 KiB is too small for this core. A `Stack(comptime n)`
+   would make that a parameter.

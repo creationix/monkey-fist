@@ -1,0 +1,35 @@
+// `&` of a pointer value compiles, silently, to the pointer itself.
+//
+// How to see it:
+//   encantis wasm 01-address-of-pointer-value.ents -o /tmp/b01.wasm
+//   node -e 'const x=new WebAssembly.Instance(new WebAssembly.Module(require("fs").readFileSync("/tmp/b01.wasm")),{}).exports; console.log(x.meant(), x.written())'
+// prints "8 12" at cb3fc4f3 (origin/claude/generics-modules). meant() reads the view
+// of words[1..] that was wanted: its first point is (12, 8), so its r is 8. written()
+// returns where the view as written points: address 12, the value of words[1].
+//
+// A cast binds tighter than `&` (reference, Precedence: unary 11, cast 12), so
+// `&base[1] as [*]Pt` is `&(base[1] as [*]Pt)`: the VALUE of words[1] (12) cast to a
+// pointer, then `&` of that pointer. Reference 4.7 says `&` takes the address of "a
+// literal, or an element of an array, slice or many-pointer"; a pointer value is
+// neither, yet it is accepted and `&p` is p. (The checker's own message for `&` lists
+// "a literal, a pointer, or an element", so it may be meant; the reference does not
+// say so.) Where the cast is to an integer, `&base[1] as u32`, it is an error, so the
+// mistake is silent only when the cast is to a pointer type: the case of a zero-copy
+// view over a word buffer. Written as `(&base[1]) as [*]Pt` it is right.
+//
+// Met writing the port plan's probe of zero-copy board views (5 minutes).
+
+type Pt = (q: i32, r: i32)
+data words = mut [5, 12, 8, 9:i32]
+
+export func meant() -> i32 {
+  let base = words as [*]mut i32
+  let view = (&base[1]) as [*]Pt
+  return view[0].r
+}
+
+export func written() -> i32 {
+  let base = words as [*]mut i32
+  let view = &base[1] as [*]Pt
+  return (view as u32) as i32
+}
