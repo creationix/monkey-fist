@@ -16,7 +16,7 @@
 //   a try      one candidate: its lanes, its cells, the rope's trial on the board
 // A scope frees everything on the way out (defer). Four things follow from it:
 //   - A candidate is tried in a scope of its own, so the step's choice is copied
-//     out of it, to buffers that last for the call (keep).
+//     out of it, to lists that last for the call (keep).
 //   - A rope's track has to last for the call, so commit() runs only when no
 //     scope but the call's is open. It asserts that.
 //   - A function that returns a list builds it in its caller's scope.
@@ -399,8 +399,8 @@ func fits(c: ?*Cand, budget: i32) -> ?*Cand {
   return 0
 }
 
-// Copies a candidate's cells to the buffers that last for the call, so that it
-// outlives the scope it was tried in. There is one set of buffers: keeping a
+// Copies a candidate's cells to the lists that last for the call, so that it
+// outlives the scope it was tried in. There is one set of them: keeping a
 // candidate overwrites the one kept before.
 func keep(c: *Cand) -> *Cand {
   kept.* = Cand(c.path.copy_to(kept_path), 0, c.gain, c.bends, c.pull, c.rest.copy_to(kept_rest), c.gap.copy_to(kept_gap))

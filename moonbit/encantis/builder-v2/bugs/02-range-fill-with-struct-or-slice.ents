@@ -1,0 +1,30 @@
+// Encantis at 57d6e1a: assigning one value to a range fills the range (4.8), but
+// only when the value is a number. A struct or a slice on the right is taken for
+// an array to copy from, and refused as one.
+//   encantis check 02-range-fill-with-struct-or-slice.ents
+//     -> 19:13: cannot copy (x: i32, y: i32) into a range of Pt
+//     -> 24:13: cannot copy []i32 into a range of []i32
+// The reference does not limit a fill to numbers (any value type can be an
+// element, 9.6), and a Pt or a []i32 is an element of these ranges, not an array
+// of them. In a generic the same line works for one type and not another:
+// board.ents' table(T, n, v) cannot write `p[0..n] = v`, which is right for
+// T = i32 and refused for T = []i32, so it fills with a loop.
+
+type Pt = (x: i32, y: i32)
+
+data cells = mut [0:u8; 64]
+
+func points(v: Pt) {
+  let p = cells as [*]mut Pt
+  p[0..3] = v
+}
+
+func lists(xs: []i32) {
+  let p = cells as [*]mut []i32
+  p[0..3] = xs
+}
+
+func numbers(v: i32) {
+  let p = cells as [*]mut i32
+  p[0..3] = v                                  // accepted
+}

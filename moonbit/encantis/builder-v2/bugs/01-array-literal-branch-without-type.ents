@@ -1,0 +1,27 @@
+// Encantis at 57d6e1a: an if expression whose branches are a slice and an array
+// literal is refused where no type is declared for it, though the same if is
+// accepted where a []i32 is wanted (a let with a type, a result).
+//   encantis check 01-array-literal-branch-without-type.ents
+//     -> 20:31: cannot convert [] to []i32 implicitly: convert its fields
+//     -> 25:31: cannot convert [2]i32 to []i32 implicitly: convert its fields
+// The literal is laid out where a slice is wanted (2.4, 1.5), and the other
+// branch says what is wanted; the message is the one for a tuple given for a
+// struct. Met in weave(): `let plan = if planned { words(...) } else { [] }`
+// is written `let plan: []i32 = ...`.
+
+func declared(c: bool, xs: []i32) -> u32 {
+  let ys: []i32 = if c { xs } else { [] }      // accepted
+  return ys.len
+}
+
+func result(c: bool, xs: []i32) -> []i32 => if c { xs } else { [] }   // accepted
+
+func empty(c: bool, xs: []i32) -> u32 {
+  let ys = if c { xs } else { [] }             // refused
+  return ys.len
+}
+
+func pair(c: bool, xs: []i32) -> u32 {
+  let ys = if c { xs } else { [7, 8] }         // refused
+  return ys.len
+}
