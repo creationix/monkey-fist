@@ -224,10 +224,8 @@ type Spot = (c: i32, di: i32, room: i32, against: i32, gap: i32)
 
 type Spots = (tight: []Spot, chain: []Spot, gapped: []Spot)
 
-// A direction a new rope's head could point, with its way out. (Lane's fields
-// again, because 0.2.1 cannot read a slice out of a struct nested in a struct
-// in memory, and shape() keeps a list of these.)
-type Option = (d: i32, free: i32, cells: []i32, ids: []i32)
+// A direction a new rope's head could point, with its way out.
+type Option = (d: i32, lane: Lane)
 
 // A walked rope: its body cells from the head back, and for a knot its tail.
 type Walked = (ok: bool, cells: []i32, tail: []i32)
@@ -353,10 +351,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       continue when !inside(bx, by) || grid[by * width + bx] != -1
       let lane = way_out(sx, sy, dir_x[d], dir_y[d])
       continue when !lane.ok
-      opts[open].d = d as i32
-      opts[open].free = lane.free
-      opts[open].cells = lane.cells
-      opts[open].ids = lane.ids
+      opts[open] = Option(d as i32, lane)
       open += 1
       sum += lane.cells.len as i32 + 1
     }
@@ -365,7 +360,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       let r = rng(5, sum) * sum
       let o = open - 1
       for k in open {
-        r -= opts[k].cells.len + 1
+        r -= opts[k].lane.cells.len + 1
         if r < 0.0 {
           o = k as i32
           break
@@ -374,9 +369,7 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       let behind = grow(start, (opts[o].d + 2) % 4, straightness)
       let path = reversed(behind)
       if behind.len as i32 >= min_len && !self_blocked(path) {
-        let cells = opts[o].cells
-        let ids = opts[o].ids
-        return Shaped(true, path, Lane(true, cells, opts[o].free, ids))
+        return Shaped(true, path, opts[o].lane)
       }
     }
     return no_shape() when dir >= 0
@@ -673,10 +666,10 @@ func knot_spots() -> Spots {
         }
         if room >= 2 {
           if o >= 0 {
-            put_spot(tight, ntight, c, d as i32, room, against, 0)
+            tight[ntight] = Spot(c, d as i32, room, against, 0)
             ntight += 1
           } else {
-            put_spot(chain, nchain, c, d as i32, room, against, 0)
+            chain[nchain] = Spot(c, d as i32, room, against, 0)
             nchain += 1
           }
         }
@@ -695,7 +688,7 @@ func knot_spots() -> Spots {
           run += 1
         }
         if run > 0 && run <= pull && run < length && grid[way[run]] >= 0 {
-          put_spot(gapped, ngapped, c, d as i32, 0, -1, run)
+          gapped[ngapped] = Spot(c, d as i32, 0, -1, run)
           ngapped += 1
         }
         continue
@@ -709,7 +702,7 @@ func knot_spots() -> Spots {
         ny += dy
       }
       if gap > 0 && gap <= pull && inside(nx, ny) && grid[ny * width + nx] >= 0 {
-        put_spot(gapped, ngapped, c, d as i32, 0, -1, gap)
+        gapped[ngapped] = Spot(c, d as i32, 0, -1, gap)
         ngapped += 1
       }
     }
@@ -719,19 +712,6 @@ func knot_spots() -> Spots {
   let g: []Spot = (gapped, ngapped as u32)
   return Spots(t, ch, g)
 }
-
-// (A struct is written to memory and read back field by field: 0.2.1 miscompiles
-// `list[k] = Spot(...)` and `let s = list[k]`.)
-func put_spot(list: [*]mut Spot, k: i32, c: i32, di: i32, room: i32, against: i32, gap: i32) {
-  list[k].c = c
-  list[k].di = di
-  list[k].room = room
-  list[k].against = against
-  list[k].gap = gap
-}
-
-func spot_at(list: []Spot, k: i32) -> Spot =>
-  Spot(list.ptr[k].c, list.ptr[k].di, list.ptr[k].room, list.ptr[k].against, list.ptr[k].gap)
 
 // Marks every rope the ropes in `blockers` (and `also`, unless -1) are waiting
 // on, directly or down a chain.
@@ -920,7 +900,7 @@ func spot_try(spots: Spots, is_knot: bool, budget: i32) -> Cand {
   // a knot goes against another knot's resting place half the time, if there is one
   let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
   return no_cand() when list.len == 0
-  let spot = spot_at(list, below(21, list.len as i32))
+  let spot = list.ptr[below(21, list.len as i32)]
   let c = if is_knot { knot(spot) } else { trap(spot) }
   return no_cand() when !fits(c, budget)
   return keep(c)
@@ -1370,16 +1350,16 @@ test "knot_spots finds heads against a rope, and heads a gap away from one" {
   let spots = knot_spots()
   // straight room of two cells behind: (2, 0) pointing +x, (3, 1) pointing -y
   assert spots.tight.len == 2
-  let a = spot_at(spots.tight, 0)
+  let a = spots.tight.ptr[0]
   assert a.c == 2 && a.di == 0 && a.room == 2 && a.against == -1
-  let b = spot_at(spots.tight, 1)
+  let b = spots.tight.ptr[1]
   assert b.c == 7 && b.di == 3 && b.room == 2
   assert spots.chain.len == 0
   // a gap of one or two cells ahead: from (0, 0) and (1, 0), from (3, 2) and (3, 3)
   assert spots.gapped.len == 4
-  let g = spot_at(spots.gapped, 0)
+  let g = spots.gapped.ptr[0]
   assert g.c == 0 && g.di == 0 && g.gap == 2
-  let last = spot_at(spots.gapped, 3)
+  let last = spots.gapped.ptr[3]
   assert last.c == 15 && last.di == 3 && last.gap == 2
   // where a knot will come to rest counts as something to stop against
   rest[11] = 5
