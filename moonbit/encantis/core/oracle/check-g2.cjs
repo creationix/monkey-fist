@@ -32,6 +32,9 @@
 //             (bit for bit) and the draws made
 //   rays      per rope: selfBlocked, and rayCells from its head along its way out (exitDir),
 //             into an empty list and after its body's cells: null or not, and the list
+// Then what the generator takes beside weave: knotsWanted(d) for d = 0 to 400 and knotsFor(d)
+// (grid-generator.js) for d = -5 to 105, in steps of 0.01, and the rope styles (STYLES:
+// minLen, straight, lenLo, lenHi(w) for w = 1 to 60).
 // Then the weave, unless --no-weave: builder's check-weave.cjs on this wasm (G2's entry
 // exports the same contract as test/weave.wasm), so that the builder is checked where it
 // shares the stack with the square kernel.
@@ -123,6 +126,26 @@ const WANT = {
   },
 };
 
+// knotsFor of grid-generator.js at 9e69e3a.
+const knotsFor = d => L.knotsWanted(300 * Math.pow(Math.max(0, d) / 100, 1.3));
+
+// knotsWanted, knotsFor and the styles: the parts of the generator weave_run's caller uses.
+function checkChoices(port, only) {
+  let n = 0;
+  if (!only || only === 'knots') {
+    for (let k = 0; k <= 40000; k++) { const d = k / 100; same('knots', `knotsWanted(${d})`, L.knotsWanted(d), port.x.t_knots_wanted(d)); n++; }
+    for (let k = -500; k <= 10500; k++) { const d = k / 100; same('knots', `knotsFor(${d})`, knotsFor(d), port.x.t_knots_for(d)); n++; }
+  }
+  if (!only || only === 'styles') {
+    for (let k = 0; k < 3; k++) for (let w = 1; w <= 60; w++) {
+      port.x.t_style(k, w);
+      const st = L.STYLES[k];
+      same('styles', `STYLES[${k}] (${st.name}), w ${w}`, [k, st.minLen, st.lenLo, st.name === 'twisty' ? 1 : 0, st.lenHi(w), st.straight], [...port.out(), port.outf(0)]); n++;
+    }
+  }
+  return n;
+}
+
 // The hooks of test/g2.wasm, by kind: how to call each and read what it gives.
 const CALL = {
   tracks: x => x.t_tracks(), free: x => x.t_free(), frozen: x => x.t_frozen(), dead: x => x.t_dead(),
@@ -151,7 +174,8 @@ function jsHooks(io) {
     if (w.draws !== undefined) draws = w.draws;
     return w.ret;
   };
-  const hooks = { draws: () => draws, stack_peak: () => 0 };
+  const hooks = { draws: () => draws, stack_peak: () => 0, t_knots_wanted: L.knotsWanted, t_knots_for: knotsFor,
+    t_style: (k, w) => { io.clear(); const st = L.STYLES[k]; if (!st) return; io.put(k, st.minLen, st.lenLo, st.name === 'twisty' ? 1 : 0, st.lenHi(w)); io.putf(0, st.straight); } };
   for (const kind of Object.keys(CALL)) hooks[CALL[kind].toString().match(/x\.(t_\w+)/)[1]] = hook(kind);
   return hooks;
 }
@@ -193,7 +217,7 @@ const STEPS = [['tracks', '', []], ['free', '', []], ['frozen', '', []], ['dead'
   ['solve', ' budget 40', [40]], ['solve', ' budget 900', [900]], ['solve', ' budget 2000', [2000]], ['solve', ' budget 2000, no prefer', [2000], 'none'],
   ['taps', '', []], ['fewest', ' budget 2500', [2500]], ['replay', '', []], ['postpone', '', []],
   ['casual', EXTRA ? ' x200' : ' x1000', [EXTRA ? 200 : 1000, BENCH_SEED | 0]], ['rays', '', []]];
-const KINDS = [...new Set(STEPS.map(s => s[0]))];
+const KINDS = [...new Set(STEPS.map(s => s[0])), 'knots', 'styles'];
 
 let peak = { bytes: 0, where: '' }, values = 0;
 const size = w => (w.out ? w.out.length : 0) + (w.ret !== undefined ? 1 : 0) + (w.draws !== undefined ? 1 : 0);
@@ -233,7 +257,7 @@ if (require.main === module && CONTROLS) {
   for (const kind of KINDS) {
     failures = []; for (const k in seen) delete seen[k];
     corrupt = { kind, at: 3 };
-    run(port, part, kind);
+    if (kind === 'knots' || kind === 'styles') checkChoices(port, kind); else run(port, part, kind);
     const ours = failures.filter(f => f.kind === kind);
     const ok = failures.length === 1 && ours.length === 1;
     if (!ok) bad++;
@@ -252,6 +276,8 @@ if (require.main === module) {
   const { n, counts } = run(port, list);
   const boards = new Set(list.map(c => c.b.name)).size;
   console.log(`${failures.length ? 'FAIL' : 'ok  '} square kernel: ${list.length} positions on ${boards} boards, ${n} comparisons of ${values} values (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}), ${failures.length} failed (${((Date.now() - t1) / 1000).toFixed(1)} s; cases ${((t1 - t0) / 1000).toFixed(1)} s)`);
+  const before = failures.length, tc = Date.now(), nc = checkChoices(port);
+  console.log(`${failures.length > before ? 'FAIL' : 'ok  '} knots and styles: ${nc} comparisons, ${failures.length - before} failed (${Date.now() - tc} ms)`);
   for (const f of failures.slice(0, 12)) console.log(`  ${f.kind}: ${f.name}\n    want ${JSON.stringify(f.want)?.slice(0, 400)}\n    got  ${JSON.stringify(f.got)?.slice(0, 400)}`);
   let weaveOk = true;
   if (!JS && !args.includes('--no-weave')) {

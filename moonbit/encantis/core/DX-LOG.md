@@ -523,8 +523,12 @@ adds two points:
 - **Oracle** (`check-g2.cjs`, against `levels.js` at 9e69e3a):
   - the 35 square boards of `reference.json` without springs, at 1,579 positions (the start,
     every plan prefix, 20 of random play): 11 kinds, 22,106 comparisons of 1,536,938 values,
-    **0 failed** (26 s). `--js` passes (32 s); `--controls` 11 of 11 fail on one spoiled
-    value and name it.
+    **0 failed** (26 s). `--js` passes (32 s); `--controls` 13 of 13 kinds (the 11, and the
+    two below) fail on one spoiled value and name it.
+  - what the generator takes beside weave: `knots_wanted(d)` for d = 0 to 400 and
+    `knots_for(d)` (with `pow`) for d = -5 to 105, in steps of 0.01, and the 3 styles with
+    `len_hi_of(w)` for w = 1 to 60, against `L.knotsWanted`, grid-generator.js's `knotsFor`
+    and `L.STYLES`: 51,182 comparisons, 0 failed.
   - `--extra`: the 25 square boards without springs of G1's `g1-extra-boards.jsonl` (4x4 to
     48x48, up to 223 ropes), 275 positions: 3,850 comparisons of 647,544 values, 0 failed.
   - weave: `check-weave.cjs` on `test/weave.wasm` and on `test/g2.wasm` (where weave shares

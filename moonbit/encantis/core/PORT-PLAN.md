@@ -947,7 +947,7 @@ G1 ──┬── G2 (square, weave) ──┬───────────
 | Group | Engineer | Compiler commit | Status | Commit | Oracle result |
 | --- | --- | --- | --- | --- | --- |
 | G1 | Claude (port G1) | 03225bc (origin/main; the tree of cb3fc4f) | done | see the G1 commits of 18 Nov (`git log --grep 'core G1'`) | `check-g1.cjs`: 8 checks, 4.4M comparisons, 0 failed; `--js` passes; `--controls` 24 of 24 |
-| G2 | Claude (port G2) | 03225bc (origin/main) | done | see the G2 commits of 18 Nov (`git log --grep 'core G2'`) | `check-g2.cjs`: 1,579 positions, 22,106 comparisons of 1.54M values, 0 failed; `--extra` (to 48x48) 275 positions, 0 failed; `--js` passes; `--controls` 11 of 11; `check-weave.cjs` 249 cases, 0 mismatches on `test/weave.wasm` and `test/g2.wasm`; other seeds 4,980 and sizes 224, 0 mismatches |
+| G2 | Claude (port G2) | 03225bc (origin/main) | done | see the G2 commits of 18 Nov (`git log --grep 'core G2'`) | `check-g2.cjs`: 1,579 positions, 22,106 comparisons of 1.54M values, 0 failed; `--extra` (to 48x48) 275 positions, 0 failed; knots and styles 51,182 comparisons, 0 failed; `--js` passes; `--controls` 13 of 13; `check-weave.cjs` 249 cases, 0 mismatches on `test/weave.wasm` and `test/g2.wasm`; other seeds 4,980 and sizes 224, 0 mismatches |
 | G3 | | | not started | | |
 | G4 | | | not started | | |
 | G5 | | | not started | | |

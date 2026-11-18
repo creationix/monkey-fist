@@ -57,6 +57,12 @@ import "../square" (
   "sq_replay" func sq_replay(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> Replayed
   "sq_casual_wins" func sq_casual_wins(paths: []?[]Pt, w: i32, h: i32, r: *mut Rng, games: i32, m: *SqMirrors) -> f64
 )
+import "../weave" (
+  "knots_wanted" func knots_wanted(d: f64) -> i32
+  "knots_for" func knots_for(d: f64) -> i32
+  "styles" func styles() -> []Style
+  "len_hi_of" func len_hi_of(s: Style, w: i32) -> i32
+)
 import "./weave" (
   "in_ptr" func weave_in_ptr() -> u32
   "fin_ptr" func weave_fin_ptr() -> u32
@@ -77,6 +83,7 @@ type SqBoard = (n: i32, left: i32, occ: [*]mut i32, at: [*]mut i32, seq: [*]mut 
 type Solved = (solved: i32, moves: []i32, nodes: i32)
 type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
 type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+type Style = (kind: i32, min_len: i32, straight: f64, len_lo: i32, twisty: bool)
 
 def gone_at = 32767:i32
 
@@ -316,6 +323,26 @@ export func t_rays() {
     } else {
       put(-1)
     }
+  }
+}
+
+// --- The generator's choices beside weave ---
+
+export func t_knots_wanted(d: f64) -> i32 => knots_wanted(d)
+
+export func t_knots_for(d: f64) -> i32 => knots_for(d)
+
+// Style k: kind, min_len, len_lo, twisty, then len_hi on a board whose shorter side is
+// w; double 0 its straight.
+export func t_style(k: i32, w: i32) {
+  out_clear()
+  if let s = styles()[k as u32] {
+    put(s.kind)
+    put(s.min_len)
+    put(s.len_lo)
+    put(bit(s.twisty))
+    put(len_hi_of(s, w))
+    putf(0, s.straight)
   }
 }
 
