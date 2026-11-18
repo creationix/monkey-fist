@@ -48,6 +48,7 @@ import "./lib/sort" (
 )
 
 import "./lists" (
+  "new" func new(comptime T: type, x: T) -> *mut T
   "table" func table(comptime T: type, n: i32, v: T) -> [*]mut T
   "part" func part(p: [*]i32, from: i32, to: i32) -> []i32
   "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
@@ -203,6 +204,7 @@ global waits: [*]mut i32 = 0
 global stamp: i32 = 0
 
 // The step's choice, copied out of the scope it was tried in (keep).
+global kept: *mut Cand = 0
 global kept_path: *mut Vec(i32) = 0
 global kept_rest: *mut Vec(i32) = 0
 global kept_gap: *mut Vec(i32) = 0
@@ -212,18 +214,20 @@ global kept_gap: *mut Vec(i32) = 0
 global settled: u32 = 0
 
 // --- Values ------------------------------------------------------------------------
-// `ok` stands in for an optional: when it is false the rest means nothing.
+// A function that may find nothing returns an optional pointer to what it found,
+// stored on the stack in its caller's scope: 0 when there is nothing.
 
 // A way out: every cell to the edge, how many are empty, the ropes standing in it.
-type Lane = (ok: bool, cells: []i32, free: i32, ids: []i32)
+type Lane = (cells: []i32, free: i32, ids: []i32)
 
 // A rope shaped on the board: its path from tail to head and its way out.
-type Shaped = (ok: bool, path: []i32, lane: Lane)
+type Shaped = (path: []i32, lane: *Lane)
 
-// A candidate addition, with what it would do to the score: a rope (lane set),
-// a knot (pull > 0: how far back it starts; rest: the cells it slides onto) or a
-// trap (gap: the cells kept empty in front of it).
-type Cand = (ok: bool, path: []i32, lane: Lane, gain: i32, bends: i32, pull: i32, rest: []i32, gap: []i32)
+// A candidate addition, with what it would do to the score: a rope (with its
+// way out), a knot (pull > 0: how far back it starts; rest: the cells it slides
+// onto) or a trap (gap: the cells kept empty in front of it). A knot, a trap and
+// a kept candidate have no lane.
+type Cand = (path: []i32, lane: ?*Lane, gain: i32, bends: i32, pull: i32, rest: []i32, gap: []i32)
 
 // A place for a knot or trap: an empty cell for the head and a direction. For a
 // knot, `room` is the straight room behind and `against` the knot it would come
@@ -234,15 +238,10 @@ type Spot = (c: i32, di: i32, room: i32, against: i32, gap: i32)
 type Spots = (tight: []Spot, chain: []Spot, gapped: []Spot)
 
 // A direction a new rope's head could point, with its way out.
-type Option = (d: i32, lane: Lane)
+type Option = (d: i32, lane: *Lane)
 
 // A walked rope: its body cells from the head back, and for a knot its tail.
-type Walked = (ok: bool, cells: []i32, tail: []i32)
-
-func no_lane() -> Lane => Lane(false, [], 0, [])
-func no_shape() -> Shaped => Shaped(false, [], no_lane())
-func no_cand() -> Cand => Cand(false, [], no_lane(), 0, 0, 0, [], [])
-func no_walk() -> Walked => Walked(false, [], [])
+type Walked = (cells: []i32, tail: []i32)
 
 func inside(x: i32, y: i32) -> bool => x >= 0 && y >= 0 && x < width && y < height
 
@@ -305,10 +304,10 @@ func grow(start: i32, first: i32, straightness: f64) -> []i32 {
 }
 
 // The way out from (x, y) in direction (dx, dy), not counting (x, y) itself.
-// With mirrors it bends; not ok if it would pass a cell twice.
-func way_out(x: i32, y: i32, dx: i32, dy: i32) -> Lane {
+// With mirrors it bends; none if it would pass a cell twice.
+func way_out(x: i32, y: i32, dx: i32, dy: i32) -> ?*Lane {
   let cells = vec(i32, 16)
-  return no_lane() when !ray(cells, x, y, dx, dy)
+  return 0 when !ray(cells, x, y, dx, dy)
   let free = 0
   let ids = vec(i32, 4)
   for c in cells.items() {
@@ -319,16 +318,16 @@ func way_out(x: i32, y: i32, dx: i32, dy: i32) -> Lane {
       ids.push(o)
     }
   }
-  return Lane(true, cells.items(), free, ids.items())
+  return new(Lane(cells.items(), free, ids.items()))
 }
 
-// The way out of a rope with this path, or not ok if its own body is in it.
-func lane_of(path: []i32) -> Lane {
-  return no_lane() when self_blocked(path)
+// The way out of a rope with this path, or none if its own body is in it.
+func lane_of(path: []i32) -> ?*Lane {
+  return 0 when self_blocked(path)
   let h = path.ptr[path.len - 1]
   let dx, dy = head_dir(path)
   let lane = way_out(h % width, h / width, dx, dy)
-  assert lane.ok
+  assert lane != 0
   return lane
 }
 
@@ -337,7 +336,7 @@ func lane_of(path: []i32) -> Lane {
 // body out behind it; `dir`, unless -1, is the one direction the head may
 // point. Otherwise walk a body through `start` and take whichever end has the
 // longer way out.
-func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
+func shape(start: i32, straightness: f64, dir: i32) -> ?*Shaped {
   let sx = start % width
   let sy = start / width
   if dir >= 0 || chance(4, 0.75) {
@@ -350,10 +349,10 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       let bx = sx - dir_x[d]
       let by = sy - dir_y[d]
       continue when !inside(bx, by) || grid[by * width + bx] != -1
-      let lane = way_out(sx, sy, dir_x[d], dir_y[d])
-      continue when !lane.ok
-      opts.push(Option(d as i32, lane))
-      sum += lane.cells.len as i32 + 1
+      if let lane = way_out(sx, sy, dir_x[d], dir_y[d]) {
+        opts.push(Option(d as i32, lane))
+        sum += lane.cells.len as i32 + 1
+      }
     }
     if opts.len > 0 {
       // one of them, by weight: the length of its way out, plus one
@@ -369,36 +368,46 @@ func shape(start: i32, straightness: f64, dir: i32) -> Shaped {
       let behind = grow(start, (o.d + 2) % 4, straightness)
       let path = reversed(behind)
       if behind.len as i32 >= min_len && !self_blocked(path) {
-        return Shaped(true, path, o.lane)
+        return new(Shaped(path, o.lane))
       }
     }
-    return no_shape() when dir >= 0
+    return 0 when dir >= 0
   }
   let body = grow(start, -1, straightness)
-  return no_shape() when (body.len as i32) < min_len
+  return 0 when (body.len as i32) < min_len
   let back = reversed(body)
-  let a = lane_of(body)
-  let b = lane_of(back)
-  if a.ok && b.ok {
-    if b.cells.len > a.cells.len || (b.cells.len == a.cells.len && chance(6, 0.5)) {
-      return Shaped(true, back, b)
+  let forth = lane_of(body)
+  let backward = lane_of(back)
+  if let a = forth {
+    if let b = backward {
+      return new(Shaped(back, b)) when b.cells.len > a.cells.len || (b.cells.len == a.cells.len && chance(6, 0.5))
     }
-    return Shaped(true, body, a)
+    return new(Shaped(body, a))
   }
-  return Shaped(true, body, a) when a.ok
-  return Shaped(true, back, b) when b.ok
-  return no_shape()
+  if let b = backward {
+    return new(Shaped(back, b))
+  }
+  return 0
 }
 
 // --- Adding to the board ----------------------------------------------------------------
 
-func fits(c: Cand, budget: i32) -> bool => c.ok && c.gain + c.bends <= budget && bend_sum + c.bends <= s_max
+// The candidate, if there is one and its gain and bends fit the budget and the
+// score slot.
+func fits(c: ?*Cand, budget: i32) -> ?*Cand {
+  if let x = c {
+    return x when x.gain + x.bends <= budget && bend_sum + x.bends <= s_max
+  }
+  return 0
+}
 
 // Copies a candidate's cells to the buffers that last for the call, so that it
 // outlives the scope it was tried in. There is one set of buffers: keeping a
 // candidate overwrites the one kept before.
-func keep(c: Cand) -> Cand =>
-  Cand(true, copy(c.path, kept_path), no_lane(), c.gain, c.bends, c.pull, copy(c.rest, kept_rest), copy(c.gap, kept_gap))
+func keep(c: *Cand) -> *Cand {
+  kept.* = Cand(copy(c.path, kept_path), 0, c.gain, c.bends, c.pull, copy(c.rest, kept_rest), copy(c.gap, kept_gap))
+  return kept
+}
 
 // xs, copied to a list that lasts for the call. It is filled in a try's scope,
 // so it must not grow: it was given room for the most it can hold.
@@ -421,7 +430,7 @@ func note_order() {
 }
 
 // Adds a kept candidate to the board for good.
-func commit(c: Cand) {
+func commit(c: *Cand) {
   // What is allocated here lasts for the rest of the call, so no step or try
   // may be open: its reset would free the track.
   assert mark() == settled
@@ -533,9 +542,10 @@ func pick_parent(kind: i32) -> i32 {
   return n - 1
 }
 
-// A start for a head 1 to 3 cells before an unused mirror, pointing at it.
-func aimed() -> (ok: bool, start: i32, di: i32) {
-  ok = false
+// A start for a head 1 to 3 cells before an unused mirror, and the direction
+// that points it at the mirror. The start is -1 if there is none.
+func aimed() -> (start: i32, di: i32) {
+  start = -1
   let scope = mark()
   defer reset(scope)
   let idle = vec(i32, mirrors.len)
@@ -544,37 +554,28 @@ func aimed() -> (ok: bool, start: i32, di: i32) {
       idle.push(c)
     }
   }
-  if idle.len == 0 {
-    return
-  }
+  return when idle.len == 0
   let m = idle.ptr[below(8, idle.len as i32)]
   di = below(9, 4)
   let j = 1 + below(10, 3)
   let x = m % width - dx_of(di) * j
   let y = m / width - dy_of(di) * j
-  if !inside(x, y) {
-    return
-  }
+  return when !inside(x, y)
   for k in j {
     let step = k as i32
-    if grid[(y + dy_of(di) * step) * width + x + dx_of(di) * step] != -1 {
-      return
-    }
+    return when grid[(y + dy_of(di) * step) * width + x + dx_of(di) * step] != -1
   }
   start = y * width + x
-  ok = true
 }
 
 // One possible next rope, with what it would do to the score. `at` is the cell
 // it must include, or -1 to choose one by `kind`.
-func candidate(kind: i32, at: i32) -> Cand {
+func candidate(kind: i32, at: i32) -> ?*Cand {
   let start = at
   let dir = -1
   if kind == at_mirror {
-    let (ok:, start: cell, di:) = aimed()
-    return no_cand() when !ok
-    start = cell
-    dir = di
+    set start, dir = aimed()
+    return 0 when start < 0
   }
   let parent = -1
   if start < 0 && kind != any && kind != plain {
@@ -591,12 +592,13 @@ func candidate(kind: i32, at: i32) -> Cand {
     }
     tries += 1
   }
-  return no_cand() when start < 0
-  let s = shape(start, if kind == plain { 1.0 } else { straight }, dir)
-  return no_cand() when !s.ok
-  let sum = trial(s.path, [], order.items())
-  return no_cand() when sum < 0
-  return Cand(true, s.path, s.lane, sum - total0, bends_of(s.path), 0, [], [])
+  return 0 when start < 0
+  if let s = shape(start, if kind == plain { 1.0 } else { straight }, dir) {
+    let sum = trial(s.path, [], order.items())
+    return 0 when sum < 0
+    return new(Cand(s.path, s.lane, sum - total0, bends_of(s.path), 0, [], []))
+  }
+  return 0
 }
 
 // --- Knots and traps ------------------------------------------------------------------------------
@@ -726,7 +728,7 @@ func any_tied(cells: []i32) -> bool {
 // so that it closes no loop where it lies, and then, for a knot, k more cells
 // of tail, which must reach a tied cell. A knot's first k + 2 cells run
 // straight, so that it can start k cells back.
-func walk(spot: Spot, k: i32) -> Walked {
+func walk(spot: Spot, k: i32) -> ?*Walked {
   let back = (spot.di + 2) % 4
   // (want is at least 2 and k at least 0, so the counts below compare as u32.)
   let want = max(k + 2, len_lo + below(13, len_hi - len_lo + 1))
@@ -786,23 +788,23 @@ func walk(spot: Spot, k: i32) -> Walked {
       }
     }
   }
-  let w = Walked(true, cells.items(), tail.items())
+  let w = new(Walked(cells.items(), tail.items()))
   for cell in w.cells {
     grid[cell] = -1
   }
   for cell in w.tail {
     grid[cell] = -1
   }
-  return no_walk() when cells.len < max(min_len, k + 2) as u32 || self_blocked(reversed(w.cells))
+  return 0 when cells.len < max(min_len, k + 2) as u32 || self_blocked(reversed(w.cells))
   if k > 0 {
-    return no_walk() when tail.len < k as u32 || !got || self_blocked(slid(w, k))
+    return 0 when tail.len < k as u32 || !got || self_blocked(slid(w, k))
   }
   return w
 }
 
 // A knot's rope where it starts, k cells back from where it was walked: without
 // the first k cells behind the head, and with the tail. From tail to head.
-func slid(w: Walked, k: i32) -> []i32 {
+func slid(w: *Walked, k: i32) -> []i32 {
   let path = vec(i32, w.tail.len + w.cells.len)
   path.push_reversed(w.tail)
   path.push_reversed(part(w.cells.ptr, k, w.cells.len as i32))
@@ -811,78 +813,82 @@ func slid(w: Walked, k: i32) -> []i32 {
 
 // A knot at a spot where there is something to stop against: shaped in the
 // place it slides to, and starting k cells back.
-func knot(spot: Spot) -> Cand {
-  let lane = way_out(spot.c % width, spot.c / width, dx_of(spot.di), dy_of(spot.di))
-  return no_cand() when !lane.ok
-  mark_below(lane.ids, spot.against)
-  return no_cand() when tied(spot.c)
-  let k = 1 + below(18, min(pull, spot.room - 1))
-  let w = walk(spot, k)
-  return no_cand() when !w.ok
-  let first = slid(w, k)
-  let st = vec(i32, 1)
-  st.push(k)
-  let sum = trial(first, st.items(), order.items())
-  return no_cand() when sum < 0
-  return Cand(true, first, no_lane(), sum - total0, bends_of(first), k, part(w.cells.ptr, 0, k), [])
+func knot(spot: Spot) -> ?*Cand {
+  if let lane = way_out(spot.c % width, spot.c / width, dx_of(spot.di), dy_of(spot.di)) {
+    mark_below(lane.ids, spot.against)
+    return 0 when tied(spot.c)
+    let k = 1 + below(18, min(pull, spot.room - 1))
+    if let w = walk(spot, k) {
+      let first = slid(w, k)
+      let st = vec(i32, 1)
+      st.push(k)
+      let sum = trial(first, st.items(), order.items())
+      return 0 when sum < 0
+      return new(Cand(first, 0, sum - total0, bends_of(first), k, part(w.cells.ptr, 0, k), []))
+    }
+  }
+  return 0
 }
 
 // A trap at a spot with a gap ahead. Sliding it into the gap must leave ropes
 // that can never get out, which is checked by doing it.
-func trap(spot: Spot) -> Cand {
-  let lane = way_out(spot.c % width, spot.c / width, dx_of(spot.di), dy_of(spot.di))
-  return no_cand() when !lane.ok
-  let gap = part(lane.cells.ptr, 0, spot.gap)
-  mark_below(lane.ids, -1)
-  return no_cand() when tied(spot.c) || !any_tied(gap)
-  let w = walk(spot, 0)
-  return no_cand() when !w.ok
-  let path = reversed(w.cells)
-  let sum = trial(path, [], order.items())
-  return no_cand() when sum < 0
-  // (This leaves the board with the rope slid into the gap, and then dropped:
-  // every replay sets the board up again first.)
-  let id = add(path, [])
-  set_up()
-  place(id, spot.gap)
-  let dead = relax()
-  drop()
-  return no_cand() when dead == 0
-  return Cand(true, path, no_lane(), sum - total0, bends_of(path), 0, [], gap)
+func trap(spot: Spot) -> ?*Cand {
+  if let lane = way_out(spot.c % width, spot.c / width, dx_of(spot.di), dy_of(spot.di)) {
+    let gap = part(lane.cells.ptr, 0, spot.gap)
+    mark_below(lane.ids, -1)
+    return 0 when tied(spot.c) || !any_tied(gap)
+    if let w = walk(spot, 0) {
+      let path = reversed(w.cells)
+      let sum = trial(path, [], order.items())
+      return 0 when sum < 0
+      // (This leaves the board with the rope slid into the gap, and then
+      // dropped: every replay sets the board up again first.)
+      let id = add(path, [])
+      set_up()
+      place(id, spot.gap)
+      let dead = relax()
+      drop()
+      return 0 when dead == 0
+      return new(Cand(path, 0, sum - total0, bends_of(path), 0, [], gap))
+    }
+  }
+  return 0
 }
 
 // One try at a knot or a trap, in a scope of its own.
-func spot_try(spots: Spots, is_knot: bool, budget: i32) -> Cand {
+func spot_try(spots: Spots, is_knot: bool, budget: i32) -> ?*Cand {
   let scope = mark()
   defer reset(scope)
   // a knot goes against another knot's resting place half the time, if there is one
   let list = if !is_knot { spots.gapped } elif spots.chain.len > 0 && (chance(20, 0.5) || spots.tight.len == 0) { spots.chain } else { spots.tight }
-  return no_cand() when list.len == 0
+  return 0 when list.len == 0
   let spot = list.ptr[below(21, list.len as i32)]
-  let c = if is_knot { knot(spot) } else { trap(spot) }
-  return no_cand() when !fits(c, budget)
-  return keep(c)
+  if let c = fits(if is_knot { knot(spot) } else { trap(spot) }, budget) {
+    return keep(c)
+  }
+  return 0
 }
 
 // While the level still wants knots or traps, try for one first, spreading them
 // over the build. Places for them are scarce, so one that fits is taken.
 // Whichever kind the level is shorter of gets the first tries.
-func knot_or_trap(room: f64, budget: i32) -> Cand {
+func knot_or_trap(room: f64, budget: i32) -> ?*Cand {
   let want_knots = tie - knots
   let want_traps = bait - traps
-  return no_cand() when n < 2 || (want_knots <= 0 && want_traps <= 0)
-  return no_cand() when !chance(19, 2 * (want_knots + want_traps) / room)
+  return 0 when n < 2 || (want_knots <= 0 && want_traps <= 0)
+  return 0 when !chance(19, 2 * (want_knots + want_traps) / room)
   let spots = knot_spots()
   let knot_first = want_knots > 0 && (want_traps <= 0 || knots <= traps)
   for half in 2 {
     let is_knot = knot_first == (half == 0)
     continue when (is_knot && want_knots <= 0) || (!is_knot && want_traps <= 0)
     for t in knot_tries {
-      let c = spot_try(spots, is_knot, budget)
-      return c when c.ok
+      if let c = spot_try(spots, is_knot, budget) {
+        return c
+      }
     }
   }
-  return no_cand()
+  return 0
 }
 
 // --- Laying ropes ------------------------------------------------------------------------------------
@@ -898,42 +904,45 @@ func reaches_idle_mirror(cells: []i32) -> bool {
 // long lanes when deep ropes are wanted, one that lands the score in its slot,
 // and one that brings an idle mirror into play (while any lies on no rope's way
 // out, one try per step aims at it).
-func best_rope(budget: i32, desire: f64, need: i32) -> Cand {
+func best_rope(budget: i32, desire: f64, need: i32) -> ?*Cand {
   let row = if n == 0 { 0 } elif budget < 1 { 1 } elif desire >= 2.0 { 2 } elif desire >= 1.0 { 3 } else { 4 }
   let aim = mirrors.len as i32 > mirrors_used && n >= 1
-  let best = no_cand()
+  let best: ?*Cand = 0
   let best_miss = 1.0e300
   for k in tries_per_step {
     // each try in a scope of its own; the best so far is kept outside it
     let scope = mark()
     defer reset(scope)
     let kind = if aim && k == 0 { at_mirror } else { kinds.i32[row * 8 + k as i32] }
-    let c = candidate(kind, -1)
-    continue when !fits(c, budget)
-    let lands = need > 0 && c.gain + c.bends >= need && covered + c.path.len as i32 >= min_coverage_slide * area
-    let reaches = aim && reaches_idle_mirror(c.lane.cells)
-    let long = if desire >= 2.0 { min(c.lane.free, 4) * 0.2 } else { 0.0 }
-    let landing = if lands { 100.0 } else { 0.0 }
-    let reaching = if reaches { 1.5 } else { 0.0 }
-    let miss = abs(c.gain - desire) + rng(22, 0) * 0.6 - long - landing - reaching
-    if miss < best_miss {
-      best = keep(c)
-      best_miss = miss
+    if let c = fits(candidate(kind, -1), budget) {
+      if let lane = c.lane {
+        let lands = need > 0 && c.gain + c.bends >= need && covered + c.path.len as i32 >= min_coverage_slide * area
+        let reaches = aim && reaches_idle_mirror(lane.cells)
+        let long = if desire >= 2.0 { min(lane.free, 4) * 0.2 } else { 0.0 }
+        let landing = if lands { 100.0 } else { 0.0 }
+        let reaching = if reaches { 1.5 } else { 0.0 }
+        let miss = abs(c.gain - desire) + rng(22, 0) * 0.6 - long - landing - reaching
+        if miss < best_miss {
+          best = keep(c)
+          best_miss = miss
+        }
+      }
     }
   }
   return best
 }
 
-// The next rope, knot or trap to add, kept; not ok if none fits. A step, with
-// a scope of its own.
-func next_addition(score: i32) -> Cand {
+// The next rope, knot or trap to add, kept; none if none fits. A step, with a
+// scope of its own.
+func next_addition(score: i32) -> ?*Cand {
   let scope = mark()
   defer reset(scope)
   let budget = s_max - score
   let room = max(1.0, (cover_goal - covered) / mean_len)
   survey()
-  let c = knot_or_trap(room, budget)
-  return c when c.ok
+  if let c = knot_or_trap(room, budget) {
+    return c
+  }
   return best_rope(budget, tap_depth, s_min - score)
 }
 
@@ -942,24 +951,24 @@ func lay_ropes() {
   for guard in 2 * area {
     let score = total0 + bend_sum
     break when score >= s_min && n >= min_ropes && covered >= cover_goal
-    let best = next_addition(score)
-    if !best.ok {
+    if let best = next_addition(score) {
+      stuck = 0
+      commit(best)
+    } else {
       stuck += 1
       break when stuck > max_stuck
-      continue
     }
-    stuck = 0
-    commit(best)
   }
 }
 
 // One try at a rope through `cell`, in a scope of its own.
-func gap_rope(cell: i32, budget: i32) -> Cand {
+func gap_rope(cell: i32, budget: i32) -> ?*Cand {
   let scope = mark()
   defer reset(scope)
-  let c = candidate(if budget < 1 { plain } else { any }, cell)
-  return no_cand() when !fits(c, budget)
-  return keep(c)
+  if let c = fits(candidate(if budget < 1 { plain } else { any }, cell), budget) {
+    return keep(c)
+  }
+  return 0
 }
 
 // Packs the gaps: goes round the cells still empty, in a random order, and
@@ -988,10 +997,10 @@ func pack_gaps() {
       continue when grid[c] != -1
       let budget = s_max - total0 - bend_sum
       for t in 3 {
-        let rope = gap_rope(c, budget)
-        continue when !rope.ok
-        commit(rope)
-        break
+        if let rope = gap_rope(c, budget) {
+          commit(rope)
+          break
+        }
       }
     }
   }
@@ -1164,6 +1173,7 @@ func start_build(w: i32, h: i32, core_stops: i32) {
   // The longest rope a candidate can have: a walk wants at most
   // max(len_hi, pull + 2) cells. A knot rests on at most pull cells, and a
   // trap keeps at most pull empty.
+  kept = new(Cand([], 0, 0, 0, 0, [], []))
   kept_path = vec(i32, max(len_hi, pull + 2) as u32)
   kept_rest = vec(i32, pull as u32)
   kept_gap = vec(i32, pull as u32)
@@ -1267,13 +1277,15 @@ test "a way out lists its cells, the empty ones and the ropes in it" {
   test_board()
   grid[6] = 0       // rope 0 on (2, 1)
   grid[7] = held    // a cell kept empty for a trap: neither free nor a rope
-  let lane = way_out(0, 1, 1, 0)
-  assert lane.ok
-  assert lane.cells.len == 3
-  assert lane.cells.ptr[0] == 5
-  assert lane.free == 1
-  assert lane.ids.len == 1
-  assert lane.ids.ptr[0] == 0
+  if let lane = way_out(0, 1, 1, 0) {
+    assert lane.cells.len == 3
+    assert lane.cells.ptr[0] == 5
+    assert lane.free == 1
+    assert lane.ids.len == 1
+    assert lane.ids.ptr[0] == 0
+  } else {
+    assert false
+  }
 }
 
 test "a grown rope stays on the board and leaves the grid as it was" {

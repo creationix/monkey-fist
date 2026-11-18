@@ -1,5 +1,5 @@
-// What the builder needs of lists beyond lib/vec: tables on the bump stack
-// (lib/stack), parts of them, and the JS's includes() and reverse().
+// What the builder needs beyond lib/vec: values and tables on the bump stack
+// (lib/stack), parts of tables, and the JS's includes() and reverse().
 //
 // A list whose length is not known in advance is a Vec(i32) (lib/vec) and
 // travels as the slice its items() give. A table has one entry per cell or per
@@ -17,6 +17,13 @@ import "./lib/vec" (
   "push" func push(comptime T: type, v: *mut Vec(T), x: T)
   "items" func items(comptime T: type, v: *Vec(T)) -> []T
 )
+
+// x, stored on the stack.
+export func new(comptime T: type, x: T) -> *mut T {
+  let p = alloc(sizeof(T)) as *mut T
+  p.* = x
+  return p
+}
 
 // A table of n elements, each set to v.
 export func table(comptime T: type, n: i32, v: T) -> [*]mut T {
