@@ -1,0 +1,712 @@
+// The board the builder plays its levels out on: intentionBoard of levels.js
+// (Intentions and SqBoard in src/core/weave.mbt and square.mbt), with the
+// square geometry it stands on.
+//
+// A rope can only ever occupy cells of its own track: its body as first laid,
+// then its way out to the edge as fixed mirrors bend it. So a position is one
+// offset per rope. Each rope also carries its intentions: the offsets it is
+// meant to slide to and stop at, in order, before it leaves. replay() plays
+// those out and measures the board: each rope's block cost, the rope its last
+// wait was for, the taps made.
+//
+// There is one board per call of the builder. new_board() allocates its tables
+// on the bump stack, in the caller's scope; add() puts each rope's track there
+// too, so a rope lasts as long as the scope it was added in.
+//
+// The file starts with what the board and the builder need of lists beyond
+// lib/vec: values and tables on the stack, parts of tables, and the JS's
+// includes() and reverse().
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+)
+
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+  "clear" func clear(comptime T: type, v: *mut Vec(T))
+)
+
+// --- Lists and tables -------------------------------------------------------
+// A list whose length is not known in advance is a Vec (lib/vec) and travels
+// as the slice its items() give. A table has one entry per cell or per rope,
+// and is a many-pointer: indexing it is not checked (see README.md). Nothing
+// here frees: what is allocated lives until its scope resets.
+
+// x, stored on the stack.
+export func new(comptime T: type, x: T) -> *mut T {
+  let p = alloc(sizeof(T)) as *mut T
+  p.* = x
+  return p
+}
+
+// A table of n elements, each set to v.
+export func table(comptime T: type, n: i32, v: T) -> [*]mut T {
+  let p = alloc((n as u32) * sizeof(T)) as [*]mut T
+  for i in n {
+    p[i] = v
+  }
+  return p
+}
+
+// Elements from..to (to not included) of the array at p.
+export func part(p: [*]i32, from: i32, to: i32) -> []i32 => p[from as u32..to as u32]
+
+export func contains(comptime T: type, xs: []T, x: T) -> bool {
+  for y in xs {
+    return true when y == x
+  }
+  return false
+}
+
+export func push_all(comptime T: type, v: *mut Vec(T), xs: []T) {
+  for x in xs {
+    v.push(x)
+  }
+}
+
+// Pushes xs last element first.
+export func push_reversed(comptime T: type, v: *mut Vec(T), xs: []T) {
+  let i = xs.len
+  while i > 0 {
+    i -= 1
+    v.push(xs.ptr[i])
+  }
+}
+
+// xs in reverse order, in a list of its own.
+export func reversed(xs: []i32) -> []i32 {
+  let v = vec(i32, xs.len)
+  v.push_reversed(xs)
+  return v.items()
+}
+
+// was[] of a rope that has left (relax)
+def gone = 32767:i32
+
+// --- Geometry ---------------------------------------------------------------
+
+export global width: i32 = 0
+export global height: i32 = 0
+export global area: i32 = 0             // width * height; a cell is y * width + x
+export global slope: [*]mut i32 = 0     // per cell: -1 no mirror, 0 '/', 1 '\'
+export global mirrors: *mut Vec(i32) = 0  // the cells with a mirror, in the order they were given
+
+global seen: [*]mut i32 = 0             // per cell: a stamp, to ask "was this cell passed?"
+global stamp: i32 = 0
+
+// --- The board (SqBoard) ----------------------------------------------------
+
+export global n: i32 = 0                // ropes on the board
+export global left: i32 = 0             // of them, those that have not left
+export global seq: [*]mut []i32 = 0     // per rope: its track
+export global len: [*]mut i32 = 0       // per rope: its length
+global occ: [*]mut i32 = 0              // per cell: the rope on it, or -1
+global at: [*]mut i32 = 0               // per cell: its index along that rope's track
+global off: [*]mut i32 = 0              // per rope: how far along it has slid, -1 once gone
+global was: [*]mut i32 = 0              // per rope: relax() scratch
+global now: [*]mut i32 = 0              // per rope: relax() scratch
+
+// --- Intentions, and what the last replay found -------------------------------
+// cost and dep are whatever the last replay left, and a trial is a replay. A
+// replay that fails part-way leaves the cost of a rope that never left as it
+// was. The builder reads them in that state, as the JS does: do not tidy.
+
+export global stops: [*]mut []i32 = 0   // per rope: the offsets it is meant to stop at, in order
+export global cost: [*]mut i32 = 0      // per rope: its block cost, the layer of the tap that took it off
+export global dep: [*]mut i32 = 0       // per rope: the rope its last wait was for, or -1
+export global taps: *mut Vec(i32) = 0  // the taps the last replay made, in order
+export global cost_sum: i32 = 0         // the block costs of the ropes that left, summed
+global cell_at: [*]mut i32 = 0          // per cell: the layer of the tap that last emptied it, or -1
+global cell_by: [*]mut i32 = 0          // per cell: the rope that tap moved
+global rope_at: [*]mut i32 = 0          // per rope: the layer of its last tap, or -1
+global done: [*]mut i32 = 0             // per rope: how many of its stops it has made
+
+// An empty w x h board, in the caller's scope. A replay taps each rope once for
+// each of its stops and once to leave: max_taps must cover the most that can be,
+// because a replay runs in scopes inside the call's, and `taps` must not grow
+// there (its new room would be freed with the scope).
+//
+// Per-rope tables have one entry per cell, as in the JS, and need it: dep[] can
+// name the rope a trial added and dropped again (index n), and the builder
+// follows it.
+export func new_board(w: i32, h: i32, max_taps: i32) {
+  width = w
+  height = h
+  area = w * h
+  slope = table(i32, area, -1)
+  mirrors = vec(i32, 8)
+  seen = table(i32, area, 0)
+  stamp = 0
+  n = 0
+  left = 0
+  seq = table([]i32, area, [])
+  len = table(i32, area, 0)
+  occ = table(i32, area, 0)
+  at = table(i32, area, 0)
+  off = table(i32, area, 0)
+  was = table(i32, area, 0)
+  now = table(i32, area, 0)
+  stops = table([]i32, area, [])
+  cost = table(i32, area, 0)
+  dep = table(i32, area, 0)
+  taps = vec(i32, max_taps as u32)
+  cost_sum = 0
+  cell_at = table(i32, area, 0)
+  cell_by = table(i32, area, 0)
+  rope_at = table(i32, area, 0)
+  done = table(i32, area, 0)
+}
+
+// A fixed two-sided mirror on cell c: kind 0 is '/', 1 is '\'.
+export func add_mirror(c: i32, kind: i32) {
+  if slope[c] < 0 {
+    mirrors.push(c)
+  }
+  slope[c] = kind
+}
+
+// (dx, dy) turned by the mirror of slope s: '/' sends it to (-dy, -dx), '\' to (dy, dx).
+func turn(s: i32, dx: i32, dy: i32) -> (i32, i32) => if s == 0 { (0 - dy, 0 - dx) } else { (dy, dx) }
+
+// Which way a rope's head points: one step from the cell behind it. A path
+// runs from tail to head.
+export func head_dir(path: []i32) -> (dx: i32, dy: i32) {
+  let h = path.ptr[path.len - 1]
+  let p = path.ptr[path.len - 2]
+  dx = h % width - p % width
+  dy = h / width - p / width
+}
+
+// Pushes the cells a head at (x, y) passes moving (dx, dy), up to the edge, onto
+// `way`. A mirror turns the head as it enters the mirror's cell. False if that
+// way would enter a cell twice (in the game such a tap overlaps itself or never
+// settles).
+export func ray(way: *mut Vec(i32), x0: i32, y0: i32, dx0: i32, dy0: i32) -> bool {
+  let start = way.len
+  let x = x0
+  let y = y0
+  let dx = dx0
+  let dy = dy0
+  let turned = false
+  loop {
+    x += dx
+    y += dy
+    break when x < 0 || y < 0 || x >= width || y >= height
+    let c = y * width + x
+    way.push(c)
+    if slope[c] >= 0 {
+      set (dx, dy) = turn(slope[c], dx, dy)
+      turned = true
+      return false when way.len - start > (2 * area) as u32
+    }
+  }
+  // A straight way cannot pass a cell twice.
+  return true when !turned
+  stamp += 1
+  for passed in way.ptr[start..way.len] {
+    return false when seen[passed] == stamp
+    seen[passed] = stamp
+  }
+  return true
+}
+
+// Would this rope's own body stand in its way out? Such a rope can never leave.
+export func self_blocked(path: []i32) -> bool {
+  let h = path.ptr[path.len - 1]
+  let hx = h % width
+  let hy = h / width
+  let dx, dy = head_dir(path)
+  if mirrors.len > 0 {
+    // A head lying on a mirror leaves it already turned.
+    if slope[h] >= 0 {
+      set (dx, dy) = turn(slope[h], dx, dy)
+    }
+    let scope = mark()
+    defer reset(scope)
+    let way = vec(i32, 16)
+    return true when !ray(way, hx, hy, dx, dy)
+    stamp += 1
+    for c in path {
+      seen[c] = stamp
+    }
+    for c in way.items() {
+      return true when seen[c] == stamp
+    }
+    return false
+  }
+  for c in path {
+    let x = c % width
+    let y = c / width
+    if dx != 0 {
+      return true when y == hy && (x - hx) * dx > 0
+    } elif x == hx && (y - hy) * dy > 0 {
+      return true
+    }
+  }
+  return false
+}
+
+// --- Ropes ----------------------------------------------------------------------
+
+// Puts one more rope on the board: its path from tail to head, and the offsets
+// it is meant to stop at before it leaves. Returns its id. The track goes on
+// top of the stack; `st` is kept as it is, so it must last as long as the rope.
+export func add(path: []i32, st: []i32) -> i32 {
+  assert n < area
+  let h = path.ptr[path.len - 1]
+  let dx, dy = head_dir(path)
+  let track = vec(i32, 2 * path.len)
+  track.push_all(path)
+  // The builder only adds ropes it has checked with self_blocked.
+  let straight = ray(track, h % width, h / width, dx, dy)
+  assert straight
+  seq[n] = track.items()
+  len[n] = path.len as i32
+  stops[n] = st
+  n += 1
+  return n - 1
+}
+
+// Takes the last rope added off again. (Its track is freed with its scope.)
+export func drop() {
+  n -= 1
+}
+
+// Rope i's path as it starts: the first len[i] cells of its track.
+export func path_of(i: i32) -> []i32 => part(seq[i].ptr, 0, len[i])
+
+// Puts rope i at offset `to` (-1 takes it off the board).
+export func place(i: i32, to: i32) {
+  let s = seq[i].ptr
+  let l = len[i]
+  let from = off[i]
+  if from >= 0 {
+    for c in part(s, from, from + l) {
+      occ[c] = -1
+    }
+    left -= 1
+  }
+  if to >= 0 {
+    let p = to
+    for c in part(s, to, to + l) {
+      occ[c] = i
+      at[c] = p
+      p += 1
+    }
+    left += 1
+  }
+  off[i] = to
+}
+
+// Every rope back at its start.
+export func set_up() {
+  occ[0..area as u32] = -1
+  left = 0
+  for i in n {
+    off[i] = -1
+    place(i as i32, 0)
+  }
+}
+
+// Where rope i would stop if tapped: its new offset, or -1 if it would leave.
+export func slide_to(i: i32) -> i32 {
+  let s = seq[i].ptr
+  let total = seq[i].len as i32
+  let p = off[i] + len[i]
+  while p < total && occ[s[p]] == -1 {
+    p += 1
+  }
+  return -1 when p == total
+  return p - len[i]
+}
+
+// The relaxation: how many ropes certainly can never leave. Each rope advances
+// as far as it could if every rope ahead of it advanced first; repeat until
+// none moves.
+export func relax() -> i32 {
+  let waiting = 0
+  for i in n {
+    if off[i] >= 0 {
+      waiting += 1
+    }
+    was[i] = if off[i] >= 0 { off[i] } else { gone }
+    now[i] = was[i]
+  }
+  let moved = true
+  while moved && waiting > 0 {
+    moved = false
+    for i in n {
+      continue when was[i] == gone
+      let s = seq[i].ptr
+      let total = seq[i].len as i32
+      let l = len[i]
+      let r = was[i]
+      loop {
+        let p = r + l
+        if p >= total {
+          r = gone
+          break
+        }
+        let c = s[p]
+        let z = occ[c]
+        // still in the way (a rope's own body always is)
+        break when z != -1 && (z == i as i32 || was[z] <= at[c])
+        r += 1
+      }
+      if r != was[i] {
+        now[i] = r
+        moved = true
+        if r == gone {
+          waiting -= 1
+        }
+      }
+    }
+    for i in n {
+      was[i] = now[i]
+    }
+  }
+  return waiting
+}
+
+// Taps the ropes in this order from the start, each sliding as far as it goes
+// (taps of ropes already gone are skipped). True if the board ends up empty.
+export func plays_out(order: []i32) -> bool {
+  set_up()
+  for i in order {
+    if off[i] >= 0 {
+      place(i, slide_to(i))
+    }
+  }
+  return left == 0
+}
+
+// --- Replaying intentions ---------------------------------------------------------
+
+// Taps rope i if that does what is meant for it next: stop on its next stop, or
+// leave once it has made them all. True if it moved.
+//
+// A tap's layer is one more than the latest layer among the taps it had to wait
+// for: those that emptied a cell it passes over, the one that brought the rope
+// it stops against into place, and the rope's own last slide.
+func tap(i: i32) -> bool {
+  let q = seq[i].ptr
+  let total = seq[i].len as i32
+  let l = len[i]
+  let from = off[i]
+  let p = from + l
+  let lay = rope_at[i]
+  let by = -1
+  while p < total && occ[q[p]] == -1 {
+    let c = q[p]
+    if cell_at[c] > lay {
+      lay = cell_at[c]
+      by = cell_by[c]
+    }
+    p += 1
+  }
+  let to = if p < total { p - l } else { -1 }
+  let want = if done[i] < stops[i].len as i32 { stops[i].ptr[done[i]] } else { -1 }
+  return false when to != want
+  if to >= 0 {
+    // what it stops against had to get there first
+    let z = occ[q[p]]
+    if rope_at[z] > lay {
+      lay = rope_at[z]
+      by = z
+    }
+  }
+  lay += 1
+  let end = if to >= 0 { min(from + l, to) } else { from + l }
+  for emptied in part(q, from, end) {
+    cell_at[emptied] = lay
+    cell_by[emptied] = i
+  }
+  place(i, to)
+  rope_at[i] = lay
+  assert taps.len < taps.cap
+  taps.push(i)
+  if to < 0 {
+    cost[i] = lay
+    dep[i] = by
+    cost_sum += lay
+  } else {
+    done[i] += 1
+  }
+  return true
+}
+
+// Plays the board out: goes round the ropes of `list`, tapping any whose tap
+// does what is meant for it next, until the board is empty or nothing more can
+// be done. `fresh`, if not -1, is a rope just added: it is tried again after
+// every tap, so that it goes as early as it can. True if the board emptied.
+export func replay(list: []i32, fresh: i32) -> bool {
+  set_up()
+  cell_at[0..area as u32] = -1
+  rope_at[0..n as u32] = -1
+  done[0..n as u32] = 0
+  taps.clear()
+  cost_sum = 0
+  let moved = true
+  while moved && left > 0 {
+    moved = false
+    for i in list {
+      if off[i] >= 0 && tap(i) {
+        moved = true
+        while fresh >= 0 && off[fresh] >= 0 && tap(fresh) {
+        }
+      }
+    }
+  }
+  return left == 0
+}
+
+// replay with rope `id` (just added) tried first, then the ropes of `order`.
+export func replay_first(id: i32, order: []i32) -> bool {
+  let scope = mark()
+  defer reset(scope)
+  let list = vec(i32, order.len + 1)
+  list.push(id)
+  list.push_all(order)
+  return replay(list.items(), id)
+}
+
+// The total block cost if this rope were added, or -1 if the board would no
+// longer play out. The board is left without the rope, but as the replay left
+// it: cost and dep too.
+export func trial(path: []i32, st: []i32, order: []i32) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  let id = add(path, st)
+  let ok = replay_first(id, order)
+  let sum = cost_sum
+  drop()
+  return -1 when !ok
+  return sum
+}
+
+// --- Loops ---------------------------------------------------------------------------
+
+// Sets looped[i] to 1 for every rope that waits on itself round a circle of
+// others, on the board as it stands: the strongly connected groups, of more
+// than one rope, of the "stands in my way out" links (Tarjan, iterative).
+export func find_loops(looped: [*]mut i32) {
+  let scope = mark()
+  defer reset(scope)
+  // blk[i]: every rope standing in rope i's way out, in track order
+  let blk = table([]i32, n, [])
+  for i in n {
+    let ids = vec(i32, 4)
+    for c in part(seq[i].ptr, len[i], seq[i].len as i32) {
+      let o = occ[c]
+      if o != -1 && !ids.items().contains(o) {
+        ids.push(o)
+      }
+    }
+    blk[i] = ids.items()
+  }
+  let index = table(i32, n, -1)
+  let low = table(i32, n, 0)
+  let on = table(i32, n, 0)
+  let stack = table(i32, n, 0)   // ropes whose group is not closed yet
+  let held = 0
+  let work = table(i32, n, 0)    // the path from the root, and how far each rope's links are done
+  let pos = table(i32, n, 0)
+  let next = 0
+  for r in n {
+    continue when index[r] >= 0
+    let root = r as i32
+    index[root] = next
+    low[root] = next
+    next += 1
+    stack[held] = root
+    held += 1
+    on[root] = 1
+    work[0] = root
+    pos[0] = 0
+    let depth = 1
+    while depth > 0 {
+      let v = work[depth - 1]
+      let k = pos[depth - 1]
+      if k < blk[v].len as i32 {
+        let x = blk[v].ptr[k]
+        pos[depth - 1] = k + 1
+        if index[x] < 0 {
+          index[x] = next
+          low[x] = next
+          next += 1
+          stack[held] = x
+          held += 1
+          on[x] = 1
+          work[depth] = x
+          pos[depth] = 0
+          depth += 1
+        } elif on[x] == 1 && index[x] < low[v] {
+          low[v] = index[x]
+        }
+      } else {
+        depth -= 1
+        if depth > 0 {
+          let u = work[depth - 1]
+          low[u] = min(low[u], low[v])
+        }
+        if low[v] == index[v] {
+          // v closes a group: everything held above it, and itself
+          let top = held
+          loop {
+            held -= 1
+            on[stack[held]] = 0
+            break when stack[held] == v
+          }
+          if top - held > 1 {
+            for member in part(stack, held, top) {
+              looped[member] = 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- Tests ---------------------------------------------------------------------------
+
+test "tables, parts, and lists read back" {
+  let scope = mark()
+  defer reset(scope)
+  let list = vec(i32, 1)
+  list.push(7)
+  list.push(-2)
+  list.push(9)
+  let xs = list.items()
+  assert xs.contains(-2)
+  assert !xs.contains(8)
+  let back = reversed(xs)
+  assert back.len == 3
+  assert back.ptr[0] == 9 && back.ptr[2] == 7
+  let room = table(i32, 4, -1)
+  assert room[3] == -1
+  let lists = table([]i32, 3, xs)
+  assert lists[2].len == 3 && lists[2].ptr[1] == -2
+  let mid = part(xs.ptr, 1, 3)
+  assert mid.len == 2 && mid.ptr[0] == -2
+  let all = vec(i32, 0)
+  all.push_all(xs)
+  all.push_all(back)
+  assert all.len == 6 && all.items().ptr[5] == 7
+}
+
+// The tests below play on a 4 x 2 board, cells 0..3 over 4..7.
+
+func list2(a: i32, b: i32) -> []i32 {
+  let v = vec(i32, 2)
+  v.push(a)
+  v.push(b)
+  return v.items()
+}
+
+test "a ray runs to the edge and turns at mirrors" {
+  let scope = mark()
+  defer reset(scope)
+  new_board(4, 4, 8)
+  let plain = vec(i32, 4)
+  assert ray(plain, 1, 1, 1, 0)
+  assert plain.len == 2
+  assert plain.ptr[0] == 6
+  assert plain.ptr[1] == 7
+  add_mirror(6, 0)               // '/' at (2, 1): a head moving +x turns up
+  let up = vec(i32, 4)
+  assert ray(up, 0, 1, 1, 0)
+  assert up.len == 3
+  assert up.ptr[1] == 6
+  assert up.ptr[2] == 2
+  add_mirror(6, 1)               // '\' there instead: it turns down
+  assert mirrors.len == 1
+  let down = vec(i32, 4)
+  assert ray(down, 0, 1, 1, 0)
+  assert down.len == 4
+  assert down.ptr[2] == 10
+  assert down.ptr[3] == 14
+}
+
+test "a rope pointing at its own body is blocked" {
+  let scope = mark()
+  defer reset(scope)
+  new_board(4, 2, 8)
+  let free = vec(i32, 4)
+  free.push(0)
+  free.push(1)
+  free.push(5)
+  free.push(4)
+  assert !self_blocked(free.items())    // head at (0, 1) leaving to the left
+  let bad = vec(i32, 6)
+  for c in [2, 6, 5, 4, 0, 1]:*[6]i32 {
+    bad.push(c)
+  }
+  assert self_blocked(bad.items())      // head at (1, 0) moving +x, its tail on (2, 0)
+}
+
+test "replay gives block costs, and a trial leaves the board as it was" {
+  let scope = mark()
+  defer reset(scope)
+  new_board(4, 2, 8)
+  let a = add(list2(0, 1), [])   // heads +x along the top row
+  let b = add(list2(7, 3), [])   // stands on (3, 0), heading up and out
+  assert a == 0
+  assert b == 1
+  assert seq[a].len == 4
+  assert seq[b].len == 2
+  assert replay(list2(a, b), -1)
+  assert taps.len == 2
+  assert taps.ptr[0] == b
+  assert taps.ptr[1] == a
+  assert cost[b] == 0
+  assert cost[a] == 1
+  assert dep[a] == b
+  assert dep[b] == -1
+  assert cost_sum == 1
+  // one more rope behind b's tail has to wait for b as well
+  assert trial(list2(5, 6), [], list2(b, a)) == 2
+  assert n == 2
+  set_up()
+  assert relax() == 0
+  assert plays_out(list2(b, a))
+  assert !plays_out(list2(a, b))
+}
+
+test "two ropes facing each other can never leave, and are a loop" {
+  let scope = mark()
+  defer reset(scope)
+  new_board(4, 2, 8)
+  let a = add(list2(0, 1), [])
+  let d = add(list2(3, 2), [])
+  let e = add(list2(4, 5), [])   // alone on the bottom row
+  assert !replay(list2(a, d), -1)
+  set_up()
+  assert relax() == 2
+  let looped = table(i32, 3, 0)
+  find_loops(looped)
+  assert looped[a] == 1
+  assert looped[d] == 1
+  assert looped[e] == 0
+}
+
+test "a rope meant to stop slides to its stop, then leaves" {
+  let scope = mark()
+  defer reset(scope)
+  new_board(4, 2, 8)
+  // a slides one cell up to b, which then leaves, and then a can
+  let a = add(list2(0, 1), part(list2(1, 0).ptr, 0, 1))
+  let b = add(list2(7, 3), [])
+  assert replay(list2(a, b), -1)
+  assert taps.len == 3
+  assert taps.ptr[0] == a
+  assert taps.ptr[1] == b
+  assert taps.ptr[2] == a
+  assert cost[b] == 0     // b waited for nothing: a's slide emptied no cell of its way
+  assert cost[a] == 1     // a's last tap waited for its own slide (layer 0) and for b
+}

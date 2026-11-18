@@ -1,0 +1,101 @@
+// builder-v2's rng.ents, as a shim over the core's generator: the same API (rng,
+// below, chance, one_of, draws, trace_at, seed), so weave.ents is unchanged where it
+// draws, but every draw comes from the *mut Rng the caller passes (use_rng), the
+// generator's own, and goes on in its sequence. random.ents counts these draws as it
+// counts all others; this file also counts them from use_rng on, and with
+// trace_sites(true) records each draw's site and bound for check-weave.cjs.
+//
+// A draw's `site` is the number of the call site in dump-weave.cjs's SITES (1 to 23)
+// and `n` the bound of a below or the sum of a weighted pick (0 otherwise). Neither
+// changes the draw.
+
+import "./random" (
+  "next" func next(r: *mut Rng) -> f64
+  "below" func below_of(r: *mut Rng, n: i32) -> i32
+)
+
+type Rng = (a: u32)
+
+data tracebuf = mut [0:u32; 65536]   // site << 24 | n, one per draw, with tracing on
+data own = mut [0:u32; 2]            // the generator seed() makes
+global cur: *mut Rng = 0
+global count: u32 = 0
+global tracing: bool = false
+
+// The builder draws from r from now on; the count starts again.
+export func use_rng(r: *mut Rng) {
+  cur = r
+  count = 0
+}
+
+// The builder draws from a generator of its own, mulberry32(s) (the tests).
+export func seed(s: u32) {
+  let r = own as *mut Rng
+  r.* = Rng(s)
+  use_rng(r)
+}
+
+// Whether to record each draw's site and bound (check-weave.cjs reads them).
+export func trace_sites(on: bool) {
+  tracing = on
+}
+
+// How many draws since use_rng.
+export func draws() -> u32 => count
+
+export func trace_at() -> u32 => tracebuf as u32
+
+func note(site: u32, n: i32) {
+  if tracing {
+    if let p = &tracebuf[count] {
+      p.* = (site << 24) | ((n as u32) & 0xFFFFFF)
+    }
+  }
+  count += 1
+}
+
+// The next number in [0, 1).
+export func rng(site: u32, n: i32) -> f64 {
+  note(site, n)
+  return cur.next()
+}
+
+// Math.floor(rng() * n): an index below n.
+export func below(site: u32, n: i32) -> i32 {
+  note(site, n)
+  return cur.below_of(n)
+}
+
+// xs[below(xs.length)]: an element of xs, at random.
+export func one_of(comptime T: type, site: u32, xs: []T) -> T => xs.ptr[below(site, xs.len as i32)]  // unchecked: below(n) < n
+
+// rng() < p
+export func chance(site: u32, p: f64) -> bool => rng(site, 0) < p
+
+// --- Tests ---
+
+test "mulberry32(1) gives the numbers random.js gives" {
+  seed(1)
+  // (mulberry32(1)() * 2 ** 32, three times, in node)
+  assert rng(1, 0) * 4294967296.0 == 2693262067.0
+  assert rng(1, 0) * 4294967296.0 == 11749833.0
+  assert rng(1, 0) * 4294967296.0 == 2265367787.0
+  assert draws() == 3
+}
+
+test "below, chance and one_of draw once each, and are traced" {
+  trace_sites(true)
+  seed(12345)
+  let a = below(3, 1000)
+  let b = below(3, 7)
+  let c = chance(2, 0.5)
+  let d = one_of(3, [10, 20, 30, 40, 50]:*[5]i32)
+  assert draws() == 4
+  assert a == 979
+  assert b == 2
+  assert c
+  assert d == 10 || d == 20 || d == 30 || d == 40 || d == 50
+  assert tracebuf[0] == (3 << 24) | 1000
+  assert tracebuf[2] == 2 << 24
+  trace_sites(false)
+}

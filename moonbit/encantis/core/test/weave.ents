@@ -1,0 +1,171 @@
+// The woven builder of the core (weave.ents) behind builder-v2's buffer contract, the
+// one ../../builder/check-weave.cjs reads (its header has the layout), so that
+// check-weave.cjs, builder-v2's other-seeds.cjs, other-sizes.cjs and bench.cjs run on
+// it unchanged. weave() reads the cfg from the input words and doubles, makes a core
+// Rng of the seed, calls weave_run, and writes the woven board as output words.
+//
+// test/g2.ents exports the same functions, so the same scripts also run on G2's wasm,
+// where weave shares the stack with the square kernel.
+
+import "../lib/stack" (
+  "clear" func clear()
+  "alloc" func alloc(n: u32) -> u32
+)
+import "../lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+)
+import "../random" (
+  "rng" func new_rng(seed: u32) -> *mut Rng
+  "reset_draws" func reset_draws(on: bool)
+)
+import "../board" (
+  "sq_mirrors" func sq_mirrors(b: *Board) -> *mut SqMirrors
+  "set_at" func set_at(m: *mut SqMirrors, c: i32, s: i32)
+)
+import "../weave-rng" (
+  "draws" func weave_draws() -> u32
+  "trace_at" func trace_at() -> u32
+  "trace_sites" func trace_sites(on: bool)
+)
+import "../weave" (
+  "weave_run" func weave_run(r: *mut Rng, cfg: WeaveCfg) -> ?*Woven
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type WeaveCfg = (w: i32, h: i32, len_lo: i32, len_hi: i32, min_len: i32, straight: f64, cover: f64,
+                 tap_depth: f64, tie: i32, bait: i32, pull: i32, mirrors: *SqMirrors,
+                 initial_ropes: [][]Pt, initial_stops: [][]i32, initial_plan: ?[]i32)
+type Woven = (ropes: [][]Pt, taps: []i32, knots: i32, traps: i32)
+
+export "mem" memory
+
+// The word buffers must start at a multiple of 4 (check-weave.cjs asks), and data
+// is laid out byte by byte, with no alignment (reference 9.6): so each is 4 bytes
+// longer than its 16,384 words, and its words start at the first multiple of 4.
+def room = 16384:u32
+data inraw = mut [0:u8; 65540]
+data outraw = mut [0:u8; 65540]
+data finbuf = mut [0.0:f64; 8]    // 8 f64 in (any alignment)
+
+func aligned(p: u32) -> [*]mut i32 => ((p + 3) & ~3) as [*]mut i32
+func inbuf() -> [*]mut i32 => aligned(inraw as u32)
+func outbuf() -> [*]mut i32 => aligned(outraw as u32)
+
+export func in_ptr() -> u32 => inbuf() as u32
+export func fin_ptr() -> u32 => finbuf as u32
+export func out_ptr() -> u32 => outbuf() as u32
+export func draws() -> u32 => weave_draws()
+export func trace_ptr() -> u32 => trace_at()
+
+// A cursor over the input words.
+type Reader = (k: u32)
+
+func word(r: *mut Reader) -> i32 {
+  assert r.k < room
+  r.k += 1
+  return inbuf()[r.k - 1]  // unchecked: k < room
+}
+
+// A counted list of words, where they lie.
+func ints(r: *mut Reader) -> []i32 {
+  let n = r.word()
+  assert n >= 0 && r.k + n as u32 <= room
+  let at = r.k
+  r.k += n as u32
+  return inbuf()[at..at + n as u32]
+}
+
+// One more output word.
+func put(k: *mut u32, w: i32) {
+  assert k.* < room
+  let out = outbuf()
+  out[k.*] = w  // unchecked: k < room
+  k.* += 1
+}
+
+// The cfg in the input (check-weave.cjs's layout), on the stack.
+func read_cfg(r: *mut Reader) -> WeaveCfg {
+  let w = r.word()
+  let h = r.word()
+  let len_lo = r.word()
+  let len_hi = r.word()
+  let min_len = r.word()
+  let tie = r.word()
+  let bait = r.word()
+  let pull = r.word()
+  r.word()  // ropeCount: never set
+  r.word()  // keepBounds: always set
+  // the mirrors, in the order of the JS Map
+  let empty = alloc(sizeof(Board)) as *mut Board
+  empty.* = Board(false, w, h, [], [], [], [])
+  let m = sq_mirrors(empty)
+  let nm = r.word()
+  for k in nm {
+    let cell = r.word()
+    m.set_at(cell, r.word())
+  }
+  // the core: per rope its cells, then its stops; then the plan, -1 for none
+  let nc = r.word()
+  assert nc >= 0 && nc < 4096
+  let ropes = alloc((nc as u32) * sizeof([]Pt)) as [*]mut []Pt
+  let stops = alloc((nc as u32) * sizeof([]i32)) as [*]mut []i32
+  for k in nc {
+    let cells = r.ints()
+    let path = alloc(cells.len * sizeof(Pt)) as [*]mut Pt
+    for j, c in cells {
+      path[j] = Pt(c % w, c / w)
+    }
+    ropes[k] = path[0..cells.len]
+    stops[k] = r.ints()
+  }
+  let plan: ?[]i32 = (0 as [*]i32, 0:u32)  // enum: none
+  if r.word() >= 0 {
+    r.k -= 1
+    plan = r.ints()
+  }
+  let f = finbuf as [*]f64
+  return WeaveCfg(w, h, len_lo, len_hi, min_len, f[0], f[1], f[2], tie, bait, pull, m,
+                  ropes[0..nc as u32], stops[0..nc as u32], plan)
+}
+
+// Builds one board from the input. Returns output word 0: 1 if a board was written,
+// 0 if weave gives up (null in the JS).
+export func weave() -> i32 {
+  clear()
+  let out = outbuf()
+  out[0] = 0
+  let rd = alloc(sizeof(Reader)) as *mut Reader
+  rd.* = Reader(0)
+  let r = new_rng(rd.word() as u32)
+  let cfg = rd.read_cfg()
+  reset_draws(false)
+  trace_sites(true)
+  let woven = weave_run(r, cfg)
+  trace_sites(false)
+  if let wv = woven {
+    let k = alloc(4) as *mut u32
+    k.* = 0
+    k.put(1)
+    k.put(wv.knots)
+    k.put(wv.traps)
+    k.put(wv.ropes.len as i32)
+    for rope in wv.ropes {
+      k.put(rope.len as i32)
+      for p in rope {
+        k.put(p.r * cfg.w + p.q)
+      }
+    }
+    k.put(wv.taps.len as i32)
+    for t in wv.taps {
+      k.put(t)
+    }
+    return 1
+  }
+  return 0
+}
