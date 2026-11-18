@@ -43,6 +43,10 @@ import "./lib/vec" (
   "clear" func clear(comptime T: type, v: *mut Vec(T))
 )
 
+import "./lib/sort" (
+  "sort" func sort(comptime T: type, xs: []mut T, comptime before: (T, T) -> bool)
+)
+
 import "./lists" (
   "table" func table(comptime T: type, n: i32, v: T) -> [*]mut T
   "part" func part(p: [*]i32, from: i32, to: i32) -> []i32
@@ -486,25 +490,20 @@ func survey() {
     blk[i] = ids.items()
   }
   // up, from the costs and waits the last replay left. By cost, highest first:
-  // the sort must be stable (ropes of equal cost stay in the order of `order`),
-  // so an insertion sort.
+  // the sort is stable, so ropes of equal cost stay in the order of `order`.
   up[0..n as u32] = 0
-  let by_cost = table(i32, order.len as i32, 0)
-  for k, id in order.items() {
-    let j = k as i32
-    while j > 0 && cost[by_cost[j - 1]] < cost[id] {
-      by_cost[j] = by_cost[j - 1]
-      j -= 1
-    }
-    by_cost[j] = id
-  }
-  for x in part(by_cost, 0, order.len as i32) {
+  let by_cost = vec(i32, order.len)
+  by_cost.push_all(order.items())
+  by_cost.items_mut().sort(costlier)
+  for x in by_cost.items() {
     let d = dep[x]
     if d >= 0 && up[x] + 1 > up[d] {
       up[d] = up[x] + 1
     }
   }
 }
+
+func costlier(a: i32, b: i32) -> bool => cost[a] > cost[b]
 
 // --- Candidate ropes ---------------------------------------------------------------------------
 
