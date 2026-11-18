@@ -83,6 +83,22 @@ const GROUPS = {
     ],
     moonbitGenerated: [['core/journey.mbt', () => true]],
   },
+  // G2: the square kernel. square.mbt but what G1 took (SqMirrors, has_dup and its marks)
+  // and what only weave uses (sq_dx, sq_dy, sq_play, bends_of, sq_blockers, groups_of,
+  // sq_looped: the woven builder below has its own).
+  G2: {
+    ents: [['square.ents', ['SqBoard', 'Solved', 'Par', 'Replayed', 'Try', 'Solve', 'Fewest']]],
+    moonbit: [['core/square.mbt', except(['SqMirrors', 'SqMirrors::empty', 'SqMirrors::of_board', 'SqMirrors::set', 'SqMirrors::get', 'SqMirrors::has', 'SqMirrors::size',
+      'marks', 'mark_stamp', 'next_stamp', 'has_dup', 'sq_dx', 'sq_dy', 'sq_play', 'bends_of', 'sq_blockers', 'groups_of', 'sq_looped'])]],
+  },
+  // G2's woven builder: builder-v2's, taken in (weave.ents and weave-board.ents), with its
+  // rng shim (weave-rng.ents), against weave.mbt, what of square.mbt only it uses, and
+  // knots_for of gridgen.mbt.
+  'G2 weave': {
+    ents: [['weave.ents', ['WeaveCfg', 'Woven', 'Lane', 'Shaped', 'Cand', 'Spot', 'Spots', 'Option', 'Walked', 'Style']], ['weave-board.ents', []], ['weave-rng.ents', []]],
+    moonbit: [['core/weave.mbt', () => true], ['core/square.mbt', only(['sq_dx', 'sq_dy', 'sq_play', 'bends_of', 'sq_blockers', 'groups_of', 'sq_looped'])],
+      ['core/gridgen.mbt', only(['knots_for'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);

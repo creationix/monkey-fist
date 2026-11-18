@@ -1,0 +1,21 @@
+// bugs/04: two modules that declare memory. `encantis check` says OK; `encantis wasm`
+// (and `compile`) crash with a Bun stack trace instead of reporting the error.
+//
+//   encantis check bugs/04-two-memory-declarations.ents   -> OK: 2 declarations across 2 modules
+//   encantis wasm bugs/04-two-memory-declarations.ents -o /tmp/x.wasm
+//     -> codegen.ts:4063 throw new Error(...) printed with the compiler's source and stack:
+//        "error: Multiple memory declarations: '04-two-memory-declarations.ents' and
+//         '04-two-memory-declarations-lib.ents'. At most one module may declare memory."
+//
+// Seen at encantis 03225bc441cf37ce1b109e7839ecedd7470dab34 (origin/main). Met in G2:
+// test/g2.ents (export memory) imports test/weave.ents (export "mem" memory). The rule
+// itself is fine and its words are clear; what is wrong is that check does not report it,
+// and wasm reports it as a crash. Worked around by declaring memory in one module only.
+
+import "./04-two-memory-declarations-lib" (
+  "one" func one() -> i32
+)
+
+export memory
+
+export func two() -> i32 => one() + 1

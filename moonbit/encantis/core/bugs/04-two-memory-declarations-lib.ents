@@ -1,0 +1,5 @@
+// The imported half of bugs/04-two-memory-declarations.ents.
+
+export "mem" memory
+
+export func one() -> i32 => 1

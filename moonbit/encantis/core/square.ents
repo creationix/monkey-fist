@@ -219,11 +219,11 @@ export func sq_board(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?*mut SqB
         set (dx, dy) = exit_dir(path, w, m)
       }
       let s = vec(i32, path.len + 8)
-      for c in path {
+      for c in path {  // closure: path.map(p => p.r * w + p.q)
         s.push(c.r * w + c.q)
       }
       if bent {
-        return 0 as ?*mut SqBoard when !ray_cells(hd.q, hd.r, dx, dy, w, h, m, s)
+        return 0 as ?*mut SqBoard when !ray_cells(hd.q, hd.r, dx, dy, w, h, m, s)  // enum: none
       } else {
         let x = hd.q + dx
         let y = hd.r + dy
@@ -360,7 +360,7 @@ export func all_free(b: *SqBoard) -> bool {
 }
 
 // The paths on the board, none where a rope has left, in the caller's scope.
-export func paths_of(b: *SqBoard, w: i32) -> []?[]Pt {
+export func paths_of(b: *SqBoard, w: i32) -> []?[]Pt {  // closure: two Array::makei lambdas
   let out = alloc((b.n as u32) * sizeof(?[]Pt)) as [*]mut ?[]Pt
   for i in b.n {
     let o = b.off[i]
@@ -413,7 +413,7 @@ export func sq_tracks(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?[][]i32
 
 // A tap to try: rope i to offset `to`, tried in order of rank, then of i.
 type Try = (i: i32, to: i32, rank: i32)
-func first(a: Try, b: Try) -> bool => a.rank < b.rank || (a.rank == b.rank && a.i < b.i)
+func first(a: Try, b: Try) -> bool => a.rank < b.rank || (a.rank == b.rank && a.i < b.i)  // closure: 2 comparator lambdas
 
 // For each rope, where it first (rank) and last (later) comes in order: a knot is
 // tapped twice, to slide and then to leave, and `later` is used once it has moved.
@@ -496,7 +496,11 @@ export func sq_solve(paths: []?[]Pt, w: i32, h: i32, budget: i32, prefer: []i32,
   let later = table(b.n, none)
   ranks(b.n, prefer, rank, later)
   let s = alloc(sizeof(Solve)) as *mut Solve
-  s.* = Solve(b, keyset(i32, room.keys, room.words), moves, rank, later, 0, limit, false)  // reserve: a hopeless key per node
+  // reserve: a hopeless key per node
+  // comptime-n: in an arena of its own (a second Stack(n)) the keys could grow as found,
+  // instead of taking room for the whole budget up front: 17.8 MB, past the stack, at the
+  // default budget on a 223-rope board.
+  s.* = Solve(b, keyset(i32, room.keys, room.words), moves, rank, later, 0, limit, false)
   let ok = s.search()
   let state = if ok { solved_yes } elif s.gave_up { solved_unknown } else { solved_no }
   return Solved(state, moves.items(), s.nodes)
@@ -606,7 +610,7 @@ func deepen(s: *mut Fewest, remaining: i32) -> bool {  // closure: search() of s
 // if `known` is not a solution. The plan is in the caller's scope.
 export func sq_fewest_player_taps(paths: []?[]Pt, w: i32, h: i32, known: []i32, budget: i32, m: *SqMirrors) -> ?*Par {
   let count = sq_player_taps(paths, w, h, known, m)
-  return 0 as ?*Par when count < 0
+  return 0 as ?*Par when count < 0  // enum: none
   let par = alloc(sizeof(Par)) as *mut Par
   let moves = vec(i32, known.len + paths.len)  // reserve: fewer taps than known's, then the free ropes
   let scope = mark()
@@ -618,7 +622,9 @@ export func sq_fewest_player_taps(paths: []?[]Pt, w: i32, h: i32, known: []i32, 
   ranks(b.n, known, rank, later)
   let room = reserve(limit, b.n)
   let s = alloc(sizeof(Fewest)) as *mut Fewest
-  s.* = Fewest(b, keymap(i32, i32, room.keys, room.words), moves, rank, later, alloc(b.n as u32) as [*]mut u8, 0, limit, false)  // reserve: a key per node
+  // reserve: a key per node
+  // comptime-n: as sq_solve's (2.2 MB at 2,500 on 223 ropes)
+  s.* = Fewest(b, keymap(i32, i32, room.keys, room.words), moves, rank, later, alloc(b.n as u32) as [*]mut u8, 0, limit, false)
   let k = max(if b.left > 0 { 1 } else { 0 }, s.bound())
   while k < count && !s.gave_up {
     if s.deepen(k) {
@@ -730,10 +736,22 @@ export func sq_casual_wins(paths: []?[]Pt, w: i32, h: i32, r: *mut Rng, games: i
     loop {
       exits.clear()
       moves.clear()
+      let off = b.off
+      let seq = b.seq
+      let len = b.len
+      let occ = b.occ
       for i in n {
-        let o = b.off[i]
+        let o = off[i]
         if o >= 0 {
-          let to = b.slide_to(i as i32)
+          // inline: b.slide_to(i), with the board's tables in locals: 20% of the
+          // time of casual play (inline func is parsed but not yet implemented)
+          let s = seq[i]
+          let total = s.len as i32
+          let p = o + len[i]
+          while p < total && occ[s.ptr[p]] == -1 {
+            p += 1
+          }
+          let to = if p == total { -1 } else { p - len[i] }
           if to < 0 {
             exits.push(i as i32)
           } elif to != o {

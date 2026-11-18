@@ -702,6 +702,30 @@ a file, the count is estimated from the line share.
   - the `// reserve:` sites;
   - the cost of the weave adapter.
 - **About 3 to 4 hours.**
+- **As built (what G5 to G7 import; the DX-LOG's G2 section has the why):**
+  - `square.ents`: `turn(s, dx, dy)`, `head_dir(path)`, `exit_dir(path, w, m)`,
+    `ray_cells(x, y, dx, dy, w, h, m, out: *mut Vec(i32))`, `self_blocked(path, w, h, m)`;
+    `sq_board(paths, w, h, m) -> ?*mut SqBoard` and `sq_board_exn`, with `b.slide_to(i)`,
+    `b.place(i, to)`, `b.relax()`, `b.all_free()`, `b.paths_of(w)` (not `paths`: every kernel's
+    `paths` parameter would hide it). The kernels take `(paths: []?[]Pt, w, h, ..., m:
+    *SqMirrors)` as MoonBit's do: `sq_frozen -> []i32`, `sq_free -> bool`, `sq_tracks ->
+    ?[][]i32`, `sq_solve(..., budget, prefer, m) -> Solved` (`solved` is `solved_yes` 1,
+    `solved_no` 0, `solved_unknown` -1), `sq_player_taps -> i32` (-1 for none),
+    `sq_fewest_player_taps(..., known, budget, m) -> ?*Par` (`Par` has `nodes` too),
+    `sq_postpone_exits -> ?[]i32`, `sq_replay -> Replayed` (events `ev_exit` 0, `ev_slide` 2),
+    `sq_casual_wins(..., r: *mut Rng, games, m) -> f64`. Results that are lists are in the
+    caller's scope; the others leave nothing on the stack. Restate `SqBoard`, `Solved`, `Par`,
+    `Replayed` from the file's head.
+  - **Limit:** the visited keys are reserved for the whole budget (4 bytes per rope per node):
+    `sq_solve` at its default 20,000 on a 223-rope colossal board needs 17.8 MB and traps.
+    Pass the game's budgets (900, 2,000, `12000 / ropes`), or raise the stack.
+  - `weave.ents`: `weave_run(r: *mut Rng, cfg: WeaveCfg) -> ?*Woven` (`WeaveCfg` and `Woven`
+    at the head of the file: `mirrors: *SqMirrors`, `initial_ropes: [][]Pt`, `initial_stops:
+    [][]i32`, `initial_plan: ?[]i32`; the result's ropes are `Pt` paths), `knots_wanted(d)`,
+    `knots_for(d)`, `styles() -> []Style` (`kind` 0 short, 1 medium, 2 twisty) and
+    `len_hi_of(style, w)`. One builder runs at a time (module globals).
+  - `oracle/check-g2.cjs` (its `WANT` and `context` are exported), `bench-g2.cjs`; `test/weave.ents`
+    keeps builder-v2's buffer contract, and `test/g2.ents` re-exports it.
 
 ### G3: The hex offset kernel (about 4.0k tokens, uncovered apart from geometry)
 
@@ -923,7 +947,7 @@ G1 ──┬── G2 (square, weave) ──┬───────────
 | Group | Engineer | Compiler commit | Status | Commit | Oracle result |
 | --- | --- | --- | --- | --- | --- |
 | G1 | Claude (port G1) | 03225bc (origin/main; the tree of cb3fc4f) | done | see the G1 commits of 18 Nov (`git log --grep 'core G1'`) | `check-g1.cjs`: 8 checks, 4.4M comparisons, 0 failed; `--js` passes; `--controls` 24 of 24 |
-| G2 | | | not started | | |
+| G2 | Claude (port G2) | 03225bc (origin/main) | done | see the G2 commits of 18 Nov (`git log --grep 'core G2'`) | `check-g2.cjs`: 1,579 positions, 22,106 comparisons of 1.54M values, 0 failed; `--extra` (to 48x48) 275 positions, 0 failed; `--js` passes; `--controls` 11 of 11; `check-weave.cjs` 249 cases, 0 mismatches on `test/weave.wasm` and `test/g2.wasm`; other seeds 4,980 and sizes 224, 0 mismatches |
 | G3 | | | not started | | |
 | G4 | | | not started | | |
 | G5 | | | not started | | |

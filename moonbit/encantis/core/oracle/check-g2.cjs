@@ -4,7 +4,11 @@
 //   node moonbit/encantis/core/oracle/check-g2.cjs [test/g2.wasm]   the port
 //   node moonbit/encantis/core/oracle/check-g2.cjs --js             the positive control
 //   node moonbit/encantis/core/oracle/check-g2.cjs --controls       the negative controls
-//   options: --only L107,C11 (boards), --frac 0.2 (a share of the positions), --no-weave
+//   options: --only L107,C11 (boards), --frac 0.2 (a share of the positions), --no-weave,
+//            --extra: the square boards without springs of fixtures/g1-extra-boards.jsonl
+//            instead (25: 4x4 to 48x48, up to 223 ropes), at most 12 positions each (the
+//            start, plan prefixes evenly spread, 4 of random play) and casual play of 200
+//            games: the boards where the stack's reserves are largest
 //
 // The cases (PORT-PLAN.md, G2): every square board of reference.json without springs
 // (35: 31 Journey, 4 custom; 4x5 to 16x20, up to 63 ropes, up to 7 mirrors), at every
@@ -44,7 +48,7 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
 const JS = args.includes('--js'), CONTROLS = args.includes('--controls');
 const WASM = args.find((a, i) => !a.startsWith('--') && !['--only', '--frac'].includes(args[i - 1])) || path.join(__dirname, '../test/g2.wasm');
-const ONLY = opt('--only', null), FRAC = Number(opt('--frac', 1));
+const ONLY = opt('--only', null), FRAC = Number(opt('--frac', 1)), EXTRA = args.includes('--extra');
 const { L } = R.js();
 const BENCH_SEED = L.hashString('bench');
 
@@ -154,12 +158,22 @@ function jsHooks(io) {
 
 // --- the cases ---
 
+function extraBoards() {
+  const rows = fs.readFileSync(path.join(__dirname, 'fixtures/g1-extra-boards.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+  return rows.map((r, i) => ({ ...R.jsBoard(r), name: `X${i + 1} (${r.W}x${r.H}, ${r.ropes.length} ropes)` }));
+}
+// At most 12 positions: the start, prefixes evenly spread, and 4 of random play.
+function sample(ps) {
+  const plan = ps.filter(p => !p.from.startsWith('random')), random = ps.filter(p => p.from.startsWith('random'));
+  const step = Math.max(1, Math.ceil(plan.length / 8));
+  return [...plan.filter((_, i) => i % step === 0), ...random.filter((_, i) => i % 5 === 0)];
+}
 function cases() {
   const out = [];
-  let boards = R.boards().filter(b => b.grid === 'square' && !b.springs.length);
-  if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name));
+  let boards = (EXTRA ? extraBoards() : R.boards()).filter(b => b.grid === 'square' && !b.springs.length);
+  if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name.split(' ')[0]));
   for (const b of boards) {
-    const ps = R.positions(b);
+    const ps = EXTRA ? sample(R.positions(b)) : R.positions(b);
     const mirrors = new Map(b.mirrors.map(m => [m.cell.r * b.W + m.cell.q, m.slope]));
     ps.forEach((p, k) => {
       let plan;
@@ -178,7 +192,7 @@ function cases() {
 const STEPS = [['tracks', '', []], ['free', '', []], ['frozen', '', []], ['dead', '', []],
   ['solve', ' budget 40', [40]], ['solve', ' budget 900', [900]], ['solve', ' budget 2000', [2000]], ['solve', ' budget 2000, no prefer', [2000], 'none'],
   ['taps', '', []], ['fewest', ' budget 2500', [2500]], ['replay', '', []], ['postpone', '', []],
-  ['casual', ' x1000', [1000, BENCH_SEED | 0]], ['rays', '', []]];
+  ['casual', EXTRA ? ' x200' : ' x1000', [EXTRA ? 200 : 1000, BENCH_SEED | 0]], ['rays', '', []]];
 const KINDS = [...new Set(STEPS.map(s => s[0]))];
 
 let peak = { bytes: 0, where: '' }, values = 0;

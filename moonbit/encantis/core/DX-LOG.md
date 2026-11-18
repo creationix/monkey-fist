@@ -511,3 +511,222 @@ adds two points:
 | scratch-cell bit accesses in `pow` (no reinterpret) | 32 calls of 5 helpers |
 | tags (`grep -c "// tag:"`, after the review made `enum:` and `reserve:` greppable) | enum 3, reserve 3, unchecked 10, comptime-n 1 |
 | minutes | about 45 reading, 30 widening the oracle, 25 fixing, 20 measuring |
+
+## 18 Nov: G2, the square world (square kernel; weave reused from builder-v2)
+
+- **Compiler:** 03225bc441cf37ce1b109e7839ecedd7470dab34 (origin/main, as for G1; it has not
+  moved). `build.sh` rebuilds G1's `test/g1.wasm` byte for byte (23,976 bytes).
+- **Files:** `square.ents`; `weave.ents`, `weave-board.ents` (builder-v2's `weave.ents` and
+  `board.ents` at 721f6a3, the latest that changed them; the branch is at e41a984),
+  `weave-rng.ents`; `test/g2.ents`, `test/weave.ents`; `oracle/check-g2.cjs`,
+  `oracle/bench-g2.cjs`; `bugs/04`.
+- **Oracle** (`check-g2.cjs`, against `levels.js` at 9e69e3a):
+  - the 35 square boards of `reference.json` without springs, at 1,579 positions (the start,
+    every plan prefix, 20 of random play): 11 kinds, 22,106 comparisons of 1,536,938 values,
+    **0 failed** (26 s). `--js` passes (32 s); `--controls` 11 of 11 fail on one spoiled
+    value and name it.
+  - `--extra`: the 25 square boards without springs of G1's `g1-extra-boards.jsonl` (4x4 to
+    48x48, up to 223 ropes), 275 positions: 3,850 comparisons of 647,544 values, 0 failed.
+  - weave: `check-weave.cjs` on `test/weave.wasm` and on `test/g2.wasm` (where weave shares
+    the stack with the square kernel): 249 cases, in order and in reverse, draws included,
+    0 mismatches. `other-seeds.cjs` 4,980 runs (45 null), `other-sizes.cjs` 224 runs (65
+    null): 0 mismatches.
+  - **The port was exact on its first run**, square and weave both: no fix was needed after
+    the first `wasm` that built. `check-all.sh` (G1, G1-wide, G2) passes.
+- **Stack peak:** 809,980 bytes on the reference set (C11, `fewest` at 2,500), 2,872,348 on the
+  48x48 board (X12, the same). Almost all of it is the `tried` keys, reserved for the budget.
+- **Time** (`bench-g2.cjs` under the lock: 5 processes, best of 5 rounds each, the median over
+  processes; port, MoonBit `dist/mf.wasm` and the JS interleaved in each round, values checked
+  to agree; load average 2.3 to 2.8, so not a quiet machine):
+
+  | Kernel | port | MoonBit wasm-gc | JS | MoonBit / port |
+  | --- | ---: | ---: | ---: | ---: |
+  | L107 casual x1000 | 13.94 ms | 15.44 | 23.79 | 1.11x |
+  | L107 par (postpone, fewest 2500) | 9.21 | 11.79 | 16.78 | 1.28x |
+  | L107 solve 2000 | 0.196 | 0.263 | 0.373 | 1.34x |
+  | L118 casual x1000 | 9.88 | 9.89 | 16.20 | 1.00x |
+  | L118 par | 5.99 | 7.87 | 11.10 | 1.31x |
+  | L118 solve 2000 | 0.097 | 0.127 | 0.212 | 1.30x |
+
+  Before `slide_to` was inlined by hand into casual play's scan (friction 1), casual was
+  slower than MoonBit: 17.30 against 15.35 ms on L107 (0.89x), 11.69 against 9.89 on L118
+  (0.85x) (3 processes, interleaved, under the lock).
+  Weave (`builder-v2/bench.cjs`, 5 processes each, alternated): `test/weave.wasm` 295.1 ms
+  (290.9 to 301.4), builder-v2's `weave.wasm` 290.1 (287.4 to 292.6), `test/g2.wasm` 299.5
+  (294.1 to 301.6), the JS 664.7. The shim costs 2%, within the noise of this machine.
+- **Size** (`oracle/size.cjs G2 'G2 weave'`): `square.ents` 579 lines and 5,096 tokens against
+  the 29 declarations of `square.mbt` it replaces (662 lines, 4,120 tokens): **1.24x**; 1.38x
+  with its 39 lines of imports (537 tokens) and 3 of restated types. The weave files: 10,705
+  tokens against 8,656 for `weave.mbt`, `knots_for` and the parts of `square.mbt` only weave
+  uses (1.24x; builder-v2's 1.02x counted `square.mbt`'s board on MoonBit's side). wasm:
+  `test/g2.wasm` 51,186 bytes (21,750 gzipped); `test/weave.wasm` 24,945 (11,016), against
+  builder-v2's 18,385 (7,923): it carries `random`, `board` and `fmath` (pow, for
+  `knots_for`) whole, as every importer of a module does.
+- **What carried over.** Of `square.ents`'s 582 code lines, 198 are the same line as one of
+  `solver/solver.ents` or `builder-v2/board.ents` (67 of them more than a brace or a `break`).
+  By function: `relax`, `slide_to`, `place`, `ray_cells` (board.ents's `ray`) and
+  `self_blocked` came from board.ents with the globals made fields (`b.occ`); `sq_solve`'s
+  search has solver.ents's shape, but its insertion sort (14 lines) is `tries.items_mut().sort(first)`,
+  its hand-written hash set (40 lines) is `keys.ents`, and its globals are a `Solve` struct.
+  New, with no earlier kernel: `sq_frozen`, `sq_tracks`, `paths_of`, `sq_player_taps`,
+  `sq_fewest_player_taps` (`bound`, `deepen`), `sq_postpone_exits`, `sq_replay`,
+  `sq_casual_wins`: about half of the file.
+- **The weave adapter's diff** from builder-v2: `weave-board.ents` none (identical);
+  `weave.ents` 104 code lines out and 147 in, of 1,053 (comments and blank lines left out;
+  `git diff --stat`: 131 deletions, 208 insertions): the imports and two types, `weave_run` in
+  place of the buffer-reading `weave()` with the result copied out as `Pt` paths, `seed_core`
+  and `core_fits` taking `[][]Pt`, `finished()` returning its counts, `knots_wanted`,
+  `knots_for` and the styles (25 lines), and the last test written with a `WeaveCfg`.
+  `weave-rng.ents` against `rng.ents`: 33 out, 61 in. The buffer contract moved to
+  `test/weave.ents` (171 lines). About 35 minutes, and it was exact on its first run.
+
+### Friction
+
+1. **No inliner: a struct behind `*mut` costs a load per field per call.** Casual play scans
+   every rope with `b.slide_to(i)` at every tap; each call loads `b.seq`, `b.len`, `b.off` and
+   `b.occ` again, because nothing tells V8 that the board's fields do not change (MoonBit's
+   are immutable GC fields). That made casual 11 to 15% slower than MoonBit. Wrote the scan
+   with the four tables in locals and `slide_to`'s loop inlined: 20% faster, and faster than
+   MoonBit. 1 site (`// inline:`), 15 minutes to measure and write. `inline func` is "parsed
+   but not yet implemented" (reference 3.5); it would remove this. None of closures, function
+   values, enums or comptime values would. `-O` (wasm-opt) did not change the time.
+2. **Data is not aligned.** The weave contract needs its word buffers at a multiple of 4, and
+   `data inbuf = mut [0:i32; 16384]` landed at 17,311,119 in `test/weave.wasm`: data is laid out
+   byte by byte after the data of every imported module (reference 9.0 and 9.6: "no padding
+   and no alignment"). Wrote the buffers as `u8` arrays 4 bytes longer, with the words at the
+   next multiple of 4 (`aligned(p)`), and reads through a many-pointer with an `assert` (2
+   buffers, 8 lines, 10 minutes). The stack is aligned only because `lib/stack` is imported
+   first: its `space` happens to come first in memory, at 8. An alignment for a data block
+   would remove this; no planned feature does.
+3. **A parameter hides an imported global, silently.** `seed_core(ropes, stops, ...)` named a
+   parameter `stops`, which `weave.ents` imports as a global (`[*]mut []i32`). The function's
+   later uses of the global then meant the parameter (`[][]i32`), and the errors came from the
+   types, at the uses: `cannot use .len on ?[]i32: it may be none`. A `let`, a loop variable
+   and an `if let` may not shadow (so the "bindings never shadow" rule is what one expects
+   here too), but a parameter may (bugs/02's notes: "a parameter named like a global wins").
+   1 site, 5 minutes.
+4. **A parameter hides a function of the same name, and the message says the function does
+   not exist.** In `sq_replay(paths, ...)`, `b.paths(w)` gave `no field 'paths' on type *mut
+   SqBoard, and no function 'paths' accepts (*mut SqBoard, i32)`. There is such a function; the
+   parameter `paths` hides it (reference 5.2: "a loop variable of its name hides it", and so
+   does a parameter). Renamed the function `paths_of`: 2 sites, 3 minutes. Every kernel takes
+   `paths`, as MoonBit's do, so the method could not keep its MoonBit name.
+5. **A `let` is the function's** (as G1 found): `let c` in one loop body and `for c in` after
+   it; `let dx, dy` in an `if` branch and again after it. 2 sites, 2 minutes.
+6. **No counted loop over a range.** `for j in k + 1..n` is a parse error; wrote element loops
+   over slices (`for j, x in best[(k + 1) as u32..n]`). 2 sites, 3 minutes.
+7. **Precedence and targets.** `assert a == xs[i] ?? 0` is a parse error at `??` (`??` binds
+   loosest; write `(xs[i] ?? 0)`), 3 sites; `outbuf()[k] = w` is a parse error (the target of
+   an assignment cannot be an index of a call), 2 sites; 3 minutes.
+8. **Options by hand** (`// enum:`): 7 sites in `square.ents`, 1 in `test/weave.ents`.
+   `return 0 as ?*mut SqBoard`, `0 as ?*Par`; `(0 as [*][]i32, 0:u32)` and `(0 as [*]i32, 0:u32)`
+   for the none of `?[][]i32` and `?[]i32` (there is no literal for it, as G1 found);
+   `sq_player_taps` returns -1 for none (2 returns); `Solved.solved` is the tri-state
+   `solved_yes`/`solved_no`/`solved_unknown`. An optional slice cannot be compared with none
+   either: `cfg.initial_plan != 0` gives `'!=' cannot be applied to ?[]i32 and int(0)`, so the
+   "planned" test is an `if let` with the call written in both branches. Enums (`Option(T)`)
+   would remove all of them.
+9. **Closures** (`// closure:`): 6 sites. MoonBit's 3 local functions (`search` of `sq_solve`,
+   `bound` and `search` of `sq_fewest_player_taps`) are top-level functions over a context
+   struct behind `*mut` (`Solve`, `Fewest`: 2 type declarations, 4 lines, and 35 `s.`
+   prefixes); the 2 comparator lambdas are one top-level `first`; `path.map` and two
+   `Array::makei` are loops. Against v1's globals (solver.ents), the struct makes the search
+   reentrant (several boards are alive at once in the generator) and shows in each signature
+   what it touches; the cost is the prefixes. Closures would remove all 6.
+10. **Reserves** (`// reserve:`): 6 sites: the moves of both searches and the `fewest` plan
+    (3), the keys of both searches (2), and weave's result (1). The keys are reserved for the
+    whole budget: 4 bytes per rope per node, plus the slots. That is 2.2 MB at `fewest`'s
+    2,500 on the 223-rope 48x48 board (measured: a 2.87 MB peak), and **17.8 MB at `sq_solve`'s
+    default budget of 20,000 there, past the 16 MiB stack: it traps.** The game's budgets are
+    900 (hints) and 2,000 (the generator), so this is a limit for G5 and G7 to keep, not a
+    failure today. The 2 key reserves are also `// comptime-n:` sites (below).
+11. **Unchecked tables** (`// unchecked:`): 16 sites in `square.ents`, every one a read or
+    write through a board table (`[*]mut i32`) or a track's `.ptr`.
+12. **Casts:** 23 `as i32`, 32 `as u32`, 3 `f64(...)`, 1 `i32(...)` in `square.ents`. 12 of the
+    `as i32` are a loop variable (`for i in b.n` gives a `u32`) passed to `slide_to(i as i32)`
+    or pushed into an `i32` list.
+13. **Two memory declarations** (bugs/04, below): 3 minutes.
+
+### Error messages (verbatim)
+
+1. The function hidden by a parameter (friction 4):
+   `no field 'paths' on type *mut SqBoard, and no function 'paths' accepts (*mut SqBoard, i32)`.
+2. The global hidden by a parameter (friction 3), at the uses, not at the parameter:
+   `cannot use .len on ?[]i32: it may be none — resolve it with 'if let' or '??' first` and
+   `cannot iterate over ?[]i32: it may be none — resolve it with 'if let' or '??' first`.
+3. `for j in k as u32 + 1..n`: `Expected "a".."z", "bool", "f64", ... "*", or a digit` at `..`.
+4. `assert rope.len as i32 == case_lens[i] ?? 0`, and `outbuf()[k.*] = w`: each a parse error
+   listing about 60 alternatives.
+5. `'!=' cannot be applied to ?[]i32 and int(0)` (clear; there is no other way to ask).
+6. Good ones: `'c' is already declared: a loop variable cannot reuse the name of a variable
+   in scope`; `'dx' is already declared in this scope`.
+
+### Bugs
+
+- **bugs/04-two-memory-declarations.ents** (and its `-lib` half). `test/g2.ents` declared
+  `export memory` and imports `test/weave.ents`, which declares `export "mem" memory`.
+  `encantis check` says `OK`; `encantis wasm` dies with a Bun stack trace through
+  `codegen.ts:4063`, whose message is right ("Multiple memory declarations ... At most one
+  module may declare memory"). Not wrong code: the error is missed by `check` and reported as
+  a crash. Worked around by declaring memory in `test/weave.ents` only. 3 minutes.
+- No wrong code was met. bugs/01 (the `&`/`as` precedence) did not come up: the views are
+  `abi.ents`'s.
+
+### Tooling
+
+- `check square.ents` (7 modules, 182 declarations): 0.9 s; `check test/g2.ents` (17 modules,
+  599 declarations): 2.0 s; `wasm test/g2.ents`: 2.6 s, the same bytes every time; `test
+  square.ents`: 1.2 s (on a loaded machine). `build.sh` (G1 and G2: 15 modules tested, 3
+  wasm): 11 s.
+- `check` found what was wrong with `square.ents` in two passes: the range loop's parse error,
+  then 5 errors at once, all names (3 clashes of a function's `let`s, 2 uses of the hidden
+  function), then OK.
+- `hover square.ents:467:moves` gives `field moves: *mut (ptr: [*]mut i32, len: u32, cap: u32)`;
+  over `search` it prints the `Solve` struct spelled out in full, about 600 characters on one
+  line: a named type is never shown by its name.
+- `encantis test`: square 3, weave 6, weave-board 6, weave-rng 2, all pass. A test may build a
+  board and run a whole solve and replay in a few lines.
+
+### Pleasant
+
+- **Exact on the first run**, both halves: 1.5M values of the square kernel and the 249 weave
+  cases, and the compiler made no wrong code. What `check` let through was right.
+- **The library did the work the earlier kernels wrote by hand**: `lib/sort` with a top-level
+  comparator (stable, as `ssort` is) for the tries, `keys.ents` for the visited sets, `Vec`
+  for every list, `defer reset(scope)` for each search node.
+- **Method calls read like MoonBit**: `b.place(t.i, t.to)`, `s.moves.push(t.i)`,
+  `return true when s.search()`, `r.one_of(exits.items())`. `let dx, dy = head_dir(path)` and
+  `set (dx, dy) = turn(s, dx, dy)` read like the JS.
+- **The weave reuse worked as planned**: one stack, the rng a shim of 37 code lines, builder-v2's board
+  untouched, and the buffer contract kept in a test entry so that v1's and v2's scripts run on
+  the core unchanged.
+- **Speed**: the searches are 1.3x MoonBit's wasm-gc, and 1.8x to 2.2x the JS.
+
+### Where `comptime n: u32` with `[n]T` would help G2
+
+The containers, again, and only there:
+
+- **A second arena (`Stack(comptime n)`)**: 2 sites, the visited keys of `sq_solve` and
+  `sq_fewest_player_taps`. Today they are reserved for the whole budget because a search node
+  frees its scope, and a set that grew there would be freed with it. In an arena of their own,
+  which the node scopes never reset, the keys could grow as found: the peak would follow the
+  nodes actually seen, not the budget, and the 20,000-node default would no longer pass the
+  stack on a colossal board. Today a second arena means copying `lib/stack.ents` again.
+- **No fixed-size small lists here.** The square kernel's lists are sized by the board (`n`
+  ropes, `2n` moves) or by the budget, at run time; `[n]T` would not prove them.
+
+### Counts (tags in G2's files, sites; header mentions left out)
+
+| Tag | square | weave, weave-board, weave-rng | test entries |
+| --- | ---: | ---: | ---: |
+| `// closure:` | 6 | 0 (builder-v2 wrote its 25 closures as globals and functions without tags) | 0 |
+| `// fnvalue:` | 0 | 0 | 0 |
+| `// enum:` | 7 | 0 | 1 |
+| `// comptime-n:` | 2 | 0 | 0 |
+| `// unchecked:` | 16 | 3 | 2 |
+| `// reserve:` | 6 | 1 | 0 |
+| `// inline:` (new: a function inlined by hand) | 1 | 0 | 0 |
+
+Minutes, roughly: 60 reading the plan, the MoonBit, the JS and the earlier kernels; 40 writing
+`square.ents` (5 to clear `check`); 35 the weave adapter; 35 the oracle and its controls; 30
+timing (with the inlining); 30 the log, sizes and counts.
