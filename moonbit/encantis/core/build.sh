@@ -29,8 +29,9 @@ inline random.ents fmath.ents board.ents keys.ents codes.ents
 wasm test/g1.ents test/g1.wasm
 
 # --- G2: the square world (square kernel; weave from builder-v2) ---
-inline weave-rng.ents weave-board.ents weave.ents
+inline weave-rng.ents weave-board.ents weave.ents square.ents
 wasm test/weave.ents test/weave.wasm
+wasm test/g2.ents test/g2.wasm
 
 # --- G7: the core (once it exists) ---
 if [ -f core.ents ]; then wasm core.ents core.wasm; fi

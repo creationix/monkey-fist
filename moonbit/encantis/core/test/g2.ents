@@ -1,0 +1,341 @@
+// The entry of G2's oracle (oracle/check-g2.cjs): the ABI buffers, draws(),
+// stack_peak(), and a t_ hook for each kernel of square.ents. Each hook reads the
+// position in the input (read_position's words: the board, the current paths, and a
+// plan in the place of the preferred order) and clears the stack first, as every
+// export of the core does. The weave contract of test/weave.ents is exported too, so
+// builder's check-weave.cjs (and builder-v2's scripts) run on this wasm, where weave
+// shares the stack with the square kernel.
+
+import "../lib/stack" (
+  "clear" func clear()
+  "peak" func peak() -> u32
+  "alloc" func alloc(n: u32) -> u32
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+)
+import "../lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "../random" (
+  "draws" func draws_made() -> u32
+  "reset_draws" func reset_draws(on: bool)
+  "rng" func new_rng(seed: u32) -> *mut Rng
+)
+import "../board" (
+  "sq_mirrors" func sq_mirrors(b: *Board) -> *mut SqMirrors
+  "last" func last(p: []Pt) -> Pt
+)
+import "../abi" (
+  "in_reset" func abi_in_reset()
+  "in_push" func abi_in_push(c: i32)
+  "out_len" func abi_out_len() -> i32
+  "out_get" func abi_out_get(i: i32) -> i32
+  "outf_get" func abi_outf_get(i: i32) -> f64
+  "out_clear" func out_clear()
+  "put" func put(w: i32)
+  "putf" func putf(k: u32, x: f64)
+  "begin_count" func begin_count() -> u32
+  "end_count" func end_count(at: u32)
+  "read_position" func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32)
+)
+import "../square" (
+  "exit_dir" func exit_dir(path: []Pt, w: i32, m: *SqMirrors) -> (i32, i32)
+  "ray_cells" func ray_cells(x0: i32, y0: i32, dx0: i32, dy0: i32, w: i32, h: i32, m: *SqMirrors, out: *mut Vec(i32)) -> bool
+  "self_blocked" func self_blocked(path: []Pt, w: i32, h: i32, m: *SqMirrors) -> bool
+  "sq_board_exn" func sq_board_exn(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> *mut SqBoard
+  "relax" func relax(b: *mut SqBoard) -> i32
+  "sq_frozen" func sq_frozen(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> []i32
+  "sq_free" func sq_free(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> bool
+  "sq_tracks" func sq_tracks(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?[][]i32
+  "sq_solve" func sq_solve(paths: []?[]Pt, w: i32, h: i32, budget: i32, prefer: []i32, m: *SqMirrors) -> Solved
+  "sq_player_taps" func sq_player_taps(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> i32
+  "sq_fewest_player_taps" func sq_fewest_player_taps(paths: []?[]Pt, w: i32, h: i32, known: []i32, budget: i32, m: *SqMirrors) -> ?*Par
+  "sq_postpone_exits" func sq_postpone_exits(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> ?[]i32
+  "sq_replay" func sq_replay(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> Replayed
+  "sq_casual_wins" func sq_casual_wins(paths: []?[]Pt, w: i32, h: i32, r: *mut Rng, games: i32, m: *SqMirrors) -> f64
+)
+import "./weave" (
+  "in_ptr" func weave_in_ptr() -> u32
+  "fin_ptr" func weave_fin_ptr() -> u32
+  "out_ptr" func weave_out_ptr() -> u32
+  "trace_ptr" func weave_trace_ptr() -> u32
+  "weave" func weave_contract() -> i32
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type SqBoard = (n: i32, left: i32, occ: [*]mut i32, at: [*]mut i32, seq: [*]mut []i32, len: [*]mut i32,
+                off: [*]mut i32, was: [*]mut i32, now: [*]mut i32)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+
+def gone_at = 32767:i32
+
+// The memory is exported as "mem" by test/weave.ents: one module may declare it.
+
+// --- The buffers ---
+
+export func in_reset() {
+  abi_in_reset()
+}
+
+export func in_push(c: i32) {
+  abi_in_push(c)
+}
+
+export func out_len() -> i32 => abi_out_len()
+
+export func out_get(i: i32) -> i32 => abi_out_get(i)
+
+export func outf_get(i: i32) -> f64 => abi_outf_get(i)
+
+export func draws() -> i32 => draws_made() as i32
+
+export func stack_peak() -> i32 => peak() as i32
+
+// --- The weave contract (test/weave.ents) ---
+
+export func in_ptr() -> u32 => weave_in_ptr()
+export func fin_ptr() -> u32 => weave_fin_ptr()
+export func out_ptr() -> u32 => weave_out_ptr()
+export func trace_ptr() -> u32 => weave_trace_ptr()
+export func weave() -> i32 => weave_contract()
+
+// --- The position in the input ---
+
+// A position on a square board: its size, its mirrors, the paths (none where a rope
+// has left), and the plan the hooks use.
+type Pos = (w: i32, h: i32, m: *SqMirrors, paths: []?[]Pt, plan: []i32)
+
+func position() -> Pos {
+  let (board:, paths:, prefer:) = read_position()
+  let b = alloc(sizeof(Board)) as *mut Board
+  b.* = board
+  return Pos(board.w, board.h, sq_mirrors(b), paths, prefer)
+}
+
+// A counted list of words.
+func put_list(xs: []i32) {
+  put(xs.len as i32)
+  for x in xs {
+    put(x)
+  }
+}
+
+func bit(b: bool) -> i32 => if b { 1 } else { 0 }
+
+// --- The hooks ---
+
+// Each rope's track (tracksOf): per rope a counted list of cells. 0, writing nothing,
+// where a way out passes a cell twice (the JS throws).
+export func t_tracks() -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let ts = sq_tracks(p.paths, p.w, p.h, p.m) {
+    for t in ts {
+      put_list(t)
+    }
+    return 1
+  }
+  return 0
+}
+
+// free(): 1 when no rope blocks another.
+export func t_free() -> i32 {
+  clear()
+  let p = position()
+  return bit(sq_free(p.paths, p.w, p.h, p.m))
+}
+
+// frozenRopes(): the ropes relax gets nowhere.
+export func t_frozen() {
+  clear()
+  let p = position()
+  out_clear()
+  put_list(sq_frozen(p.paths, p.w, p.h, p.m))
+}
+
+// deadRopes() of levels.js (the MoonBit core has none): the ropes that can never
+// leave, if any rope cannot.
+export func t_dead() {
+  clear()
+  let p = position()
+  out_clear()
+  let b = sq_board_exn(p.paths, p.w, p.h, p.m)
+  let at = begin_count()
+  if b.relax() > 0 {
+    for i in b.n {
+      if b.now[i] != gone_at {
+        put(i as i32)
+      }
+    }
+  }
+  end_count(at)
+}
+
+// solve(paths, W, H, budget, plan): solved (1, 0, or -1 when the budget ran out),
+// nodes, then the moves.
+export func t_solve(budget: i32) {
+  clear()
+  let p = position()
+  out_clear()
+  let s = sq_solve(p.paths, p.w, p.h, budget, p.plan, p.m)
+  put(s.solved)
+  put(s.nodes)
+  put_list(s.moves)
+}
+
+// playerTapCount(paths, W, H, plan): the player taps, or -1 (null).
+export func t_player_taps() -> i32 {
+  clear()
+  let p = position()
+  return sq_player_taps(p.paths, p.w, p.h, p.plan, p.m)
+}
+
+// fewestPlayerTaps(paths, W, H, plan, budget): 0 for null; else 1, writing par,
+// exact, nodes and the plan.
+export func t_fewest(budget: i32) -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let f = sq_fewest_player_taps(p.paths, p.w, p.h, p.plan, budget, p.m) {
+    put(f.par)
+    put(bit(f.exact))
+    put(f.nodes)
+    put_list(f.plan)
+    return 1
+  }
+  return 0
+}
+
+// FNV-1a over words, as check-g2.cjs hashes them.
+func mix(h: u32, w: i32) -> u32 => (h ^ (w as u32)) * 0x01000193
+
+// The words of a position's paths (per rope its length, 0 if gone, then q, r), hashed.
+func paths_hash(paths: []?[]Pt) -> u32 {
+  let h: u32 = 0x811c9dc5
+  for p in paths {
+    if let path = p {
+      h = mix(h, path.len as i32)
+      for c in path {
+        h = mix(mix(h, c.q), c.r)
+      }
+    } else {
+      h = mix(h, 0)
+    }
+  }
+  return h
+}
+
+// replay(paths, W, H, plan[0..k]) for every k from 0 to the plan's length: solved,
+// player taps, the events (0 exit, 2 slide), and the paths after as a hash of their
+// words. Then the paths after the whole plan, rope by rope.
+export func t_replay() {
+  clear()
+  let p = position()
+  out_clear()
+  for k in p.plan.len + 1 {
+    let scope = mark()
+    defer reset(scope)
+    let r = sq_replay(p.paths, p.w, p.h, p.plan[0..k] ?? p.plan, p.m)
+    put(bit(r.solved))
+    put(r.taps)
+    put_list(r.events)
+    put(paths_hash(r.paths) as i32)
+    if k == p.plan.len {
+      for path in r.paths {
+        if let ps = path {
+          put(ps.len as i32)
+          for c in ps {
+            put(c.q)
+            put(c.r)
+          }
+        } else {
+          put(0)
+        }
+      }
+    }
+  }
+}
+
+// postponeExits(paths, W, H, plan): 0 for null; else 1, writing the player taps of
+// the new plan, then the plan.
+export func t_postpone() -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let best = sq_postpone_exits(p.paths, p.w, p.h, p.plan, p.m) {
+    put(sq_player_taps(p.paths, p.w, p.h, best, p.m))
+    put_list(best)
+    return 1
+  }
+  return 0
+}
+
+// casualWins(paths, W, H, mulberry32(seed), games): the share won; draws() is the
+// draws it made.
+export func t_casual(games: i32, seed: i32) -> f64 {
+  clear()
+  let p = position()
+  let r = new_rng(seed as u32)
+  reset_draws(false)
+  return sq_casual_wins(p.paths, p.w, p.h, r, games, p.m)
+}
+
+// Per rope: -1 if it has left; else selfBlocked, then rayCells from its head along
+// its way out into an empty list (1 or 0 for null, then the list), then the same
+// after its body's cells (as boardOf calls it).
+export func t_rays() {
+  clear()
+  let p = position()
+  out_clear()
+  for path in p.paths {
+    if let ps = path {
+      put(bit(self_blocked(ps, p.w, p.h, p.m)))
+      let hd = last(ps)
+      let dx, dy = exit_dir(ps, p.w, p.m)
+      let ahead = vec(i32, 8)
+      put(bit(ray_cells(hd.q, hd.r, dx, dy, p.w, p.h, p.m, ahead)))
+      put_list(ahead.items())
+      let track = vec(i32, ps.len + 8)
+      for c in ps {
+        track.push(c.r * p.w + c.q)
+      }
+      put(bit(ray_cells(hd.q, hd.r, dx, dy, p.w, p.h, p.m, track)))
+      put_list(track.items())
+    } else {
+      put(-1)
+    }
+  }
+}
+
+// --- Timing (the bench_* of src/api, on the start of the board in the input) ---
+
+// bench_par: postponeExits of the plan, then fewestPlayerTaps from it with budget
+// 2,500. The par.
+export func t_par() -> i32 {
+  clear()
+  let p = position()
+  let start = sq_postpone_exits(p.paths, p.w, p.h, p.plan, p.m) ?? p.plan
+  if let f = sq_fewest_player_taps(p.paths, p.w, p.h, start, 2500, p.m) {
+    return f.par
+  }
+  return -1
+}
+
+// bench_solve: solve from the start with no preferred order. The nodes.
+export func t_bench_solve(budget: i32) -> i32 {
+  clear()
+  let p = position()
+  return sq_solve(p.paths, p.w, p.h, budget, p.plan[0..0] ?? p.plan, p.m).nodes
+}
