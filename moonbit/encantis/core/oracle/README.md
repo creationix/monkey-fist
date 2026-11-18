@@ -69,7 +69,9 @@ Each group checks its units against the JS at 9e69e3a, function by function, wit
 | `wasm.cjs` | `load(path)`: instantiates with `{}` and throws if the module has imports. `fake(hooks)`: the same shape over JS functions, for `--js` |
 | `capture.cjs` | Records calls during real generation, module-object calls (`H.build`, `L.weave`, ...) and grid-generator.js's internal functions (through a patched copy), and replays each from its numbers alone |
 | `check-g1.cjs` | G1: draws, hashes, pow, rounding, codes and specs, the layout key, the ABI through web/generator.js's own `wrap` and `decode`, keys. `--js` (the positive control) and `--controls` (one spoiled expected value per kind of output must fail and name its case) |
-| `check-all.sh` | Every `check-gN.cjs` there is: run it after a compiler change |
+| `check-g1-wide.cjs` | G1, wider (G1's review): 21.5M comparisons in about 15 s. 10,000 seeds; 3.8M pow pairs over the whole range; `to_fixed` for 0 to 8 decimals up to 1e21; every UTF-16 code unit at 7 places in a code; the 79 boards of `fixtures/g1-extra-boards.jsonl`; keys at their exact reserve; and the limits (the ABI's 65,536 words, the stack's room, reserves past 2^32, text past a byte). `--js` and `--controls` as in `check-g1.cjs` |
+| `gen-extra-boards.cjs` | Writes `fixtures/g1-extra-boards.jsonl` with the JS at 9e69e3a: 4x4, 8x8 with mechanics, strips, 48x48 colossal square and Hex (up to 223 ropes), 60 random codes. About 80 s |
+| `check-all.sh` | Every `check-gN*.cjs` there is: run it after a compiler change |
 | `size.cjs` | Tokens and lines against the MoonBit replaced, imports and restated types apart |
 | `gen-journey-ents.cjs` | Writes `../journey.ents` from grid-journey.js |
 

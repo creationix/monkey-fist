@@ -3,9 +3,13 @@
 //
 // How to see it:
 //   encantis wasm 02-parameter-named-like-a-def.ents -o /tmp/b02.wasm
-//   node -e 'const x=new WebAssembly.Instance(new WebAssembly.Module(require("fs").readFileSync("/tmp/b02.wasm")),{}).exports; console.log(x.f(100), x.g(100))'
-// prints "8 101" at 03225bc (origin/main; the tree of cb3fc4f). f(100) should be 101,
+//   node -e 'const x=new WebAssembly.Instance(new WebAssembly.Module(require("fs").readFileSync("/tmp/b02.wasm")),{}).exports; console.log(x.f(100), x.g(100), x.h(100))'
+// prints "8 101 7" at 03225bc (origin/main; the tree of cb3fc4f). f(100) should be 101,
 // as g(100) is: g's parameter has the name of a global, and the parameter wins.
+// h(100) should be 50 (added by G1's review): an assignment to the parameter compiles
+// and writes the parameter (`local.set $limit`), but a read is still the def, so the
+// value just assigned is never seen. `limit += 5` behaves the same. Outside such a
+// function, `limit = x` is refused: "cannot assign to 'limit': it is not a variable".
 //
 // The reference (3.3) says a `let` cannot take the name of a def, and a loop
 // variable cannot either (5.2: "Nor can they have the name of a def or a data
@@ -23,3 +27,8 @@ global cap: i32 = 7
 
 export func f(limit: i32) -> i32 => limit + 1
 export func g(cap: i32) -> i32 => cap + 1
+
+export func h(limit: i32) -> i32 {
+  limit = 50
+  return limit
+}

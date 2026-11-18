@@ -41,8 +41,8 @@ type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
 
 // --- Paths and positions ---
 
-// The none of a position's rope. enum: an option written by hand
-export func gone() -> ?[]Pt => (0 as [*]Pt, 0:u32)
+// The none of a position's rope.
+export func gone() -> ?[]Pt => (0 as [*]Pt, 0:u32)  // enum: an option written by hand
 
 // Every rope still there: a position for ropes.
 export func some_paths(ropes: [][]Pt) -> []?[]Pt {

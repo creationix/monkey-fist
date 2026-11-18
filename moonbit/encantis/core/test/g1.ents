@@ -307,6 +307,15 @@ export func t_level(par: i32, exact: i32, again: i32) {
   }
 }
 
+// --- the stack ---
+
+// alloc(a), then alloc(b): where the second block starts (check-g1-wide.cjs's limits).
+export func t_alloc(a: i32, b: i32) -> i32 {
+  clear()
+  alloc(a as u32)
+  return alloc(b as u32) as i32
+}
+
 // --- keys ---
 
 global map_at: u32 = 0

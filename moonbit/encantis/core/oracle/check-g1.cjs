@@ -454,7 +454,11 @@ function run(port, frac, only) {
   return out;
 }
 
-if (CONTROLS) {
+// check-g1-wide.cjs builds on these: the comparison, the converters and the checks.
+module.exports = { same, failures: () => failures, setCorrupt: c => { corrupt = c; }, seen, jsHooks, readPosition, layoutJson,
+  textWords, parseWords, specWords, moonbitParse, glueWords, randomCode, mutate, nonAscii, cases_rng, CHECKS, run, info, JS, WASM };
+
+if (require.main === module && CONTROLS) {
   // Each kind of comparison, with its 3rd comparison's expected value spoiled, on a part
   // of the cases: exactly that case must fail.
   const port = W.load(WASM);
@@ -472,6 +476,9 @@ if (CONTROLS) {
   process.exit(bad ? 1 : 0);
 }
 
+if (require.main === module) main();
+
+function main() {
 const port = JS ? W.fake(jsHooks) : W.load(WASM);
 const t0 = Date.now();
 const results = run(port, 1);
@@ -494,3 +501,4 @@ if (!JS && !args.includes('--no-inline')) {
 }
 console.log(`${port.name}: ${failures.length ? failures.length + ' FAILED' : 'all passed'} in ${((Date.now() - t0) / 1000).toFixed(1)} s` + (JS ? ' (--js: the JS against itself)' : `; stack peak ${port.x.stack_peak()} bytes; no imports`));
 process.exit(failures.length ? 1 : 0);
+}

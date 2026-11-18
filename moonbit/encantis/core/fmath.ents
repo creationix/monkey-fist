@@ -346,6 +346,10 @@ export func to_fixed(x: f64, digits: u32) -> f64 {
     scale *= 10.0
   }
   let p = x * scale
+  // From 2^53 up, f + 1 and n / scale round twice (67215938362.95128 to 7 decimals gave
+  // ...95129). There x * 10^d has no fraction a double can show, and the decimals read
+  // back as x itself: Number(x.toFixed(d)) is x (found by G1's review; check-g1-wide.cjs).
+  return x when p >= 9007199254740992.0
   // e = x * scale - p, exactly
   let c = 134217729.0 * x                       // 2^27 + 1
   let xh = c - (c - x)

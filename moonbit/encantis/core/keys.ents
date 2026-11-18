@@ -41,8 +41,11 @@ func key_hash(comptime W: type, key: []W) -> u32 {
   return h ^ (h >> 16)
 }
 
-// A set with room for `keys` keys of `words` words in all. reserve:
-export func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W) {
+// A set with room for `keys` keys of `words` words in all.
+export func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W) {  // reserve:
+  // Sizes in bytes past 2^32 would wrap to a small block (2^28 + 1 keys gave a table of
+  // 0 bytes): 2^26 keys or 2^30 bytes of words are far past the stack, so trap here.
+  assert keys <= 0x4000000 && words <= 0x40000000 / sizeof(W)
   let size: u32 = 8
   while size < keys * 2 {
     size *= 2
@@ -101,9 +104,10 @@ func keep(comptime W: type, s: *mut KeySet(W), i: u32, h: u32, key: []W) {
 // Whether key is in the set.
 export func has_key(comptime W: type, s: *KeySet(W), key: []W) -> bool => s.slots[s.slot_of(key_hash(key), key)].len != 0
 
-// A map with room for `keys` keys of `words` words in all. reserve:
-export func keymap(comptime W: type, comptime V: type, keys: u32, words: u32) -> *mut KeyMap(W, V) {
+// A map with room for `keys` keys of `words` words in all.
+export func keymap(comptime W: type, comptime V: type, keys: u32, words: u32) -> *mut KeyMap(W, V) {  // reserve:
   let ks = keyset(W, keys, words)
+  assert ks.mask < 0x40000000 / sizeof(V)
   let m = alloc(sizeof(KeyMap(W, V))) as *mut KeyMap(W, V)
   m.* = KeyMap(W, V)(ks, alloc((ks.mask + 1) * sizeof(V)) as [*]mut V)
   return m

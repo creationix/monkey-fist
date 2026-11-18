@@ -1,0 +1,50 @@
+// lib/stack.ents's alloc (and extend) bound the top AFTER adding n to it, in u32, so an
+// n near 2^32 wraps the sum past zero, the bound passes, and the "block" handed out is
+// the stack itself. Not a compiler bug: the library that ships with the compiler.
+//
+// How to see it:
+//   encantis wasm 03-stack-alloc-wraps.ents -o /tmp/b03.wasm
+//   node -e 'const x=new WebAssembly.Instance(new WebAssembly.Module(require("fs").readFileSync("/tmp/b03.wasm")),{}).exports; console.log(x.wraps(), x.top_after())'
+// prints "16 0" at 03225bc (origin/main): alloc(16), then alloc(0xFFFFFFF0) returns offset
+// 16 instead of trapping, and leaves the top at 0, so the next alloc hands out the same
+// bytes again. The two functions below are lib/stack.ents's alloc as it is at 03225bc,
+// over a small space, and the same with the bound written as n <= capacity - top.
+//
+// Met by G1's review through keys.ents: keyset(i32, 2^28 + 1, ...) asks for 2^30 slots of
+// 12 bytes, which is 0 bytes in u32, and a pool of 2^30 + 1 words is 4 bytes. Neither
+// trapped; the map's header was overwritten (its count read 16711680) before an access out
+// of bounds. core/lib/stack.ents now bounds n by the room left, and keyset asserts its
+// sizes. Cost: 20 minutes to find, 5 to fix.
+
+def capacity = 4096:u32
+data space = mut [0:u8; 4096]
+global top: u32 = 0
+
+func alloc(n: u32) -> (p: u32) {
+  top = (top + 7) & 0xFFFFFFF8
+  p = (space as u32) + top
+  top += n
+  assert top <= capacity
+}
+
+// the same, bounded by the room left: traps for alloc(0xFFFFFFF0)
+func alloc_checked(n: u32) -> (p: u32) {
+  top = (top + 7) & 0xFFFFFFF8
+  assert n <= capacity - top
+  p = (space as u32) + top
+  top += n
+}
+
+export func wraps() -> u32 {
+  top = 0
+  alloc(16)
+  return alloc(0xFFFFFFF0) - (space as u32)
+}
+
+export func top_after() -> u32 => top
+
+export func checked() -> u32 {
+  top = 0
+  alloc_checked(16)
+  return alloc_checked(0xFFFFFFF0) - (space as u32)
+}

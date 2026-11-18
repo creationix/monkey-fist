@@ -75,8 +75,8 @@ export func code(comptime S: type, s: S, o: *SetOpts, comptime put: (S, u8) -> S
   return s.put('-').text(o.seed, put)
 }
 
-// t as a whole number of lo to hi digits, or -1 (digits of engine.mbt). enum: -1 for none
-func digits(t: []u8, lo: u32, hi: u32) -> i32 {
+// t as a whole number of lo to hi digits, or -1 (digits of engine.mbt).
+func digits(t: []u8, lo: u32, hi: u32) -> i32 {  // enum: -1 for none
   return -1 when t.len < lo || t.len > hi
   let v: i32 = 0
   for c in t {

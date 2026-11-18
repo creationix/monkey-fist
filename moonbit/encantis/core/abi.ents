@@ -69,6 +69,7 @@ export func input() -> []i32 => (inbuf as [*]i32)[0..in_n]
 export func input_bytes() -> []u8 {
   let b = alloc(in_n) as [*]mut u8
   for i, c in input() {
+    assert c >= 0 && c < 256  // past a byte, the text would hash otherwise than hashString does
     b[i] = c as u8
   }
   return b[0..in_n]

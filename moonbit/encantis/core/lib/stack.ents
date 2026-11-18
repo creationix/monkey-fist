@@ -3,7 +3,10 @@
 // Changed for the Monkey Fist core: the stack is 16 MiB, not 256 KiB (capacity
 // and space), and it gains clear() (back to the base, for each export call, so a
 // trap in an earlier call never leaves the stack unusable) and peak() (the
-// highest top reached since the last clear, one compare per alloc).
+// highest top reached since the last clear, one compare per alloc). alloc and
+// extend compare n with the room left, where upstream adds n to the top first:
+// for an n near 2^32 that sum wraps, passes the compare and hands out the stack
+// as a block of n bytes (bugs/03; found by G1's review).
 //
 // A bump stack in linear memory: the allocator the containers of this
 // directory use. Every allocation is a pointer bump and nothing is freed one
@@ -46,9 +49,9 @@ export func peak() -> u32 => max(high, top)
 // n bytes, 8-byte aligned. Traps when the stack is full.
 export func alloc(n: u32) -> (p: u32) {
   top = (top + 7) & 0xFFFFFFF8
+  assert n <= capacity - top
   p = (space as u32) + top
   top += n
-  assert top <= capacity
   if top > high {
     high = top
   }
@@ -56,9 +59,9 @@ export func alloc(n: u32) -> (p: u32) {
 
 // n more bytes at the top, directly after what is there (no alignment).
 export func extend(n: u32) -> (p: u32) {
+  assert n <= capacity - top
   p = (space as u32) + top
   top += n
-  assert top <= capacity
   if top > high {
     high = top
   }
