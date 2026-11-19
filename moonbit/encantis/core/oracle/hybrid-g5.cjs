@@ -8,8 +8,8 @@
 //
 //   node moonbit/encantis/core/oracle/hybrid-g5.cjs [test/g5.wasm] [--only L30,C7] [--js]
 //
-// --js runs the same generator through the same wrappers with the JS behind them (the plain G and
-// repeatedCore): the positive control. The generator receives G as an argument (F.generate(spec,
+// --js runs the same patched generator with the plain G and the JS's repeatedCore: the positive
+// control of the comparison with reference.json. The generator receives G as an argument (F.generate(spec,
 // G)), so the port's G is an object of its own; repeatedCore is an internal function, reached
 // through capture.cjs's patched copy of grid-generator.js. The generator's rng is handed to the
 // port as its state; afterwards the JS's rng is drawn as often as the port drew, which brings it
@@ -120,6 +120,6 @@ for (const b of boards) {
   if (args.includes('--verbose')) console.log(`${same ? 'same' : 'DIFF'} ${b.name} ${Date.now() - t} ms`);
 }
 globalThis.__mfCapture = null;
-console.log(`${bad ? 'FAIL' : 'ok  '} the JS generator with ${JS ? 'the JS behind the wrappers (--js)' : "G5's units on the port"}: ${boards.length - bad} of ${boards.length} reference levels the same (ropes, mirrors, springs, plan, par, exact, layout key), in ${((Date.now() - t0) / 1000).toFixed(1)} s` +
+console.log(`${bad ? 'FAIL' : 'ok  '} the JS generator with ${JS ? 'the JS alone (--js)' : "G5's units on the port"}: ${boards.length - bad} of ${boards.length} reference levels the same (ropes, mirrors, springs, plan, par, exact, layout key), in ${((Date.now() - t0) / 1000).toFixed(1)} s` +
   (JS ? '' : `; port calls: ${Object.entries(calls).map(([k, v]) => `${k} ${v}`).join(', ')}`));
 process.exit(bad ? 1 : 0);
