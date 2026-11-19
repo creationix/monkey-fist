@@ -7,8 +7,8 @@ Compiler: encantis origin/main **399ca7e** (Release 0.3.0, 19 Nov). It has `lib/
 generics-across-modules work of #29 to #31, and #32 to #34 after them. The port was written against
 four successive commits of main (03225bc, 8f459f1, 0c7737d, 399ca7e); at 399ca7e every wasm of the
 port rebuilds byte for byte. The compiler was never edited. The JS reference is 9e69e3a. Node 22.23.4,
-Chromium 153.0.8010.12, moon 0.1.20261104. Measured 19 Nov 14:40 to 16:00 on this 4-CPU machine, every
-timing under the shared lock with the machine otherwise idle (load 0.3 to 1.4).
+Chromium 153.0.8010.12, moon 0.1.20261104. Measured 19 Nov 14:40 to 15:40 on this 4-CPU machine, every
+timing under the shared lock with the machine otherwise idle (load 0.3 to 1.5).
 
 ## The answer
 
@@ -52,8 +52,9 @@ own tests drive it unchanged.
   **82 of the 120 positions now show a level other than the JS game's**: 60 maps are new (every Hex
   level), and 22 square maps moved within their chapter. All 120 are valid, and their distributions
   match the JS Journey's. A fallback build (MoonBit's JS build or `grid-generator.js`) would generate
-  the JS game's Journey instead. Freezing the port's levels as data closes that gap for about
-  15 KB of packed bytes, or 7.4 KB gzipped for the Hex levels alone (§1.4).
+  the JS game's Journey instead. Freezing the port's 60 Hex levels as data closes that gap for
+  15,202 packed bytes (7,384 gzipped), with the port's Journey table in place of grid-journey.js;
+  all 120 levels would take 31,428 (15,354) (§1.4).
 
 Whether to switch is the owner's call. The speed, the size and the parity are real, and a wasm-gc
 browser floor is no longer needed. Against them stand a source 1.7x the MoonBit's, closures written
@@ -105,9 +106,11 @@ is not part of the core and was not ported.
   bit for bit. 0 problems.
 
 **This measurement reran** `build.sh` (42.7 s; every wasm byte for byte) and `oracle/check-all.sh`
-(every group's oracle, G1 to G7, with the reviews' checks): **every check passed** (40 checks, 23 min 46 s, under the lock; `oracle/fixtures/measure/check-all.log`). The optimized builds
-(`wasm -O`, `--release`, `wasm-opt -O3`, of both `core.ents` and `test/g7.ents`) pass the unit oracle
-in both modes (556,393 values each), the robustness checks and the port's Journey check.
+(every group's oracle, G1 to G7, with the reviews' checks): **every check passed** (40 checks,
+23 min 46 s, under the lock; `oracle/fixtures/measure/check-all.log`). The optimized builds (`wasm
+-O`, `--release` and `wasm-opt -O3`) pass too: those of `test/g7.ents` the unit oracle in both modes
+(556,393 values each), those of `core.ents` the port's Journey check, and all of them the robustness
+checks.
 
 ### 1.2 Generation: the same qualities
 
