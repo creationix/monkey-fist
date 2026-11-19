@@ -127,7 +127,11 @@ if (FILL) {
   const names = [...new Set(all.map(c => c.b.name))].filter((_, i) => i % PART[1] === PART[0]);
   for (const name of names) {
     const t = Date.now();
-    for (const c of all.filter(c => c.b.name === name)) stepsOf(c, c.i).forEach(s => want(c, s));
+    let saved = Date.now();
+    for (const c of all.filter(c => c.b.name === name)) {
+      stepsOf(c, c.i).forEach(s => want(c, s));
+      if (Date.now() - saved > 60000) { flush(); saved = Date.now(); }  // a killed fill keeps what it computed
+    }
     flush();
     console.log(`${name} ${((Date.now() - t) / 1000).toFixed(1)} s (total ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   }

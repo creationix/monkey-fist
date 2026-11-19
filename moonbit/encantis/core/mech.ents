@@ -405,6 +405,8 @@ export func all_free_full(g: *mut Geo, paths: []?[]Pt) -> bool {
 
 // A position as u16 words: per rope 0 once it has left, else its length + 1 and its cells
 // (MoonBit's Geo::key, one char a word there). Injective. In scratch, until the next key.
+// (solve_full no longer keys by it, since G5's review: it numbers each rope's path in the same
+// scratch, state_of below.)
 data key_cells = mut [0:u16; 6912]
 global key_n: u32 = 0
 
