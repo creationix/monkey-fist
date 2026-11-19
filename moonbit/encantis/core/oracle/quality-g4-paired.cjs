@@ -11,7 +11,8 @@
 // valid as quality-hexbuild's builder part does (rope shapes, no rope on a mirror, the core
 // kept, and the JS's intentions replays it with the depth and cost it states).
 //
-//   node quality-g4-paired.cjs [--seeds 8] [--wasm w]
+//   node quality-g4-paired.cjs [--seeds 8] [--wasm w] [--offset k] [--max-cells n]
+// --offset k: other states (a replicate); --max-cells n: only the cfgs of n cells or fewer.
 'use strict';
 const path = require('path');
 const R = require('./ref.cjs'), W = require('./wasm.cjs'), D = require('./dump-hexbuild.cjs'), C = require('./check-hexbuild.cjs'), Q = require('./quality-hexbuild.cjs');
@@ -19,7 +20,7 @@ const R = require('./ref.cjs'), W = require('./wasm.cjs'), D = require('./dump-h
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
 const WASM = opt('--wasm', path.join(__dirname, '../test/g4.wasm'));
-const N = Number(opt('--seeds', 8));
+const N = Number(opt('--seeds', 8)), OFFSET = Number(opt('--offset', 0)), MAXC = Number(opt('--max-cells', Infinity));
 const { H } = R.js();
 const HI = C.internals();
 const port = W.load(WASM); port.x.t_draw_exact(0);
@@ -35,8 +36,8 @@ function row(b, cells) {
 }
 const KEYS = ['ropes', 'coverage', 'meanLength', 'longest', 'shortest', 'bends', 'longestBends', 'knots', 'traps', 'depth', 'averageDepth', 'plan', 'extraMoves'];
 
-const cases = D.read().cases, sets = { J1: [], J2: [], P: [] }, bad = [];
-const seedOf = (c, set, k) => C.otherSeed(c.state, { J1: 7000, J2: 7100, P: 7200 }[set] + k);
+const cases = D.read().cases.filter(c => c.cfg.W * c.cfg.H <= MAXC), sets = { J1: [], J2: [], P: [] }, bad = [];
+const seedOf = (c, set, k) => C.otherSeed(c.state, { J1: 7000, J2: 7100, P: 7200 }[set] + 1000 * OFFSET + k);
 const t0 = Date.now();
 for (const c of cases) {
   const cells = c.cfg.W * c.cfg.H, per = { J1: [], J2: [], P: [] };

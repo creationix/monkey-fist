@@ -1005,7 +1005,14 @@ a file, the count is estimated from the line share.
 - **Ports:**
   - from `gridgen.mbt`:
     - `place_mirrors`;
-    - `woven`: config, and dispatch to `hex_build` or `weave_run`;
+    - `woven`: config, and dispatch to `hex_build` or `weave_run`. **Journey levels (and the
+      parity runs against `reference.json`) call `set_draw_exact(true)` first; custom codes
+      `set_draw_exact(false)`**, set per level since it is module state (G4's as-built and its
+      review: with the departures 6 of the 60 Hex Journey levels cannot be generated with their
+      seeds, and the other 54 lose the seed choice build-grid-journey.cjs made for them: their
+      mean distance from the target challenge is 1.78, against 0.97 for the Journey's own levels
+      and 1.64 to 1.72 for the JS on fresh seeds. In draw-exact mode all 120 levels are the JS's,
+      every field);
     - `pt_key`;
     - `add_spinners` (keep the eager 16 + 8 candidates: REPORT §5.1), `ways_out`,
       `with_spinner`, `search_spinner`, `bounce_step`;
