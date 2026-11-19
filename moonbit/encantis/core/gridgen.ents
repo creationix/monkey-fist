@@ -145,6 +145,17 @@ def solved_yes = 1:i32
 def ev_none = -1:i32
 def ev_bounce = 1:i32
 
+// What the builder said of a board (grid-generator.js's constructionStats): the knots it meant
+// (intendedSlides) and the traps it made, the certificate's deepest layer and its summed layers
+// (depth, and averageDepth times the ropes), and how many ropes came from the repeated-slide core
+// (seededRopes). -1 where weave_run does not say (a square board's knots, depth and cost). Of the
+// candidate woven last, and of the level grid_generate made last (built(): the quality oracle).
+type Built = (knots: i32, traps: i32, depth: i32, cost: i32, seeded: i32)
+global woven_built: Built = (knots: 0, traps: 0, depth: 0, cost: 0, seeded: 0)
+global level_built: Built = (knots: 0, traps: 0, depth: 0, cost: 0, seeded: 0)
+
+export func built() -> Built => level_built
+
 // The two buffers a best level is kept in, as its level words: one holds the best so far, the
 // other is written when a better one comes (each 64 Ki words, as the ABI's).
 def keep_room = 65536:u32
@@ -307,6 +318,7 @@ func woven_hex(w: i32, height: i32, d: f64, rng: *mut Rng, long_ropes: bool, len
       }
     }
     out.* = Board(true, w, height, raw.ropes, kept_mirrors(true, w, mirrors, used), [], raw.plan)
+    woven_built = Built(raw.slides, raw.traps, raw.depth, raw.cost, iropes.len as i32)
     return out
   }
   return 0
@@ -341,6 +353,7 @@ func woven_square(w: i32, height: i32, d: f64, rng: *mut Rng, style: Style, long
       }
     }
     out.* = Board(false, w, height, raw.ropes, kept_mirrors(false, w, mirrors, used), [], raw.taps)
+    woven_built = Built(-1, raw.traps, -1, -1, iropes.len as i32)
     return out
   }
   return 0
@@ -569,7 +582,7 @@ export func add_spinners(start: *Board, rng: *mut Rng, count: i32) -> ?*Board {
 
 // What an attempt is measured against: the spec and the targets, and the best level so far.
 type Attempts = (s: *Spec, target: f64, ceiling: f64, hardness: f64, min_coverage: f64,
-                 best_value: f64, best: []i32, spare: [*]mut i32, wins: f64, challenge: f64, coverage: f64)
+                 best_value: f64, best: []i32, spare: [*]mut i32, wins: f64, challenge: f64, coverage: f64, built: Built)
 
 // The level of spec s (generate() of grid-generator.js): up to ten woven candidates (three on
 // colossal maps), each with its spinners, checked by the generator's rules, measured by play
@@ -598,7 +611,7 @@ export func grid_generate(s: *Spec) -> ?*Level {
   let sample_limit = if colossal { 3 } else { 10 }
   let a = alloc(sizeof(Attempts)) as *mut Attempts
   a.* = Attempts(s, target_challenge(d), win_ceiling(d), max(0.0, (d - 40.0) / 60.0),
-                 if w * height <= 48 { 0.8 } else { 0.85 }, -1.0e300, [], keep_a as [*]mut i32, 0.0, 0.0, 0.0)
+                 if w * height <= 48 { 0.8 } else { 0.85 }, -1.0e300, [], keep_a as [*]mut i32, 0.0, 0.0, 0.0, woven_built)
   for attempt in sample_limit {
     let scope = mark()
     defer reset(scope)
@@ -616,6 +629,7 @@ export func grid_generate(s: *Spec) -> ?*Level {
     }
   }
   return 0 when a.best.len == 0
+  level_built = a.built
   out.* = read_level(a.best)
   out.wins = a.wins
   out.challenge = a.challenge
@@ -673,6 +687,7 @@ func measure(a: *mut Attempts, b: *Board, attempt: i32, colossal: bool) -> bool 
     a.wins = wins
     a.challenge = challenge
     a.coverage = density
+    a.built = woven_built
   }
   return colossal || (density >= 0.9 && abs(challenge - a.target) <= 0.5 && wins <= a.ceiling)
 }

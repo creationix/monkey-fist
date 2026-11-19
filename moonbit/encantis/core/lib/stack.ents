@@ -3,7 +3,8 @@
 // Changed for the Monkey Fist core: the stack is 16 MiB, not 256 KiB (capacity
 // and space), and it gains clear() (back to the base, for each export call, so a
 // trap in an earlier call never leaves the stack unusable) and peak() (the
-// highest top reached since the last clear, one compare per alloc). alloc and
+// highest top reached since the last clear, one compare per alloc); G7 adds release() (back to
+// the base, the peak kept) and held() (the bytes held). alloc and
 // extend compare n with the room left, where upstream adds n to the top first:
 // for an n near 2^32 that sum wraps, passes the compare and hands out the stack
 // as a block of n bytes (bugs/03; found by G1's review).
@@ -45,6 +46,15 @@ export func clear() {
 
 // The most bytes the stack has held since the last clear.
 export func peak() -> u32 => max(high, top)
+
+// Frees everything, and keeps the peak: the end of an export call (G7), whose stack_peak() is
+// read after it.
+export func release() {
+  top = 0
+}
+
+// The bytes the stack holds now (G7's robustness check: every export leaves it at 0).
+export func held() -> u32 => top
 
 // n bytes, 8-byte aligned. Traps when the stack is full.
 export func alloc(n: u32) -> (p: u32) {

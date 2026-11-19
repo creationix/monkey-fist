@@ -16,6 +16,7 @@
 
 import "./lib/stack" (
   "clear" func clear()
+  "release" func release()
   "alloc" func alloc(n: u32) -> u32
 )
 import "./board" (
@@ -134,6 +135,7 @@ func level_of(s: *Spec) -> ?*Level {
 // Level `index` of the set whose code is in the input; 0 if the code is invalid or no board fits.
 export func generate(index: i32) -> i32 {
   clear()
+  defer release()
   use_js_journey(js_mode)
   if let o = parse_code(input()) {
     let s = alloc(sizeof(Spec)) as *mut Spec
@@ -148,6 +150,7 @@ export func generate(index: i32) -> i32 {
 export func generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
                           require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32 {
   clear()
+  defer release()
   return 0 when w < 1 || h < 1 || w > max_area || h > max_area || w * h > max_area
   let s = alloc(sizeof(Spec)) as *mut Spec
   s.* = Spec(hex == 1, w, h, difficulty, mirrors == 1, springs == 1, input_bytes(), require_slide == 1,
@@ -159,6 +162,7 @@ export func generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i3
 // input; -1 before the first level.
 export func measure(games: i32) -> f64 {
   clear()
+  defer release()
   if let l = current_level() {
     return casual_measure(l.board, input_bytes(), games)
   }
@@ -169,6 +173,7 @@ export func measure(games: i32) -> f64 {
 // budget ran out), the nodes searched, then the moves.
 export func guide(budget: i32) {
   clear()
+  defer release()
   let (board:, paths:, prefer:) = read_position()
   let s = geo(board).assist_guide(paths, budget, prefer)
   out_clear()
@@ -183,6 +188,7 @@ export func guide(budget: i32) {
 // first, then springs).
 export func features(budget: i32) {
   clear()
+  defer release()
   let (board:, paths:, prefer:) = read_position()
   let f = geo(board).reachable_features(paths, budget)
   out_clear()
@@ -196,6 +202,7 @@ export func features(budget: i32) {
 // Casual playouts seeded by "bench".
 export func bench_casual(games: i32) -> f64 {
   clear()
+  defer release()
   if let l = current_level() {
     return play_bench_casual(l.board, games)
   }
@@ -205,6 +212,7 @@ export func bench_casual(games: i32) -> f64 {
 // The par search. Par.
 export func bench_par() -> i32 {
   clear()
+  defer release()
   if let l = current_level() {
     return play_bench_par(l.board)
   }
@@ -214,6 +222,7 @@ export func bench_par() -> i32 {
 // The solver from the start position. The nodes searched.
 export func bench_solve(budget: i32) -> i32 {
   clear()
+  defer release()
   if let l = current_level() {
     let b = l.board
     return geo(b).solve(some_paths(b.ropes), budget, []).nodes

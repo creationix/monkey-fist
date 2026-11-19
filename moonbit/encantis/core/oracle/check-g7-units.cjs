@@ -6,7 +6,7 @@
 //
 // The fixture: every call of the three over the 120 Journey levels and 4 levels each of 8 custom
 // codes (both grids, mirrors, spinners, mixed, colossal, difficulties 1 to 100), recorded once into
-// /home/user/mf-core-scratch/g7/units.json.gz (--fill, about 2 minutes of JS) and pinned by its
+// fixtures/g7-units.json.gz (--fill, about 3 minutes of JS; 2,821 records, 450 KB) and pinned by its
 // sha256 here; each record re-runs in the JS from its numbers alone (capture.replay) when filled.
 //
 // The modes:
@@ -25,8 +25,8 @@ const R = require('./ref.cjs'), W = require('./wasm.cjs'), C = require('./captur
 
 const args = process.argv.slice(2), has = f => args.includes(f);
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
-const FIXTURE = '/home/user/mf-core-scratch/g7/units.json.gz';
-const SHA = 'fill';  // pinned below once filled
+const FIXTURE = path.join(__dirname, 'fixtures/g7-units.json.gz');
+const SHA = 'c93d0547a35159596c7d442788c167d257ec4918fce5cf3485d64b2053d24dd1';  // --fill prints the new one
 const WASM = opt('--wasm', path.join(__dirname, '../test/g7.wasm'));
 
 const CODES = ['U3-S-1-100-8-8-4-MS-UNITA', 'U3-H-1-100-8-8-4-MS-UNITB', 'U3-M-1-100-12-12-4-MS-UNITC', 'U3-S-60-100-16-16-4-S-UNITD',

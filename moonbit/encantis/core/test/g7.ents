@@ -10,6 +10,7 @@ import "../lib/stack" (
   "peak" func peak() -> u32
   "alloc" func alloc(n: u32) -> u32
   "zeroed" func zeroed(n: u32) -> u32
+  "held" func held() -> u32
 )
 import "../random" (
   "draws" func draws_made() -> u32
@@ -42,6 +43,7 @@ import "../gridgen" (
   "woven" func woven(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng, style: Style, long_ropes: bool,
                      mirror_count: i32, core_wanted: bool) -> ?*Board
   "add_spinners" func add_spinners(start: *Board, rng: *mut Rng, count: i32) -> ?*Board
+  "built" func built() -> Built
 )
 import "../gen" (
   "set_js_mode" func set_js_mode(on: bool)
@@ -63,6 +65,7 @@ type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, sprin
 // --- end of the canonical type block ---
 type Rng = (a: u32)
 type Style = (kind: i32, min_len: i32, straight: f64, len_lo: i32, twisty: bool)
+type Built = (knots: i32, traps: i32, depth: i32, cost: i32, seeded: i32)
 
 export memory
 
@@ -127,6 +130,21 @@ export func bench_solve(budget: i32) -> i32 => gen_bench_solve(budget)
 export func draws() -> i32 => draws_made() as i32
 
 export func stack_peak() -> i32 => peak() as i32
+
+// The bytes the stack holds now: 0 after every export of the core (check-g7-robust.cjs).
+export func stack_used() -> i32 => held() as i32
+
+// What the builder said of the level made last (constructionStats): knots, traps, depth, cost and
+// the core's ropes, as words (-1 where weave_run does not say).
+export func t_built() {
+  let b = built()
+  out_clear()
+  put(b.knots)
+  put(b.traps)
+  put(b.depth)
+  put(b.cost)
+  put(b.seeded)
+}
 
 // --- The units ---
 
