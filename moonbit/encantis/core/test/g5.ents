@@ -177,6 +177,26 @@ export func t_taps() {
   }
 }
 
+// G.tap(b, paths, i) for one rope: 0 for null; else 1, writing the event, the distance, the route
+// (counted) and rope i's path after (its length, 0 if it left, then q, r). (oracle/hybrid-g5.cjs.)
+export func t_tap(i: i32) -> i32 {
+  clear()
+  let p = position()
+  out_clear()
+  if let m = p.g.tap(p.paths, i) {
+    put(m.event)
+    put(m.distance)
+    put(m.route.len as i32)
+    for c in m.route {
+      put(c.q)
+      put(c.r)
+    }
+    put_paths(m.paths[i as u32..i as u32 + 1] ?? m.paths)
+    return 1
+  }
+  return 0
+}
+
 // G.direction(b, path) of every rope still there: dq, dr.
 export func t_direction() {
   clear()

@@ -54,5 +54,13 @@ out=$(node check-hexbuild-edges.cjs --states 2 2>&1) || fail=1
 echo "$out" | head -22
 echo "== check-hexbuild-d2.cjs --seeds 1"
 node check-hexbuild-d2.cjs --seeds 1 || fail=1
+# G5: check-g5.cjs runs in the loop above (15 s with the JS's answers cached in
+# /home/user/mf-core-scratch/g5/cache; about 10 minutes more to fill the cache on a fresh machine).
+# The repeated-slide core on its recorded calls and 3,000 random ones, and the hints through the
+# game's glue (assist.test, solver/check, check-features in a harness on test/g5.wasm; about 2 minutes).
+echo "== check-core-rope.cjs"
+node check-core-rope.cjs || fail=1
+echo "== check-g5-harness.sh"
+sh ./check-g5-harness.sh || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail

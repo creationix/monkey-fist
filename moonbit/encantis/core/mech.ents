@@ -9,8 +9,7 @@
 // board runs on the kernels (tracked, worked out once). The Geo holds the board, so the
 // routing is g.solve(paths, budget, prefer), g.replay(moves, paths) and so on.
 //
-// A tap walks the rope's head through static scratch (the linear list of states seen, as the
-// JS's Set and MoonBit's Array are searched, and the route): walk() gives the event, the
+// A tap walks the rope's head through static scratch (the states it has seen, and the route): walk() gives the event, the
 // distance and the rope's path after, the only thing it puts on the stack. tap() is the
 // game's: it adds the position after (a copy of the outer list, 8 bytes a rope) and a copy of
 // the route. The searches use walk_at(), which taps every rope of a position on one stamp of
@@ -26,7 +25,7 @@
 // Lifetimes, as square.ents: what a function returns is on the stack in the caller's scope,
 // and a search does its work in a scope of its own. Options: tap and minimum_taps return ?*T
 // (none where the JS gives null or throws); walk gives a Step whose event is ev_none for none
-// (`// enum:`). Solved.solved is solved_yes, solved_no or solved_unknown.
+// (an enum tag). Solved.solved is solved_yes, solved_no or solved_unknown.
 
 import "./lib/stack" (
   "mark" func mark() -> u32
@@ -208,9 +207,7 @@ export func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt {
 // The scratch of a walk. A head never enters the same cell twice in one direction, so the
 // states seen are at most 4 a cell on square (one a cell on Hex), and the route is the path,
 // those steps, and an exit's path.len + 2: 6 * max_area + 2 at most.
-// comptime-n: the bounds are in the types (FixedVec(n, T)), and every push is checked by them
-data seen_cells = mut [0:i32; 9216]
-data seen: FixedVec(9216, i32) = mut (0, seen_cells)
+// comptime-n: the bound is in the type (FixedVec(n, T)), and every push is checked by it
 data route_cells: *mut [13826]Pt = mut [(0, 0); 13826]
 data route: FixedVec(13826, Pt) = mut (0, route_cells)
 
@@ -218,8 +215,32 @@ func to_route(p: Pt) {
   assert route.fixed_push(p)  // a cell past the bound above: not a board this game makes
 }
 
-func see(state: i32) {
-  assert seen.fixed_push(state)
+// The states the walk has seen: by state number (on square MoonBit's ((cell * 3 + dq + 1) * 3 +
+// dr + 1), under 9 a cell; on Hex the cell), the number of the walk that saw it last. The JS
+// keeps a Set of them and MoonBit a list it searches; this is the same set, one load a look.
+// (The plan kept the list for parity of work; after parity it went: a few percent of a search,
+// and no walk is quadratic in its steps any more.)
+data seen_at = mut [0:i32; 20736]
+global walks: i32 = 0
+
+// Whether this walk has seen state already; it has from now on.
+func seen_before(state: i32) -> bool {
+  if let p = &seen_at[state as u32] {
+    return true when p.* == walks
+    p.* = walks
+    return false
+  }
+  assert false  // a state past 9 a cell of max_area: not a board this game makes
+  return true
+}
+
+// A walk of its own number (the table is cleared before the numbers wrap).
+func new_walk() {
+  if walks == 0x7FFFFFFF {
+    seen_at[0..20736] = 0
+    walks = 0
+  }
+  walks += 1
 }
 
 // The route of the last walk: the old path, then each cell the head entered. Valid until the
@@ -237,7 +258,7 @@ export func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step => g.walk_at(paths
 export func walk_at(g: *mut Geo, paths: []?[]Pt, i: i32, s: i32) -> Step {
   if let path = paths[i as u32] {
     route.fixed_clear()
-    seen.fixed_clear()
+    new_walk()
     for c in path {
       to_route(c)
     }
@@ -270,11 +291,10 @@ func walk_square(g: *Geo, path: []Pt, s: i32) -> (event: i32, distance: i32) {
   distance = 0
   loop {
     let state = ((p.r * g.w + p.q) * 3 + dq + 1) * 3 + dr + 1
-    if seen.fixed_items().contains(state) {
+    if seen_before(state) {
       event = ev_none
       return
     }
-    see(state)
     let nq = p.q + dq
     let nr = p.r + dr
     if nq < 0 || nr < 0 || nq >= g.w || nr >= g.h {
@@ -330,11 +350,10 @@ func walk_hex(g: *Geo, path: []Pt, s: i32) -> (event: i32, distance: i32) {
       event = ev_bounce
       return
     }
-    if seen.fixed_items().contains(c) {
+    if seen_before(c) {
       event = ev_none
       return
     }
-    see(c)
     p = next
     to_route(p)
     distance += 1
@@ -453,7 +472,7 @@ func eq(a: []?[]Pt, b: []?[]Pt) -> bool {
 type Try = (i: i32, order: i32, event: i32, path: ?[]Pt)
 func before(a: Try, b: Try) -> bool => a.order < b.order  // closure: two comparator lambdas (the sort is stable: ties keep i's order)
 
-// What the JS's search closure captured (`// closure:`): the board, the positions seen, the
+// What the JS's search closures captured: the board, the positions seen, the
 // moves so far, the ranks by rope of the preferred order on square (first and last place of
 // each rope in it, -1 for none) and how often each rope has moved, the preferred order, and
 // the counts.
@@ -462,7 +481,7 @@ type Full = (g: *mut Geo, visited: *mut KeySet(u16), moves: *mut Vec(i32), first
 
 // The depth-first search from current. k: how much of the preferred order the Hex search has
 // followed (preferred[0] is prefer[k]).
-func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the JS's recursive local function
+func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the two recursive local functions of solve_full, one here
   return true when all_gone(current)
   // the JS counts a position not seen, and adds it only within the budget: so add it at once
   // while within, and past the budget only look

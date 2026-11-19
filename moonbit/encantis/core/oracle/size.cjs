@@ -113,6 +113,12 @@ const GROUPS = {
     ents: [['hexbuild.ents', ['HexBoard', 'SqMirrors']]],
     moonbit: [['core/hex.mbt', only(['HexIntent', 'hex_intentions', 'HexCfg', 'HexBuilt', 'HexShape', 'hex_build'])]],
   },
+  // G5: all of mech.mbt (full geometry and the routing to the kernels) and of assist.mbt (the
+  // hints), and gridgen.mbt's Core and repeated_core (lines 89 to 246).
+  G5: {
+    ents: [['mech.ents', ['Geo', 'Move', 'Step', 'Try', 'Full', 'Node']], ['assist.ents', []], ['core-rope.ents', ['Core', 'Placing']]],
+    moonbit: [['core/mech.mbt', () => true], ['core/assist.mbt', () => true], ['core/gridgen.mbt', only(['Core', 'repeated_core'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);

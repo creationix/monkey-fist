@@ -1,0 +1,125 @@
+// The JS generator of 9e69e3a with G5's units replaced by the Encantis port: every call
+// grid-generator.js and dependency-metrics.js make to G.tap, G.replay, G.solve, G.minimumTaps,
+// G.allFree and G.direction goes to test/g5.wasm (through the position words, as web/generator.js
+// sends them), and so does every repeatedCore call. Everything else (the builders, mirrors,
+// spinners, scoring, casual play, the choice among attempts) stays the JS's. The levels made are
+// compared with reference.json, which the JS made alone: ropes, mirrors, springs, plan, par, exact
+// and the layout key, level by level.
+//
+//   node moonbit/encantis/core/oracle/hybrid-g5.cjs [test/g5.wasm] [--only L30,C7] [--js]
+//
+// --js runs the same generator through the same wrappers with the JS behind them (the plain G and
+// repeatedCore): the positive control. The generator receives G as an argument (F.generate(spec,
+// G)), so the port's G is an object of its own; repeatedCore is an internal function, reached
+// through capture.cjs's patched copy of grid-generator.js. The generator's rng is handed to the
+// port as its state; afterwards the JS's rng is drawn as often as the port drew, which brings it
+// to the port's state, and that is checked.
+'use strict';
+const fs = require('fs'), path = require('path');
+const R = require('./ref.cjs'), W = require('./wasm.cjs'), C = require('./capture.cjs');
+
+const args = process.argv.slice(2);
+const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
+const JS = args.includes('--js'), ONLY = opt('--only', null);
+const WASM = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--only') || path.join(__dirname, '../test/g5.wasm');
+
+const { F, m } = C.captured(), G = m.G;
+const port = W.load(WASM);
+const EVENTS = ['exit', 'bounce', 'slide'];
+const calls = {};
+const count = k => { calls[k] = (calls[k] || 0) + 1; };
+
+// Reading words back.
+function reader(o) {
+  let k = 0;
+  const next = () => o[k++];
+  const path_ = () => { const n = next(); if (!n) return null; const p = []; for (let j = 0; j < n; j++) p.push({ q: next(), r: next() }); return p; };
+  return { next, path: path_, list: () => Array.from({ length: next() }, next) };
+}
+const solvedOf = w => w === 1 ? true : w === -1 ? null : false;
+
+// G's functions, on the port. The defaults are game-engine.js's.
+const portG = {
+  ...G,
+  tap(b, paths, i) {
+    count('tap');
+    port.push(R.position(b, paths, []));
+    if (!port.x.t_tap(i)) return null;
+    const r = reader(port.out()), event = EVENTS[r.next()], distance = r.next(), n = r.next(), route = [];
+    for (let j = 0; j < n; j++) route.push({ q: r.next(), r: r.next() });
+    const next = paths.slice(); next[i] = r.path();
+    return { paths: next, event, distance, route };
+  },
+  replay(b, moves, paths = b.ropes) {
+    count('replay');
+    port.push(R.position(b, paths, moves));
+    port.x.t_replay();
+    const r = reader(port.out()), solved = r.next() === 1, taps = r.next(), events = r.list().map(e => EVENTS[e]);
+    r.next();  // the hash
+    return { solved, taps, events, paths: paths.map(() => r.path()) };
+  },
+  solve(b, paths = b.ropes, budget = 900, prefer = []) {
+    count('solve');
+    port.push(R.position(b, paths, prefer));
+    port.x.t_solve(budget);
+    const r = reader(port.out()), solved = solvedOf(r.next()), nodes = r.next();
+    return { solved, moves: r.list(), nodes };
+  },
+  minimumTaps(b, fallback = b.plan, budget = 5000) {
+    count('minimumTaps');
+    port.push(R.position(b, b.ropes, fallback));
+    if (!port.x.t_minimum(budget)) throw Error('Par requires a complete solution');
+    const r = reader(port.out()), par = r.next(), exact = r.next() === 1, nodes = r.next();
+    return { plan: r.list(), par, exact, nodes };
+  },
+  allFree(b, paths) {
+    count('allFree');
+    port.push(R.position(b, paths, []));
+    return port.x.t_free() === 1;
+  },
+  direction(b, p) {
+    count('direction');
+    port.push(R.position(b, [p], []));
+    port.x.t_direction();
+    const o = port.out();
+    return [o[0], o[1]];
+  },
+};
+
+// repeatedCore on the port: (grid, W, height, d, rng, G).
+function portCore(grid, W_, height, d, rng) {
+  count('repeatedCore');
+  const state = rng.state();
+  const ok = port.x.t_core(grid === 'hex' ? 1 : 0, W_, height, d, state | 0);
+  const draws = port.x.draws(), after = port.x.rng_state() >>> 0;
+  for (let k = 0; k < draws; k++) rng();
+  if (rng.state() !== after) throw Error('hybrid-g5: the JS rng did not catch up with the port');
+  if (!ok) return null;
+  const r = reader(port.out());
+  const ropes = [r.path(), r.path()], stops = [r.list(), r.list()], plan = r.list(), par = r.next(), exact = r.next() === 1, depth = r.next();
+  return { initialRopes: ropes, initialStops: stops, initialPlan: plan, corePar: par, coreExact: exact, depth };
+}
+
+const kindOf = R.kindOf;
+const level = b => JSON.stringify({ grid: b.grid, W: b.W, H: b.H, ropes: b.ropes.map(p => p.map(c => [c.q, c.r])), mirrors: (b.mirrors || []).map(x => [x.cell.q, x.cell.r, kindOf(b, x)]),
+  springs: (b.springs || []).map(c => [c.q, c.r]), plan: b.plan, par: b.par, exact: b.exact, layoutKey: G.layoutKey(b) });
+const refLevel = r => JSON.stringify({ grid: r.grid, W: r.W, H: r.H, ropes: r.ropes, mirrors: r.mirrors.map(([q, rr, k]) => [q, rr, r.grid === 'hex' ? k : k === '\\' ? 1 : 0]), springs: r.springs,
+  plan: r.plan, par: r.par, exact: r.exact, layoutKey: r.layoutKey });
+
+let boards = R.boards();
+if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name));
+globalThis.__mfCapture = JS ? null : (name, f, a) => name === 'repeatedCore' ? portCore(...a) : f(...a);
+const t0 = Date.now();
+let bad = 0;
+for (const b of boards) {
+  const spec = b.code ? G.spec(G.parseCode(b.code), b.index) : G.spec({ kind: 'journey' }, Number(b.name.slice(1)) - 1);
+  const t = Date.now();
+  const made = F.generate(spec, JS ? G : portG);
+  const same = level(made) === refLevel(b.ref);
+  if (!same) { bad++; console.log(`DIFFERS ${b.name}: ${level(made).slice(0, 200)}\n   want ${refLevel(b.ref).slice(0, 200)}`); }
+  if (args.includes('--verbose')) console.log(`${same ? 'same' : 'DIFF'} ${b.name} ${Date.now() - t} ms`);
+}
+globalThis.__mfCapture = null;
+console.log(`${bad ? 'FAIL' : 'ok  '} the JS generator with ${JS ? 'the JS behind the wrappers (--js)' : "G5's units on the port"}: ${boards.length - bad} of ${boards.length} reference levels the same (ropes, mirrors, springs, plan, par, exact, layout key), in ${((Date.now() - t0) / 1000).toFixed(1)} s` +
+  (JS ? '' : `; port calls: ${Object.entries(calls).map(([k, v]) => `${k} ${v}`).join(', ')}`));
+process.exit(bad ? 1 : 0);

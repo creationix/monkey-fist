@@ -91,7 +91,7 @@ export func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i3
   let nm = b.mirrors.len
   let total = nm + b.springs.len
   let out = alloc(total * 4) as [*]mut i32
-  for k in total {
+  for k in total {  // closure: Array::makei(total, k => k)
     out[k] = k as i32
   }
   let everything = out[0..total]
@@ -132,7 +132,7 @@ export func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i3
         return everything when visited >= budget
         visited += 1
         let cells = alloc(n * 4) as [*]mut u32
-        for k in n {
+        for k in n {  // closure: path.map(p => g.cell(p)), and the state string's map and join
           cells[k] = g.cell(path[k]) as u32
         }
         break when !seen.add(cells[0..n])
@@ -168,7 +168,7 @@ export func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i3
         }
         return everything when live.len == total  // every feature reached: the JS gives them all, in index order
         // the path one step on: its tail cell off, next on; a spring reverses it
-        for k in n - 1 {
+        for k in n - 1 {  // closure: path[1:].to_owned() (then push and rev)
           spare[k] = path[k + 1]
         }
         spare[n - 1] = next

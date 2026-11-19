@@ -64,7 +64,7 @@ type Placing = (a: []Pt, b: []Pt)
 
 // p turned `turn` times (a sixth of a turn on Hex, a quarter on square), after its q and r are
 // swapped when flip is set.
-func turned(p: Pt, turn: u32, flip: bool, hex: bool) -> Pt {
+func turned(p: Pt, turn: u32, flip: bool, hex: bool) -> Pt {  // closure: [a, b].map(path => path.map(p => ...)), the turning lambda
   let q = p.q
   let r = p.r
   if flip {
@@ -218,7 +218,7 @@ export func repeated_core(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng)
     let stops = alloc(2 * sizeof([]i32)) as [*]mut []i32
     let offsets = alloc(2 * 4) as [*]mut i32
     let lists = alloc(2 * sizeof(*mut Vec(i32))) as [*]mut *mut Vec(i32)
-    for k in 2 {
+    for k in 2 {  // closure: chosen.map(_ => [])
       offsets[k] = 0
       lists[k] = vec(i32, proven.plan.len)  // reserve: a stop a tap at most
     }

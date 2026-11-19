@@ -37,9 +37,10 @@
 // Per board, at the start only:
 //   tracked    whether the board runs on the kernels (no springs, and its tracks compile)
 //   minimum    G.minimumTaps(b, b.plan, 1200) and (5000): null where it throws, else par, exact,
-//              nodes, plan. Only on boards of at most 40 ropes: on C11 to C15 the JS needs minutes
-//              and gigabytes (C14 at 1200: 116 s, 3.1 GB; C11 at 5000 runs out of 6 GB), and the
-//              generator calls it only on boards of at most 12 ropes (and on repeatedCore's 2)
+//              nodes, plan. Only on the 128 boards of at most 40 ropes (not L107, L112, C11 to C15):
+//              on the large ones the JS needs minutes and gigabytes (C14 at 1200: 116 s, 3.1 GB; C11
+//              at 5000 runs out of 6 GB), and the generator calls it only on boards of at most 12
+//              ropes (and on repeatedCore's 2)
 //
 // The JS's answers are deterministic, so they are kept in a cache (CACHE below, one file per
 // board, keyed by REFERENCE and CACHE_VERSION): a run computes only what is missing. --fresh
