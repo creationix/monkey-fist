@@ -1,0 +1,7 @@
+import {
+  "monkeyfist/mf/core",
+}
+
+pkgtype(kind: "foreign_library")
+
+warnings = "-79-4-7"

@@ -9,7 +9,10 @@
 // MoonBit's hex_build is not exported by dist/*.wasm. The control is a scratch MoonBit package
 // (/home/user/mf-core-scratch/g4/mbt: src/core of the repository unchanged, plus src/hbench,
 // whose t_bench(state, coverage, tapDepth, reps) reads the same cfg words as test/g4.ents and
-// calls @core.hex_build), built with `moon build --target wasm-gc --release`.
+// calls @core.hex_build), built with `moon build --target wasm-gc --release`. Its source is
+// oracle/hbench/ (hbench.mbt, moon.pkg); to make the package again:
+//   mkdir -p S/src && cp moonbit/moon.mod S/ && cp -r moonbit/src/core S/src/ && cp -r oracle/hbench S/src/
+//   (cd S && moon build --target wasm-gc --release)   then --mbt S/_build/wasm-gc/release/build/hbench/hbench.wasm
 //
 // The cases are grouped by board size (cells: up to 100, 101 to 300, 301 to 600, over 600,
 // and all). Each round runs every case once on the port, then MoonBit, then the JS,
