@@ -27,7 +27,9 @@ const WASM = args.find((a, i) => !a.startsWith('--') && !VALUED.includes(args[i 
 const { F, m } = C.captured(), G = m.G, Q = m.Q;
 const port = W.load(WASM);
 const list = o => o.slice(1, 1 + o[0]);
-const at = (b, plan) => port.push(R.position(b, b.ropes, plan || b.plan || []));
+// The words' push is timed apart (pushMs): in the core the board is in memory already.
+let pushMs = 0;
+const at = (b, plan) => { const t = performance.now(); port.push(R.position(b, b.ropes, plan || b.plan || [])); pushMs += performance.now() - t; };
 
 // The port's answer to each unit, in the JS's shape (the hybrid's UNITS), and what to compare.
 const PORT = {
@@ -67,12 +69,13 @@ const cutPort = (kind, want, got) => kind === 'score' && want && want.nodes === 
 // --spoil KIND: the negative control, the port's 3rd answer of that kind changed (must be the one failure).
 const spoil = v => typeof v === 'number' ? v + 1 : typeof v === 'boolean' ? !v : Array.isArray(v) ? [...v, 99] : v && typeof v === 'object' ? { ...v, spoiled: 1 } : 'spoiled';
 let calls = {}, bad = [], ms = {}, peak = { bytes: 0, where: '' }, current = '';
-const time = (kind, side, t) => { const k = ms[kind] = ms[kind] || { js: 0, port: 0 }; k[side] += t; };
+const time = (kind, side, t) => { const k = ms[kind] = ms[kind] || { js: 0, port: 0, push: 0 }; k[side] += t; };
 function compare(kind, a, jsAnswer) {
   calls[kind] = (calls[kind] || 0) + 1;
-  let got, t = performance.now();
+  let got, t = performance.now(), p0 = pushMs;
   try { got = PORT[kind](...a); } catch (e) { if (!(e instanceof WebAssembly.RuntimeError)) throw e; got = { trap: e.message }; }
-  time(kind, 'port', performance.now() - t);
+  time(kind, 'port', performance.now() - t - (pushMs - p0));
+  time(kind, 'push', pushMs - p0);
   const p = port.x.stack_peak(); if (p > peak.bytes) peak = { bytes: p, where: `${current} ${kind}` };
   t = performance.now();
   const before = R.draws(), w = jsAnswer(), draws = R.draws() - before;
@@ -137,7 +140,8 @@ function run(label, specs) {
   const n = Object.values(calls).reduce((a, b) => a + b, 0);
   console.log(`${bad.length ? 'FAIL' : 'ok  '} ${label}: ${specs.length} levels, ${n} calls shadowed, ${bad.length} differ (${((Date.now() - t0) / 1000).toFixed(0)} s); stack peak ${peak.bytes} (${peak.where})`);
   console.log(`  calls: ${Object.entries(calls).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-  console.log(`  ms JS/port: ${Object.entries(ms).map(([k, v]) => `${k} ${v.js.toFixed(0)}/${v.port.toFixed(0)}`).join(', ')}`);
+  console.log(`  ms JS/port (the port's call alone; + the words' push): ${Object.entries(ms).map(([k, v]) => `${k} ${v.js.toFixed(0)}/${v.port.toFixed(0)} (+${v.push.toFixed(0)})`).join(', ')}`);
+  if (OUT) fs.appendFileSync(OUT, JSON.stringify({ label, times: ms }) + '\n');
   for (const x of bad.slice(0, 6)) console.log(`  DIFF ${x.where} ${x.kind} #${x.n}\n    want ${JSON.stringify(x.want).slice(0, 300)}\n    got  ${JSON.stringify(x.got).slice(0, 300)}`);
   summary(`  qualities ${label}`, rows, nulls, Date.now() - t0);
   return bad.length;

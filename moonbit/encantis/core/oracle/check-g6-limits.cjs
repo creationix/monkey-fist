@@ -6,6 +6,14 @@
 // games and three seeds; and the other G6 units on random tap sequences of these boards (ropes on
 // spring cells, plans that never clear). A second or so.
 //
+// Then the stack at the worst board a 48x48 grid allows for the plan loops, which keep each step's
+// position in the call's scope: 1,152 two-cell ropes (rows of dominoes heading right, the plan from the
+// right end of each row), square and Hex, without and with a spinner. valid, trivial, featuresUsed,
+// featureStats (manual all), slideStats (par all) and Q.analyze (manual all) against the JS (about 4 s
+// of JS), and the port's peak for each (analyze 14.2 MB of the 16 MiB: n x n relation bytes, two k x k
+// component tables and a position a step; the generator calls analyze only below colossal, 24x24 at
+// most, where it is under 1 MB).
+//
 //   node moonbit/encantis/core/oracle/check-g6-limits.cjs [test/g6.wasm] [--controls]
 'use strict';
 const path = require('path');
@@ -59,6 +67,31 @@ for (const [name, b] of Object.entries(boards)) {
     }
   }
 }
+// The domino boards.
+const P2 = (q, r) => ({ q, r });
+function dominoes(grid, spring) {
+  const ropes = [], plan = [];
+  for (let r = 0; r < 48; r++) {
+    const off = grid === 'hex' ? -(r >> 1) : 0, row = [];
+    for (let k = 0; k < 24; k++) { if (spring && r === 47 && k === 23) continue; row.push(ropes.length); ropes.push([P2(off + 2 * k, r), P2(off + 2 * k + 1, r)]); }
+    plan.push(...row.reverse());
+  }
+  return { grid, W: 48, H: 48, ropes, mirrors: [], springs: spring ? [P2((grid === 'hex' ? -(47 >> 1) : 0) + 47, 47)] : [], plan };
+}
+let worst = { bytes: 0, where: '' };
+for (const [grid, spring] of [['square', false], ['hex', false], ['square', true], ['hex', true]]) {
+  const b = dominoes(grid, spring), c = { b, plan: b.plan }, all = b.plan.length, name = `${grid} 48x48 dominoes${spring ? ' + spring' : ''}`;
+  for (const [kind, a, hook] of [['valid', [], x => ({ ret: x.t_valid() })], ['trivial', [], x => ({ ret: x.t_trivial() })], ['featuresUsed', [], x => ({ ret: x.t_features_used() })],
+    ['featureStats', [all], x => ({ ret: x.t_feature_stats(all), out: port.out() })], ['slideStats', [all], x => { x.t_slide_stats(all); return { out: port.out() }; }],
+    ['analyze', [all], x => ({ ret: x.t_analyze(all), out: port.out() })]]) {
+    const w = JSON.parse(JSON.stringify(C6.SHAPE[kind](C6.JSCALL[kind](c, ...a), 0)));
+    port.push(R.position(b, b.ropes, b.plan));
+    let got; try { got = hook(port.x); } catch (e) { got = { trap: e.message }; }
+    same(`${name} ${kind}`, w, got);
+    const p = port.x.stack_peak(); if (p > worst.bytes) worst = { bytes: p, where: `${name} ${kind}` };
+  }
+}
+console.log(`domino boards: the port's stack peak ${(worst.bytes / 1048576).toFixed(2)} MB of 16 MiB (${worst.where})`);
 if (CONTROLS) { console.log(bad === 1 ? 'ok   control: the one spoiled value failed' : `FAIL control: ${bad} failures`); process.exit(bad === 1 ? 0 : 1); }
 console.log(`${bad ? 'FAIL' : 'ok  '} limit boards: ${n} comparisons, ${bad} differ; boards whose x32 games ran to the limit: ${limitGames} of ${Object.keys(boards).length}`);
 process.exit(bad || limitGames !== Object.keys(boards).length ? 1 : 0);

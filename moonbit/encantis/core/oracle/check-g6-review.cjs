@@ -195,11 +195,10 @@ function portGot(port, c, w) {
 
 if (FILL) {
   const t0 = Date.now(), all = boards().filter((_, i) => i % PART[1] === PART[0]);
-  const names = new Set(all.map(b => b.name));
-  let list = null;
+  const names = new Set(all.map(b => b.name)), every = cases();
   for (const b of all) {
     const t = Date.now();
-    list = cases().filter(c => c.board === b.name);
+    const list = every.filter(c => c.board === b.name);
     let saved = Date.now();
     for (const c of list) { want(c); if (Date.now() - saved > 60000) { flush(); saved = Date.now(); } }
     flush();
