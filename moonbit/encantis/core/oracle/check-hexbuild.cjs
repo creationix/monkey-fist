@@ -186,10 +186,13 @@ const MASK = 0x6D2B79F5;
 // mulberry32's state after k draws from s: each draw adds 0x6D2B79F5.
 const after = (s, k) => (s + Math.imul(MASK, k)) >>> 0;
 
+// The highest stack any t_build reached (stack_peak() after the last call would be an intentions').
+let buildPeak = 0;
 // One build from `state`: the port against want ({ out, draws }, out null for none).
 function checkBuild(port, c, state, want, name) {
   port.push(cfgWords(c.cfg));
   const built = port.x.t_build(state | 0, c.cfg.coverage, c.cfg.tapDepth);
+  buildPeak = Math.max(buildPeak, port.x.stack_peak());   // every export clears the stack, and its peak
   const draws = port.x.draws(), st = port.x.rng_state() >>> 0;
   same('draws', name, want.draws, draws);
   same('state', name, after(state, want.draws), st);
@@ -246,12 +249,12 @@ function run(port) {
       if (g) values += g.ropes.reduce((t, p) => t + 2 * p.length, 0) + g.plan.length;
     }
   }
-  return { cases: cases.length, builds, intents, values, ms: Date.now() - t0, peak: port.x.stack_peak() };
+  return { cases: cases.length, builds, intents, values, ms: Date.now() - t0, peak: buildPeak };
 }
 
 function report(r) {
   const comparisons = Object.values(seen).reduce((a, b) => a + b, 0);
-  console.log(`${r.cases} cases, ${r.builds} builds, ${r.intents} intentions; ${comparisons} comparisons (${r.values} rope and plan words), ${failures.length} failed, ${(r.ms / 1000).toFixed(1)} s; stack peak ${r.peak}`);
+  console.log(`${r.cases} cases, ${r.builds} builds, ${r.intents} intentions; ${comparisons} comparisons (${r.values} rope and plan words), ${failures.length} failed, ${(r.ms / 1000).toFixed(1)} s; build stack peak ${r.peak} bytes`);
   console.log('per kind:', JSON.stringify(seen));
   for (const f of failures.slice(0, 12)) console.log('FAIL', f.kind, f.name, '\n  want', JSON.stringify(f.want).slice(0, 300), '\n  got ', JSON.stringify(f.got).slice(0, 300));
 }
