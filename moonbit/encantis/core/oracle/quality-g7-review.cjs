@@ -305,4 +305,4 @@ if (require.main === module) {
   else if (args.includes('--report')) report();
   else { console.log('usage: --levels <class> [--part k/n] [--replicate] | --spot <class> [--n 4] | --report'); process.exitCode = 2; }
 }
-module.exports = { CLASSES, levelsOf };
+module.exports = { CLASSES, levelsOf, make, row, KEYS };

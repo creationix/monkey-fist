@@ -71,8 +71,11 @@ its record per group; `oracle/README.md` the ABI contract.
 | Generation units (placeMirrors, woven, addSpinners), 2,821 recorded calls | 556,393 values, 0 failed in the JS's mode; in core's mode only Hex woven departs, every result valid |
 | Whole levels, core.wasm's mode, 1,440 levels in 7 classes against the JS's two seed sets | 0 invalid; 0 of 189 KS tests fail at 1%; failure rates no different |
 | The same on the seeds G4 used with the JS generator and the port's Hex builder | 1,440 of 1,440 levels equal |
-| The port's Journey (re-picked seeds) | 120 of 120 valid and as measured; 4 master seeds x 120: 52 of 52 KS tests pass |
+| The port's Journey (re-picked seeds) | 120 of 120 valid and as measured; 4 master seeds x 120: 52 of 52 KS tests pass (the review's 4 more: 52 of 52) |
 | Robustness: stack at its base after every export, a trap never breaks the next call, invalid codes give 0 | 255 checks, 0 failed |
+| The review: 18 more spec classes (3,800 specs: Hex spinners, strips 24x4 to 8x24, 4x4 to 48x48, one difficulty a class, mixed and square with spinners, the Journey's Hex specs on 10 more seeds), core.wasm's levels against two JS seed sets | 0 invalid, each re-measured by the JS's kernels (its win rate to the bit, coverage, stats); 0 of 557 KS tests at 1%; failure rates and generation time no worse |
+| The review: hints on the port's own boards (its Journey and four more codes) | 34,151 guide and feature answers, 0 differ |
+| The review: branches no recorded call takes (crowded mirrors, boards of 2 to 6 a side, the area limit) | 1,352 cases, 0 differ |
 
 Journey levels that differ from the JS game's: **60 of 120 maps (every Hex level)**; with the
 chapters ordered by measured challenge, **82 of 120 positions** show another level.
@@ -104,7 +107,11 @@ the 10th to the 90th percentile). `wasm-opt -O3` gains another 9% (3,621 ms; 93,
 game ships: about 2x on whole levels, 3 to 4x on the full-geometry playouts that dominate spinner
 boards, and 17% smaller (21% gzipped). It needs no wasm-gc, so it would also run where MoonBit
 falls back to its 588 KB JS build (Safari before 18.2), which takes 15 to 16 s for the Journey. Its
-memory is one 16 MiB bump stack, sized at build time; the generator uses under 1.3 MiB of it.
+memory is one 16 MiB bump stack, sized at build time; the generator uses at most 2.5 MiB of it on
+every board size the game allows (2.46 MiB on a 48x48 Hex colossal map with spinners, the most of
+the review's 15,200 levels in 18 classes). Past the game's sizes, `generate_spec` can run out of it: a one-row strip of
+1,200 or 2,304 cells with spinners traps (the spinner search keeps every manual move's way out), where
+the JS makes no level either.
 
 **DX.** The language of 18 Nov 2026 carried a 37.6k-token MoonBit core with oracles exact to the
 bit, and from G2 on every group's port passed its exact oracle on its first build. What helped most: generics with
