@@ -3543,7 +3543,7 @@ levels that differ from the JS game's: 82 of 120 positions, 60 of 120 maps, all 
 The review wrote no Encantis: every fix it needed was in the oracles and the write-up. Its friction is
 reading and diagnosing the port.
 
-1. **A stack overflow reads as any failed assert** (1 time, about 10 minutes). The 2,304-cell strip
+1. **A stack overflow reads as any failed assert** (1 time, about 5 minutes). The 2,304-cell strip
    with spinners ended in `RuntimeError: unreachable at wasm-function[34]:0xef1`, then
    `wasm-function[94]`, `[416]`, `[417]`. With no name section, finding which assert fired meant
    `encantis compile test/g7.ents` and counting `(func` lines: 34 is lib/stack's `alloc`, 94
@@ -3553,15 +3553,16 @@ reading and diagnosing the port.
    would remove the overflow itself.
 2. **No memory comes back inside a scope** (the cause of the overflow, and the reason a fix is not
    cheap). add_spinners walks the plan's manual taps and keeps every way out; each tap also allocates a
-   new paths list and a route, and the `routes` vec leaves its outgrown buffers behind when it doubles,
-   so memory is cells x taps, about 2x what is live. MoonBit's GC frees the dead lists. The port can
+   new paths list and a route, and the `routes` vec (which grows in place only while it is the top of
+   the stack) leaves its outgrown buffers behind once the walks have allocated above it, so memory is
+   cells x taps, about 2x what is live. MoonBit's GC frees the dead lists. The port can
    only reserve up front (an estimate that could refuse game-legal boards) or keep the limit. This is
    G7's "an arena or growth that survives scopes" again, met as a limit rather than as code.
 3. **Reading the port against the JS was easy where the shapes match, and slow where closures were
    lifted.** gridgen.ents follows grid-generator.js function for function (place_mirrors, woven,
    add_spinners, with_spinner, search_spinner, bounce_step are line-for-line readable), but `measure`
    (the body of generate()'s loop over a 12-field `Attempts` context) and `try_cells`/`fresh` (the JS's
-   inner lambdas) took the longest to check: about 20 of the 45 minutes of reading went to them.
+   inner lambdas) took the longest to check: most of the review's quarter hour of reading went to them.
    Closures would remove both (G7's Friction 6).
 4. **`hover` on `measure` prints 900 characters** (G7's Friction 9 still): the `Attempts`, `Spec` and
    `Board` structs written out in full; the names the source uses are lost. `hover gridgen.ents:<line>:
