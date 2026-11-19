@@ -127,6 +127,16 @@ const GROUPS = {
     moonbit: [['core/metrics.mbt', except(['to_fixed'])], ['core/gridgen.mbt', only(['coverage', 'adjacent', 'valid', 'features_used', 'FeatureStats', 'feature_stats',
       'regional', 'trivial', 'postpone', 'score', 'casual_rate', 'casual_measure', 'bench_casual', 'bench_par'])]],
   },
+  // G7: the rest of gridgen.mbt (the generator), engine.mbt's generate and generate_spec, gen.mbt's
+  // exports (G1 took its buffers and readers) and api.mbt's bench_* hooks. gen.ents is the exports as
+  // functions, core.ents the entry that exports them.
+  G7: {
+    ents: [['gridgen.ents', ['Built', 'Attempts']], ['gen.ents', []], ['core.ents', []]],
+    moonbit: [['core/gridgen.mbt', only(['place_mirrors', 'woven', 'pt_key', 'add_spinners', 'ways_out', 'with_spinner', 'search_spinner', 'bounce_step', 'grid_generate'])],
+      ['core/engine.mbt', only(['generate', 'generate_spec'])],
+      ['gen/gen.mbt', only(['generate', 'generate_spec', 'measure', 'target_challenge', 'win_ceiling', 'guide', 'features'])],
+      ['api/api.mbt', only(['bench_casual', 'bench_par', 'bench_solve'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);
@@ -154,7 +164,28 @@ function report(name, g) {
 }
 
 const want = process.argv.slice(2);
-for (const [name, g] of Object.entries(GROUPS)) if (!want.length || want.includes(name)) report(name, g);
+const totals = {};
+for (const [name, g] of Object.entries(GROUPS)) if (!want.length || want.includes(name)) totals[name] = report(name, g);
+// The whole port (every group's files) against src/core and src/gen, as the plan counts them (37.6k).
+if (!want.length) {
+  let mt = zero(), et = zero(), imp = zero(), typ = zero(), fr = zero(), ge = zero();
+  for (const f of fs.readdirSync(path.join(core, 'core')).filter(f => f.endsWith('.mbt') && !f.endsWith('_test.mbt'))) {
+    const x = measure(mbt('core/' + f).src);
+    if (f === 'journey.mbt') ge = add(ge, x); else mt = add(mt, x);
+  }
+  mt = add(mt, measure(mbt('gen/gen.mbt').src));
+  for (const t of Object.values(totals)) { et = add(et, t.et); imp = add(imp, t.imp); typ = add(typ, t.typ); fr = add(fr, t.fr); }
+  const all = add(add(add(et, imp), typ), fr);
+  console.log(`
+The whole port (G1 to G7) against src/core and src/gen/gen.mbt (journey.mbt, generated, apart: ${ge.tokens} tokens)`);
+  row('MoonBit: src/core (but journey.mbt) and src/gen', mt);
+  row('Encantis: ported code', et);
+  row('Encantis: new code with no MoonBit counterpart (fmath, keys)', fr);
+  row('Encantis: import declarations', imp);
+  row('Encantis: restated types', typ);
+  row('Encantis: all of it', all);
+  console.log(`  ported + new code / MoonBit: ${((et.tokens + fr.tokens) / mt.tokens).toFixed(2)}x tokens; with imports and restated types ${(all.tokens / mt.tokens).toFixed(2)}x`);
+}
 console.log('\nlib/ (copied, not counted):');
 for (const f of fs.readdirSync(path.join(here, 'lib')).filter(f => f.endsWith('.ents')).sort())
   row('lib/' + f, measure(fs.readFileSync(path.join(here, 'lib', f), 'utf8').split(/\ntest /)[0]));
