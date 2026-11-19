@@ -1015,6 +1015,23 @@ a file, the count is estimated from the line share.
 - **Measure:** the kernel stage of `bench-node.mjs` on all 8 bench boards: casual ×100
   and ×1000, and par. Encantis and MoonBit wasm-gc are run interleaved.
 - **About 4 hours.**
+- **As built (what G7 imports; the DX-LOG's G6 section has the why):**
+  - `play.ents`: `coverage(b: Board) -> f64`, `regional(b: Board) -> bool`, and on the board's tables
+    (`g: *mut Geo`): `g.valid()`, `g.trivial()`, `g.features_used()` (the board's own plan),
+    `g.feature_stats(plan, manual) -> ?*FeatureStats` (none where a tap is not allowed),
+    `g.slide_stats(plan, par) -> SlideStats` (`slides`, `bounces`, `repeated`, `automatic`, `any_slide`:
+    the slideStats grid_generate makes inline, so G7 calls it instead of writing the loop),
+    `g.postpone(plan) -> []i32`, `g.score(skip) -> Par`, `g.casual_rate(r, games) -> f64`;
+    `casual_measure(b, seed: []u8, games)` (gen.mbt's `measure`), `bench_casual(b, games)`,
+    `bench_par(b)`. score's and postpone's plans and feature_stats's result are on the stack in the
+    caller's scope; the rest leave nothing there.
+  - `metrics.ents`: `g.analyze(plan, manual) -> Complexity` (`.interaction`, and `joins`, `mutual`,
+    `revisited`, `branching`, `largest`), all its work in its own scope.
+  - Not computed (MoonBit has neither): the JS's `slideStats.interleavedRopes` (it needs a spec's
+    `minInterleavedRopes`, which MoonBit's Spec lacks) and the JS complexity's descriptive counts
+    other than those five.
+  - Exact, with no departure: casual play draws as the JS does. `hybrid-g6.cjs` regenerates the 135
+    reference levels with these units on the port, unchanged.
 
 ### G7: The generator, the API and full parity (about 4.4k tokens, plus the runs)
 

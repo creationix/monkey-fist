@@ -197,6 +197,7 @@ export func analyze(g: *mut Geo, plan: []i32, manual: i32) -> Complexity {
 }
 
 // The lists of edges by from (by_from) or by to, each in the order the edges come: count, then fill.
+// closure: MoonBit's three Array::makei(_, _ => []) of lists pushed to (dependents, prerequisites, arcs)
 func lists(edges: []Edge, n: i32, by_from: bool) -> Lists {
   let at = zeroed((n as u32 + 1) * 4) as [*]mut i32
   let list = alloc(edges.len * 4) as [*]mut i32
@@ -313,6 +314,7 @@ func graph(edges: []Edge, n: i32, revisited: i32) -> Complexity {
     q += 1
   }
   // reach[a * k + x]: x can be reached from a, for the transitive reduction
+  // closure: Array::makei(k, _ => FixedArray::make(k, false))
   let reach = zeroed(uk * uk) as [*]mut u8
   let qi = qn as i32 - 1
   while qi >= 0 {

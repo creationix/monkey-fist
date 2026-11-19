@@ -13,9 +13,12 @@
 // full-geometry casual play, postponement and minimumTaps).
 //
 // The sampling rule (fixed before looking at any port result): per function and per source, the
-// calls in the order made; every call whose answer is a rejection (false or null) is kept, and of
-// the others every s-th, s = ceil(count / 150) (the first call kept, then every s-th after it).
-// So each function has at most 150 accepted calls a source, plus all of its rejections.
+// calls in the order made; every call whose answer rejects the candidate (valid, regional or
+// featuresUsed false, trivial true, featureStats null) is kept, and of the others every s-th,
+// s = ceil(count / 150) (the first call kept, then every s-th after it). So each function has at
+// most 150 accepted calls a source, plus all of its rejections. (The first dump counted every false
+// as a rejection, and so kept all of trivial's 1,047 calls, whose false accepts: fixed before any
+// port run on it.)
 //
 // A record keeps the board once (boards are shared by the calls on one candidate: a table, by
 // their JSON), and only the fields the functions read: grid, W, H, ropes, mirrors, springs, plan.
@@ -29,6 +32,9 @@ const R = require('./ref.cjs'), C = require('./capture.cjs');
 const OUT = path.join(__dirname, 'fixtures/g6-calls.json.gz');
 const NAMES = ['valid', 'coverage', 'regional', 'trivial', 'featuresUsed', 'featureStats', 'postpone', 'score', 'casualRate', 'Q.analyze'];
 const PER = 150;
+// What a rejected candidate gets from each unit (the units with none give a value the generator
+// weighs, never a rejection).
+const REJECTS = { valid: false, regional: false, featuresUsed: false, trivial: true, featureStats: null };
 
 const { m } = C.captured(), G = m.G;
 const kindOf = R.kindOf;
@@ -50,7 +56,7 @@ function sample(recs) {
   for (const r of recs) (by[r.name] = by[r.name] || []).push(r);
   const out = [], counts = {};
   for (const [name, rs] of Object.entries(by)) {
-    const reject = r => r.result === false || r.result === null;
+    const reject = r => REJECTS[r.name] !== undefined && r.result === REJECTS[r.name];
     const ok = rs.filter(r => !reject(r)), s = Math.max(1, Math.ceil(ok.length / PER));
     const keep = new Set([...rs.filter(reject), ...ok.filter((_, i) => i % s === 0)]);
     const kept = rs.filter(r => keep.has(r));
@@ -126,7 +132,7 @@ if (require.main === module) {
     if (JSON.stringify(r.result) !== JSON.stringify(e.result) || r.draws !== e.draws) { bad++; if (bad <= 5) console.log('re-run differs:', e.source, e.name, '#' + e.n); }
   }
   if (bad) { console.log(`FAIL: ${bad} records differ when re-run from their numbers`); process.exit(1); }
-  const fx = { reference: R.REFERENCE, rule: `per function and source: every rejection (false or null), and every s-th other call, s = ceil(count / ${PER})`, counts, boards, calls };
+  const fx = { reference: R.REFERENCE, rule: `per function and source: every rejection (valid, regional, featuresUsed false; trivial true; featureStats null), and every s-th other call, s = ceil(count / ${PER})`, counts, boards, calls };
   fs.writeFileSync(OUT, zlib.gzipSync(JSON.stringify(fx), { level: 9 }));
   console.log(`wrote ${path.relative(process.cwd(), OUT)}: ${calls.length} calls on ${boards.length} boards, ${fs.statSync(OUT).size} bytes; every one re-runs the same (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   for (const [source, c] of Object.entries(counts)) console.log(`  ${source}: ${Object.entries(c).map(([k, v]) => `${k} ${v.kept}/${v.made} (${v.rejected} rejected)`).join(', ')}`);

@@ -73,5 +73,11 @@ node check-g5-budgets.cjs || fail=1
 echo "== stress-g5-stack.cjs (5 positions a board)"
 out=$(node stress-g5-stack.cjs ../test/g5.wasm 5 2>&1) || fail=1  # (its status, not tail's)
 echo "$out" | tail -1
+# G6: check-g6.cjs runs in the loop above (all its parts: the 135 reference boards, boards derived
+# from their plans, broken copies, the recorded calls and the Journey's stored measurements; 5 s with
+# the JS's answers cached in /home/user/mf-core-scratch/g6/cache, about 4 minutes of JS to fill).
+# Here the 79 boards of g1-extra (to 48x48 with spinners) too, cached the same way (longer to fill).
+echo "== check-g6.cjs --extra --parts direct,derived"
+node check-g6.cjs --extra --parts direct,derived || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
