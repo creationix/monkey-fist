@@ -2791,8 +2791,9 @@ control fails for each of the ten kinds.
 (Difficulty 1 to 100 in every code; the codes' seed fields are RVW...; a colossal level skips the
 par search, analyze and casual play, so it makes few calls.) **In all 1,938 levels, 114,740 calls
 counted (and the 24x24 spinner levels' uncounted), 0 differ, 0 null.** The 24x24 spinner class was planned at 80 levels (square and Hex); at 35 to 50 s a level of
-JS it was stopped after 18 so that the bench and check-all could run, and the rest waited behind
-other engineers' jobs on the lock when this was written (`logs/queue3.sh` in the scratch).
+JS it was stopped after 18 so that the bench and check-all could run, and the rest (62 levels, about
+30 minutes on two CPUs) was not run: two other engineers' jobs had been waiting on the lock for over an
+hour. Its 18 levels are difficulty 1 to 44 on square; Hex spinner boards are in the 12x12 class.
 
 Every level is the JS's own and every answer equal, so the port's levels are the JS's, and each
 quality's two distributions are one (KS D 0; `oracle/quality-g6-review.cjs` prints p10/p50/p90 of
