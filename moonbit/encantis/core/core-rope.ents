@@ -1,0 +1,255 @@
+// The repeated-slide core of gridgen.mbt (grid-generator.js repeatedCore at 9e69e3a): two ropes
+// laid by hand so that one must slide, and slide again, before the other can leave, at a depth
+// that grows with the difficulty. The pair is turned and flipped every way that fits the board,
+// placed at random, and one placing is chosen; its proven plan (solve, then minimum_taps) gives
+// each rope's stops, which the builders then keep.
+//
+// The draws are the JS's, in its order, and nothing here departs from it (the owner allows the
+// generation to differ; this costs nothing to keep exact, so check-g5's capture oracle compares
+// it with the JS call for call).
+//
+// repeated_core leaves its result and its working lists (the placings, the solve's moves, about
+// 20 KB) on the stack in the caller's scope. None where nothing fits, or the pair does not solve.
+
+import "./lib/stack" (
+  "alloc" func alloc(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "./random" (
+  "below" func below(r: *mut Rng, n: i32) -> i32
+  "js_round" func js_round(x: f64) -> f64
+  "floor_div" func floor_div(a: i32, b: i32) -> i32
+  "rng" func rng(seed: u32) -> *mut Rng
+)
+import "./board" (
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+)
+import "./mech" (
+  "geo" func geo(b: Board) -> *mut Geo
+  "solve" func solve(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+  "minimum_taps" func minimum_taps(g: *mut Geo, fallback: []i32, budget: i32) -> ?*Par
+  "walk" func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step
+  "replace" func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+
+def solved_yes = 1:i32
+def ev_none = -1:i32
+def ev_slide = 2:i32
+
+// The core (MoonBit's Core, with what the JS's result also carries): the two ropes, each rope's
+// stops (how far along it has slid at each of its slides in the plan), the plan, its par and
+// whether that is exact, and the depth laid.
+type Core = (ropes: [][]Pt, stops: [][]i32, plan: []i32, par: i32, exact: bool, depth: i32)
+
+// A placing of the pair: the two ropes, turned, flipped and moved onto the board.
+type Placing = (a: []Pt, b: []Pt)
+
+// p turned `turn` times (a sixth of a turn on Hex, a quarter on square), after its q and r are
+// swapped when flip is set.
+func turned(p: Pt, turn: u32, flip: bool, hex: bool) -> Pt {
+  let q = p.q
+  let r = p.r
+  if flip {
+    let t = q
+    q = r
+    r = t
+  }
+  for k in turn {
+    let t2 = q
+    if hex {
+      q = -r
+      r = t2 + r
+    } else {
+      q = -r
+      r = t2
+    }
+  }
+  return Pt(q, r)
+}
+
+// rope, turned and flipped, then moved by (dq, dr), on the stack. (On Hex the placing's columns
+// are measured with each row's offset, floor((r - r0 + row) / 2), but moved without it, as the
+// JS moves them.)
+func placed(rope: []Pt, turn: u32, flip: bool, hex: bool, dq: i32, dr: i32) -> []Pt {  // closure: path.map(p => ...)
+  let out = alloc(rope.len * sizeof(Pt)) as [*]mut Pt
+  for k, p in rope {
+    let t = turned(p, turn, flip, hex)
+    out[k] = Pt(t.q + dq, t.r + dr)
+  }
+  return out[0..rope.len]
+}
+
+// The core for a board of w columns and height rows at difficulty d (repeated_core).
+export func repeated_core(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng) -> ?*Core {
+  let options = vec(Placing, 2 * 2 * 6)  // reserve: every turn and flip of one depth
+  let maximum = (10).min(w.min(height) / 2).min(w.max(height) - 4)
+  let wanted = js_round(3.0 + (0.0).max((1.0).min((d - 60.0) / 40.0)) * f64(maximum - 3))
+  let depth = maximum.min(i32(wanted))
+  let laid: i32 = 0
+  while depth >= 3 {
+    let roomy = w.min(height) >= 10
+    let extra = if roomy { rng.below(3) } else { 0 }
+    let bottom = if roomy { 2 + rng.below(3) } else { 2 }
+    let side = if roomy { 1 + rng.below(2) } else { 1 }
+    let a = vec(Pt, 64)
+    let b = vec(Pt, 64)
+    let left = -depth - 3 - extra
+    // the JS's counted loops: for (r = 1; r <= depth; r++) and so on
+    for k in depth {
+      a.push(Pt(0, k as i32 + 1))
+    }
+    let q = -1
+    while q >= left {
+      a.push(Pt(q, depth))
+      q -= 1
+    }
+    let column = left
+    let r2 = depth - 1
+    while r2 >= 0 {
+      let next = if extra > 0 && r2 > 0 && r2 % 3 == 1 { left - 1 } else { left }
+      if next != column {
+        a.push(Pt(next, r2 + 1))
+      }
+      a.push(Pt(next, r2))
+      column = next
+      r2 -= 1
+    }
+    for k in -depth - 2 - left {
+      a.push(Pt(left + 1 + k as i32, 0))
+    }
+    for k in depth {
+      b.push(Pt(k as i32 - depth, 0))
+    }
+    let q4 = -1
+    while q4 >= -side {
+      b.push(Pt(q4, -1))
+      q4 -= 1
+    }
+    let r3 = -2
+    while r3 >= -bottom {
+      b.push(Pt(-side, r3))
+      r3 -= 1
+    }
+    for k in side {
+      b.push(Pt(1 - side + k as i32, -bottom))
+    }
+    for k in bottom - 1 {
+      b.push(Pt(0, 1 - bottom + k as i32))
+    }
+    let pa = a.items()
+    let pb = b.items()
+    for turn in if hex { 6 } else { 4 } {
+      for f in 2 {
+        let flip = f == 1
+        // the rows the pair spans, turned
+        let r0 = 1000000
+        let r1 = -1000000
+        for p in pa {
+          let ta = turned(p, turn, flip, hex)
+          r0 = r0.min(ta.r)
+          r1 = r1.max(ta.r)
+        }
+        for p in pb {
+          let tb = turned(p, turn, flip, hex)
+          r0 = r0.min(tb.r)
+          r1 = r1.max(tb.r)
+        }
+        let rows = r1 - r0 + 1
+        continue when rows > height
+        let row = rng.below(height - rows + 1)
+        // and the columns, once placed on its rows
+        let x0 = 1000000
+        let x1 = -1000000
+        for p in pa {
+          let tc = turned(p, turn, flip, hex)
+          let c = tc.q + (if hex { floor_div(tc.r - r0 + row, 2) } else { 0 })
+          x0 = x0.min(c)
+          x1 = x1.max(c)
+        }
+        for p in pb {
+          let td = turned(p, turn, flip, hex)
+          let c2 = td.q + (if hex { floor_div(td.r - r0 + row, 2) } else { 0 })
+          x0 = x0.min(c2)
+          x1 = x1.max(c2)
+        }
+        let width = x1 - x0 + 1
+        continue when width > w
+        let col = rng.below(w - width + 1)
+        options.push(Placing(placed(pa, turn, flip, hex, col - x0, row - r0), placed(pb, turn, flip, hex, col - x0, row - r0)))
+      }
+    }
+    if options.len > 0 {
+      laid = depth
+      break
+    }
+    depth -= 1
+  }
+  return 0 when options.len == 0
+  let chosen = options.ptr[rng.below(options.len as i32) as u32]  // unchecked: below(n) < n
+  let ropes = alloc(2 * sizeof([]Pt)) as [*]mut []Pt
+  ropes[0] = chosen.a
+  ropes[1] = chosen.b
+  let pair = ropes[0..2]
+  let empty: []Pt = (alloc(0) as [*]Pt)[0..0]
+  let g = geo(Board(hex, w, height, pair, (alloc(0) as [*]Mirror)[0..0], empty, (alloc(0) as [*]i32)[0..0]))
+  let start = some_paths(pair)
+  let solution = g.solve(start, 2000, (alloc(0) as [*]i32)[0..0])
+  return 0 when solution.solved != solved_yes
+  if let proven = g.minimum_taps(solution.moves, 20000) {
+    // each rope's stops along the proven plan: how far it has slid after each of its slides
+    let stops = alloc(2 * sizeof([]i32)) as [*]mut []i32
+    let offsets = alloc(2 * 4) as [*]mut i32
+    let lists = alloc(2 * sizeof(*mut Vec(i32))) as [*]mut *mut Vec(i32)
+    for k in 2 {
+      offsets[k] = 0
+      lists[k] = vec(i32, proven.plan.len)  // reserve: a stop a tap at most
+    }
+    let paths = start
+    for i in proven.plan {
+      let st = g.walk(paths, i)
+      return 0 when st.event == ev_none
+      if st.event == ev_slide {
+        offsets[i] += st.distance  // unchecked: a rope of the pair
+        lists[i].push(offsets[i])  // unchecked: a rope of the pair
+      }
+      paths = replace(paths, i, st.path)
+    }
+    for k in 2 {
+      stops[k] = lists[k].items()
+    }
+    let core = alloc(sizeof(Core)) as *mut Core
+    core.* = Core(pair, stops[0..2], proven.plan, proven.par, proven.exact, laid)
+    return core
+  }
+  return 0
+}
+
+// --- Tests ---
+
+test "a deep core on a roomy board, none on a narrow one" {
+  if let c = repeated_core(false, 12, 14, 100.0, rng(7)) {
+    assert c.ropes.len == 2 && c.depth >= 3
+    assert c.plan.len >= 2 && c.par >= 1
+  } else {
+    assert false
+  }
+  assert repeated_core(true, 4, 4, 50.0, rng(7)) == 0
+}

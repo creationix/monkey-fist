@@ -16,6 +16,8 @@ import "../lib/vec" (
 )
 import "../random" (
   "draws" func draws_made() -> u32
+  "reset_draws" func reset_draws(on: bool)
+  "rng" func new_rng(seed: u32) -> *mut Rng
 )
 import "../board" (
   "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
@@ -43,6 +45,9 @@ import "../mech" (
   "frozen" func frozen(g: *mut Geo, paths: []?[]Pt) -> []i32
   "minimum_taps" func minimum_taps(g: *mut Geo, fallback: []i32, budget: i32) -> ?*Par
 )
+import "../core-rope" (
+  "repeated_core" func repeated_core(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng) -> ?*Core
+)
 import "../assist" (
   "guide" func assist_guide(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
   "reachable_features" func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i32
@@ -60,6 +65,8 @@ type Move = (paths: []?[]Pt, event: i32, distance: i32, route: []Pt)
 type Solved = (solved: i32, moves: []i32, nodes: i32)
 type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
 type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+type Rng = (a: u32)
+type Core = (ropes: [][]Pt, stops: [][]i32, plan: []i32, par: i32, exact: bool, depth: i32)
 
 export memory
 
@@ -274,6 +281,40 @@ export func t_minimum(budget: i32) -> i32 {
   }
   return 0
 }
+
+// repeatedCore(grid, W, height, d, mulberry32 at state): 0 for null; else 1, writing the two
+// ropes (counted lists of q, r), their stops (counted), the plan (counted), par, exact and depth.
+// draws() is the draws it made, rng_state() the generator's state after.
+global last_rng: u32 = 0
+
+export func t_core(hex: i32, w: i32, h: i32, d: f64, state: i32) -> i32 {
+  clear()
+  out_clear()
+  let r = new_rng(state as u32)
+  reset_draws(false)
+  let c = repeated_core(hex == 1, w, h, d, r)
+  last_rng = r.a
+  if let core = c {
+    for rope in core.ropes {
+      put(rope.len as i32)
+      for p in rope {
+        put(p.q)
+        put(p.r)
+      }
+    }
+    for s in core.stops {
+      put_list(s)
+    }
+    put_list(core.plan)
+    put(core.par)
+    put(bit(core.exact))
+    put(core.depth)
+    return 1
+  }
+  return 0
+}
+
+export func rng_state() -> i32 => last_rng as i32
 
 // --- gen.mbt's exports, for web/generator.js ---
 

@@ -42,7 +42,7 @@ inline lib/fixedvec.ents hexbuild.ents
 wasm test/g4.ents test/g4.wasm
 
 # --- G5: full geometry, the routing to the kernels, the hints, the repeated-slide core ---
-inline mech.ents assist.ents
+inline mech.ents assist.ents core-rope.ents
 wasm test/g5.ents test/g5.wasm
 
 # --- G7: the core (once it exists) ---
