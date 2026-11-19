@@ -68,5 +68,10 @@ sh ./check-g5-harness.sh || fail=1
 # of JS to fill on a fresh machine (check-g5-review.cjs --fill --part i/3 in three workers).
 echo "== check-g5-review.cjs"
 node check-g5-review.cjs || fail=1
+echo "== check-g5-budgets.cjs"
+node check-g5-budgets.cjs || fail=1
+echo "== stress-g5-stack.cjs (5 positions a board)"
+out=$(node stress-g5-stack.cjs ../test/g5.wasm 5 2>&1) || fail=1  # (its status, not tail's)
+echo "$out" | tail -1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
