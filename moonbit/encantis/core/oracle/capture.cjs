@@ -74,7 +74,7 @@ function refs() {
   return out;
 }
 let REFS = null;
-const refByName = name => { for (const [o, n] of REFS) if (n === name) return o; throw Error('capture: no reference object ' + name); };
+const refByName = name => { REFS = REFS || refs(); for (const [o, n] of REFS) if (n === name) return o; throw Error('capture: no reference object ' + name); };
 
 // Arguments and results as plain data.
 function plain(v, G, depth = 0) {
