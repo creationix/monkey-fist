@@ -3307,7 +3307,7 @@ write-up:
 1. **The stack figure was low (fixed in README.md).** G7 wrote that the generator uses under 1.3 MiB
    of the 16 MiB stack (custom sample 1.24 MiB). On the review's classes a 48x48 Hex colossal map with
    spinners (`U3-H-1-100-48-48-100-SC`, game-legal) peaks at **2.46 MiB** (both modes; the JS's mode
-   2.36 to 2.46), and `U3-H-1-100-48-48-40-MSC` at 2.30 MiB; every other class stays under 0.7 MiB.
+   2.36 to 2.46), and `U3-H-1-100-48-48-40-MSC` at 2.20 MiB (2.30 in the JS's mode); every other class stays under 0.7 MiB.
    Still 15% of the stack. README.md now says 2.5 MiB.
 2. **`generate_spec` traps on extreme strips with spinners (a limit, not fixed).** G7-2 says
    generate_spec gives 0 "for a board of no cells or past 48x48 cells", which reads as if every shape
@@ -3366,7 +3366,8 @@ write-up:
   give 0): **1,352 cases, 0 differ**, the draw counts included (9.3 s). It kills four mutants that
   every G7 oracle let through (below).
 - **JS's mode against the JS on the new classes** (`--spot`, rule 5): F.generate on set A's first 3
-  to 6 specs of each of the 18 classes, **70 of 70 levels equal** field by field, so sets A and B are
+  to 6 specs of 16 of the 18 classes (not largeMS, where the JS takes 35 to 50 s a level, nor
+  journeyMore, the journey class's twin), **68 of 68 levels equal** field by field, so sets A and B are
   the JS generator's. On 72 odd small specs of `shapes-g7-review.cjs` (1x1 to 12x3, both grids, all
   four mechanic mixes) the JS's mode gives the JS's answer (none, or a level of the same ropes and
   par), 72 of 72; past 48 a side, 7 of 7 levels equal field by field (`shapes-g7-review-js.cjs`).
@@ -3606,7 +3607,7 @@ reading and diagnosing the port.
 | hint answers on the port's own boards / differ | 34,151 / 0 |
 | edge cases (placeMirrors, woven, generate_spec) / differ | 1,352 / 0 |
 | levels where the generator's rarer rules decide, against F.generate / differ | 26 / 0 |
-| spot levels (F.generate against the JS's mode) / differ | 70 / 0 |
+| spot levels (F.generate against the JS's mode) / differ | 68 / 0 |
 | Journeys searched (master seeds x 2 sides, and the two reruns) / invalid port levels / KS tests failed | 26 / 0 / 0 of 156 |
 | mutants / killed by G7's oracles / killed only by the review's / unreached / test-only | 36 / 25 / 8 / 2 / 1 |
 | odd shapes probed / traps (all past the game's sizes, all one-row or one-column strips with spinners) | 136 + 7 / 3 + 1 (1,200x1) |

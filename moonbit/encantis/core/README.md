@@ -71,7 +71,7 @@ its record per group; `oracle/README.md` the ABI contract.
 | Generation units (placeMirrors, woven, addSpinners), 2,821 recorded calls | 556,393 values, 0 failed in the JS's mode; in core's mode only Hex woven departs, every result valid |
 | Whole levels, core.wasm's mode, 1,440 levels in 7 classes against the JS's two seed sets | 0 invalid; 0 of 189 KS tests fail at 1%; failure rates no different |
 | The same on the seeds G4 used with the JS generator and the port's Hex builder | 1,440 of 1,440 levels equal |
-| The port's Journey (re-picked seeds) | 120 of 120 valid and as measured; 4 master seeds x 120: 52 of 52 KS tests pass (the review's 4 more: 52 of 52) |
+| The port's Journey (re-picked seeds) | 120 of 120 valid and as measured; 4 master seeds x 120: 52 of 52 KS tests pass (the review's 12 more: 156 of 156; a paired Hex test fixed in advance not rejected) |
 | Robustness: stack at its base after every export, a trap never breaks the next call, invalid codes give 0 | 255 checks, 0 failed |
 | The review: 18 more spec classes (3,800 specs: Hex spinners, strips 24x4 to 8x24, 4x4 to 48x48, one difficulty a class, mixed and square with spinners, the Journey's Hex specs on 10 more seeds), core.wasm's levels against two JS seed sets | 0 invalid, each re-measured by the JS's kernels (its win rate to the bit, coverage, stats); 0 of 557 KS tests at 1%; failure rates and generation time no worse |
 | The review: hints on the port's own boards (its Journey and four more codes) | 34,151 guide and feature answers, 0 differ |
