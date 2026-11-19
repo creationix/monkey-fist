@@ -1,0 +1,65 @@
+# G7 review: mutation run (mutate-g7.sh, mutants-g7-review.cjs), 19 Nov 2026, compiler 399ca7e
+# index, name, the first of G7's oracles that killed it (units, uport, parity, jport, robust) or SURVIVED;
+# then, for the survivors, the review's oracles: check-g7-edges.cjs and check-g7-select.cjs (differences)
+
+0	m0 placeMirrors tries x20	SURVIVED
+1	m1 placeMirrors edge column	units
+2	m2 placeMirrors 5 Hex neighbours	units
+3	m3 woven length floor 6	SURVIVED
+4	m4 woven_hex share /160	units
+5	m5 woven_hex traps x0.9	units
+6	m6 woven_square colossal pull 4	units
+7	m7 woven no-mirror candidate kept	SURVIVED
+8	m8 kept_mirrors keeps all	units
+9	m9 spinner ahead of a head allowed	units
+10	m10 with_spinner 15 cells	SURVIVED
+11	m11 search_spinner 7 cells	units
+12	m12 with_spinner tap again only at once	units
+13	m13 bounce from the start allowed	units
+14	m14 search_spinner budget 11000	SURVIVED
+15	m15 nine attempts	parity
+16	m16 early stop density 0.91	parity
+17	m17 interaction weight 0.2	parity
+18	m18 ceiling penalty 3.5	SURVIVED
+19	m19 spinner casual games 12	parity
+20	m20 small coverage floor below 48	SURVIVED
+21	m21 par ratio inclusive	parity
+22	m22 requireSlide ignored	SURVIVED
+23	m23 core on odd attempts	parity
+24	m24 twisty above 35	SURVIVED
+25	m25 one spinner fewer	parity
+26	m26 generate_spec refuses 48x48	SURVIVED
+27	m27 measure one game more	jport
+28	m28 coverage stored capped	jport
+29	m29 built() of the last candidate	SURVIVED
+30	m30 fresh shuffle short	units
+31	m31 core uses the JS Journey	jport
+32	m32 port mode draws as the JS	jport
+33	m33 casual seed attempt + 1	parity
+34	m34 mirror count min_m + 1	parity
+35	m35 Hex mirror kinds 2	units
+
+# survivors against the review's oracles
+m0 edges: 491 differ; select: 0 differ
+m3 edges: 26 differ; select: 0 differ
+m7 edges: 144 differ; select: 0 differ
+m10 edges: 0 differ; select: 0 differ
+m14 edges: 0 differ; select: 0 differ
+m18 edges: 0 differ; select: 5 differ
+m20 edges: 0 differ; select: 11 differ
+m22 edges: 0 differ; select: 7 differ
+m24 edges: 0 differ; select: 4 differ
+m26 edges: 2 differ; select: 0 differ
+m29 edges: 0 differ; select: 0 differ
+
+# m10 (with_spinner on 15 cells, not 16) and m14 (search_spinner's budget 11000 / ropes, not 12000):
+# never decisive. Over the JS generator's own calls on 181 spinner specs (review-g7/spinner-index.cjs):
+#   181 specs, 2775 batches (153 s)
+#   winning index (-1: none fits): {"withSpinner":{"0":567,"1":299,"2":187,"3":111,"4":65,"5":40,"6":24,"7":13,"8":9,"9":3,"10":1,"-1":728},"searchSpinner":{"0":181,"1":79,"2":37,"3":24,"4":20,"5":5,"6":4,"7":3,"-1":375}}
+#   batch sizes: {"withSpinner":{"1":297,"2":281,"3":269,"4":240,"5":207,"6":180,"7":161,"8":135,"9":85,"10":62,"11":45,"12":27,"13":23,"14":16,"15":5,"16":14},"searchSpinner":{"1":166,"2":157,"3":129,"4":83,"5":68,"6":52,"7":26,"8":47}}
+# and over its searchSpinner solves (review-g7/search-budget.cjs):
+#   searchSpinner solves: 2409; solved 1477 (most nodes used 81.9% of the budget; 0 needed more than round(11000 / ropes)); ran out 783
+# the 16th cell never wins (index 10 at most), and no solve that succeeds uses more than 81.9% of
+# the budget; 920 and 1,020 levels made by the mutants equal the port's. Reachable in principle,
+# not reached. m29 (built() reports the last candidate) changes only test/g7's t_built hook (the
+# quality oracles' builder counts); core.wasm does not export it.

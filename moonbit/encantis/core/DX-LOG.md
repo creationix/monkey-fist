@@ -3265,3 +3265,349 @@ huge n (fixed in the port's copy); 04 two memory declarations crash `wasm` where
 hover's name form finds the name as text; 06 `fmt` spacing; 07 `elif let` binds nothing. 01 and 02 are
 silent wrong code; the port avoids both by a rule (one view helper, no parameter named like a def), and
 no oracle ever caught either in the port's files.
+
+## 19 Nov: review of G7 (adversarial)
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0; fetched at the start: unchanged since G6
+and G7; it has lib/vec.ents). Every wasm rebuilds byte for byte under it (`build.sh` under the lock,
+46 s; `git status` clean). The compiler was not edited. No predecessor: the reviewer started at 13:09
+and was not restarted. Scratch: `/home/user/mf-core-scratch/review-g7/` (logs/, probes/, quality/,
+jsearch/, mut/).
+
+### What was rerun, as G7 left it
+
+- `check-g7-units.cjs`: **2,821 calls, 556,393 values, 0 failed** (5.3 s) in the JS's mode; `--port`
+  the same, with the 624 Hex wovens that depart all valid or none.
+- `check-g7-robust.cjs`: 255 checks, 0 failed (on test/g7.wasm alone, 170).
+- The harness on test/g7.wasm (JS's mode): `parity.mjs` **135 match, 0 differ** (6.7 s); the wasm
+  tests (parity, generator, assist, measurements) **6 of 6 pass**.
+- `check-journey-port.cjs`: 120 of 120 the search's boards, 120 of 120 measure as stored, every level
+  valid by the JS's kernels and the search's rules (10.0 s), on core.wasm and on test/g7.wasm.
+- **The seed search, again**: `journey-search.cjs` on core.wasm rebuilt `fixtures/journey-port.js` and
+  its measurements **byte for byte** (27.9 s; 805 made, 28 none, 25 rejected, 780 measured), and
+  `gen-journey-ents.cjs` rebuilt journey.ents byte for byte. A copy of the search that records why a
+  candidate failed: **all 28 were "No board fits"**; the search's `catch` would also have swallowed a
+  wasm trap, and none was hidden there. The positive control (test/g7.wasm in the JS's mode) gave
+  grid-journey.js back, 120 of 120 rows and 120 of 120 measurement records (interleavedRopes left out),
+  30.8 s.
+- `quality-g7.cjs --report` on G7's rows: 0 invalid of 1,440, 0 tests failed, check (c) 1,440 of 1,440.
+- `bugs/07`: as written. `check` says OK and `wasm` fails with `WAT error: validate failed: ... type
+  mismatch at end of `if false` branch, expected [] but got [i32]`; with the binding used, `unknown
+  identifier 'y' — did you mean 'a'?` (and two follow-on errors, `no field 'len' on type i32`, `cannot
+  assign i32 to u32`). Its 2 workaround sites are in gridgen.ents as stated.
+- The Journey counts: **82 of 120 positions show another level than the JS game's, 60 of 120 maps are
+  new (all 60 Hex; the 60 square maps are the JS's own)**; 74 rows differ in seed or size, 61 in size.
+  Neither table needed a size step-up, and no level of either is above its win ceiling.
+
+### Found
+
+No wrong answer and no quality that differs (below). What the review found is at the edges and in the
+write-up:
+
+1. **The stack figure was low (fixed in README.md).** G7 wrote that the generator uses under 1.3 MiB
+   of the 16 MiB stack (custom sample 1.24 MiB). On the review's classes a 48x48 Hex colossal map with
+   spinners (`U3-H-1-100-48-48-100-SC`, game-legal) peaks at **2.46 MiB** (both modes; the JS's mode
+   2.36 to 2.46), and `U3-H-1-100-48-48-40-MSC` at 2.30 MiB; every other class stays under 0.7 MiB.
+   Still 15% of the stack. README.md now says 2.5 MiB.
+2. **`generate_spec` traps on extreme strips with spinners (a limit, not fixed).** G7-2 says
+   generate_spec gives 0 "for a board of no cells or past 48x48 cells", which reads as if every shape
+   of up to 2,304 cells works. Shapes past 48 a side do work and are the JS's level for level
+   (`oracle/shapes-g7-review-js.cjs`: 49x47 Hex, 60x38, 96x24 Hex with mirrors, 24x96 with mirrors, 24x96 Hex
+   with spinners, 200x11, 11x200 Hex with mirrors: 7 of 7 equal in the JS's mode, so no table sized
+   for 48 columns or rows overflows), but a one-row or one-column strip of 1,200 or 2,304 cells with spinners
+   **traps** (`unreachable` in lib/stack's `alloc`, peak 12.4 and 15.1 MiB): add_spinners keeps the
+   way out of every manual move (`routes`, in a vec that doubles on the stack) and a new paths list a
+   tap, about cells x taps x 16 bytes, which a one-row strip of 2,304 cells (646 taps) makes 23 MB. The
+   JS gives no level for either spec (it tries for 16 and 81 s), so only the error differs ("No board
+   fits" against a RuntimeError). 600x3 with spinners works (7.1 MiB). No spec of the game comes near
+   it (custom sides at most 48, the Journey's 12x16), and the next call answers as a fresh instance's
+   (checked after each of 136 odd shapes and kinds, `oracle/shapes-g7-review.cjs`). Fixing it would need a growable memory or a room check
+   whose estimate could refuse game-legal boards; documented instead.
+3. **Shipping core.wasm's Journey needs the game's table too (an integration note).** web/generator.js
+   returns `{ ...E.spec(options), ...board }`, and `E.spec` reads the JS game's grid-journey.js. On
+   core.wasm the board is the port's level, but **74 of the 120 Journey levels carry another level's
+   spec fields** (seed, difficulty, requireSlide, minMirrors, minSprings; the board's grid, W, H,
+   mirrors and springs override the rest), because the port's table orders and seeds its chapters
+   otherwise. The game reads none of these fields today (app.js, game.js), so nothing shows; but to
+   ship it, grid-journey.js must become `fixtures/journey-port.js` (the same format) and
+   `GRID_VERSION` must be bumped so that saved scores of the old levels do not apply.
+4. Read against the JS's generate() and MoonBit's grid_generate: the port follows both. Like MoonBit,
+   it has no `minPartialSlides`, `minRepeatedRopes`, `minInterleavedRopes` or `minParRatio` (the JS
+   reads them; no spec of the game sets them, and the ABI cannot pass them).
+
+
+### The extended exact oracle (the rules and measurements of a board)
+
+- **Every level the port made in the review's classes was re-measured by the JS's kernels**
+  (`quality-g7-review.cjs`, rule 1): 3,767 levels (and 1,000 replicate levels), **0 problems**. Per
+  level: the spec's grid and size, ropes on the board in steps with no cell twice, the plan replays to
+  an empty board at par, `F.valid`, `F.coverage` equal to the stored double and at least the floor,
+  the four slide counts equal to the replay's events, a slide where the coverage asks for one, par x 3
+  at least the ropes, not all free at the start, `F.featureStats` of the plan equal to the stored
+  mechanicStats with every mirror and spinner used and the spec's minimum by hand, and **the stored
+  win rate equal, bit for bit, to `F.casualRate` at the casual seed of one of the ten attempts** (all
+  3,367 non-colossal levels found theirs: attempt 0 for 1,530, up to attempt 9 for 79; colossal 400
+  at 1) and the challenge to its 3 places. The JS's re-measure took 606 s in all.
+- **The hints on the port's own boards** (`check-g7-review-assist.cjs`, new): guide at budgets 900 and
+  5,000, with no preferred order and with the rest of the plan preferred, and reachableFeatures at
+  10,000, core.wasm through web/generator.js against game-engine.js, at every position of
+  `R.positions` (each prefix of the plan and 20 of random play). The 120 levels of the port's Journey
+  (60 Hex maps the JS never made) and 48 levels of four new custom codes (Hex 14x12 with mirrors and
+  spinners, Hex 9x16 with mirrors, Hex 10x10 with spinners, mixed 12x12 with both): **168 boards (102
+  Hex, 143 with mechanics), 7,012 positions, 34,151 answers, 0 differ** (330 s); its controls catch a
+  spoiled guide and a spoiled feature list.
+- **The generator's branches no recorded call takes** (`check-g7-edges.cjs`, new; check-all's loop runs
+  it): of check-g7-units' 837 recorded placeMirrors calls none placed fewer mirrors than asked, and no
+  recorded woven board was under 4 a side. 840 placeMirrors calls on crowded boards (3x3 to 8x8 and
+  5x9, counts to 16, avoid sets of none, a third, all but one and all interior cells; 599 place fewer
+  than asked, 220 none), 504 wovens on boards of 2 to 6 a side, both grids, with and without mirrors,
+  core and long ropes (217 none, among them every board with no interior cell), and generate_spec at
+  48x48 (both grids, colossal, against F.generate) and past it (48x49, 49x48, 0x5, 5x0, -1x5, 2305x1
+  give 0): **1,352 cases, 0 differ**, the draw counts included (9.3 s). It kills four mutants that
+  every G7 oracle let through (below).
+- **JS's mode against the JS on the new classes** (`--spot`, rule 5): F.generate on set A's first 3
+  to 6 specs of each of the 18 classes, **70 of 70 levels equal** field by field, so sets A and B are
+  the JS generator's. On 72 odd small specs of `shapes-g7-review.cjs` (1x1 to 12x3, both grids, all
+  four mechanic mixes) the JS's mode gives the JS's answer (none, or a level of the same ropes and
+  par), 72 of 72; past 48 a side, 7 of 7 levels equal field by field (`shapes-g7-review-js.cjs`).
+- Check (c): on P's seeds, the JS's mode makes the same level for **300 of 300 square specs** (nothing
+  departs on square) and for 9 of 3,500 Hex specs.
+
+
+### Generation: quality against the JS, on classes nobody had used
+
+`oracle/quality-g7-review.cjs` (new), its rule committed (7b12e05) before any level of its classes was
+made: for each spec, four levels made in one process, interleaved: **A and B**, the JS generator (test/g7.wasm
+in the JS's mode, seeds + 'RA' and + 'RB'; rule 5 above checks that mode against F.generate on these
+classes), **P**, the port's own mode (core.wasm's, seeds + 'RP'), and **Q**, the JS's mode on P's seeds
+(check (c)). Per class and metric a two-sample KS of P against A and B pooled at 1%, A against B beside
+it; a rejection re-tested on a replicate P2 before it counts; the share given up on by a test of
+proportions; generation time (generate_spec alone) not over 1.2x the JS's mode in both total and
+median. 32 metrics: par, exact, ropes, mean and longest rope, coverage, casual wins, work, challenge,
+its miss from the target, the excess over the win ceiling, manual slides, bounces, repeated and
+automatic ropes, knots, traps, depth and average depth of the Hex builder, mirrors, spinners, mirrors
+and spinners used by hand, turns, and the interaction analysis (interaction, joins, mutual waits,
+branching depth, largest coupled group, revisited ropes, edges, depth; the JS's Q.analyze).
+
+Thirteen classes were fixed first (G4's and G7's seven were Hex, plain or with mirrors, spinners only
+on 8x8, and mixed without spinners): **journey** (the Journey's 60 Hex specs x 4 new seeds), **hexS** (Hex spinners
+only, 10x10), **hexMS** (14x12 mirrors and spinners), **strips** (24x8 mirrors, 8x24 mirrors and
+spinners), **thin** (24x4 and 4x24), **tiny** (4x4, 5x5), **high** (difficulty 80 to 100, 18x18 mirrors),
+**low** (1 to 20, 11x13), **largeMS** (24x24 mirrors and spinners), **colossalS** (32x32 MSC, 48x48
+SC), **colossalOdd** (40x40 C, 8x48 MC), **mixedMS** (16x12, both grids), **square** (20x20 MS, 6x7).
+After they passed, five more under the same rule (committed before they ran, 2e8de04): one difficulty
+a class, since a mixture over 1 to 100 can hide a shift at one difficulty (**fix25**, **fix60** 12x12;
+**fix100M** 12x12 mirrors; **fix85MS** 10x14), and **journeyMore** (the Journey's Hex specs x 6 more
+seeds). 3,800 specs, 15,200 levels:
+
+| class | specs | given up A / B / P | largest D(P, A+B) (critical) | P's time / the JS's mode, total / median | check (c) |
+| --- | ---: | --- | --- | --- | --- |
+| journey | 240 | 11 / 16 / 12 | interaction 0.076 (0.132) | 0.82x / 0.83x | 5 of 240 Hex |
+| hexS | 200 | 0 / 0 / 0 | offTarget 0.078 (0.141) | 0.82x / 0.83x | 0 of 200 Hex |
+| hexMS | 200 | 0 / 0 / 0 | interaction 0.083 (0.141) | 0.82x / 0.80x | 0 of 200 Hex |
+| strips | 200 | 0 / 0 / 0 | edges 0.108 (0.141) | 0.86x / 0.86x | 0 of 200 Hex |
+| thin | 200 | 0 / 0 / 0 | meanLength 0.085 (0.141) | 0.79x / 0.87x | 0 of 200 Hex |
+| tiny | 200 | 0 / 0 / 0 | longest 0.080 (0.141) | 0.78x / 0.76x | 1 of 200 Hex |
+| high | 200 | 0 / 0 / 0 | longest 0.123 (0.141) | 0.90x / 0.86x | 0 of 200 Hex |
+| low | 200 | 0 / 0 / 0 | interaction 0.085 (0.141) | 0.75x / 0.54x | 0 of 200 Hex |
+| largeMS | 200 | 0 / 0 / 0 | coverage 0.088 (0.141) | 0.94x / 0.97x | 0 of 200 Hex |
+| colossalS | 200 | 0 / 0 / 0 | coverage 0.075 (0.141) | 0.91x / 0.89x | 0 of 200 Hex |
+| colossalOdd | 200 | 0 / 0 / 0 | coverage 0.080 (0.141) | 0.81x / 0.70x | 0 of 200 Hex |
+| mixedMS | 200 | 0 / 0 / 0 | automaticRopes 0.115 (0.141) | 0.89x / 1.00x | 100 of 100 square, 0 of 100 Hex |
+| square | 200 | 0 / 0 / 0 | interaction 0.075 (0.141) | 1.03x / 0.86x | 200 of 200 square |
+| fix25 | 200 | 0 / 0 / 0 | interaction 0.105 (0.141) | 0.81x / 0.79x | 0 of 200 Hex |
+| fix60 | 200 | 0 / 0 / 0 | automaticRopes 0.095 (0.141) | 0.81x / 0.79x | 0 of 200 Hex |
+| fix100M | 200 | 0 / 0 / 0 | automaticRopes 0.122 (0.141) | 0.86x / 0.86x | 0 of 200 Hex |
+| fix85MS | 200 | 0 / 0 / 0 | par 0.105 (0.141) | 0.83x / 0.83x | 0 of 200 Hex |
+| journeyMore | 360 | 17 / 21 / 21 | automaticRopes 0.058 (0.108) | 0.81x / 0.82x | 3 of 360 Hex |
+
+- **0 invalid, 0 of 557 KS tests rejected, no failure rate different, no class slower** (P is 0.75x to
+  1.03x the JS's mode in total; the square class, whose P levels are the JS's own, shows the timing
+  noise: 1.03x total, 0.86x median). The largest D against its critical value is 0.87 of it (high's
+  longest rope, 0.123 against 0.141), where A against B reaches 0.96 of its own (journeyMore's
+  interaction, 0.117 against 0.121).
+- **All classes together**: if P has the JS's law, A, B and P are exchangeable and D(A,B) is the
+  smallest of the three distances a third of the time. Over 478 (class, metric) pairs it is the
+  smallest in 171 (159 +- 10 expected; z 1.15, and the metrics of a class are correlated), and the mean
+  distances are the same: D(A,B) 0.0543, D(P,A) 0.0545, D(P,B) 0.0531.
+- **Replicates** where a class came nearest (not required by the rule, which rejected nothing): P2 sets
+  (seeds + 'RP2', 200 each, re-measured the same way, 0 invalid) for fix100M, largeMS, high, fix85MS
+  and strips: P2 against A+B and P+P2 (400) against A+B, 0 rejections in 320 tests; the nearest is
+  fix100M's edges (P2 0.128 against 0.141; pooled 0.100 against 0.115). fix100M then went to 1,800
+  levels a side (the JS's mode on nine seed sets, the port on nine others): every one of 32 metrics
+  under its critical value (edges 0.034 and interaction 0.038 against 0.054; coverage the nearest,
+  0.049, means 0.898 and 0.896), so the early drift of its edges (24.5 against 24.0) was noise.
+- **Diversity**: distinct maps per set, tiny 185 and 194 (P, P2) against 189 and 191 (A, B) of 200;
+  thin, low and the Journey's specs every map distinct in every set.
+- **Draws**: the port draws less (tiny's median 87,708 against 139,707; G4's D1/D2), and is faster for
+  it, as G4 said.
+
+
+### The Journey, re-picked: checked again
+
+- The search is `build-grid-journey.cjs` but for F.generate and F.casualRate, line for line (read side
+  by side): the same plan, candidates, size step-up, acceptance (the generator's rules, no map twice,
+  five ropes at most in chapter 1), measurement (96 casual games, 24 with spinners, the same seed),
+  choice (closest to the target, above the ceiling only if nothing is below) and chapter order. Rerun:
+  byte for byte, in 27.9 s against the JS's own 530 s; the control in the JS's mode gives grid-journey.js
+  back (above).
+- Every new level: valid by the exact kernels and the search's rules (`check-journey-port.cjs`, 120 of
+  120); its hints exact (`check-g7-review-assist.cjs`, above); measured as stored.
+- **The 120 levels against the JS Journey's** (the two MONKEYFIST tables, 120 against 120; the yardstick
+  the largest D between two of the JS's four master-seed Journeys of G7's quality-journey run): every
+  D below the 1% critical value (0.210 all, 0.297 Hex); on all levels 17 of 18 metrics within the JS
+  spread (slides 0.058 against 0.050, the one above), on the Hex levels 18 of 18. Per chapter the mean
+  challenge, casual wins, work and par follow the JS's (chapter 12: challenge 9.68 against 9.57, wins
+  0.20 against 0.17; chapter 4: 5.23 against 4.90, the largest gap, which chapter 5's 5.22 against
+  5.01 and chapter 6's 5.48 against 5.58 bracket); no level of either above its win ceiling; neither
+  table stepped a size up; the mean seed attempt chosen 2.46 against 2.50.
+- **Four more master seeds** (G7's `quality-journey.cjs` under its own rule, seeds QJREVA to QJREVD,
+  480 levels a side, 272 s): **52 of 52 KS tests pass, 0 invalid port levels**; candidates given up on
+  2.0% (port, 69 of 3,404) against 2.7% (JS, 93 of 3,437), z -1.85. The largest D on Hex levels is the
+  mean rope length (0.100, critical 0.149, the JS seeds' own spread 0.200). Hex interaction came out a
+  little lower on the port in both G7's run (D 0.100) and this one (0.071; the JS seeds' spread 0.183),
+  so the review pooled all its Hex classes (about 3,000 levels a set): the means are A 3.186, B 3.230,
+  P 3.193, D(P, A+B) 0.016 against D(A,B) 0.033; no shift.
+- **A paired test, fixed before its seeds ran** (`journey-paired-g7-review.cjs`, committed 6a06ea5):
+  pooled over G7's 4 master seeds and the review's 4, the port's chosen Hex levels had a little less
+  interaction, spec for spec (mean difference -0.167, t -2.04, post hoc and one metric of 26). On 8
+  new master seeds (QJX1 to QJX8, 480 Hex pairs) the rule was a paired t-test at 1%: **interaction
+  -0.026, t -0.30, not rejected; none of 14 metrics rejected** (challenge +0.005, casual wins -0.010,
+  par -0.033). All 16 seeds pooled: -0.096, t -1.61. G7's quality-journey on the same 8 seeds: 52 of
+  52 KS tests pass twice, 0 invalid port levels, given up on 2.8% against 2.5% and 3.4% against 3.5%.
+  The lead was noise.
+- Journey levels that differ from the JS game's: **82 of 120 positions, 60 of 120 maps** (all Hex), as
+  G7 says.
+
+
+### What G7's oracles could not see: the mutation run
+
+`oracle/mutate-g7.sh` with `mutants-g7-review.cjs` (new): 36 one-line changes of gridgen.ents (32) and
+gen.ents (4), each built into test/g7.wasm and put to G7's oracles in turn: check-g7-units in the JS's
+mode and in the port's, parity.mjs on the 135 reference levels through the glue, check-journey-port,
+check-g7-robust (`fixtures/mutants-g7-review-results.txt`). **G7's oracles kill 25 of 36. Eleven
+survive**, and the review's new oracles kill 8 of those:
+
+- `check-g7-edges.cjs` kills four: placeMirrors' tries limit at x20 (m0, 491 cases differ), the rope
+  length floor 6 instead of 7 (m3, sides of 3), woven going on when no mirror could be placed (m7), and
+  generate_spec refusing 48x48 (m26). Of check-g7-units' 837 recorded placeMirrors calls none placed
+  fewer mirrors than asked, and no recorded board was under 4 a side.
+- `check-g7-select.cjs` (new) kills four that change levels of specs the game can make, though none
+  of the 255 levels G7's standing oracles make depends on them: the casual win ceiling's penalty x3.5 instead of x4 (m18: 4 of
+  300 levels at difficulty 60 to 100 differ), the coverage floor of boards of exactly 48 cells (m20: 11
+  of 300 levels of 6x8, 8x6 and 4x12), requireSlide ignored (m22: 7 of 300 chapter-1 specs of 4x5), the
+  twisty style from 35 exclusive (m24: 28 of 269 levels at difficulty 35 exactly). The review found
+  those specs by making levels with the mutant and with test/g7.wasm side by side
+  (`review-g7/mutant-reach*.cjs`); check-g7-select holds those **26 levels to F.generate: 26 of 26
+  equal** on test/g7.wasm (2.2 s), and each of the four mutants fails it. In the Journey, requireSlide
+  decides in chapter 1; the port's chapter-1 levels have their slide (check-journey-port), but an
+  error there would have passed every G7 oracle.
+- Three remain, argued: m10 (with_spinner tries 15 cells, not 16) and m14 (search_spinner's budget
+  11,000 / ropes, not 12,000) are reachable in principle but never decisive: over the JS's own calls on
+  181 spinner specs the winning with_spinner cell is at index 10 at most (2,775 batches; only 14 had
+  16 cells) and no successful search used more than 81.9% of its budget (2,409 solves), and 920 and
+  1,020 levels made by the two mutants are the port's. m29 (built() reports the last candidate, not the
+  chosen one) touches only test/g7's `t_built` hook, which the quality oracles read for the Hex
+  builder's counts; core.wasm does not export it.
+
+So every one of the 36 changes that alters a level of some game spec is now caught by an oracle,
+and on each of those rules the port takes the JS's decision.
+
+
+### Departures (the review's)
+
+None: the review changed no Ents code and no level. G7's list stands (G7-1 the Journey's own seeds,
+G7-2 generate_spec's area limit, G7-3 the spinner search's seen-cells table, and G4's hex_build D1/D2,
+the only reason a level differs), with one note: G7-2 is narrower than it reads (Found, 2). **Journey
+levels that differ from the JS game's: 82 of 120 positions, 60 of 120 maps, all Hex.**
+
+### Time
+
+- **Generation time is a quality the port keeps**: in every class the port's own mode took 0.75x to
+  0.94x the JS's mode in total (0.54x to 1.00x at the median, the latter mixedMS, half of whose levels are square and the JS's own), the square class excepted, whose P
+  levels are the JS's own and whose 1.03x total and 0.86x median show the noise of the measure; all
+  four sets were made interleaved in one process. The JS itself is 10 to 60x slower again (the spots:
+  high's 4 levels 16.3 s against 1.38 s; square's three 20x20 MS levels 10.9 s against 0.19 s).
+- `bench-g7.mjs`, 2 processes of 5 rounds under the lock (others' jobs and the review's own probes
+  ran beside it: load about 2): core.wasm 4,178 and 4,097 ms, the JS's mode 4,337 and 4,355, MoonBit
+  gen.wasm 8,809 and 9,069: 2.1 to 2.2x, as G7 measured (3,980 / 4,338 / 8,672). The stack peak of the
+  Journey 0.64 MiB, as G7 wrote.
+- The seed search: 27.9 s on core.wasm, 30.8 s on the JS's mode, against the JS's own 530 s (G7's
+  run). The review's oracles: check-g7-edges 9.3 s, check-g7-select 2.6 s, check-g7-review-assist
+  330 s (the JS's guide is most of it), quality-g7-review's 18 classes about 25 minutes of wall time on
+  3 cores.
+
+
+### Friction (review)
+
+The review wrote no Encantis: every fix it needed was in the oracles and the write-up. Its friction is
+reading and diagnosing the port.
+
+1. **A stack overflow reads as any failed assert** (1 time, about 10 minutes). The 2,304-cell strip
+   with spinners ended in `RuntimeError: unreachable at wasm-function[34]:0xef1`, then
+   `wasm-function[94]`, `[416]`, `[417]`. With no name section, finding which assert fired meant
+   `encantis compile test/g7.ents` and counting `(func` lines: 34 is lib/stack's `alloc`, 94
+   `vec$push<<q:i32|r:i32>>`, 416 `gridgen$add_spinners`. Only then did G7's `stack_peak()` export (15.05
+   MiB after the trap) say it was the stack. A name section (G2 asked) and a distinct trap or message
+   for "stack exhausted" would each have made this one line. Planned features: none; a growable memory
+   would remove the overflow itself.
+2. **No memory comes back inside a scope** (the cause of the overflow, and the reason a fix is not
+   cheap). add_spinners walks the plan's manual taps and keeps every way out; each tap also allocates a
+   new paths list and a route, and the `routes` vec leaves its outgrown buffers behind when it doubles,
+   so memory is cells x taps, about 2x what is live. MoonBit's GC frees the dead lists. The port can
+   only reserve up front (an estimate that could refuse game-legal boards) or keep the limit. This is
+   G7's "an arena or growth that survives scopes" again, met as a limit rather than as code.
+3. **Reading the port against the JS was easy where the shapes match, and slow where closures were
+   lifted.** gridgen.ents follows grid-generator.js function for function (place_mirrors, woven,
+   add_spinners, with_spinner, search_spinner, bounce_step are line-for-line readable), but `measure`
+   (the body of generate()'s loop over a 12-field `Attempts` context) and `try_cells`/`fresh` (the JS's
+   inner lambdas) took the longest to check: about 20 of the 45 minutes of reading went to them.
+   Closures would remove both (G7's Friction 6).
+4. **`hover` on `measure` prints 900 characters** (G7's Friction 9 still): the `Attempts`, `Spec` and
+   `Board` structs written out in full; the names the source uses are lost. `hover gridgen.ents:<line>:
+   inter` is a clean `local inter: f64` (4.1 s: it checks the program first).
+
+### Error messages (verbatim)
+
+- `RuntimeError: unreachable` at `wasm-function[34]:0xef1` (lib/stack's `alloc`: the stack is full).
+- bugs/07's, as G7 recorded (above).
+
+### Bugs
+
+- No new compiler or tooling bug. bugs/07 holds at 399ca7e as written.
+
+### Tooling
+
+- `check core.ents` 4.6 s under load (G7: 3.7 s); `wasm test/g7.ents` about 4 s a build, which made a
+  36-mutant run (one build each) take about 15 minutes; builds are deterministic, so "rebuilt byte for
+  byte" is a `git status`.
+- `encantis compile` to WAT is the only map from a trap's function index to a name (Friction 1).
+
+### Pleasant
+
+- **Speed made the quality oracle cheap.** 15,200 whole levels in 18 classes took about 25 minutes of
+  wall time on 3 cores, most of it the JS's re-measure of the port's levels (606 s) and its Q.analyze;
+  the port's own generation was 347 s for its 3,800 specs, the JS's mode 394 and 387 s for A and B. The
+  Journey search ran 26 times, about 30 s each.
+- **The exact parts stayed exact under a new kind of input.** The port's Hex boards are maps the JS
+  never made, yet guide, reachableFeatures, casual rates, coverage and feature stats on them are the
+  JS's to the bit (34,151 hint answers, 3,367 win rates).
+- **Deterministic builds and the test hooks** (`t_place_mirrors`, `t_woven`, `t_js_mode`, `draws`,
+  `stack_peak`) made the edge oracle a 150-line script and the mutation run a shell loop.
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| Ents lines the review changed | 0 |
+| specs in the review's classes / levels made (A, B, P, Q) / the port's levels re-measured by the JS, invalid | 3,800 / 15,200 / 3,767 + 1,000 replicate, 0 |
+| KS tests at 1% (the rule) / rejected; replicate tests / rejected | 557 / 0; 320 / 0 |
+| hint answers on the port's own boards / differ | 34,151 / 0 |
+| edge cases (placeMirrors, woven, generate_spec) / differ | 1,352 / 0 |
+| levels where the generator's rarer rules decide, against F.generate / differ | 26 / 0 |
+| spot levels (F.generate against the JS's mode) / differ | 70 / 0 |
+| Journeys searched (master seeds x 2 sides, and the two reruns) / invalid port levels / KS tests failed | 26 / 0 / 0 of 156 |
+| mutants / killed by G7's oracles / killed only by the review's / unreached / test-only | 36 / 25 / 8 / 2 / 1 |
+| odd shapes probed / traps (all past the game's sizes, all one-row or one-column strips with spinners) | 136 + 7 / 3 + 1 (1,200x1) |
+| compiler bugs / tooling bugs new | 0 / 0 |
+| times a trap was traced by counting `(func` in the WAT | 1 |

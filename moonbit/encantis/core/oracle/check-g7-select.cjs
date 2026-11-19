@@ -3,11 +3,13 @@
 // F.generate). The mutation run (mutate-g7.sh) let through seeded changes of grid_generate's rules
 // that the 135 reference levels, the 120 Journey levels and the unit calls never exercise; the review
 // searched levels of many seeds for the specs where each change makes another level
-// (probes/mutant-reach*.cjs in its scratch), and these are they:
+// (review-g7/mutant-reach*.cjs), and these are they:
 //   - the casual win ceiling's penalty (x 4): 4 specs at difficulty 60 to 100 (m18);
 //   - the coverage floor of boards of exactly 48 cells (0.8 at <= 48): 11 specs of 6x8, 8x6, 4x12 (m20);
 //   - requireSlide (the Journey's chapter 1): 7 specs of 4x5 (m22);
-//   {MORE}
+//   - the twisty style from difficulty 35 on, at exactly 35: 4 specs (28 of 269 at that difficulty, m24).
+// (Their seeds were searched at 300 levels a change; the other survivors are unreached by any level
+// or test-only: fixtures/mutants-g7-review-results.txt.)
 // Each must be the JS's level, field by field (board, plan, par, exact, coverage, casual wins,
 // challenge, stats).
 //
@@ -36,7 +38,8 @@ const CASES = [
   // m22: requireSlide
   ...[[30.25, 36], [30.25, 234], [40, 244], [40, 280], [30.25, 282], [40, 292], [40, 298]].map(([difficulty, k]) =>
     ({ grid: 'square', W: 4, H: 5, difficulty, seed: 'REACH' + k, requireSlide: true, mirrors: false, springs: false })),
-  // {MORE CASES}
+  // m24: twisty at difficulty 35 exactly
+  ['U3-S-35-35-10-10-100-N-RV7MG', 2], ['U3-S-35-35-10-10-100-N-RV7MG', 3], ['U3-S-35-35-10-10-100-N-RV7MG', 4], ['U3-M-1-69-10-10-69-N-RV7MI', 34],
 ];
 
 const fp = lv => JSON.stringify([lv.grid, lv.W, lv.H, lv.ropes, lv.mirrors, lv.springs, lv.plan, lv.par, !!lv.exact, lv.coverage, lv.play.casualWins, lv.play.challenge,
