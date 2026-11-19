@@ -67,17 +67,25 @@ const CLASSES = {
   colossalOdd: { specs: [['U3-H-1-100-40-40-100-C-RV7N', range(100)], ['U3-H-1-100-8-48-100-MC-RV7O', range(100)]] },
   mixedMS: { specs: [['U3-M-1-100-16-12-200-MS-RV7P', range(200)]] },
   square: { specs: [['U3-S-1-100-20-20-100-MS-RV7Q', range(100)], ['U3-S-1-100-6-7-100-N-RV7R', range(100)]] },
+  // Added at 13:25, after the first eight classes passed, under the same rule: one difficulty a
+  // class (a mixture over 1 to 100 can hide a shift at one difficulty), and six more seeds of each
+  // of the Journey's Hex specs.
+  fix25: { specs: [['U3-H-25-25-12-12-200-N-RV7S', range(200)]] },
+  fix60: { specs: [['U3-H-60-60-12-12-200-N-RV7T', range(200)]] },
+  fix100M: { specs: [['U3-H-100-100-12-12-200-M-RV7U', range(200)]] },
+  fix85MS: { specs: [['U3-H-85-85-10-14-200-MS-RV7V', range(200)]] },
+  journeyMore: { reps: 6, repBase: 4, specs: [['J', range(120)]] },
 };
 
 function levelsOf(name) {
-  const { G } = R.js(), cls = CLASSES[name], out = [], reps = cls.reps || 1;
+  const { G } = R.js(), cls = CLASSES[name], out = [], reps = cls.reps || 1, base = cls.repBase || 0;
   for (const [code, idx] of cls.specs) {
     const o = code === 'J' ? G.DEFAULT : G.parseCode(code);
     if (!o) throw Error('invalid code ' + code);
     for (const i of idx) {
       const s = G.spec(o, i);
       if (code === 'J' && s.grid !== 'hex') continue;
-      for (let r = 0; r < reps; r++) out.push({ key: `${code}#${i}${reps > 1 ? '/' + r : ''}`, spec: s, rep: reps > 1 ? String(r) : '' });
+      for (let r = base; r < base + reps; r++) out.push({ key: `${code}#${i}${reps > 1 ? '/' + r : ''}`, spec: s, rep: reps > 1 ? String(r) : '' });
     }
   }
   return out;
