@@ -35,14 +35,15 @@ own tests drive it unchanged.
 - **The cost is in the source and the tools.** The port is **1.44x** MoonBit's tokens of code
   (**1.73x** counting the import declarations and restated types Encantis needs), down from the
   2 to 2.7x that ENCANTIS.md measured on two kernels. The main costs:
-  - 53 closures written by hand as context structs or module globals;
-  - 27 options and tags by hand;
-  - 165 unchecked table reads;
+  - 54 closures written by hand as context structs or module globals;
+  - 26 options and tags by hand;
+  - 163 unchecked table reads;
   - 47 lists given their room up front;
   - 54 renames because `let` is function-scoped;
   - 423 i32/u32 casts;
   - a fixed 16 MiB stack that a few non-game inputs overflow;
-  - 7 compiler and tooling bugs, two of them silent wrong code (avoided by rule; no oracle caught
+  - 7 compiler and tooling bugs, two of them silent wrong code (avoided by rule, but for one latent
+    site of bugs/02 in abi.ents that the verification found, harmless as called; no oracle caught
     either one).
 
   The edit-check loop is 8 to 25 times slower than MoonBit's: `check` takes 3.8 s on the whole
@@ -58,7 +59,8 @@ own tests drive it unchanged.
 
 Whether to switch is the owner's call. The speed, the size and the parity are real, and a wasm-gc
 browser floor is no longer needed. Against them stand a source 1.7x the MoonBit's, closures written
-out by hand, a slower edit loop, and a young compiler whose two silent bugs the port avoids by rule.
+out by hand, a slower edit loop, and a young compiler whose two silent bugs the port avoids by rule (one
+latent site excepted, §8).
 §5 has the details.
 
 ## 1. Correctness
@@ -431,7 +433,7 @@ the restated types that Encantis modules need. Lines are lines with code.
 | --- | ---: | ---: |
 | check the largest file (`weave.ents`, 1,419 lines, with its imports) | 1.23 s (1.11 to 1.30) | |
 | check `hexbuild.ents` (the hottest code) | 1.19 s | |
-| check the whole program (`core.ents`: 27 modules, 1,081 declarations) / `moon check` | 3.77 s (3.53 to 3.81) | 0.21 s cold, **0.15 s after an edit** |
+| check the whole program (`core.ents`: 27 modules, 1,058 declarations) / `moon check` | 3.77 s (3.53 to 3.81) | 0.21 s cold, **0.15 s after an edit** |
 | build the whole program (`wasm core.ents`) / `moon build --target wasm-gc --release` | 3.85 s (3.79 to 4.11) | 0.44 s cold, 0.47 s after an edit |
 | the same, optimized (`wasm -O`) / `moon build --target js --release` | 7.76 s (7.58 to 8.09) | 0.45 s cold, 0.41 s after an edit |
 | run one module's inline tests (`test hex.ents`, 3 tests) | 0.90 s | |
@@ -479,7 +481,7 @@ about 9 hours of wall clock for the seven groups in all, and about 10 more for t
   - Struct values in memory, in globals and in fields.
   - `defer reset(scope)` at every search node; `return x when c`.
   - `FixedVec(6, i32)` in static data, its bound in its type. Comptime value parameters exist since
-    8f459f1 (#32), contrary to the brief.
+    #32 (60648b8; the port got them with its update to 8f459f1, #33), contrary to the brief.
 - **The memory model held.**
   - One bump stack, with scopes per call, attempt, candidate and search node.
   - A level that outlives its scope is kept as its own ABI words and read back as zero-copy slices,
@@ -494,18 +496,18 @@ about 9 hours of wall clock for the seven groups in all, and about 10 more for t
 
 | Friction | Sites | What Encantis made us write | Removed by |
 | --- | ---: | --- | --- |
-| No closures | 53 | 42 local functions became top-level functions, either over a context struct (`Solve`, `Fewest`, `Full`, `Tarjan`, and `Attempts` with 12 fields) or over 33 module globals reset by hand in `hex_build`. About 70 lambdas (`map`, `filter`, `makei`, `any`) became loops. G7's review found these the slowest code to check against the JS | **closures**, even non-escaping ones |
-| Options and tags by hand | 27 | `0 as ?*T` for none, `(0 as [*]T, 0:u32)` for an empty `?[]T`, -1 sentinels, a tri-state `solved`. MoonBit's `guard ... else` became nested `if let`s (3 deep in `knot_attempt`), and 2 `elif let`s became `else { if let }` | **enums** (`Option(T)`) with `let ... else` |
-| Unchecked table reads | 165 | board tables read through `[*]mut i32` with no check, each audited by hand (two reviews added asserts) | a trapping index (not planned) |
+| No closures | 54 | 42 local functions became top-level functions, either over a context struct (`Solve`, `Fewest`, `Full`, `Tarjan`, and `Attempts` with 12 fields) or over 33 module globals reset by hand in `hex_build`. About 70 lambdas (`map`, `filter`, `makei`, `any`) became loops. G7's review found these the slowest code to check against the JS | **closures**, even non-escaping ones |
+| Options and tags by hand | 26 | `0 as ?*T` for none, `(0 as [*]T, 0:u32)` for an empty `?[]T`, -1 sentinels, a tri-state `solved`. MoonBit's `guard ... else` became nested `if let`s (3 deep in `knot_attempt`), and 2 `elif let`s became `else { if let }` | **enums** (`Option(T)`) with `let ... else` |
+| Unchecked table reads | 163 | board tables read through `[*]mut i32` with no check, each audited by hand (two reviews added asserts) | a trapping index (not planned) |
 | Room reserved before a scope | 47 | a list that grew inside a search node would be freed with the node, so lists are sized for the worst case up front | `memory.grow` (documented, not implemented), or a second arena that inner scopes do not reset (possible with comptime values, not written) |
-| Restated types and imports | 17% of all tokens | a non-generic type cannot be imported, so `Geo` is written out in four files. Every imported function's signature is restated. The two entries forward the same exports (bugs/04) | importing types by name; re-export |
+| Restated types and imports | 17% of all tokens | a non-generic type cannot be imported, so `Geo` is written out seven times (its home, mech.ents, and six restatements). Every imported function's signature is restated. The two entries forward the same exports (bugs/04) | importing types by name; re-export |
 | `let` is function-scoped | 54 renames | `c2`, `ta` to `td`, `up_first`. Also 11 clashes of a local with a function, global or field, and 3 reserved words used as names | block scope (not planned) |
 | i32/u32 casts | 423 | `for i in n` gives a `u32` and lengths are `u32`, while the JS's numbers are `i32`: 206 `as u32` and 217 `as i32`. Sizes that wrap past 2^32 in silence needed 7 asserts (G1's review) | checked arithmetic, or an `i32` loop |
 | No counted range loop | 14 | a count worked out by hand for `for k in count`, `while` loops counting down, or `if let rest = t[a..]` | a range loop (not planned) |
-| No inliner | 3 | three hot loops inlined by hand (casual play's scan, the Hex replay, the builder's free-cell test), worth 10 to 20% each | `inline func` (parsed, not implemented) |
-| No f64 bit casts | 32 calls | fdlibm `pow` reads a double's bits through a scratch memory cell, 2x slower than a reinterpret | a reinterpret builtin |
+| No inliner | 4 | four hot spots inlined by hand (the square and the Hex casual play scans, the Hex builder's replay step, the builder's free-cell test), worth 10 to 20% each | `inline func` (parsed, not implemented) |
+| No f64 bit casts | 23 calls | fdlibm `pow` reads a double's bits through a scratch memory cell, 2x slower than a reinterpret | a reinterpret builtin |
 | `assert` does not narrow | 6 | `if k >= 6 { assert false; return 0 }`, so that `k` becomes `u32#6` | a narrowing assert |
-| Comptime parameters passed by hand | 18 | each nested writer call repeats its sink: `s.dec(o.min, put)` | a function value held by the writer |
+| Comptime parameters passed by hand | about 49 | each nested writer call repeats its sink: `s.dec(o.min, put)` (codes.ents 30, random.ents 8, gridgen.ents 6, abi.ents 5; G1 counted 18) | a function value held by the writer |
 | Smaller | 1 to 4 each | data blocks not aligned (G2 aligned its buffers by hand); no bare block for a scope; `memcpy` needs a sized array pointer; an empty slice range is optional | |
 
 **Where the reserves bit.** A fixed stack with reserves is a failure mode MoonBit's GC does not have:
@@ -520,7 +522,7 @@ about 9 hours of wall clock for the seven groups in all, and about 10 more for t
 
 ### 5.3 Error messages
 
-- **Unsupported syntax** gives a parse error that lists about 60 expected tokens and never says "not
+- **Unsupported syntax** gives a parse error that lists 20 to 60 expected tokens (35 for a nested function, 60 for a lambda, 20 for a range loop) and never says "not
   supported". This covers a nested function, a lambda, a range loop, a bare block, `a ?? b ?? c`, a
   parenthesised cast as an assignment target, and a reserved word as a name. Met in every group.
 - **A name clash** says `'c' is already declared: a loop variable cannot reuse the name of a variable
@@ -544,7 +546,7 @@ about 9 hours of wall clock for the seven groups in all, and about 10 more for t
 | | What | Kind | What the port does |
 | --- | --- | --- | --- |
 | 01 | `&base[k] as [*]Pt` is `&(base[k] as [*]Pt)`: the address of a pointer value is accepted, and is the pointer itself | **silent wrong code** | one view helper in abi.ents |
-| 02 | a parameter named like a module `def` is the def in the body, and the argument is ignored; an assignment to it is lost | **silent wrong code** | no parameter named like a def |
+| 02 | a parameter named like a module `def` is the def in the body, and the argument is ignored; an assignment to it is lost | **silent wrong code** | no parameter named like a def, but for one: `keep_level`'s `room` in abi.ents (§8), harmless as called |
 | 03 | lib/stack's `alloc` wraps for n near 2^32 and hands out the stack itself | library | fixed in the port's copy |
 | 04 | two modules that declare memory: `check` says OK and `wasm` crashes with a stack trace | crash | memory declared once |
 | 05 | `hover file:line:name` finds the name as text, in `break` or in a comment | tooling | columns |
@@ -552,25 +554,28 @@ about 9 hours of wall clock for the seven groups in all, and about 10 more for t
 | 07 | `elif let` parses and binds nothing; unused, `check` passes and `wasm` emits invalid WAT | wrong acceptance | 2 sites as `else { if let }` |
 
 Each silent bug was met once while writing (01 summed garbage; 02 surfaced as a type error) and
-avoided by a rule from then on. No oracle ever caught either in the port's files. Also met here:
+avoided by a rule from then on. No oracle ever caught either in the port's files. The rule for 02
+was broken once and nobody noticed until the verification (§8): `keep_level(l, buf, room: u32)` in
+abi.ents, whose module has `def room = 65536`, so the body stores 65536 whatever is passed; its one
+caller passes `keep_room` = 65536, so no output changes. Also met here:
 `encantis wasm <file>` without `-o` writes `<file>.wasm` beside the source, while the help says stdout.
 
 ### 5.5 What the planned features would remove
 
 | Feature (status at 399ca7e) | Removes |
 | --- | --- |
-| **Closures** (future additions; non-escaping would be enough) | the 53 `// closure:` sites: the 42 lifted local functions with their context structs and 33 module globals, about 70 lambda loops, and the reviews' hardest reading |
-| **Enums**, `Option(T)`, `let ... else`, `elif let` (design only) | the 27 `// enum:` sites, nested `if let`s, bugs/07 |
+| **Closures** (future additions; non-escaping would be enough) | the 54 `// closure:` sites: the 42 lifted local functions with their context structs and 33 module globals, about 70 lambda loops, and the reviews' hardest reading |
+| **Enums**, `Option(T)`, `let ... else`, `elif let` (design only) | the 26 `// enum:` sites, nested `if let`s, bugs/07 |
 | **Run-time function values** (not implemented; a design awaits the owner) | **0 sites**: every function-valued use is a comparator or sink (comptime today) or a closure called where it is made |
-| **Comptime value parameters** (available since 8f459f1) | already used (`FixedVec`, 5 sites). With them, a second arena `Stack(n)` that search nodes do not reset would let the 47 reserved lists grow as found, and the stack stop being a copied file |
-| Not planned, but met in every group | block-scoped `let` (54 renames), a range loop (14), `inline` (3 hand-inlined loops), a trapping index (165), importing types (17% of tokens), a name section, `memory.grow`, f64 bit casts |
+| **Comptime value parameters** (available since #32, 60648b8) | already used (`FixedVec(n, T)` in 3 data blocks; 8 `// comptime-n:` notes). With them, a second arena `Stack(n)` that search nodes do not reset would let the 47 reserved lists grow as found, and the stack stop being a copied file |
+| Not planned, but met in every group | block-scoped `let` (54 renames), a range loop (14), `inline` (4 hand-inlined spots), a trapping index (163), importing types (17% of tokens), a name section, `memory.grow`, f64 bit casts |
 
 ## 6. What Encantis would need next, for code like this
 
 In order of what it would remove from this port:
 
-1. **Closures**, even non-escaping ones (53 sites and the hardest code to review).
-2. **Enums with `Option(T)` and `let ... else`** (27 sites, the nesting, `elif let`).
+1. **Closures**, even non-escaping ones (54 sites and the hardest code to review).
+2. **Enums with `Option(T)` and `let ... else`** (26 sites, the nesting, `elif let`).
 3. **Memory that survives scopes**: an arena that inner scopes do not reset, or `memory.grow`. This
    would remove the 47 up-front reserves and the stack-overflow failure modes the reviews found.
 4. **Block-scoped `let` and a range loop** (54 renames and 14 loops). Neither is planned. They are
@@ -591,8 +596,8 @@ ENCANTIS.md (against Encantis 0.2.1, `prep/finalize`, May 2026) said "don't swit
 
 | ENCANTIS.md found | Now (399ca7e) |
 | --- | --- |
-| No closures or callable function pointers | **Still none.** Comptime function parameters cover comparators and sinks, so function values are needed at 0 sites; closures cost 53 |
-| Enums parse but do not compile | **Still design only.** `?*T`, `?[]T`, `if let` and `??` cover most uses; 27 sites by hand |
+| No closures or callable function pointers | **Still none.** Comptime function parameters cover comparators and sinks, so function values are needed at 0 sites; closures cost 54 |
+| Enums parse but do not compile | **Still design only.** `?*T`, `?[]T`, `if let` and `??` cover most uses; 26 sites by hand |
 | No generics, growable arrays or hash maps | **All there**: comptime type parameters, generic types across modules, `lib/vec`, `set`, `map` and `sort`, method calls, overloads. They carry the port |
 | No runtime strings | Still none, and not needed: text writers over comptime sinks stream the hashes |
 | No `memory-grow` | **Still none.** One static 16 MiB stack: 2.5 MiB at the game's largest boards, and overflows past them |
@@ -603,6 +608,90 @@ ENCANTIS.md (against Encantis 0.2.1, `prep/finalize`, May 2026) said "don't swit
 | `Math.pow` exact by importing it from the host | The loaders instantiate with `{}`, so fdlibm `pow` was ported (V8's variant, exact on 3.8M pairs), and `toFixed` decides halves exactly |
 | Compiler quiet for 6 months; examples did not compile | Active: main moved four times during the port (a release, `--release`, comptime values, fixes), and every wasm rebuilt byte for byte each time. Found: 2 silent wrong-code bugs, 1 crash, 1 wrong acceptance |
 | "Revisit Encantis once it has closures or callable function pointers, enum codegen, `memory-grow` and a vector/map story" | The vector/map story (generics) arrived; closures, enums and `memory-grow` did not. The port succeeded without them, at the costs in §5 |
+
+## 8. Independent verification (19 Nov, 15:40 to 17:xx)
+
+A second engineer rechecked this report from a fresh worktree of the pushed head (932bd00), with the
+same compiler (399ca7e, still origin/main), a reference of its own (`git archive 9e69e3a`, with
+`reference.json` dumped again from it: identical), seeds and set codes nobody had used, and scripts of
+its own (`oracle/verify/`). Raw output is in `oracle/fixtures/verify/`. Where a number of this report
+was wrong it has been corrected above; the corrections are listed at the end of this section.
+
+### 8.1 Build and exact parity: confirmed
+
+- `build.sh` under the lock: 49.4 s (the report: 42.7 s), 70 inline tests in 24 files pass, every wasm
+  byte for byte. The `-O`, `--release` and `wasm-opt -O3` builds are byte-identical to the measurement's.
+- **Whole levels on my own set codes** (`verify/exact-gen.cjs`: 11 codes, square, Hex and mixed, 4x5 to
+  32x32 colossal, mirrors and spinners; the real `G.generate` at 9e69e3a against the wasm through
+  `web/generator.js`, every field: board, plan, par, exact, layout key, coverage, casual wins,
+  challenge, slide and mechanic stats):
+  - `test/g7.wasm` in the JS's mode: **378 of 378 levels equal**;
+  - `core.wasm` (the port's own mode): **184 of 184 square levels equal**, and all 194 Hex levels valid
+    by the JS's kernels (the plan replays to an empty board at par, `F.valid`, the coverage, the
+    feature stats, the casual win rate one attempt's `F.casualRate`, the challenge);
+  - the negative control (core.wasm's Hex levels compared exactly) fails 5 of 5, as it must.
+- **The units on new seeds**, against the live JS: `check-g1-wide` (21,504,078 comparisons),
+  `check-g2-wide --seed 91357` and `check-g3-wide --seed 24680` (550 boards, 50,773 comparisons of
+  3.09M values), `check-g6-fuzz` at seeds 7 and 8 (3,991 boards, 31,928 comparisons),
+  `check-core-rope --wide 4000 --seed 777`, `check-hexbuild-shadow --suffix VF` (44 levels, 301 builds,
+  4,814 comparisons), `check-g7-units` in both modes (556,393 values each), `check-g7-robust` (85 + 255
+  checks), `check-journey-port` (120 of 120): **0 failed**.
+- **The hints on the port's own boards**, with three Hex and mixed set codes of mine added to its
+  Journey: 150 boards, 6,481 positions, **31,496 answers, 0 differ**.
+- **MoonBit's tests through the glue**, unchanged: g7.wasm 6 of 6 and `parity.mjs` 135 of 135; core.wasm
+  2 of 6 and 46 of 135 (the 4 tests and 89 levels that ask for the JS's Hex levels), as stated.
+- **The Journey** (`verify/journey-diff.cjs`, core.wasm against my reference): 82 of 120 positions
+  differ; the 60 Hex positions are 60 maps the JS's Journey does not have; of the 60 square ones 38
+  are in place and 22 moved. As stated. The stack peaks at 0.64 MiB on the Journey and 1.24 MiB after
+  the custom sample, as stated. `wasm2js` stops at `tuple.make`, as stated.
+
+### 8.2 Bugs: all 7 repros reproduce; one bugs/02 site in the port
+
+01 prints `8 12`, 02 `8 101 7`, 03 `16 0` (lib/stack's alloc at 399ca7e still bounds after adding),
+04 `check` OK and `wasm` throws at codegen.ts:4148, 05 all six hovers as listed, 06 `fmt` writes
+`[] ? []u8`, 07 `check` OK and invalid WAT.
+
+The port broke its own rule for bug 02 once: `abi.ents:291` is `keep_level(l: *Level, buf: [*]mut i32,
+room: u32)` in a module with `def room = 65536:u32` (line 36). The compiled body stores
+`(i32.const 65536)` into the buffer's bound and never reads the parameter. Its one caller
+(`gridgen.ents:684`) passes `keep_room`, also 65536, so nothing the game sees changes; a caller with a
+smaller buffer would lose the bound check in silence. Renaming the parameter fixes it. The compiler
+gives no warning (it refuses a `let` or loop variable named like a def, but not a parameter); a
+10-line script found it (1 site in the port's 21 files, none in `lib/` or `test/`).
+
+### 8.3 Size: confirmed
+
+Every wasm size, gzip and brotli figure of §3.1 reproduces (gzip -9 of the file; through a pipe, without
+the stored file name, each is 9 or 10 bytes smaller). The JS core's 44,570 / 36,992 are MoonBit's
+REPORT's figures; gzip -9 of the 9 files concatenated gives 44,772 and brotli 37,145. `size.cjs`
+reruns to the same output, byte for byte; the journey freeze cost and the quality summary scripts
+too.
+
+### 8.4 DX claims checked in the source
+
+Ten claims of §5, recounted with grep by the report's own rule (sites, header mentions left out):
+
+| Claim | The report | Recount |
+| --- | ---: | ---: |
+| `// closure:` sites | 53 | **54** |
+| `// enum:` sites | 27 | **26** |
+| `// unchecked:` sites | 165 | **163** (the 165 counted two header mentions) |
+| `// reserve:` sites | 47 | 47 |
+| i32/u32 casts (`as u32` + `as i32`, code only) | 423 (206 + 217) | 423 (206 + 217) |
+| `Geo` written out | "four files" | **7 copies** (home and 6 restatements) |
+| comptime sinks passed on by hand | 18 | **about 49** (18 was G1's count) |
+| hand-inlined hot spots | 3 | **4** |
+| scratch-cell bit accesses in `pow` | 32 calls | **23** (32 counted every occurrence, the declarations included) |
+| `FixedVec` "5 sites" | 5 | **3 data blocks** (and 8 `// comptime-n:` notes) |
+
+Also confirmed: `Attempts` has 12 fields; hexbuild has 33 module globals; 2 `elif let` sites are
+`else { if let }`; 6 `assert false` are followed by a return; `wasm` without `-o` writes `<file>.wasm`
+beside the source; the three error messages quoted in §5.3 are verbatim (the parse error lists 20 to 60
+expected tokens, not "about 60"); a `type` is not importable (reference §7.1). `check core.ents` says
+1,058 declarations (1,081 is `test/g7.ents`). Comptime value parameters came with #32 (60648b8);
+8f459f1 is #33. The 54 renames are the groups' logged counts and leave no mark in the source.
+
+<!-- 8.5 runtime and 8.6 generation quality: being rerun under the lock -->
 
 ## Reproducing
 

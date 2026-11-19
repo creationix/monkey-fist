@@ -1,0 +1,9 @@
+{
+  differ: 82,
+  hexPositions: 60,
+  hexMapsNotInJsJourney: 60,
+  squareSamePos: 38,
+  squareMoved: 22,
+  squareNew: 0,
+  jsHexPositions: 60
+}

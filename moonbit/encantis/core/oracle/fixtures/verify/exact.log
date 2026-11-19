@@ -1,0 +1,101 @@
+== node /home/user/mf-core-scratch/verify/exact-gen.cjs /home/user/mf-verify/moonbit/encantis/core/test/g7.wasm js U3-S-1-100-12-12-60-MS-VFYS1 60 U3-S-1-100-6-8-60-N-VFYS2 60 U3-S-1-100-20-20-20-M-VFYS3 20 U3-S-1-100-24-6-20-S-VFYS4 20 U3-S-1-100-32-32-4-MSC-VFYS5 4 U3-H-1-100-10-10-60-S-VFYH1 60 U3-H-1-100-14-12-60-MS-VFYH2 60 U3-H-1-100-24-24-20-M-VFYH3 20 U3-H-1-100-6-20-30-N-VFYH4 30 U3-H-1-100-32-32-4-MSC-VFYH5 4 U3-M-1-100-16-12-40-MS-VFYM1 40 (15:44:47)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.23.4
+exit 1
+== node /home/user/mf-core-scratch/verify/exact-gen.cjs /home/user/mf-verify/moonbit/encantis/core/core.wasm port U3-S-1-100-12-12-60-MS-VFYS1 60 U3-S-1-100-6-8-60-N-VFYS2 60 U3-S-1-100-20-20-20-M-VFYS3 20 U3-S-1-100-24-6-20-S-VFYS4 20 U3-S-1-100-32-32-4-MSC-VFYS5 4 U3-H-1-100-10-10-60-S-VFYH1 60 U3-H-1-100-14-12-60-MS-VFYH2 60 U3-H-1-100-24-24-20-M-VFYH3 20 U3-H-1-100-6-20-30-N-VFYH4 30 U3-H-1-100-32-32-4-MSC-VFYH5 4 U3-M-1-100-16-12-40-MS-VFYM1 40 (15:45:57)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.23.4
+exit 1
+== negative control: core.wasm compared exactly on a Hex code must differ
+== node /home/user/mf-core-scratch/verify/exact-gen.cjs /home/user/mf-verify/moonbit/encantis/core/core.wasm js U3-H-1-100-10-10-60-S-VFYH1 5 (15:47:05)
+DIFFERS U3-H-1-100-10-10-60-S-VFYH1 3  
+DIFFERS U3-H-1-100-10-10-60-S-VFYH1 4  
+{"wasm":"core.wasm","mode":"js","equal":0,"differ":5,"noneBoth":0,"hexChecked":0,"hexInvalid":0,"hexEqualAnyway":0,"jsSeconds":0.3,"wasmSeconds":0.03}
+exit 1
+== node check-g1-wide.cjs (15:47:06)
+ok   5 codes: 565153 comparisons, 0 failed (1155 ms)
+ok   6 boards: 5263 comparisons, 0 failed (6569 ms)
+ok   7 keys: 300069 comparisons, 0 failed (1442 ms)
+ok   8 limits: 14 comparisons, 0 failed (19 ms)
+note: codes the JS takes and MoonBit refuses: 83; dist/gen.wasm refuses 83 of the 83 the model refuses; the code units behind them (31): U+000B U+000C U+00A0 U+00DF U+0131 U+017F U+1680 U+2000 U+2001 U+2002 U+2003 U+2004 U+2005 U+2006 U+2007 U+2008 U+2009 U+200A U+2028 U+2029 U+202F U+205F U+3000 U+FB00 U+FB01 U+FB02 U+FB03 U+FB04 U+FB05 U+FB06 U+FEFF
+/home/user/mf-verify/moonbit/encantis/core/test/g1.wasm (wide): all passed, 21504078 comparisons in 16.8 s; stack peak 5 bytes
+exit 0
+== node check-g2-wide.cjs --seed 91357 (15:47:23)
+  limit: S135 (40x33, 270 ropes, 3 mirrors) start: solve budget 0
+  limit: S135 (40x33, 270 ropes, 3 mirrors) random 1: solve budget 0
+  limit: S135 (40x33, 270 ropes, 3 mirrors) random 2: solve budget 0
+  limit: S135 (40x33, 270 ropes, 3 mirrors) random 3: solve budget 0
+  limit: S135 (40x33, 270 ropes, 3 mirrors) random 4: solve budget 0
+/home/user/mf-verify/moonbit/encantis/core/test/g2.wasm: all passed in 64.3 s; stack peak 19328 bytes after the last call
+exit 0
+== node check-g3-wide.cjs --seed 24680 (15:48:27)
+ok   hex kernel, wide: 550 boards (33 whose ways out pass a cell twice), 2207 positions; 50773 comparisons of 3089372 values (compile 2207, rays 2207, turning 2207, solve 19863, fewest 11035, replay 2195, postpone 2207, casual 8828, limits 24), 0 failed, 0 limit traps (9.2 s; cases 0.4 s)
+/home/user/mf-verify/moonbit/encantis/core/test/g3.wasm: all passed in 9.5 s; stack peak 28952 bytes after the last call
+exit 0
+== node check-g6-fuzz.cjs --seed 7 --boards 2000 (15:48:37)
+ok   fuzz (seed 7): 1994 boards, 15952 comparisons, 0 differ
+exit 0
+== node check-g6-fuzz.cjs --seed 8 --boards 2000 (15:48:39)
+ok   fuzz (seed 8): 1997 boards, 15976 comparisons, 0 differ
+exit 0
+== node check-core-rope.cjs --wide 4000 --seed 777 (15:48:41)
+ok   repeatedCore, recorded: 282 calls over 135 levels (277 gave a core), 0 failed (24 ms)
+ok   repeatedCore, wide: 4000 calls on random inputs (3664 gave a core), 0 failed (1972 ms)
+/home/user/mf-verify/moonbit/encantis/core/test/g5.wasm: all passed; stack peak 136512 bytes; no imports
+exit 0
+== node check-hexbuild-shadow.cjs --suffix VF --per 2 (15:48:43)
+44 levels (0 not generated), 301 builds (0 null, 0 thrown), 903 intentions; 4814 comparisons (102184 rope and plan words), 0 failed, 22.9 s
+exit 0
+== node check-g7-units.cjs (15:49:06)
+g7.wasm (the JS's mode): 2821 calls (woven 1255, placeMirrors 837, addSpinners 729), 556393 values, 0 failed (5.3 s)
+exit 0
+== node check-g7-units.cjs --port (15:49:11)
+g7.wasm (the port's mode): 2821 calls (woven 1255, placeMirrors 837, addSpinners 729), 556393 values, 0 failed; Hex woven departed from the JS on 624, all 624 of them valid or none (4.8 s)
+exit 0
+== node check-g7-robust.cjs --wasm ../core.wasm (15:49:16)
+core.wasm: done
+robustness: 85 checks, 0 failed
+exit 0
+== node check-g7-robust.cjs (15:49:17)
+core.wasm: done
+g7.wasm (the JS's mode): done
+g7.wasm (the port's mode): done
+robustness: 255 checks, 0 failed
+exit 0
+== node check-journey-port.cjs (15:49:18)
+core.wasm: 120 of 120 Journey levels are the search's boards, 120 of 120 measure as stored; every level valid by the JS kernels and the search rules (10.0 s)
+exit 0
+== node check-g7-review-assist.cjs --codes U3-H-1-100-12-12-12-MS-VFYA1,U3-H-1-100-20-20-6-M-VFYA2,U3-M-1-100-10-14-12-S-VFYA3 (15:49:28)
+core.wasm: 150 boards (84 Hex, 125 with mechanics), 6481 positions, 31496 answers compared, 0 differ (290.7 s)
+exit 0
+== harness core: parity.mjs (15:54:26)
+wasm: 46 match, 89 differ; total 5.9 s, max 566 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+not ok 2 - wasm-gc: every Journey level matches the JS generator
+not ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+not ok 5 - wasm: all 120 Journey levels match the JS reference
+not ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 2
+# fail 4
+== harness g7: parity.mjs (15:54:39)
+wasm: 135 match, 0 differ; total 7.2 s, max 725 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+ok 2 - wasm-gc: every Journey level matches the JS generator
+ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+ok 5 - wasm: all 120 Journey levels match the JS reference
+ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 6
+# fail 0
+== done 15:54:56

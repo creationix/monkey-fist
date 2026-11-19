@@ -6,7 +6,8 @@ the `bench_*` hooks of `src/api`) in Encantis, with the compiler of encantis ori
 core monkeyfist code using latest encantis and see how it performs (both DX and runtime)"*.
 
 **The report for the owner, with the final measurements (19 Nov): [`REPORT.md`](REPORT.md).** The
-figures below are G7's; REPORT.md's supersede them where they differ.
+figures below are G7's; REPORT.md's supersede them where they differ. REPORT.md §8 is an independent verification of the report
+(19 Nov): what was rerun, the numbers it got, and what it corrected.
 
 `core.wasm` is a drop-in for MoonBit's `dist/gen.wasm` and `dist/mf.wasm`: the same exports, the
 same signatures (i32 and f64 only), the same words, and no imports. The game's glue

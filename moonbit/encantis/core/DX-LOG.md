@@ -3717,3 +3717,37 @@ restarted. Scratch: `/home/user/mf-core-scratch/measure/` (bench/, logs/, builds
 | compile: Encantis whole-program check / moon check after an edit, s | 3.77 / 0.15 |
 | check-all (every group's oracle) / MoonBit's tests through the glue on g7.wasm and g7 -O / on core.wasm and core -O | every check passed (40, 23 min 46 s) / 6 of 6 and parity 135 of 135 / 2 of 6 (the 4 that ask for the JS's Hex levels fail by design), parity 46 of 135 |
 | compiler bugs new / reproduced again | 0 / 4 (01, 02, 04, 07) |
+
+## 19 Nov: independent verification of REPORT.md (at 932bd00)
+
+Compiler: encantis origin/main **399ca7e** (fetched again at the start: unchanged). A fresh worktree of
+the pushed head, `build.sh` under the lock (49.4 s, 70 inline tests in 24 files): every wasm rebuilt byte
+for byte, and the `-O`, `--release` and `wasm-opt -O3` builds are byte-identical to the measurement's.
+No Ents file was changed. No predecessor. Scratch: `/home/user/mf-core-scratch/verify/`; the scripts are
+in `oracle/verify/`. The reference is my own `git archive 9e69e3a`, and `reference.json` was dumped
+again from it (identical to the shared one).
+
+### Found (in the port's code)
+
+1. **A live bugs/02 site.** `abi.ents:291` is `export func keep_level(l: *Level, buf: [*]mut i32, room:
+   u32)`, and `abi.ents:36` is `def room = 65536:u32`. Inside the body `room` is the def: the WAT stores
+   `(i32.const 65536)` into `Words.room` and never reads the parameter. Its one caller
+   (`gridgen.ents:684`) passes `keep_room`, which is also 65536, so no output changes today; a caller
+   with a smaller buffer would lose the bound check. REPORT.md said the port avoided bug 02 by rule
+   ("no parameter named like a def"); the rule was broken once and no review noticed. Found by a
+   10-line script that compares every function's parameter names with its module's `def`s (1 hit in
+   the port's 21 files, 0 in `lib/` and `test/`). The compiler gives no warning: a `let` or a loop
+   variable named like a def is refused, a parameter is accepted and then ignored. Fix (not made here:
+   the brief is to verify): rename the parameter, e.g. `words_room`.
+2. **Counts the report rounded or carried over.** By the report's own rule (sites in the port's files,
+   header mentions left out), recounted with grep: `// closure:` 54 (the report said 53), `// enum:`
+   26 (27), `// unchecked:` 163 (165: the two header mentions in hex.ents and square.ents were
+   counted), `// reserve:` 47 (47), `// comptime-n:` 8 notes (the report called them 5 FixedVec
+   sites; `FixedVec(n, T)` is used in 3 data blocks). `Geo` is written out 7 times (home mech.ents and
+   6 restatements; the report said four files). Comptime sinks passed on by hand: about 49 call sites
+   (codes 30, random 8, gridgen 6, abi 5; the report carried G1's 18). Hand-inlined hot spots: 4 (3
+   `// inline:` plus the builder's free-cell test; the report said 3). Scratch-cell bit accesses in
+   `pow`: 23 calls (the report's 32 counted every occurrence, the 5 helper declarations included).
+   `check core.ents` reports 1,058 declarations (the report's 1,081 is `test/g7.ents`). Confirmed
+   as stated: 423 casts (206 `as u32`, 217 `as i32`), `Attempts` with 12 fields, 33 module globals in
+   hexbuild, 2 `elif let` sites written as `else { if let }`, 6 `assert false` followed by a return.

@@ -1,0 +1,11 @@
+core.wasm        113721 43525 37404 imports 0
+core -O          89053 38481 33337 imports 0
+core --release   88615 38225 33117 imports 0
+core O3          93078 38652 33530 imports 0
+g7.wasm          115047 44632 37946 imports 0
+g7 -O            90310 39167 33828 imports 0
+gen.wasm         137415 54873 46409 imports 0
+gen.js           588457 77506 57928 imports 
+mf.wasm          168137 65253 55386 imports 0
+mf.js            640248 85832 64770 imports 
+JS core 9 files 156623 44772 37145

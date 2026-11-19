@@ -1,0 +1,33 @@
+test lib/stack.ents: 4 passed, 0 failed
+test lib/vec.ents: 4 passed, 0 failed
+test lib/set.ents: 3 passed, 0 failed
+test lib/map.ents: 3 passed, 0 failed
+test lib/sort.ents: 3 passed, 0 failed
+test lib/text.ents: 3 passed, 0 failed
+test random.ents: 5 passed, 0 failed
+test fmath.ents: 2 passed, 0 failed
+test board.ents: 3 passed, 0 failed
+test keys.ents: 3 passed, 0 failed
+test codes.ents: 3 passed, 0 failed
+wasm test/g1.ents: Wrote 29989 bytes to test/g1.wasm
+test weave-rng.ents: 2 passed, 0 failed
+test weave-board.ents: 6 passed, 0 failed
+test weave.ents: 6 passed, 0 failed
+test square.ents: 3 passed, 0 failed
+wasm test/weave.ents: Wrote 24964 bytes to test/weave.wasm
+wasm test/g2.ents: Wrote 57419 bytes to test/g2.wasm
+test hex.ents: 3 passed, 0 failed
+wasm test/g3.ents: Wrote 37620 bytes to test/g3.wasm
+test lib/fixedvec.ents: 2 passed, 0 failed
+test hexbuild.ents: 2 passed, 0 failed
+wasm test/g4.ents: Wrote 48687 bytes to test/g4.wasm
+test mech.ents: 1 passed, 0 failed
+test assist.ents: 2 passed, 0 failed
+test core-rope.ents: 1 passed, 0 failed
+wasm test/g5.ents: Wrote 64029 bytes to test/g5.wasm
+test metrics.ents: 2 passed, 0 failed
+test play.ents: 2 passed, 0 failed
+wasm test/g6.ents: Wrote 68819 bytes to test/g6.wasm
+test gridgen.ents: 2 passed, 0 failed
+wasm test/g7.ents: Wrote 115047 bytes to test/g7.wasm
+wasm core.ents: Wrote 113721 bytes to core.wasm
