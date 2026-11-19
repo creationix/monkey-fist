@@ -62,5 +62,11 @@ echo "== check-core-rope.cjs"
 node check-core-rope.cjs || fail=1
 echo "== check-g5-harness.sh"
 sh ./check-g5-harness.sh || fail=1
+# G5's review: check-g5's battery on the 440 boards of four fixtures (to 48x48, 174 with spinners),
+# with the game's auto-solve (guide 5,000, no preferred order) and the generator's minimumTaps.
+# Seconds with the JS's answers cached in /home/user/mf-core-scratch/review-g5/cache; about an hour
+# of JS to fill on a fresh machine (check-g5-review.cjs --fill --part i/3 in three workers).
+echo "== check-g5-review.cjs"
+node check-g5-review.cjs || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
