@@ -2,10 +2,12 @@
 // regenerates with the stored play measurements"), run on dist/gen.wasm instead of
 // the JS build that MFMoonBit.local() loads. It checks generate_spec, measure,
 // target_challenge and the slide/mechanic stats and doubles that generate() returns.
+// MF_MEASUREMENTS names another measurements file: the port's own Journey
+// (encantis/core/oracle/fixtures/journey-port-measurements.json) for core.wasm.
 const test = require('node:test'), assert = require('node:assert'), fs = require('fs'), path = require('path');
 globalThis.MFGame = require('../../game-engine.js');
 const MFMoonBit = require('../web/generator.js');
-const journey = require('../../scripts/grid-journey-measurements.json');
+const journey = require(process.env.MF_MEASUREMENTS || '../../scripts/grid-journey-measurements.json');
 test('wasm: every Journey specification regenerates with the stored play measurements', { timeout: 600000 }, async () => {
   const { instance } = await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, '../dist/gen.wasm')), {});
   const gen = MFMoonBit.wrap(instance.exports, 'wasm-gc'), bad = [];

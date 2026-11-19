@@ -45,6 +45,9 @@ import "../keys" (
   "set_key" func set_key(comptime W: type, comptime V: type, m: *mut KeyMap(W, V), key: []W, v: V) -> bool
   "get_key" func get_key(comptime W: type, comptime V: type, m: *KeyMap(W, V), key: []W, fallback: V) -> V
 )
+import "../journey" (
+  "use_js_journey" func use_js_journey(on: bool)
+)
 import "../codes" (
   "parse_code" func parse_code(units: []i32) -> ?*SetOpts
   "code" func code(comptime S: type, s: S, o: *SetOpts, comptime put: (S, u8) -> S) -> S
@@ -196,9 +199,11 @@ export func t_parse() -> i32 {
 
 // The spec of level i of the set of the code in the input: hex, W, H, mirrors,
 // springs, require_slide, min_mirrors, min_springs, colossal, the seed; double 0 the
-// difficulty. 0 for a code that is not valid.
+// difficulty. 0 for a code that is not valid. The Journey is the JS game's (grid-journey.js), whose
+// specs check-g1 compares; the core's own Journey (journey.ents's specs_port) is G7's.
 export func t_spec(i: i32) -> i32 {
   clear()
+  use_js_journey(true)
   out_clear()
   if let o = parse_code(input()) {
     let s = level_spec(o, i)
