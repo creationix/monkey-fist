@@ -5,13 +5,34 @@
 <script type="module">
 // Generation benchmark in the browser: the JS reference engine (loaded from ?ref=,
 // a checkout of 9e69e3a) against the MoonBit core on wasm-gc and on JS.
+// More wasm builds with the same numbers ABI (an Encantis port) join with ?enc=<name>=<url>
+// (repeatable). ?rounds=R times every engine in R interleaved rounds (round 1 is the first run,
+// the rest the steady state); ?cold=<engine name> loads that one engine alone and times the load
+// and the first 12 levels. Without these the page does what it always did.
 import { wrap } from '../web/mf-core.js';
 const params = new URLSearchParams(location.search), ref = params.get('ref') || '../../', N = +(params.get('levels') || 120);
+const encs = params.getAll('enc').map(e => { const k = e.indexOf('='); return [e.slice(0, k), e.slice(k + 1)]; });
+const R = params.get('rounds') ? +params.get('rounds') : 0, cold = params.get('cold');
 const log = s => { document.getElementById('log').textContent += '\n' + s; };
 const scripts = ['random.js', 'levels.js', 'mechanics.js', 'hex/engine.js', 'hex/mechanics.js', 'dependency-metrics.js', 'grid-generator.js', 'grid-journey.js', 'game-engine.js'];
 const result = { userAgent: navigator.userAgent, startup: {}, generation: {}, perLevel: {} };
+const loadRef = async () => { for (const s of scripts) await new Promise((ok, fail) => { const e = document.createElement('script'); e.src = ref + s; e.onload = ok; e.onerror = fail; document.head.append(e); }); };
+const loadWasmUrl = async url => wrap((await WebAssembly.instantiateStreaming(fetch(url), {})).instance.exports);
+if (cold) {
+  // First run: one engine in a fresh page, nothing else loaded or warmed.
+  const t = performance.now(); let gen;
+  if (cold === 'JS reference') { await loadRef(); gen = i => MFGame.generate({ kind: 'journey', index: i }); }
+  else if (cold === 'MoonBit wasm-gc') { const w = await loadWasmUrl('../dist/mf.wasm'); gen = i => w.generate('J3-MONKEYFIST', i); }
+  else if (cold === 'MoonBit JS') { const m = wrap(await import('../dist/mf.js')); gen = i => m.generate('J3-MONKEYFIST', i); }
+  else { const e = encs.find(([n]) => n === cold); const w = await loadWasmUrl(e[1]); gen = i => w.generate('J3-MONKEYFIST', i); }
+  const loadMs = performance.now() - t, per = [];
+  for (let i = 0; i < 12; i++) { const s = performance.now(); if (!gen(i)) throw Error(cold + ' failed ' + i); per.push(performance.now() - s); }
+  Object.assign(result, { engine: cold, loadMs, firstLevelMs: per[0], loadToFirstLevelMs: loadMs + per[0], first12Ms: per.reduce((a, b) => a + b, 0), perLevel: per });
+  log(`${cold}: load ${loadMs.toFixed(1)} ms, level 1 ${per[0].toFixed(1)} ms, first 12 ${result.first12Ms.toFixed(0)} ms`);
+  window.results = result; log('done');
+} else {
 let t = performance.now();
-for (const s of scripts) await new Promise((ok, fail) => { const e = document.createElement('script'); e.src = ref + s; e.onload = ok; e.onerror = fail; document.head.append(e); });
+await loadRef();
 result.startup['JS reference (9 scripts)'] = performance.now() - t;
 t = performance.now();
 const { instance } = await WebAssembly.instantiateStreaming(fetch('../dist/mf.wasm'), {});
@@ -19,13 +40,40 @@ const wasm = wrap(instance.exports); result.startup['MoonBit wasm-gc (fetch+comp
 t = performance.now();
 const mjs = wrap(await import('../dist/mf.js')); result.startup['MoonBit JS (import)'] = performance.now() - t;
 const engines = { 'JS reference': i => MFGame.generate({ kind: 'journey', index: i }), 'MoonBit wasm-gc': i => wasm.generate('J3-MONKEYFIST', i), 'MoonBit JS': i => mjs.generate('J3-MONKEYFIST', i) };
-for (const [name, gen] of Object.entries(engines)) {
-  const times = [];
-  for (let i = 0; i < N; i++) { const s = performance.now(); const b = gen(i); times.push(performance.now() - s); if (!b) throw Error(name + ' failed ' + i); }
-  const sorted = times.slice().sort((a, b) => a - b), total = times.reduce((a, b) => a + b, 0);
-  result.generation[name] = { total, mean: total / N, median: sorted[N >> 1], max: sorted[N - 1] }; result.perLevel[name] = times;
-  log(`${name}: total ${total.toFixed(0)} ms, mean ${(total / N).toFixed(1)}, max ${sorted[N - 1].toFixed(0)}`);
-  await new Promise(r => setTimeout(r, 50));
+for (const [name, url] of encs) {
+  t = performance.now(); const w = await loadWasmUrl(url); result.startup[`${name} (fetch+compile+instantiate)`] = performance.now() - t;
+  engines[name] = i => w.generate('J3-MONKEYFIST', i);
+}
+if (!R) {
+  for (const [name, gen] of Object.entries(engines)) {
+    const times = [];
+    for (let i = 0; i < N; i++) { const s = performance.now(); const b = gen(i); times.push(performance.now() - s); if (!b) throw Error(name + ' failed ' + i); }
+    const sorted = times.slice().sort((a, b) => a - b), total = times.reduce((a, b) => a + b, 0);
+    result.generation[name] = { total, mean: total / N, median: sorted[N >> 1], max: sorted[N - 1] }; result.perLevel[name] = times;
+    log(`${name}: total ${total.toFixed(0)} ms, mean ${(total / N).toFixed(1)}, max ${sorted[N - 1].toFixed(0)}`);
+    await new Promise(r => setTimeout(r, 50));
+  }
+} else {
+  // Interleaved rounds: every engine makes the N levels once per round, in turn.
+  const rounds = Object.fromEntries(Object.keys(engines).map(k => [k, []])), keys = {};
+  result.rounds = rounds;
+  for (let r = 0; r < R; r++) {
+    for (const [name, gen] of Object.entries(engines)) {
+      const times = [], lk = [];
+      for (let i = 0; i < N; i++) { const s = performance.now(); const b = gen(i); times.push(performance.now() - s); if (!b) throw Error(name + ' failed ' + i); lk.push(b.layoutKey); }
+      rounds[name].push(times.reduce((a, b) => a + b, 0)); keys[name] = lk;
+      if (r === 0) result.perLevel[name + ' (round 1)'] = times;
+      if (r === R - 1) result.perLevel[name] = times;
+      await new Promise(res => setTimeout(res, 50));
+    }
+    log(`round ${r + 1}: ` + Object.entries(rounds).map(([k, v]) => `${k} ${v[r].toFixed(0)}`).join(' | '));
+  }
+  for (const [name, v] of Object.entries(rounds)) {
+    const steady = R > 1 ? v.slice(1) : v, s = steady.slice().sort((a, b) => a - b);
+    result.generation[name] = { firstRound: v[0], steadyRounds: s.length, median: s[(s.length - 1) >> 1] / 2 + s[s.length >> 1] / 2, min: s[0], max: s[s.length - 1],
+      levelsSameAsJs: keys[name].filter((k, i) => k === keys['JS reference'][i]).length };
+  }
 }
 window.results = result; log('done');
+}
 </script>

@@ -1,0 +1,143 @@
+
+G1
+MoonBit replaced                                                 lines  tokens
+  core/random.mbt (19 declarations)                                   105     691
+  core/types.mbt (10 declarations)                                     47     280
+  core/engine.mbt (8 declarations)                                    185    1133
+  core/gridgen.mbt (4 declarations)                                    36     164
+  core/metrics.mbt (1 declarations)                                    10      67
+  core/square.mbt (11 declarations)                                    57     410
+  gen/gen.mbt (14 declarations)                                       123     864
+  total                                                               563    3609
+  (generated, apart)                                                 1562    5651
+Encantis                                                             lines  tokens
+  random.ents                                                         116    1016
+  board.ents                                                           73     772
+  codes.ents                                                          174    2041
+  abi.ents                                                            190    1780
+  total, ported code                                                  553    5609
+  fmath.ents (new: no MoonBit counterpart)                            285    2145
+  keys.ents (new: no MoonBit counterpart)                              91    1053
+  journey.ents (generated, apart)                                     249   11100
+  import declarations (restated signatures)                            55     506
+  restated types (copied canonical blocks and others)                  14     312
+  (inline tests, not counted)                                         195    1875
+  ported code / MoonBit: 1.55x tokens; with its imports and restated types 1.78x; imports and types are 8% of all non-generated tokens
+  generated table: 11100 tokens against MoonBit's 5651 (1.96x)
+
+G2
+MoonBit replaced                                                 lines  tokens
+  core/square.mbt (29 declarations)                                   662    4120
+  total                                                               662    4120
+Encantis                                                             lines  tokens
+  square.ents                                                         582    5116
+  total, ported code                                                  582    5116
+  import declarations (restated signatures)                            39     537
+  restated types (copied canonical blocks and others)                   3      45
+  (inline tests, not counted)                                          61     696
+  ported code / MoonBit: 1.24x tokens; with its imports and restated types 1.38x; imports and types are 10% of all non-generated tokens
+
+G2 weave
+MoonBit replaced                                           lines  tokens
+  core/weave.mbt (32 declarations)                                   1182    7832
+  core/square.mbt (7 declarations)                                    109     791
+  core/gridgen.mbt (1 declarations)                                     3      33
+  total                                                              1294    8656
+Encantis                                                             lines  tokens
+  weave.ents                                                          900    7346
+  weave-board.ents                                                    430    3069
+  weave-rng.ents                                                       37     290
+  total, ported code                                                 1367   10705
+  import declarations (restated signatures)                            91    1005
+  restated types (copied canonical blocks and others)                   4      53
+  (inline tests, not counted)                                         266    2153
+  ported code / MoonBit: 1.24x tokens; with its imports and restated types 1.36x; imports and types are 9% of all non-generated tokens
+
+G3
+MoonBit replaced                                                 lines  tokens
+  core/hex.mbt (27 declarations)                                      602    3772
+  total                                                               602    3772
+Encantis                                                             lines  tokens
+  hex.ents                                                            548    4911
+  total, ported code                                                  548    4911
+  import declarations (restated signatures)                            41     576
+  restated types (copied canonical blocks and others)                   7     124
+  (inline tests, not counted)                                          56     894
+  ported code / MoonBit: 1.30x tokens; with its imports and restated types 1.49x; imports and types are 12% of all non-generated tokens
+
+G4
+MoonBit replaced                                                 lines  tokens
+  core/hex.mbt (6 declarations)                                       548    3654
+  total                                                               548    3654
+Encantis                                                             lines  tokens
+  hexbuild.ents                                                       726    5912
+  total, ported code                                                  726    5912
+  import declarations (restated signatures)                            45     637
+  restated types (copied canonical blocks and others)                  12     284
+  (inline tests, not counted)                                          69     797
+  ported code / MoonBit: 1.62x tokens; with its imports and restated types 1.87x; imports and types are 13% of all non-generated tokens
+
+G5
+MoonBit replaced                                                 lines  tokens
+  core/mech.mbt (21 declarations)                                     555    3520
+  core/assist.mbt (2 declarations)                                    105     705
+  core/gridgen.mbt (2 declarations)                                   154    1145
+  total                                                               814    5370
+Encantis                                                             lines  tokens
+  mech.ents                                                           550    4800
+  assist.ents                                                         115     874
+  core-rope.ents                                                      172    1586
+  total, ported code                                                  837    7260
+  import declarations (restated signatures)                           132    1811
+  restated types (copied canonical blocks and others)                  29     696
+  (inline tests, not counted)                                          73     930
+  ported code / MoonBit: 1.35x tokens; with its imports and restated types 1.82x; imports and types are 26% of all non-generated tokens
+
+G6
+MoonBit replaced                                                 lines  tokens
+  core/metrics.mbt (4 declarations)                                   281    1995
+  core/gridgen.mbt (14 declarations)                                  262    2145
+  total                                                               543    4140
+Encantis                                                             lines  tokens
+  metrics.ents                                                        317    2823
+  play.ents                                                           343    2862
+  total, ported code                                                  660    5685
+  import declarations (restated signatures)                            89    1176
+  restated types (copied canonical blocks and others)                  17     393
+  (inline tests, not counted)                                          63     780
+  ported code / MoonBit: 1.37x tokens; with its imports and restated types 1.75x; imports and types are 22% of all non-generated tokens
+
+G7
+MoonBit replaced                                                 lines  tokens
+  core/gridgen.mbt (9 declarations)                                   575    3786
+  core/engine.mbt (2 declarations)                                      9      69
+  gen/gen.mbt (7 declarations)                                         74     412
+  api/api.mbt (3 declarations)                                         17     150
+  total                                                               675    4417
+Encantis                                                             lines  tokens
+  gridgen.ents                                                        460    4811
+  gen.ents                                                            117     761
+  core.ents                                                            27     278
+  total, ported code                                                  604    5850
+  import declarations (restated signatures)                           156    1600
+  restated types (copied canonical blocks and others)                  45    1106
+  (inline tests, not counted)                                          34     335
+  ported code / MoonBit: 1.32x tokens; with its imports and restated types 1.94x; imports and types are 32% of all non-generated tokens
+
+The whole port (G1 to G7) against src/core and src/gen/gen.mbt (journey.mbt, generated, apart: 5651 tokens)
+  MoonBit: src/core (but journey.mbt) and src/gen                    5684   37588
+  Encantis: ported code                                              5877   51048
+  Encantis: new code with no MoonBit counterpart (fmath, keys)        376    3198
+  Encantis: import declarations                                       648    7848
+  Encantis: restated types                                            131    3013
+  Encantis: all of it                                                7032   65107
+  ported + new code / MoonBit: 1.44x tokens; with imports and restated types 1.73x
+
+lib/ (copied, not counted):
+  lib/fixedvec.ents                                                    24     355
+  lib/map.ents                                                         75     903
+  lib/set.ents                                                         84     909
+  lib/sort.ents                                                        98     762
+  lib/stack.ents                                                       39     245
+  lib/text.ents                                                        59     533
+  lib/vec.ents                                                         45     465

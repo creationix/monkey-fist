@@ -1,0 +1,10 @@
+core.wasm: the 120 Journey levels (60 Hex); ropes 2113, cells 12251, plan moves 2507
+  encoding                                                           bytes  gzip -9
+  JSON of the boards (a JS file for the fallbacks), all 120          211106    22702
+  compact JSON (arrays of numbers), all 120                           70095    17171
+  packed bytes (a wasm data block), all 120                           31428    15354
+  compact JSON, the 60 Hex levels alone                               34494     8342
+  packed bytes, the 60 Hex levels alone                               15202     7384
+  the port's Journey table (fixtures/journey-port.js, for grid-journey.js)    14229     2214
+  (the JS game's grid-journey.js, for scale)                          14183     2194
+  packed bytes as base64 in a JS string, all 120                      41904    19920

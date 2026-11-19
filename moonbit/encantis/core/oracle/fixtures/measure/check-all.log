@@ -1,0 +1,230 @@
+start 15:14:35
+== check-g1-wide.cjs
+ok   1 draws: 10010000 comparisons, 0 failed (1821 ms)
+ok   2 hashes: 340300 comparisons, 0 failed (1071 ms)
+ok   3 pow: 3800002 comparisons, 0 failed (1992 ms)
+ok   4 rounding: 6483277 comparisons, 0 failed (1687 ms)
+ok   5 codes: 565153 comparisons, 0 failed (936 ms)
+ok   6 boards: 5263 comparisons, 0 failed (5365 ms)
+ok   7 keys: 300069 comparisons, 0 failed (1226 ms)
+ok   8 limits: 14 comparisons, 0 failed (18 ms)
+note: codes the JS takes and MoonBit refuses: 83; dist/gen.wasm refuses 83 of the 83 the model refuses; the code units behind them (31): U+000B U+000C U+00A0 U+00DF U+0131 U+017F U+1680 U+2000 U+2001 U+2002 U+2003 U+2004 U+2005 U+2006 U+2007 U+2008 U+2009 U+200A U+2028 U+2029 U+202F U+205F U+3000 U+FB00 U+FB01 U+FB02 U+FB03 U+FB04 U+FB05 U+FB06 U+FEFF
+/home/user/mf-core/moonbit/encantis/core/test/g1.wasm (wide): all passed, 21504078 comparisons in 14.1 s; stack peak 5 bytes
+== check-g1.cjs
+ok   1 draws: 1000000 comparisons, 0 failed (142 ms)
+ok   2 hashes: 34609 comparisons, 0 failed (38 ms)
+ok   3 pow: 141868 comparisons, 0 failed (83 ms)
+ok   4 rounding: 3011978 comparisons, 0 failed (635 ms)
+ok   5 codes: 11234 comparisons, 0 failed (55 ms)
+ok   6 layout: 405 comparisons, 0 failed (13 ms)
+ok   7 abi: 4775 comparisons, 0 failed (738 ms)
+ok   8 keys: 200005 comparisons, 0 failed (454 ms)
+ok   + mirrors: 68 comparisons, 0 failed (3 ms)
+note: MoonBit dist/gen.wasm target_challenge differs from the JS on 316 of 10001 difficulties (fdlibm pow without V8's change); the port on 0
+note: codes MoonBit and the JS read differently: 115; the JS takes them, MoonBit refuses them (by its model), and dist/gen.wasm refuses 115 of the 115 the model refuses
+note:   for instance " U3-S-1-100-10-14-120-MS-SEED", "U3-S-1-100-10-14-120-MS-SEED ", " U3-S-1-100-10-14-120-MS-SEED ", "﻿U3-S-1-100-10-14-120-MS-SEED"
+ok   inline tests of lib/stack.ents: 4 passed, 0 failed
+ok   inline tests of random.ents: 5 passed, 0 failed
+ok   inline tests of fmath.ents: 2 passed, 0 failed
+ok   inline tests of board.ents: 3 passed, 0 failed
+ok   inline tests of keys.ents: 3 passed, 0 failed
+ok   inline tests of codes.ents: 3 passed, 0 failed
+/home/user/mf-core/moonbit/encantis/core/test/g1.wasm: all passed in 5.1 s; stack peak 15328 bytes; no imports
+== check-g2-weave-big.cjs
+ok   weave on big boards: 118 calls from 17 specifications (84 with mirrors, 40 with a core, 2 null, largest 2304 cells, 0 JS errors), 0 mismatches (JS 20.8 s, all 31.3 s)
+== check-g2-wide.cjs
+ok   square kernel, wide: 714 boards (26 whose ways out pass a cell twice), 3524 positions; 105730 comparisons of 6174149 values (tracks 3524, free 3524, frozen 3524, dead 3524, rays 3524, solve 31716, taps 7045, fewest 21141, replay 7033, postpone 7045, casual 14096, limits 34), 0 failed, 11 limit traps (50.1 s; cases 7.3 s)
+  limit: S199 (42x48, 538 ropes, 2 mirrors) start: solve budget 0
+  limit: S296 (36x38, 260 ropes, 0 mirrors) start: solve budget 0
+  limit: S296 (36x38, 260 ropes, 0 mirrors) random 1: solve budget 0
+  limit: S296 (36x38, 260 ropes, 0 mirrors) random 2: solve budget 0
+  limit: S296 (36x38, 260 ropes, 0 mirrors) random 3: solve budget 0
+/home/user/mf-core/moonbit/encantis/core/test/g2.wasm: all passed in 57.4 s; stack peak 19328 bytes after the last call
+== check-g2.cjs
+ok   square kernel: 1579 positions on 35 boards, 22106 comparisons of 1536938 values (tracks 1579, free 1579, frozen 1579, dead 1579, solve 6316, taps 1579, fewest 1579, replay 1579, postpone 1579, casual 1579, rays 1579), 0 failed (25.0 s; cases 0.2 s)
+ok   knots and styles: 51182 comparisons, 0 failed (13 ms)
+ok   weave on g2.wasm (check-weave.cjs): 249 cases (16 null), in order and in reverse: 0 mismatches
+/home/user/mf-core/moonbit/encantis/core/test/g2.wasm: all passed in 33.1 s; stack peak 809980 bytes (C11 plan 9: fewest budget 2500); no imports
+== check-g3-wide.cjs
+ok   hex kernel, wide: 550 boards (32 whose ways out pass a cell twice), 2112 positions; 48589 comparisons of 2632695 values (compile 2112, rays 2112, turning 2112, solve 19008, fewest 10560, replay 2101, postpone 2112, casual 8448, limits 24), 0 failed, 0 limit traps (7.2 s; cases 0.3 s)
+/home/user/mf-core/moonbit/encantis/core/test/g3.wasm: all passed in 7.5 s; stack peak 28952 bytes after the last call
+== check-g3.cjs
+ok   hex kernel: 1352 positions on 33 boards, 16224 comparisons of 2235224 values (compile 1352, rays 1352, turning 1352, solve 5408, replay 1352, postpone 1352, casual 1352, fewest 2704), 0 failed (228.5 s; cases 0.3 s)
+ok   geometry: 41175 comparisons (point, cell, inside, reflect, dirIndex, DIRS), 0 failed (25 ms)
+/home/user/mf-core/moonbit/encantis/core/test/g3.wasm: all passed in 228.8 s; stack peak 2860176 bytes (C15 plan 54: fewest budget 6000); no imports
+== check-g5-budgets.cjs
+ok   small budgets: 103992 comparisons, 0 failed
+== check-g5-review.cjs
+ok   G5 review: 18070 positions on 440 boards (174 with spinners; sets g1,g2,g3,g5), 291464 comparisons of 15899945 values (minimum 436, taps 18070, direction 18070, free 18070, freefull 18070, frozen 18070, solve 72280, solvefull 18070, replay 36140, guide 36140, features 36140, auto 1908), 0 failed (44.4 s; cases 22.0 s)
+/home/user/mf-core/moonbit/encantis/core/test/g5.wasm: all passed; stack peak 12317056 bytes (g5#33 (U3-M-15-55-18-18-24-MS-GYYXZYBRMDX3 #23, hex 18x18, 40 ropes, 1 springs) start: minimum budget 5000)
+== check-g5.cjs
+ok   mech and assist: 5821 positions on 135 boards, 93527 comparisons of 3864426 values (tracked 135, minimum 256, taps 5821, direction 5821, free 5821, freefull 5821, frozen 5821, solve 23284, solvefull 5821, replay 11642, guide 11642, features 11642), 0 failed (9.5 s; cases 1.9 s)
+/home/user/mf-core/moonbit/encantis/core/test/g5.wasm: all passed in 11.4 s; stack peak 8845028 bytes (L118 start: minimum budget 5000); no imports
+== check-g6-fuzz.cjs
+ok   fuzz (seed 1): 999 boards, 7992 comparisons, 0 differ
+== check-g6-limits.cjs
+square, one bouncer, one free: casual x32 = 0, 1024 draws (limit 32 taps a game)
+square, two bouncers: casual x32 = 0, 1024 draws (limit 32 taps a game)
+square, two bouncers, two free: casual x32 = 0, 1408 draws (limit 44 taps a game)
+square, long bouncer: casual x32 = 0, 1024 draws (limit 32 taps a game)
+hex, one bouncer, one free: casual x32 = 0, 1024 draws (limit 32 taps a game)
+hex, two bouncers: casual x32 = 0, 1024 draws (limit 32 taps a game)
+domino boards: the port's stack peak 14.16 MB of 16 MiB (square 48x48 dominoes analyze)
+ok   limit boards: 294 comparisons, 0 differ; boards whose x32 games ran to the limit: 6 of 6
+== check-g6-review.cjs
+ok   G6 review: 361 boards (141 with spinners; sets g2,g3,g5), 26241 comparisons of 218916 values (own 6718, seq 2888, derived 5040, junk 6498, mutated 5097), 0 failed (13.3 s; cases 0.8 s)
+  the JS threw 540 times (each matched by a trap of the port, or failed)
+  by kind: own coverage 361, own valid 361, own regional 361, own trivial 361, own featuresUsed 361, own featureStats 1083, own slideStats 361, own postpone 361, own score 722, own casual 1664, own analyze 722, seq analyze 1083, seq featureStats 361, seq slideStats 361, seq featuresUsed 361, seq postpone 361, seq score 361, derived coverage 360, derived valid 360, derived regional 360, derived trivial 360, derived featuresUsed 360, derived featureStats 1080, derived slideStats 360, derived postpone 360, derived score 360, derived casual 360, derived analyze 720, junk analyze 1083, junk featureStats 1083, junk featuresUsed 1083, junk slideStats 1083, junk postpone 1083, junk score 1083, mutated valid 1699, mutated coverage 1699, mutated regional 1699
+/home/user/mf-core/moonbit/encantis/core/test/g6.wasm: all passed; stack peak 2586528 bytes (g3#2 (hex 48x48, 224 ropes, 0 springs) own score)
+== check-g6.cjs
+ok   measured play and the interaction analysis: 13813 comparisons of 81758 values (direct 2158, derived 5404, mutated 2745, calls 2691, stored 815), 0 failed
+  by kind: direct coverage 135, direct valid 135, direct regional 135, direct trivial 135, direct featuresUsed 135, direct featureStats 405, direct slideStats 135, direct postpone 135, direct score 270, direct casual 268, direct analyze 270, derived coverage 386, derived valid 386, derived regional 386, derived trivial 386, derived featuresUsed 386, derived featureStats 1158, derived slideStats 386, derived postpone 386, derived score 386, derived casual 386, derived analyze 772, mutated valid 645, mutated coverage 645, mutated regional 645, mutated featuresUsed 135, mutated featureStats 135, mutated slideStats 135, mutated postpone 135, mutated score 135, mutated analyze 135, calls valid 278, calls coverage 290, calls regional 270, calls featuresUsed 312, calls score 262, calls trivial 263, calls analyze 257, calls casual 257, calls postpone 231, calls featureStats 271, stored measure 120, stored work 120, stored slideStats 120, stored coverage 120, stored targetChallenge 120, stored complexity 120, stored mechanicStats 95
+/home/user/mf-core/moonbit/encantis/core/test/g6.wasm: all passed in 5.6 s; stack peak 1248300 bytes (C15: score); no imports
+== check-g7-edges.cjs
+placeMirrors: 840 calls (599 placed fewer than asked, 220 none), 0 differ
+woven: 504 calls on boards of 2 to 6 a side (217 none; the JS threw on 0, skipped), 0 differ
+g7.wasm: 1352 cases, 0 differ (8.5 s)
+== check-g7-review-assist.cjs
+core.wasm: 120 boards (60 Hex, 95 with mechanics), 5027 positions, 24226 answers compared, 0 differ (233.0 s)
+== check-g7-robust.cjs
+core.wasm: done
+g7.wasm (the JS's mode): done
+g7.wasm (the port's mode): done
+robustness: 255 checks, 0 failed
+== check-g7-select.cjs
+g7.wasm: 26 levels where the generator's rarer choices decide, 26 the JS's, 0 differ (2.4 s)
+== check-g7-units.cjs
+g7.wasm (the JS's mode): 2821 calls (woven 1255, placeMirrors 837, addSpinners 729), 556393 values, 0 failed (5.4 s)
+== check-g2.cjs --extra
+ok   square kernel: 275 positions on 25 boards, 3850 comparisons of 647544 values (tracks 275, free 275, frozen 275, dead 275, solve 1100, taps 275, fewest 275, replay 275, postpone 275, casual 275, rays 275), 0 failed (8.0 s; cases 1.5 s)
+ok   knots and styles: 51182 comparisons, 0 failed (12 ms)
+/home/user/mf-core/moonbit/encantis/core/test/g2.wasm: all passed in 9.5 s; stack peak 2872348 bytes (X12 (48x48, 223 ropes) plan 58: fewest budget 2500); no imports
+== check-weave.cjs test/weave.wasm
+249 cases (16 null), in order and in reverse: 0 mismatches
+time to weave the 249 cases (the call alone, input already written), best of 5 rounds:
+== other-seeds.cjs test/weave.wasm
+../test/weave.wasm, 20 seeds per case: 4980 runs, 45 null, 0 JS errors, 0 mismatches; JS 15715 ms, wasm 6946 ms
+== other-sizes.cjs test/weave.wasm
+../test/weave.wasm: 224 runs, 65 null, 0 mismatches
+== check-g3.cjs --extra
+ok   hex kernel: 234 positions on 21 boards, 2808 comparisons of 480115 values (compile 234, rays 234, turning 234, solve 936, replay 234, postpone 234, casual 234, fewest 468), 0 failed (47.6 s; cases 1.2 s)
+ok   geometry: 41175 comparisons (point, cell, inside, reflect, dirIndex, DIRS), 0 failed (41 ms)
+/home/user/mf-core/moonbit/encantis/core/test/g3.wasm: all passed in 48.8 s; stack peak 5254740 bytes (X13 (48x48, 197 ropes) start: fewest budget 6000); no imports
+== check-g3-review.cjs --frac 0.25
+ok   hex kernel, review: ref 33 boards / 91 positions, extra 21 boards / 58 positions, gen 160 boards / 449 positions; 10172 comparisons of 999450 values (solve 2992, par 598, fewest 2094, casual 2243, compile 449, rays 449, turning 449, replay 449, postpone 449), 0 failed (112.3 s; cases 8.3 s)
+stack peak by call (of 16777216 bytes): fewest budget 6000 5.55 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); solve budget 5000 5.28 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); solve budget 5000, no prefer 5.28 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); solve budget 2000 2.57 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); solve budget 2000, no prefer 2.57 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); par (postpone, then fewest 2500) 2.44 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); fewest budget 2500 2.44 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); solve budget 900 1.60 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); fewest budget 300 0.68 MiB (N3 (48x48, 190 ropes, 6 mirrors) random 6); solve budget 40 0.21 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); fewest budget 30 0.18 MiB (N2 (48x48, 224 ropes, 0 mirrors) random 6); compile 0.09 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); replay 0.09 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); postpone 0.09 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); casual x32 attempt 0 0.07 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); casual x32 attempt 1 0.07 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); casual x32 attempt 2 0.07 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); casual x200 (bench) 0.07 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); rays 0.05 MiB (N5 (48x48, 218 ropes, 6 mirrors) random 6); turning 0.01 MiB (N5 (48x48, 218 ropes, 6 mirrors) plan 29)
+/home/user/mf-core/moonbit/encantis/core/test/g3.wasm: all passed in 120.6 s
+== check-hexbuild.cjs --seeds 2
+250 cases, 750 builds, 750 intentions; 9000 comparisons (209562 rope and plan words), 0 failed, 43.5 s; build stack peak 259416 bytes
+per kind: {"draws":750,"state":750,"null":750,"ropes":750,"stops":750,"plan":750,"slides":750,"traps":750,"depth":750,"cost":750,"intent-cert-null":250,"intent-cert":250,"intent-free-null":250,"intent-free":250,"intent-less-null":250,"intent-less":250}
+== quality-hexbuild.cjs --builder --seeds 2
+builder part: 2 seeds per cfg of the fixture (250 cfgs), 58 s; port builds invalid: 0
+
+hex_build outputs: 500 / 500 / 500 (A / B / C); failed or null: 0 / 0 / 0 (z C vs AB 0.00, A vs B 0.00)
+
+0 failed: none
+== check-hexbuild-shadow.cjs --per 2
+44 levels (0 not generated), 299 builds (0 null, 0 thrown), 897 intentions; 4783 comparisons (105980 rope and plan words), 0 failed, 30.8 s
+== check-hexbuild-edges.cjs --states 2
+32 cfgs x 2 states: 64 builds (46 built, 16 null, 2 thrown by the JS), 131 intentions; 771 comparisons, 0 failed, 21.3 s; build stack peak 662524 bytes
+== check-hexbuild-d2.cjs --seeds 1
+250 default-mode builds, 250 built, 0 trapped, 4.0 s
+== check-core-rope.cjs
+ok   repeatedCore, recorded: 282 calls over 135 levels (277 gave a core), 0 failed (22 ms)
+ok   repeatedCore, wide: 3000 calls on random inputs (2729 gave a core), 0 failed (1589 ms)
+/home/user/mf-core/moonbit/encantis/core/test/g5.wasm: all passed; stack peak 135536 bytes; no imports
+== check-g5-harness.sh
+-- assist.test.cjs (wasm)
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+# pass 1
+# fail 0
+-- solver/check.cjs (the moonbit wasm-gc side is the port)
+assist-expected.json: 330 square guide checks, 0 mismatches
+1013 positions on 49 square boards, 3039 guide checks: 0 mismatches
+total time (ms): encantis 62, moonbit wasm-gc 118, moonbit js 284
+-- check-features.cjs (its MoonBit column is the port; boards from MFGame.generate)
+assist-expected.json: 1042 feature checks, 0 mismatches
+4458 positions: Encantis 0 mismatches vs JS, MoonBit 0; 1856 returned every feature
+summed over boards, start position, budget 10000 (us): JS 6895, Encantis 856, MoonBit wasm-gc 1703
+check-g5-harness: every check passed
+== check-g5-review.cjs
+ok   G5 review: 18070 positions on 440 boards (174 with spinners; sets g1,g2,g3,g5), 291464 comparisons of 15899945 values (minimum 436, taps 18070, direction 18070, free 18070, freefull 18070, frozen 18070, solve 72280, solvefull 18070, replay 36140, guide 36140, features 36140, auto 1908), 0 failed (46.7 s; cases 25.2 s)
+/home/user/mf-core/moonbit/encantis/core/test/g5.wasm: all passed; stack peak 12317056 bytes (g5#33 (U3-M-15-55-18-18-24-MS-GYYXZYBRMDX3 #23, hex 18x18, 40 ropes, 1 springs) start: minimum budget 5000)
+== check-g5-budgets.cjs
+ok   small budgets: 103992 comparisons, 0 failed
+== stress-g5-stack.cjs (5 positions a board)
+ok   23 boards, 5 positions each, 0 traps; worst 7187628 bytes (42.8% of the stack) at g5#25 U3-S-30-30-48-48-1-SC-HUGE position 0 (58 random taps) t_guide -> [-1,5001]
+== check-g6.cjs --extra --parts direct,derived
+ok   measured play and the interaction analysis (with the g1 extra boards): 11974 comparisons of 73005 values (direct 3420, derived 8554), 0 failed
+  by kind: direct coverage 214, direct valid 214, direct regional 214, direct trivial 214, direct featuresUsed 214, direct featureStats 642, direct slideStats 214, direct postpone 214, direct score 428, direct casual 424, direct analyze 428, derived coverage 611, derived valid 611, derived regional 611, derived trivial 611, derived featuresUsed 611, derived featureStats 1833, derived slideStats 611, derived postpone 611, derived score 611, derived casual 611, derived analyze 1222
+/home/user/mf-core/moonbit/encantis/core/test/g6.wasm: all passed in 12.2 s; stack peak 2661480 bytes (g1#12: score); no imports
+== check-g6-fuzz.cjs --seed 2, 3
+ok   fuzz (seed 2): 998 boards, 7984 comparisons, 0 differ
+ok   fuzz (seed 3): 998 boards, 7984 comparisons, 0 differ
+== check-g7-units.cjs --port
+g7.wasm (the port's mode): 2821 calls (woven 1255, placeMirrors 837, addSpinners 729), 556393 values, 0 failed; Hex woven departed from the JS on 624, all 624 of them valid or none (5.7 s)
+== check-journey-port.cjs
+core.wasm: 120 of 120 Journey levels are the search's boards, 120 of 120 measure as stored; every level valid by the JS kernels and the search rules (12.8 s)
+== the harness on test/g7.wasm: parity.mjs and the wasm tests
+wasm: 135 match, 0 differ; total 6.8 s, max 655 ms
+# pass 6
+# fail 0
+check-all: every check passed
+
+real	23m45.546s
+user	26m4.704s
+sys	0m24.331s
+check-all exit 0
+=================== core (/home/user/mf-core/moonbit/encantis/core/core.wasm)
+MISMATCH U3-M-1-100-20-24-4-N-WIDE #3 ropes,plan,par,layoutKey  par 43 vs 53
+MISMATCH U3-H-70-70-32-32-1-MC-COLOSSAL #0 ropes,mirrors,plan,par,layoutKey  par 114 vs 104
+wasm: 46 match, 89 differ; total 6.0 s, max 597 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+not ok 2 - wasm-gc: every Journey level matches the JS generator
+not ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+not ok 5 - wasm: all 120 Journey levels match the JS reference
+not ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 2
+# fail 4
+=================== core-O (/home/user/mf-core-scratch/measure/builds/core-O.wasm)
+MISMATCH U3-M-1-100-20-24-4-N-WIDE #3 ropes,plan,par,layoutKey  par 43 vs 53
+MISMATCH U3-H-70-70-32-32-1-MC-COLOSSAL #0 ropes,mirrors,plan,par,layoutKey  par 114 vs 104
+wasm: 46 match, 89 differ; total 6.0 s, max 598 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+not ok 2 - wasm-gc: every Journey level matches the JS generator
+not ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+not ok 5 - wasm: all 120 Journey levels match the JS reference
+not ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 2
+# fail 4
+=================== g7 (/home/user/mf-core/moonbit/encantis/core/test/g7.wasm)
+wasm: 135 match, 0 differ; total 7.1 s, max 633 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+ok 2 - wasm-gc: every Journey level matches the JS generator
+ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+ok 5 - wasm: all 120 Journey levels match the JS reference
+ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 6
+# fail 0
+=================== g7-O (/home/user/mf-core-scratch/measure/builds/g7-O.wasm)
+wasm: 135 match, 0 differ; total 6.8 s, max 719 ms
+ok 1 - wasm-gc: 521 positions get the same plans and live features
+ok 2 - wasm-gc: every Journey level matches the JS generator
+ok 3 - wasm-gc: custom sets match, colossal maps included
+ok 4 - wasm: every Journey specification regenerates with the stored play measurements
+ok 5 - wasm: all 120 Journey levels match the JS reference
+ok 6 - wasm: custom sample (square/Hex, mirrors, spinners, colossal) matches
+# tests 6
+# pass 6
+# fail 0
+
+real	1m0.786s
+user	1m46.823s
+sys	0m0.862s
+end 15:39:22
