@@ -224,3 +224,13 @@ mixed: 200 / 200 / 200 (A / B / C); failed or null: 0 / 0 / 0 (z C vs AB 0.00, A
   time: the JS 75.0 s a set; with the port 25.2 s, of which hex_build 3.5 s
 
 set-C levels invalid: 0 of 1440; 1 metric tests failed: journey coverage
+
+Replicate (journey): JS set D and port set E, 240 levels each, against A, B, C (g4/repl.cjs):
+A levels 240 failed 19 invalid 0
+B levels 240 failed 12 invalid 0
+C levels 240 failed 9 invalid 0
+D levels 240 failed 11 invalid 0
+E levels 240 failed 10 invalid 0
+coverage means 0.9130 0.9133 0.9089 0.9124 0.9132
+coverage C+E vs A+B+D 0.085 0.098 ok | E alone 0.045 0.124 ok | D vs A+B 0.054
+KS failures (port C+E against JS A+B+D, 27 metrics): 0 

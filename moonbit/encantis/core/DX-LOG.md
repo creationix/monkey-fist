@@ -1436,3 +1436,271 @@ it costs elsewhere:
 Wall clock (from the progress file): about 1.3 hours, 23:29 to 00:45, much of it
 runs under the lock (the review oracle 7 minutes, the reruns 6, the bench 10, the mutants 22,
 the -O3 build's oracles 11) while reading, probes and this log went on beside them.
+
+## 19 Nov: G4, the Hex woven builder (hex_intentions, hex_build)
+
+Compiler: encantis origin/main **8f459f1** (fetched at the start: #29 to #33 merged, with lib/vec.ents
+and comptime value parameters). Commits eac6f18, 8e2db21, a4b133d and the ones after. The first
+engineer on G4 was killed by a restart at 00:44 after writing `dump-hexbuild.cjs` and the fixture;
+this section is the second's, from 00:46.
+
+### What was built
+
+- `hexbuild.ents`: `hex_intentions` (the replay with stops, MoonBit's `step` closure as a top-level
+  `step` over an `Intent` context) and `hex_build` with its seven closures as top-level functions over
+  33 module globals reset at entry, as weave.ents does. Plus `set_draw_exact` (below).
+- `test/g4.ents`: `t_build(state, coverage, tapDepth)`, `t_intentions()`, `t_bench(..., reps)`,
+  `t_draw_exact(on)`, `draws()`, `rng_state()`, over cfg words.
+- Oracles: `dump-hexbuild.cjs` and `fixtures/hexbuild-expected.json` (the first engineer's: 250 of the
+  809 H.build calls the 9e69e3a generator makes over the 60 Hex Journey levels and 15 custom Hex and
+  mixed codes, 4x5 to 32x32 colossal; no call returned null), `check-hexbuild.cjs` (exact), `hybrid.cjs`
+  (the JS generator with H.build replaced by the port), `quality-hexbuild.cjs` (distributions),
+  `bench-g4.cjs` (time, against a scratch MoonBit package that exports `@core.hex_build`).
+
+### Exactness (draw-exact mode)
+
+- `check-hexbuild.cjs` compares every rope cell, the stops (read from a copy of hex/engine.js whose
+  build also returns them), plan, knots, traps, depth, cost, the draw count and the generator's state
+  after, then `intentions()` three ways on each built board (with the plan, with none, without the
+  last rope). **4,000 comparisons on 250 builds, 0 failed, in order and in reverse, on the first
+  build** (00:59). `--seeds 20` (20 other states per cfg, against the live JS): 5,250 builds, 54,000
+  comparisons, 0 failed (348 s). `--js` passes; `--controls` 16 of 16.
+- Through the whole generator (`hybrid.cjs`, draw-exact): **all 120 Journey levels come out as in
+  reference.json** (layout key and par), in 52.9 s, of which the port's 501 builds took 2.3 s.
+- On the final file (after the speed-ups, in draw-exact mode): check-hexbuild 4,000 comparisons,
+  0 failed; `--seeds 20` 5,250 builds, 54,000 comparisons, 0 failed (306 s); the `wasm-opt -O3` build of it passes check-hexbuild too.
+- The earlier groups' oracles, rerun after G4 (`check-all.sh`, now with G4's two lines, under the
+  lock): every check passed (G1, G1-wide, G2, G2-wide, G2 `--extra`, the three weave scripts, G3,
+  G3-wide, G3 `--extra`, G3's review at a quarter, check-hexbuild `--seeds 2`, the builder part).
+
+### Departures (from the JS's exact behaviour)
+
+By default `hex_build` draws less than the JS in two places. Each leaves the *law* of what is built
+unchanged (the same distribution of boards, another realisation), because each skips draws whose
+outcome cannot change what the step does:
+
+| | What the JS does | What the port does | Saved |
+| --- | --- | --- | --- |
+| **D1** | A knot attempt shapes rope a, then rope b in full, then requires each one's way out to cross the other's body | Gives b up as soon as its way out (known before its body grows) misses a's cells: the attempt fails then whatever b's body is (`shape(want, aim, must)`) | Over the fixture's builds the JS grows 3.36M of its 8.0M knot-phase body cells in attempts that fail exactly there (297K of 910K attempts) |
+| **D2** | A shape without an aim draws a cell 24 times and keeps the first free one | Draws what that comes to: none with the chance that all 24 miss, (1 - f)^24 for a share f of free cells, else one of the free cells, all alike, from a list of free cells kept as ropes are laid (`random_head`): two draws | The JS spends 12.1M of its 30.2M draws over the fixture in this search (2.28M searches, 152K of which miss all 24) |
+
+Together: over the fixture's 250 cfgs, 30.2M draws become 19.5M, and the time falls 16% (1.29 s a
+pass against 1.54 s in draw-exact mode, interleaved). Code: D1 is 3 lines, D2 about 40 (the list, its
+upkeep at 4 sites, the draw). `set_draw_exact(true)` restores the JS's draws; the exact oracle runs
+in that mode.
+
+Smaller departures, none of which changes a level:
+- The core's compile failing (a way out passes a cell twice) makes `hex_build` return none, where
+  H.build throws; woven() turns that throw into null, so the generator sees the same.
+- (From MoonBit, not the JS:) the core's covered cells are counted as distinct cells, as the JS's
+  `used.size` does; MoonBit counts points. `done` is an i32 as in MoonBit (the JS's Uint8Array would
+  wrap at 256 stops on one rope, which no build reaches).
+
+**Journey levels that now differ from the JS game's: 60 of 120, every Hex level** (the square levels
+do not use hex_build). 54 change; **6 cannot be generated at all** with their Journey seeds (L32, L36,
+L37, L38, L46, L50: every attempt rejected, "Could not densely weave"). The Journey's seeds were
+chosen by scripts/build-grid-journey.cjs against the JS's own draws: on fresh seeds the JS gives up
+on 19, 12 and 11 of 240 levels of the same 60 specs (5 to 8%), the port on 9 and 10 (quality run,
+below), and on the Journey's own seeds the JS on none. Any change of draws loses that choice. Either the Journey is rebuilt with the new builder, or Journey levels are generated in
+draw-exact mode (one call, `set_draw_exact(true)`, before them): **G7 should do the second unless the
+Journey is rebuilt.**
+
+### Quality (the default mode, against the JS on other seeds)
+
+`quality-hexbuild.cjs`, the rule fixed before set C was looked at: every set-C level valid by the
+exact kernels; for each of 27 level metrics a two-sample KS test of C against A and B pooled must not
+reject at 1%; the failure rate by a test of proportions at 1%. Sets A and B are the JS (9e69e3a) on
+two seed sets, set C the same specs on a third with hex_build the port's (hybrid.cjs); 1,440 levels
+a set over 7 classes, 4,320 in all, 3 workers under the lock, 31 minutes (01:29 to 02:00).
+
+| Class (levels a set) | Failed A / B / C | KS failures (of 27) | Set-C invalid | Time a set: JS / with the port (its hex_build) |
+| --- | --- | ---: | ---: | --- |
+| Journey Hex specs x 4 seeds (240) | 19 / 12 / 9 | 1: coverage | 0 | 220.6 s / 107.8 s (8.2 s) |
+| small: 4x5, 6x6, 8x8 M, 8x8 MS (200) | 1 / 1 / 0 | 0 | 0 | 16.6 s / 6.0 s (1.4 s) |
+| medium: 12x12 N and M, 16x10, 16x16 M (200) | 0 / 0 / 0 | 0 | 0 | 219.3 s / 43.1 s (9.3 s) |
+| large: 20x20 and 24x24, N and M (200) | 0 / 0 / 0 | 0 | 0 | 1,168.5 s / 325.9 s (44.7 s) |
+| colossal 32x32, C and MC (200) | 0 / 0 / 0 | 0 | 0 | 93.3 s / 11.4 s (6.8 s) |
+| colossal 48x48, C and MC (200) | 0 / 0 / 0 | 0 | 0 | 670.5 s / 72.5 s (51.3 s) |
+| mixed 10x14 N, 12x12 M (200, half Hex) | 0 / 0 / 0 | 0 | 0 | 75.0 s / 25.2 s (3.5 s) |
+
+The 27 metrics: par, exact, ropes, mean and longest rope, coverage, casual wins, work, challenge,
+distance from the target challenge, wins over the ceiling, manual slides, repeated, interleaved and
+automatic ropes, knots, traps, construction depth and average depth, mirrors, spinners, manual
+mirrors, interaction, joins, mutual-wait ropes, branching depth, largest coupled group. Every
+quantile table is in `fixtures/quality-g4-report.txt`; for example on the large boards the medians
+of par are 45 / 44 / 45, of challenge 9.09 / 9.06 / 9.00, of interaction 4.34 / 4.29 / 4.32, of knots
+4 / 4 / 4 and of traps 4 / 4 / 4 (A / B / C).
+
+**The one failure, looked at:** Journey coverage, D = 0.141 against 0.132 (A against B: 0.050). Means
+0.9130 / 0.9133 / 0.9089; paired by spec and seed, C minus the mean of A and B is -0.0032 with a
+standard error of 0.0023 (1.4 se). No other class moves the same way (medium +0.0035, small
++0.0002, mixed +0.0003, large +0.0009), and C kept 9 levels the JS gave up on more often (19 and 12),
+which shifts the mix. 189 tests at 1% expect about 2 false failures. **Replicated** (a fresh seed set
+for each side, 240 Journey levels each: D the JS, E the port): E's coverage mean is 0.9132 (D 0.9124),
+E alone against A, B and D pooled gives D = 0.045 against 0.124, and the port's 480 levels (C and E)
+against the JS's 720 (A, B, D) fail none of the 27 tests (coverage D = 0.085 against 0.098). Failure
+rates: 11 (D) and 10 (E) of 240. So it was chance, and **the departures keep every quality measured**.
+
+The builder alone (`--builder --seeds 10`: 2,500 builds a set on the fixture's 250 cfgs): 0 invalid
+port builds, and none of the 8 outputs (ropes, cells, mean length, knots made, traps, depth, cost,
+plan length) differs (largest D 0.027 against 0.040). Draws (median 74K against 112K) and time
+(median 3.75 ms against 21.5 ms) differ, as meant.
+
+### Time
+
+`bench-g4.cjs` under the lock (load 1.3 at the end): hex_build over the fixture's 250 cfgs, each from
+its recorded state, the call alone, port then MoonBit wasm-gc (a scratch package, `g4/mbt`, that
+exports `@core.hex_build` behind the same cfg words; src/core unchanged) then the JS, interleaved,
+best of 5 rounds per process, median over processes. MoonBit's and the JS's results agree on every
+call (and the port's too in draw-exact mode). The last two columns are how many times faster the
+port is.
+
+| Cells (cases) | Port, default | Port, draw-exact | MoonBit | JS | MoonBit / port (default, exact) | JS / port (default, exact) |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| up to 100 (88) | 100.0 | 146.6 | 294.8 | 665.6 | 2.95x, 2.11x | 6.66x, 4.88x |
+| 101 to 300 (149) | 745.3 | 885.0 | 2,175.1 | 5,330.0 | 2.92x, 2.53x | 7.15x, 6.31x |
+| 301 to 600 (9) | 348.0 | 487.5 | 1,487.5 | 4,929.5 | 4.27x, 3.06x | 14.16x, 10.62x |
+| over 600 (4) | 141.6 | 178.3 | 489.9 | 1,282.2 | 3.46x, 2.85x | 9.05x, 7.38x |
+| **all (250)** | **1,349.3** | **1,733.6** | **4,462.5** | **12,295.7** | **3.31x, 2.73x** | **9.11x, 7.38x** |
+
+(ms; 5 processes for the default mode, 3 for draw-exact, whose MoonBit and JS columns are 4,725.7 and
+12,792.1 in all; the default mode's are shown.)
+
+How it got there (`g4/prof/ab.cjs`: every version interleaved in one process, ms a pass over the
+fixture, best of 5, while check-all ran beside it, so slower than the bench above):
+
+| Step | Time | Exact? |
+| --- | ---: | --- |
+| The straight port (v1, eac6f18): MoonBit's algorithm, a compile per candidate | 3,304 | yes |
+| The laid ropes compiled once per step; a candidate's board is the laid board's tables copied plus its own track (`with_shape`) (v2) | 2,040 | yes |
+| shape's free-cell test by hand, seen and forward one stamp table, the mirror and kept-gap tables one; `to()` inlined in the replay (v3, 8e2db21) | 1,672 | yes |
+| The final file in draw-exact mode | 1,657 | yes |
+| The final file, default mode: D1 and D2 (a4b133d) | 1,320 | no: the same law |
+| The final file through `wasm-opt -O3` (the CLI's `-O` is `-Oz`): default / draw-exact | 1,150 / 1,564 | it passes check-hexbuild |
+| Tried and dropped: a dirty-rope list in the replay (try a rope again only after a cell of its track changed) | 20 to 30% slower than v3 | (yes) |
+
+The profile (`--cpu-prof`, names from the WAT, inclusive) of the default mode: the knot phase 49%
+(nearly all of it shape: two shapes per attempt, 1% of attempts reach a board), the candidates'
+replays 32%, `try_trap` 28% (with its replays), the random draws 18%.
+
+Through the whole generator (quality run, above): with the port's builder a large board takes 28% of
+the JS's time to generate, a 48x48 colossal one 11%; the port's hex_build is 14% and 71% of that.
+
+### Size
+
+`node oracle/size.cjs G4`: hexbuild.ents is 5,912 tokens against MoonBit's 3,654 for the same
+declarations (1.62x), 1.87x with its 45 import lines (637 tokens) and restated types (284). The
+straight port first written (v1, exact, before any speed-up) was 4,980 tokens (1.36x, 1.61x with
+imports): the speed-ups and the departures cost 932 tokens (`laid_board`, `copied`, `with_shape` and
+`trial`; the shape test by hand; `random_head` with its list of free cells and its upkeep; the
+draw-exact switch and D1). test/g4.wasm is 42,672 bytes (21,337 through `wasm-opt -O3`).
+
+### Friction
+
+1. **Seven closures over twenty locals became 33 module globals** (`// closure:` 12 sites). `free`,
+   `ray`, `intent`, `shape`, `aim_at`, `note_turns` and `try_trap` share the builder's tables, so their
+   state is module globals set up again at the top of `hex_build` (29 lines of resets), as weave.ents
+   does; `step` keeps its state in a context struct (`Intent`) because `hex_intentions` is also
+   called on its own. One builder runs at a time. Closures, even non-escaping ones, would remove the
+   globals and the resets. About 20 minutes.
+2. **A `let` is seen to the end of its function** (reference 3.3), so a name used in one loop body
+   cannot be used again in a later one: 12 renames on the first `check` of hexbuild.ents and 2 more
+   after the laid-board refactor (`c` four times, `p` twice, `s` twice, `n`, `spot`, `fatal`, `base`
+   twice). The message names the clash but not where the first one is (below). 10 minutes.
+3. **A local cannot take the name of an imported function**: `size` (board.ents's) became `distinct`,
+   and a local `step` (a function of the module) became `knot_scope`. 2 sites, 2 minutes.
+4. **None by hand** (`// enum:` 9 sites): `0 as ?*HexIntent` (3), `0 as ?*Shape`, `0 as ?*HexBuilt` (2),
+   `(0 as [*]i32, 0:u32)` for a `?[]i32` with no certificate, and `Aim(-1, 0)` for MoonBit's
+   `(Int32, Int32)?`. There is no `none` literal for an optional pointer or slice. Enums
+   (`Option(T)`) would remove all of them.
+5. **No `let ... else`**: MoonBit's 9 `guard ... else` in these lines became nested `if let`s (3 deep
+   in `knot_attempt`) or functions that return early (`knot_attempt`, `lay_core`). 19 `if let`s in all
+   (4 in tests).
+6. **`free`'s test, and `to()` in the replay, written out by hand** (`// inline:` 1 site, plus the
+   shape loop): there is no inliner, and `free` and `to` were 8% of the time each in the first
+   profile. `wasm-opt -O3` on the same wasm does it, and more: 14% faster again.
+7. **The laid board's scope is not lexical.** The laid ropes are compiled once per step and kept in
+   a "phase" scope that `laid_board(phase)` resets when a rope has been laid; that reset must never
+   run while an inner scope is open (it would free it), which only the call sites' order ensures. A
+   second arena (`Stack(n)`, comptime-n, PORT-PLAN 10.1) would hold it safely. 10 minutes of thought.
+8. **The keep pattern**: 17 `// reserve:` sites. What outlives a step (the rope pool of area + core
+   cells, the rope and stop lists of area / 2 + 2 + core ropes, the plan and best candidate's moves
+   of 2 x ropes + core stops, the best candidate's cells, the stop cells returned) is given all its
+   room at the call's start and asserted.
+9. **`memcpy` wants a sized array pointer** even for a run-time length: the 4 copies of `with_shape`
+   cast a many-pointer to `*mut [1]u8`, a fiction, to copy `n * 4` bytes. A `memcpy` over
+   many-pointers would read better. And `&p[k]` on a many-pointer is a `*mut T`, so passing it on as
+   a many-pointer needs `(&p[k]) as [*]mut i32` (probe; the final code does not need it).
+10. **FixedVec(6, i32) worked first time** for `choices` and `dirs` (`data choices: FixedVec(6, i32) =
+    mut (0, choice_cells)`, static, no allocation). The plan's `*mut [6]i32` indexed by `k % 6` was
+    not needed. Its names clash with lib/vec's, so 3 renames on import (`fixed_push`, `fixed_items`,
+    `fixed_clear`), as lib/README says.
+
+### Error messages (verbatim)
+
+1. For a `let c` inside an earlier, closed loop body:
+   `hexbuild.ents:341:7: 'c' is already declared: a loop variable cannot reuse the name of a variable in scope`
+   ("in scope" reads wrong for a variable whose block has ended, and the first declaration's line is
+   not given).
+2. For a local named like an imported function: `hexbuild.ents:391:7: 'size' is already declared in this scope`
+   (it does not say that `size` is an imported function).
+3. A clash cascades: after `'base' is already declared in this scope`, the uses of the parameter
+   `base` were typed as the clashing local's i32:
+   `hexbuild.ents:527:15: no field 'n' on type i32` and
+   `hexbuild.ents:530:18: receiver: cannot assign i32 to *HexBoard`.
+4. `argument 1: cannot assign *mut i32 to [*]mut i32` for `&a[10]` passed as a many-pointer (probe).
+
+### Bugs
+
+None found: no wrong code and no crash in G4, so no new file in bugs/ (01 to 05 are the earlier groups').
+
+### Tooling
+
+- Under the quality run's load (3 workers): `check hexbuild.ents` 1.7 s, `check test/g4.ents` 2.2 s,
+  `test hexbuild.ents` 1.8 s (2 tests), `wasm test/g4.ents` 2.3 s. `build.sh` with G4: 17.7 s.
+- `hover hexbuild.ents:325:with_shape` spells `HexBoard` and `Shape` out (405 characters), as G3 found.
+  `references` lists the 6 uses.
+- `fmt` would change 189 lines of hexbuild.ents, nearly all `n: u32` to `n:u32` in signatures (the
+  reference's own examples use both). Not applied.
+- Profiling as G3 did (`--cpu-prof`, names from the WAT order), with an inclusive view added
+  (`g4/prof/incl.cjs`). It found the knot phase (half the time) and the per-candidate compile.
+
+### Pleasant
+
+- **Exact on the first build**, 250 recorded builds and 5,250 more from other states: the port
+  reads beside hex.mbt line by line, and the JS's draw order was easy to keep (short-circuits are
+  the JS's).
+- **The hybrid harness**: because mulberry32's state only adds 0x6D2B79F5 per draw, the JS generator
+  can hand its state to the wasm and catch up afterwards; so the whole JS generator runs on the
+  port's builder, and the qualities of whole levels can be compared before G7 exists.
+- **Comptime value parameters were already there**: FixedVec in static data, its bound in its type.
+- Speed-ups without departures were easy to verify: each was one rebuild and 17 s of
+  check-hexbuild.
+
+### Where `comptime n: u32` with `[n]T` helped G4
+
+- Used: `FixedVec(6, i32)` for `choices` and `dirs` (1 `// comptime-n:` site; 2 lists).
+- Would help: a second arena for the laid board (friction 7), and for the keep lists of friction 8,
+  which could then grow as found instead of being reserved.
+
+### Counts (tags in G4's files, sites; header mentions left out)
+
+| Tag | hexbuild.ents | test/g4.ents |
+| --- | ---: | ---: |
+| `// closure:` | 12 | 0 |
+| `// fnvalue:` | 0 | 0 |
+| `// enum:` | 8 | 1 |
+| `// comptime-n:` | 1 | 0 |
+| `// unchecked:` | 24 | 1 |
+| `// reserve:` | 17 | 0 |
+| `// inline:` | 1 | 0 |
+
+| What | Count |
+| --- | ---: |
+| module globals for builder state | 33 |
+| names renamed for function-scoped lets / imported names | 14 / 2 |
+| `if let` (deepest nesting) | 15 outside tests (3) |
+| compiler bugs | 0 |
+| differences from the JS in draw-exact mode | 0 |
+| departures that change draws (D1, D2) | 2 |
+| Journey levels that differ (of 120) / fail to generate | 60 / 6 |
