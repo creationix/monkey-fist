@@ -2633,3 +2633,280 @@ eight lambdas. test/g6.wasm is 62,756 bytes (24,327 gzipped).
 | compiler bugs / tooling bugs | 0 / 1 (bugs/06, fmt) |
 | departures that change an answer or a draw | 0 |
 | Journey levels that differ because of G6 (of 120) | 0 |
+
+## 19 Nov: review of G6 (adversarial)
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0; fetched at the start: unchanged since G5's
+review and G6). Every core wasm rebuilds byte for byte under it (`build.sh`, 31 s; `git status` clean).
+The compiler was not edited. The reviewer's scratch is `/home/user/mf-core-scratch/review-g6/` (logs/,
+probes/, classes/, cache/).
+
+### What was rerun, as G6 left it
+
+- `check-g6.cjs`: **13,813 comparisons of 81,758 values, 0 failed** (5.7 s), and the same with
+  `--reverse`; `--controls` 16 of 16 kinds fail on one spoiled value and name the case; `--extra`
+  18,225 comparisons, 0 failed, stack peak 2.66 MB (g1#12, score). test/g6.wasm is 62,756 bytes,
+  24,327 gzipped, no imports, as G6 wrote. `size.cjs G6`: 1.37x and 1.75x, as G6 wrote.
+- `hybrid-g6.cjs` on the 135 reference levels, under the lock: **135 of 135 the same**, 70.3 s (G6:
+  89.6 s, not under the lock).
+- `bugs/06`: every fmt finding holds at 399ca7e (`[]?[]u8` printed `[] ? []u8`, `n: u32` printed
+  `n:u32`, the second space before an end-of-line comment dropped, the file rewritten in place, and
+  `fmt f.ents -o out` formats f.ents and then fails with `Error: File not found: -o`); `hover` gives
+  `local paths: []?[]u8` before and after, so the output does parse to the same types. But **the
+  repro itself did not type-check, before or after fmt**: its `first(paths: []?[]u8) -> ?[]u8 =>
+  paths[0] ?? 0` is `cannot assign int(0) to []u8` (Friction 1, below). Fixed: `first` is now an
+  `if let`, and the file checks before and after the format.
+- `check-all.sh` with the review's lines (below), under the lock, 11:13 to 11:32: **every check
+  passed**, G1 to G6 and the review's three new checks (check-g6-review, check-g6-limits,
+  check-g6-fuzz). G6's `--js` run (308 s of live JS) was not repeated.
+
+### Found
+
+No wrong answer of the port: every exact comparison below agrees with the JS, and every call of real
+generation the port shadowed gave the JS's answer. What the review found is in the oracles:
+
+1. **Casual play's step limit was never reached by any oracle (fixed: check-g6-limits.cjs).** A
+   casual game on a spinner board ends with a win, with no legal tap (a loss), or after ropes x 6 +
+   20 taps (a loss). Over the reference and fixture spinner boards of at most 60 ropes, 5,696 JS
+   games (32 a board, `probes/casual-branches.cjs`): 2,952 won, 2,744 stuck, **0 at the limit**. A
+   port whose limit is one tap longer passes all of check-g6 (13,813 comparisons, the draws
+   included), which the mutation run confirms (mutant 0). `oracle/check-g6-limits.cjs` (new) plays
+   six synthetic spinner boards, both grids, where a rope is shut between two springs and bounces
+   for ever: every game runs to the limit, and the draws count its taps (32 games of 32 taps: 1,024
+   draws). 270 comparisons (casual at 1, 5 and 32 games and three seeds; the other units on random
+   tap sequences of those boards, where ropes lie on spring cells), 0 differ (294 with the domino
+   boards below); `--controls` fails on
+   its one spoiled value; the "limit + 1" mutant now fails it.
+2. **Hex rays that cross their own way were never checked (fixed: check-g6-fuzz.cjs).** The JS's
+   snapshot ray stops as a loop when it enters a cell it has seen; on square a state is the cell and
+   the way, on Hex the cell alone (MoonBit and the port do the same). A port that keys Hex states by
+   cell and way passes check-g6 and check-g6-review (mutant 16): generated boards have simple ways
+   out (game-engine.js says so, and builds on it), so no ray of theirs crosses itself and the two
+   rules agree on every one. `oracle/check-g6-fuzz.cjs` (new) plays random small boards dense with
+   mirrors (a third of the cells; springs on two in five), two to eight ropes of 2 or 3 cells, and a
+   random legal tap sequence of each: analyze (all and random manual), featureStats, featuresUsed,
+   slideStats, valid, trivial and casual x3 against the JS. **23 seeds, 23,000 boards, 183,888
+   comparisons, 0 differ** (1 to 2 s a seed); mutant 16 fails 34 times on seed 1, and the
+   step-limit mutant fails it too.
+3. **The mutation run** (`oracle/mutate-g6.sh`, `mutants-g6-review.cjs`, results in
+   `fixtures/mutants-g6-review-results.txt`): 32 seeded one-line changes of play.ents (16) and
+   metrics.ents (16). check-g6 alone kills 25. Two more are killed only by the review's oracles
+   (above: 0 and 16). Five survive everything and change no answer:
+   - 17, a loop after the tap counts as freeing: a loop's distance is 0, so `b.distance >
+     a.distance` is false anyway;
+   - 19, an exit after the tap does not count unless it is further: the ray before and after
+     follow the same cells up to the old blocker's, so an exit after it is always further (the JS's
+     second clause is redundant);
+   - 20, revisited when freed at the step of its own last tap: a rope is never freed by its own tap;
+   - 22, Tarjan's `low[v] = min(low[v], low[x])` for x on the stack: a known correct variant;
+   - 26, the branching depth over every arc instead of the essential ones: a longest path with
+     non-negative weights is the same over a DAG and its transitive reduction.
+
+### The extended exact oracle
+
+`oracle/check-g6-review.cjs` (new) runs check-g6's battery on the 361 boards of the g2, g3 and g5
+fixtures, which check-g6 never ran whole (g5's were only sampled, in the recorded calls): square to
+27x12 and 16x26, Hex to 48x48 with 224 ropes, 141 boards with spinners (8x8 to 48x48, both grids,
+mirrors and spinners together), and adds what check-g6 does not ask:
+
+- **plans that are not solutions**: a random legal tap sequence of each board (uniform among the
+  legal taps, up to min(3n, 90) taps): Q.analyze at all, half and -1 manual taps, featureStats at
+  half, slideStats at half, featuresUsed, postpone, score with skip. A random sequence slides ropes
+  back and forth, so its relation graph has the mutual waits and revisits a solution's rarely has
+  (on g2#1: 21 revisited ropes where its plan has 8);
+- **a junk tap** (rope -1, n and n + 7) after the first quarter of the plan: analyze, featureStats,
+  featuresUsed, slideStats, postpone, score with skip; where the JS throws (the square kernel's
+  replay reads `undefined.length`) the port must trap;
+- **casual play at a new seed** (`hashString('review-g6/' + name)`): x100 and x1000 on the kernels,
+  x32, x10 or x4 by size on spinner boards; and at 0, 1 and -2 games;
+- the derived board after half the plan, and check-g6's five broken copies.
+
+Result: **361 boards (141 with spinners), 26,241 comparisons of 218,916 values, 0 failed**, 13 s
+against the cache (by part: own 6,718, seq 2,888, derived 5,040, junk 6,498, mutated 5,097); the JS
+threw 540 times (junk taps on square boards: slideStats, postpone, score with skip) and the port
+trapped each time. Stack peak 2.59 MB (g3#2, Hex 48x48, 224 ropes, score). Filling the cache took
+5.5 minutes of JS in three workers (casual play and postponement on the 48x48 spinner boards most of
+it). `--controls`: 11 of 11 kinds fail on one spoiled value and name their case.
+
+And probes (not in check-all; in review-g6/probes): `F.score(b, G, false)` on a plan that does not
+clear the board, which the generator never asks: the JS throws where the port traps, on all 33 Hex,
+35 square and 8 small spinner reference boards ("Par requires a replayable Hex solution", "Cannot
+read properties of null", "Par requires a complete solution"), and on the 59 spinner boards of more
+than 12 ropes both return the same postponed plan and its taps (`score-unsolved.cjs`).
+
+### What the port might not cover, read against MoonBit and the JS
+
+- **Buffers.** G6 adds no fixed buffer: its tables are sized by the board (n x n relation bytes,
+  k x k reach and arcs, the cells), on the 16 MiB stack. It shares mech.ents's walk tables: the
+  ray's states are under 9 a cell, inside `seen_at`'s 20,736 = 9 x 48 x 48, so a board past 48x48
+  traps (the game makes none: colossal maps stop at 48). The deepest use is the plan loop of analyze,
+  featuresUsed and featureStats, which keep each step's position in the call's scope (8 bytes a rope
+  a step, where the JS and MoonBit let the collector have them). `check-g6-limits.cjs` now also plays
+  the worst board a 48x48 grid allows for that: 1,152 two-cell ropes (rows of dominoes), square and
+  Hex, with and without a spinner, against the JS (all equal): **analyze peaks at 14.16 MB of the
+  16 MiB** (10.6 MB of positions, 1.3 MB of relations, 2.7 MB of component tables: no relation, so
+  1,152 components), featuresUsed and featureStats at 10.2 MB, the rest under 0.3 MB. A plan of
+  about 250 more slides on such a board would trap analyze. The generator calls analyze only below
+  colossal (24x24 at most: under 1 MB), and featuresUsed and featureStats on colossal boards of about
+  230 ropes (about 0.5 MB), so no game call comes near; G7 should keep it so, or give the plan loops
+  a rope buffer of their own (as casual play has) if analyze is ever asked of a colossal map.
+  Measured peaks: 2.59 MB over check-g6-review, 1.98 MB over every shadowed generation call (score
+  on a 24x24, the kernels' fewest-taps search), 0.53 MB for G6's own loops (featureStats on a
+  48x48).
+- **Orders.** The port lists a rope's prerequisites in the order the relations were found, the JS
+  in the order of the ropes they come from; only counts and a breadth-first group size read them,
+  so nothing changes. Tarjan's and Kahn's orders are the JS's (the dependents in the order found).
+- **Branches the oracles never took**: the ray's last `return Snap(snap_loop, 0, -1)` after
+  w x h x 6 + 1 steps is unreachable (a ray meets a state twice within 4 a cell on square, 1 on Hex),
+  in the JS too; `score`'s `assert false` is the JS's throw (above); casual play's step limit (above).
+- **interleavedRopes** of the JS's slideStats and the complexity's descriptive counts are not
+  computed, as G6 wrote (MoonBit has neither). No Journey or custom spec sets
+  `minInterleavedRopes` (grep of 9e69e3a), and the stored measurements do not keep it, so no level
+  depends on it; G7's level output must leave it out or compute it.
+
+### Generation: every call shadowed
+
+G6's units are rules and measurements; casual play's draws stay exact, so G6 departs nowhere and
+the generation oracle is equality, written before any result (PROGRESS-review-G6.md). Where G6's
+`hybrid-g6.cjs --codes` compares the levels that come out of two runs, `oracle/shadow-g6.cjs`
+(new) runs the JS generator once with **every call** to G6's units answered by the JS and also put
+to the port, and compares the answers, casualRate's draws included: a call whose answer the
+generator throws away (a rejected candidate, a losing attempt) is checked too. Its `--spoil KIND`
+control fails for each of the ten kinds.
+
+| Class (new seeds) | Code(s) | Levels | Calls shadowed | Differ | Null | Stack peak |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Journey 1 to 120 | J3-MONKEYFIST | 120 | 6,798 | 0 | 0 | 0.66 MB (L107 score) |
+| 4x5, no mechanics, both grids | U3-M-1-100-4-5-200-N | 200 | 14,233 | 0 | 0 | 0.20 MB |
+| 12x14, no mechanics | U3-M-1-100-12-14-200-N | 200 | 13,946 | 0 | 0 | 0.64 MB |
+| 10x12, mirrors | U3-M-1-100-10-12-200-M | 200 | 13,527 | 0 | 0 | 0.48 MB |
+| 10x12, mirrors and spinners | U3-M-1-100-10-12-200-MS | 200 | 14,567 | 0 | 0 | 0.66 MB |
+| 12x12 spinners, square / Hex | U3-S-...-12-12-100-S, U3-H-...-12-12-100-S | 200 | 16,264 | 0 | 0 | 0.41 MB |
+| 24x8 and 8x24 strips, mirrors and spinners | U3-M-...-24-8-100-MS, U3-M-...-8-24-100-MS | 200 | 16,466 | 0 | 0 | 0.05 MB |
+| 24x24, no mechanics | U3-M-1-100-24-24-200-N | 200 | 15,698 | 0 | 0 | 1.98 MB (score) |
+| 24x24, mirrors and spinners, square (difficulty 1 to 44) | U3-S-1-100-24-24-40-MS | 18 | (not counted) | 0 | 0 | |
+| 32x32 colossal, mirrors and spinners | U3-M-1-100-32-32-200-MSC | 200 | 1,622 | 0 | 0 | 0.14 MB |
+| 48x48 colossal: spinners square, mirrors and spinners Hex | U3-S-...-48-48-100-SC, U3-H-...-48-48-100-MSC | 200 | 1,619 | 0 | 0 | 0.53 MB |
+
+(Difficulty 1 to 100 in every code; the codes' seed fields are RVW...; a colossal level skips the
+par search, analyze and casual play, so it makes few calls.) **In all 1,938 levels, 114,740 calls
+counted (and the 24x24 spinner levels' uncounted), 0 differ, 0 null.** The 24x24 spinner class was planned at 80 levels (square and Hex); at 35 to 50 s a level of
+JS it was stopped after 18 so that the bench and check-all could run, and the rest waited behind
+other engineers' jobs on the lock when this was written (`logs/queue3.sh` in the scratch).
+
+Every level is the JS's own and every answer equal, so the port's levels are the JS's, and each
+quality's two distributions are one (KS D 0; `oracle/quality-g6-review.cjs` prints p10/p50/p90 of
+par, exact, par ratio, coverage, ropes and their lengths, mirrors, spinners, casual wins, work,
+challenge, its target and miss, the win-ceiling excess, interaction and its five counts, slide
+stats and mechanics used, per class: `fixtures/quality-g6-review-report.txt`). Null levels: 0 in
+every class.
+
+### Departures (the review's)
+
+None: nothing in the port changed. **Journey levels that differ from the JS game's because of G6:
+0 of 120** (the shadow's Journey class: 120 levels, 6,798 calls, 0 differ; hybrid-g6 135 of 135).
+
+### Time
+
+`bench-g6.cjs` again, under the lock (11:10 to 11:13, load average 1.0 to 1.2), 3 processes, best
+of 5 rounds each, median over processes, values checked equal (G6's run in brackets):
+
+| Kernel | port ms | MoonBit ms | JS ms | MoonBit / port | JS / port |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| L30 casual x100 | 1.969 (1.912) | 7.195 | 142.9 | 3.65x (3.39x) | 72.6x |
+| L30 casual x1000 | 20.63 (19.34) | 71.57 | | 3.47x (3.50x) | |
+| L60 casual x100 | 1.740 (1.732) | 5.332 | 137.4 | 3.06x (3.21x) | 79.0x |
+| L60 casual x1000 | 18.62 (17.31) | 56.79 | | 3.05x (3.25x) | |
+| L89 casual x100 | 2.138 (2.000) | 8.011 | 192.4 | 3.75x (3.88x) | 90.0x |
+| L89 casual x1000 | 21.59 (20.46) | 81.87 | | 3.79x (3.77x) | |
+| L120 casual x100 | 5.513 (5.006) | 27.46 | 701.9 | 4.98x (5.02x) | 127.3x |
+| L120 casual x1000 | 53.76 (50.39) | 261.7 | | 4.87x (5.23x) | |
+| L30 / L60 / L89 / L120 par | 0.164 / 0.124 / 0.229 / 0.586 | 0.203 / 0.164 / 0.284 / 0.765 | 3.5 / 3.1 / 5.3 / 16.5 | 1.23x to 1.33x (1.18x to 1.38x) | 21x to 28x |
+| L107 / L118 casual x1000 | 13.37 / 9.354 | 14.75 / 9.495 | 23.1 / 16.2 | 1.10x / 1.02x | 1.7x |
+| L114 / L116 casual x1000 | 3.466 / 4.904 | 4.991 / 6.250 | 18.1 / 20.5 | 1.44x / 1.27x | 5.2x / 4.2x |
+| L107 / L118 / L114 / L116 par | 8.717 / 5.755 / 1.676 / 2.626 | 12.04 / 7.644 / 2.404 / 4.242 | 17.0 / 10.7 / 13.4 / 19.5 | 1.33x to 1.62x | 1.9x to 8.0x |
+
+G6's figures hold: full-geometry casual play 3.05x to 4.98x MoonBit wasm-gc and 73x to 127x the JS,
+par 1.23x to 1.62x MoonBit. L118 casual x100 is even (0.98x; G6 had 1.01x, G2 1.00x).
+
+**In real generation** (the shadow classes; the port's call alone, the push of the board's words
+apart, which in the core is not there; summed over every class but the 24x24 spinner one):
+
+| Unit | JS | port | JS / port |
+| --- | ---: | ---: | ---: |
+| score (the kernels' fewest-taps search, or postponement and minimumTaps) | 369.5 s | 61.4 s | 6.0x |
+| casualRate (the kernels, or full-geometry play) | 205.3 s | 5.46 s | 37.6x |
+| postpone | 51.5 s | 2.15 s | 24.0x |
+| trivial | 30.6 s | 1.63 s | 18.7x |
+| analyze | 27.3 s | 1.70 s | 16.1x |
+| featuresUsed | 15.3 s | 0.79 s | 19.5x |
+| featureStats | 7.2 s | 0.45 s | 16.2x |
+| valid | 1.1 s | 0.29 s | 3.9x |
+| regional | 0.7 s | 0.08 s | 9.4x |
+| coverage | 0.1 s | 0.05 s | 2.4x |
+
+Every unit is faster on the port in every class (the closest: coverage and regional on 4x5 boards,
+1 to 2 ms a class either way).
+
+### Friction (review)
+
+1. **A checked index of a slice of optionals folds two nones into one.** `paths[i]` on `[]?[]u8`
+   is `?[]u8`, "out of range" and "the rope has left" alike, so `paths[i] ?? 0` is an error (the
+   default must be a `[]u8`) and `if let x = paths[i]` gives `x: []u8`. It is consistent (an
+   optional of an optional would need a second sentinel), but G6's own repro tripped on it without
+   noticing, because only `fmt` was ever run on the file, and the message does not say why the
+   `??` wants a `[]u8`. 5 minutes to see. No planned feature names it; a message that says "the
+   element's none and out-of-range are one none here" would.
+2. **Names renamed for function-scoped lets** read oddly to a reviewer: `sc`/`mc` for a spring's and
+   a mirror's cell in two loops of one function, `up`/`up_first`, `src`, `members`. 13 sites (G6's
+   count). Each costs a second look, not a bug.
+3. **Hover shows structure, not names**: `hover` on `graph` gives `func(edges: [](from: i32, to:
+   i32), n: i32, revisited: i32) -> (interaction: f64, joins: i32, ...)`, where the source says
+   `[]Edge` and `Complexity`. (G3 to G6 found the same.)
+4. Not Encantis: **an oracle's coverage of a loop bound** is invisible until a mutant shows it. The
+   limit gap would have stayed in any port with a game loop; mutation is how it showed.
+
+### Error messages (verbatim)
+
+1. `bugs/06-fmt-optional-slice-element.ents:22:52: cannot assign int(0) to []u8` for `paths[0] ?? 0`
+   with `paths: []?[]u8` (right, but it does not say the index result folded the element's none).
+
+### Bugs
+
+No compiler bug: no wrong code and no crash. `bugs/06` (fmt) holds; its repro now checks.
+
+### Tooling
+
+- `check play.ents` 2.0 s, `check metrics.ents` 2.1 s, `test metrics.ents` 2.8 s.
+- `fmt`: as bugs/06. `fmt --check` exits 1 with "needs formatting: <file>" and changes nothing: the
+  only way to see that a file would change, and not how.
+- `hover play.ents:462:11` (the chosen tap of casual play, `let c = r.one_of(...)`) gives `local c:
+  (i: i32, event: i32, path: ?[](q: i32, r: i32)) (4 slots)`: the source's `Choice` and `Pt` are
+  gone, but the slot count is a nice touch (it says the value is four registers).
+- Mutation was cheap: copy core/, change a line, `encantis wasm test/g6.ents` (4 s), run the
+  oracles. 32 mutants took 9 minutes with the review's oracles.
+
+### Pleasant
+
+- The exact oracles made the review cheap: a mutant costs 4 s to build and 7 s to check.
+- lib/stack's `peak()`, reported by every hook, turned "could analyze overflow?" into a number
+  (14.16 MB) on the first try, and the absence of imports made a mutant's wasm a drop-in file.
+- G6's code reads well against the JS: `analyze` is the JS's loop, line for line, with the Sets
+  as byte tables; the mutation run's five equivalent mutants were all in places where the port
+  copies a redundancy of the JS faithfully.
+- The port's per-call speed in real generation (unit calls alone, words' push apart): every unit
+  faster than the JS's in every class, 2.4x (coverage) to 38x (casual play), 9.6x over all of G6's
+  calls (709 s of JS against 74 s).
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| exact comparisons added by the review (check-g6-review; check-g6-limits; check-g6-fuzz, 23 seeds) | 26,241; 294; 183,888 |
+| generation calls shadowed on the port and compared (classes, all levels) | 114,740, 0 differ |
+| levels generated in the shadow classes (null) | 1,938 (0) |
+| seeded mutants of play.ents and metrics.ents: killed by check-g6 alone / by the review's oracles too / equivalent | 25 / 27 / 5 of 32 |
+| oracle gaps found (casual's step limit, Hex rays that cross themselves) / closed | 2 / 2 |
+| port bugs / compiler bugs / tooling bugs | 0 / 0 / 0 new (bugs/06's repro corrected) |
+| departures | 0 |
+| Journey levels that differ because of G6 (of 120) | 0 |
