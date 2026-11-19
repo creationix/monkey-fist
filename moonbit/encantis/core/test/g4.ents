@@ -14,6 +14,8 @@ import "../lib/stack" (
   "clear" func clear()
   "peak" func peak() -> u32
   "alloc" func alloc(n: u32) -> u32
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
 )
 import "../lib/vec" (
   "Vec" func Vec(comptime T: type) -> type
@@ -153,6 +155,24 @@ func maybe_ints(r: *mut Reader) -> ?[]i32 {
   return (0 as [*]i32, 0:u32)  // enum: none
 }
 
+// The cfg in the input (above), on the stack.
+func read_cfg(coverage: f64, tap_depth: f64) -> *HexCfg {
+  let r = reader()
+  let w = r.word()
+  let h = r.word()
+  let stage = r.word()
+  let length = r.word()
+  let knots = r.word()
+  let traps = r.word()
+  let ms = r.mirrors()
+  let core = r.rope_list()
+  let core_stops = r.int_lists()
+  let core_plan = r.maybe_ints()
+  let c = alloc(sizeof(HexCfg)) as *mut HexCfg
+  c.* = HexCfg(w, h, stage, coverage, length, tap_depth, ms, knots, traps, core, core_stops, core_plan)
+  return c
+}
+
 // --- Writing words ---
 
 func put_list(xs: []i32) {
@@ -170,19 +190,7 @@ func put_list(xs: []i32) {
 // layers. draws() is the draws it made, rng_state() the generator's state after.
 export func t_build(state: i32, coverage: f64, tap_depth: f64) -> i32 {
   clear()
-  let r = reader()
-  let w = r.word()
-  let h = r.word()
-  let stage = r.word()
-  let length = r.word()
-  let knots = r.word()
-  let traps = r.word()
-  let ms = r.mirrors()
-  let core = r.rope_list()
-  let core_stops = r.int_lists()
-  let core_plan = r.maybe_ints()
-  let c = alloc(sizeof(HexCfg)) as *mut HexCfg
-  c.* = HexCfg(w, h, stage, coverage, length, tap_depth, ms, knots, traps, core, core_stops, core_plan)
+  let c = read_cfg(coverage, tap_depth)
   let g = new_rng(state as u32)
   reset_draws(false)
   out_clear()
@@ -208,6 +216,22 @@ export func t_build(state: i32, coverage: f64, tap_depth: f64) -> i32 {
     return 1
   }
   return 0
+}
+
+// hex_build `reps` times from the same state on the cfg in the input, each in a scope of its
+// own: the summed rope and plan counts (the timing loop's check that every build ran).
+export func t_bench(state: i32, coverage: f64, tap_depth: f64, reps: i32) -> i32 {
+  clear()
+  let c = read_cfg(coverage, tap_depth)
+  let sum = 0
+  for k in reps {
+    let scope = mark()
+    defer reset(scope)
+    if let b = hex_build(new_rng(state as u32), c) {
+      sum += (b.ropes.len + b.plan.len) as i32
+    }
+  }
+  return sum
 }
 
 // intentions(level, stops, certificate): 0 for null; else 1, writing the moves (counted), the
