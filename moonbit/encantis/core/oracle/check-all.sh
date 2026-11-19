@@ -40,6 +40,19 @@ node check-g3-review.cjs --frac 0.25 || fail=1
 echo "== check-hexbuild.cjs --seeds 2"
 node check-hexbuild.cjs --seeds 2 || fail=1
 echo "== quality-hexbuild.cjs --builder --seeds 2"
-node quality-hexbuild.cjs --builder --seeds 2 | grep -v '^  ' || fail=1
+# (its status, not grep's: a pipe's status is its last command's, which hid a failing builder part)
+out=$(node quality-hexbuild.cjs --builder --seeds 2 2>&1) || fail=1
+echo "$out" | grep -v '^  '
+# G4's review: the exact check on every H.build the generator makes for 22 codes the fixture lacks
+# (2 levels each), on 32 cfgs the generator never makes (2 states each), and departure D2's
+# free-cell list in a probe build that asserts it (a minute in all).
+echo "== check-hexbuild-shadow.cjs --per 2"
+out=$(node check-hexbuild-shadow.cjs --per 2 2>&1) || fail=1
+echo "$out" | head -14
+echo "== check-hexbuild-edges.cjs --states 2"
+out=$(node check-hexbuild-edges.cjs --states 2 2>&1) || fail=1
+echo "$out" | head -22
+echo "== check-hexbuild-d2.cjs --seeds 1"
+node check-hexbuild-d2.cjs --seeds 1 || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
