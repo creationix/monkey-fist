@@ -9,7 +9,8 @@
 //   options: --only L30,C7 (boards), --frac 0.2 (a share of the positions), --reverse, --kinds
 //            taps,solve (only these), --max-ropes 40, --fresh (compute the JS's answers again
 //            instead of reading them from the cache), --no-random (plan positions only), --fill
-//            (compute the JS's answers into the cache and stop)
+//            (compute the JS's answers into the cache and stop), --all-positions (every position of
+//            C13 and C14 too, not a sample)
 //
 // The cases: all 135 boards of reference.json (120 Journey, 15 custom; both grids, mirrors,
 // springs (spinners) and both; 4x5 to 40x40, up to 152 ropes), at every position R.positions()
@@ -192,17 +193,28 @@ function boardOf(b) { return { ...b, plan: [] }; }
 
 // --- The cases ---
 
+// On the two boards of more than BIG ropes (C13, 24x24 with 145; C14, 40x40 with 152), the JS needs
+// about 25 s a position (a solve there taps 150 ropes on each of its 150 nodes, with a Set of every
+// cell for each tap), so they get a sample of their positions: the start, every 8th prefix of the
+// plan and every 5th of random play (G3's --extra rule), 25 positions each. --all-positions takes
+// them all (C13's are in the cache: 173 positions, 5 minutes of JS).
+const BIG = 140, ALL_POSITIONS = args.includes('--all-positions');
+function sample(ps) {
+  const plan = ps.filter(p => !p.from.startsWith('random')), random = ps.filter(p => p.from.startsWith('random'));
+  return [...plan.filter((_, i) => i % 8 === 0), ...random.filter((_, i) => i % 5 === 0)];
+}
+
 function cases() {
   const out = [];
   let boards = R.boards();
   if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name));
   boards = boards.filter(b => b.ropes.length <= MAX_ROPES);
   for (const b of boards) {
-    const ps = R.positions(b).filter(p => !NO_RANDOM || !p.from.startsWith('random'));
-    ps.forEach((p, k) => {
+    const ps = R.positions(b).map((p, k) => ({ ...p, k })).filter(p => !NO_RANDOM || !p.from.startsWith('random'));
+    for (const p of b.ropes.length > BIG && !ALL_POSITIONS ? sample(ps) : ps) {
       const plan = p.from.startsWith('random') ? b.plan.slice() : b.plan.slice(p.taps.length);
-      out.push({ b, paths: p.paths, plan, k, start: p.from === 'start', name: `${b.name} ${p.from}` });
-    });
+      out.push({ b, paths: p.paths, plan, k: p.k, start: p.from === 'start', name: `${b.name} ${p.from}` });
+    }
   }
   return REVERSE ? out.reverse() : out;
 }

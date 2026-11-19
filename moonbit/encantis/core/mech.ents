@@ -13,7 +13,9 @@
 // JS's Set and MoonBit's Array are searched, and the route): walk() gives the event, the
 // distance and the rope's path after, the only thing it puts on the stack. tap() is the
 // game's: it adds the position after (a copy of the outer list, 8 bytes a rope) and a copy of
-// the route. The searches use walk(), and copy the position only for the tap they follow.
+// the route. The searches use walk_at(), which taps every rope of a position on one stamp of
+// its cells (the JS and MoonBit stamp them for each tap), and copy the position only for the
+// tap they follow.
 //
 // Positions seen. The depth-first search (solve_full) keeps the positions it has seen as
 // keys.ents keys of u16 words (per rope 0 if it has left, else its length + 1 and its cells),
@@ -178,8 +180,9 @@ export func direction(g: *Geo, path: []Pt) -> Pt {
   return Pt(tq, tr)
 }
 
-// Stamps the cells of every rope still there, with a stamp of its own. The stamp.
-func mark_ropes(g: *mut Geo, paths: []?[]Pt) -> i32 {
+// Stamps the cells of every rope still there, with a stamp of its own (mark() of MoonBit's tap,
+// which marks them again for each tap). The stamp, for walk_at.
+export func mark_ropes(g: *mut Geo, paths: []?[]Pt) -> i32 {
   g.stamp += 1
   let s = g.stamp
   for p in paths {
@@ -227,9 +230,12 @@ export func last_route() -> []Pt => route.fixed_items()
 // distance its head went, and its path after, on the stack. The event is ev_none where the
 // tap is not allowed (the rope has left, does not move, or would never settle). The route is
 // last_route() until the next walk.
-export func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step {
+export func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step => g.walk_at(paths, i, g.mark_ropes(paths))
+
+// walk, for a position whose ropes are stamped s (mark_ropes(paths)): the searches tap every rope of
+// a position, and stamp it once for all of them.
+export func walk_at(g: *mut Geo, paths: []?[]Pt, i: i32, s: i32) -> Step {
   if let path = paths[i as u32] {
-    let s = g.mark_ropes(paths)
     route.fixed_clear()
     seen.fixed_clear()
     for c in path {
@@ -358,9 +364,10 @@ export func tap(g: *mut Geo, paths: []?[]Pt, i: i32) -> ?*Move {
 export func all_free_full(g: *mut Geo, paths: []?[]Pt) -> bool {
   let scope = mark()
   defer reset(scope)
+  let stamped = g.mark_ropes(paths)
   for i, p in paths {
     if let path = p {
-      return false when g.walk(paths, i as i32).event != ev_exit
+      return false when g.walk_at(paths, i as i32, stamped).event != ev_exit
     }
   }
   return true
@@ -473,8 +480,9 @@ func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the J
   defer reset(scope)
   let p0 = s.prefer[k] ?? -1
   let tries = vec(Try, current.len)  // reserve: a try a rope
+  let stamped = s.g.mark_ropes(current)
   for i in current.len {
-    let st = s.g.walk(current, i as i32)
+    let st = s.g.walk_at(current, i as i32, stamped)
     continue when st.event == ev_none
     let order: i32 = 0
     if s.g.hex {
@@ -615,13 +623,15 @@ export func frozen(g: *mut Geo, paths: []?[]Pt) -> []i32 {
   defer reset(scope)
   let remaining = copy_paths(paths)
   let changed = true
+  let stamped = g.mark_ropes(remaining)
   while changed {
     changed = false
     for i in remaining.len {
       if let p = remaining[i] {
-        if g.walk(remaining, i as i32).event != ev_none {
+        if g.walk_at(remaining, i as i32, stamped).event != ev_none {
           remaining.ptr[i] = gone()  // unchecked: i < len
           changed = true
+          stamped = g.mark_ropes(remaining)
         }
       }
     }
@@ -711,9 +721,10 @@ export func minimum_taps(g: *mut Geo, fallback: []i32, budget: i32) -> ?*Par {
       par.* = Par(plan[0..count], if any && node.depth < 1 { 1 } else { node.depth }, true, q as i32 + 1)
       return par
     }
+    let stamped = g.mark_ropes(node.paths)
     for i in node.paths.len {
       let here = mark()
-      let st = g.walk(node.paths, i as i32)
+      let st = g.walk_at(node.paths, i as i32, stamped)
       if st.event == ev_none {
         reset(here)
         continue
