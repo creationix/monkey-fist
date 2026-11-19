@@ -1,0 +1,65 @@
+start 16:25:10 load 2.76 3.97 3.22 1/118 7197
+== (1) node interleaved 16:25:10
+round 1: JS reference 73316 | MoonBit wasm-gc 9353 | MoonBit JS 19053 | Encantis core.wasm 4647 | Encantis core -O 4409 | Encantis g7 (JS mode) 4911 | Encantis g7 -O (JS mode) 4827 | Encantis core wasm-opt -O3 4234
+round 2: JS reference 76367 | MoonBit wasm-gc 9822 | MoonBit JS 19265 | Encantis core.wasm 4595 | Encantis core -O 4631 | Encantis g7 (JS mode) 4857 | Encantis g7 -O (JS mode) 4917 | Encantis core wasm-opt -O3 4365
+round 3: JS reference 77462 | MoonBit wasm-gc 9432 | MoonBit JS 20219 | Encantis core.wasm 4772 | Encantis core -O 4488 | Encantis g7 (JS mode) 4930 | Encantis g7 -O (JS mode) 4887 | Encantis core wasm-opt -O3 4026
+round 4: JS reference 76599 | MoonBit wasm-gc 9472 | MoonBit JS 20140 | Encantis core.wasm 4533 | Encantis core -O 4512 | Encantis g7 (JS mode) 4900 | Encantis g7 -O (JS mode) 4912 | Encantis core wasm-opt -O3 4252
+round 5: JS reference 79318 | MoonBit wasm-gc 10026 | MoonBit JS 19324 | Encantis core.wasm 4078 | Encantis core -O 4437 | Encantis g7 (JS mode) 4752 | Encantis g7 -O (JS mode) 4745 | Encantis core wasm-opt -O3 4044
+round 6: JS reference 77074 | MoonBit wasm-gc 9946 | MoonBit JS 21013 | Encantis core.wasm 4918 | Encantis core -O 4886 | Encantis g7 (JS mode) 4623 | Encantis g7 -O (JS mode) 4724 | Encantis core wasm-opt -O3 4310
+JS reference                 first round 73316 ms  steady median 77074 (76367 to 79318) over 5 rounds  levels as the JS's 120/120
+MoonBit wasm-gc              first round 9353 ms  steady median 9822 (9432 to 10026) over 5 rounds  levels as the JS's 120/120
+MoonBit JS                   first round 19053 ms  steady median 20140 (19265 to 21013) over 5 rounds  levels as the JS's 120/120
+Encantis core.wasm           first round 4647 ms  steady median 4595 (4078 to 4918) over 5 rounds  levels as the JS's 38/120
+Encantis core -O             first round 4409 ms  steady median 4512 (4437 to 4886) over 5 rounds  levels as the JS's 38/120
+Encantis g7 (JS mode)        first round 4911 ms  steady median 4857 (4623 to 4930) over 5 rounds  levels as the JS's 120/120
+Encantis g7 -O (JS mode)     first round 4827 ms  steady median 4887 (4724 to 4917) over 5 rounds  levels as the JS's 120/120
+Encantis core wasm-opt -O3   first round 4234 ms  steady median 4252 (4026 to 4365) over 5 rounds  levels as the JS's 38/120
+== (2) node isolated 16:38:34 load 1.03 1.35 2.03 1/114 7526
+/home/user/mf-core-scratch/verify/hbench/moonbit/dist/enc/core.wasm 4593 4308 4696 4778 4789 5232 5309782310f5
+/home/user/mf-core-scratch/verify/hbench/moonbit/dist/enc/g7.wasm 4834 4755 4837 5043 4823 4983 5d5ebcecbb3f
+mbwasm 9735 9553 9341 9611 9700 9547 5d5ebcecbb3f
+mbjs 19644 20400 20228 19554 19648 19116 5d5ebcecbb3f
+/home/user/mf-core-scratch/verify/hbench/moonbit/dist/enc/core.wasm 4587 4488 4349 4553 4478 4612 5309782310f5
+/home/user/mf-core-scratch/verify/hbench/moonbit/dist/enc/g7.wasm 4789 4933 4944 4931 4904 5012 5d5ebcecbb3f
+mbwasm 9864 9489 9663 9875 9947 9825 5d5ebcecbb3f
+mbjs 20357 19379 19102 19569 19079 19180 5d5ebcecbb3f
+js 82309 80580 81237 5d5ebcecbb3f
+== (3) node cold 16:50:25 load 1.24 1.17 1.52 1/116 8036
+== (4) chromium interleaved 16:50:32 load 1.22 1.17 1.52 1/117 8285
+JS reference       first round 59494 ms  steady median 59356 (57825 to 61930) over 5 rounds  levels as the JS's 120
+MoonBit wasm-gc    first round 8425 ms  steady median 8265 (8169 to 8695) over 5 rounds  levels as the JS's 120
+MoonBit JS         first round 16096 ms  steady median 16219 (15270 to 16872) over 5 rounds  levels as the JS's 120
+Encantis core.wasm first round 3224 ms  steady median 3273 (3170 to 3714) over 5 rounds  levels as the JS's 38
+Encantis core -O   first round 3326 ms  steady median 3328 (3089 to 3627) over 5 rounds  levels as the JS's 38
+Encantis g7 (JS mode) first round 3664 ms  steady median 3565 (3461 to 3708) over 5 rounds  levels as the JS's 120
+Encantis g7 -O (JS mode) first round 3569 ms  steady median 3518 (3393 to 3711) over 5 rounds  levels as the JS's 120
+Encantis core wasm-opt -O3 first round 3315 ms  steady median 3478 (3408 to 3645) over 5 rounds  levels as the JS's 38
+startup {
+  'JS reference (9 scripts)': 43.19999999552965,
+  'MoonBit wasm-gc (fetch+compile+instantiate)': 9.800000004470348,
+  'MoonBit JS (import)': 22.700000002980232,
+  'Encantis core.wasm (fetch+compile+instantiate)': 4.5,
+  'Encantis core -O (fetch+compile+instantiate)': 4.399999998509884,
+  'Encantis g7 (JS mode) (fetch+compile+instantiate)': 5.700000002980232,
+  'Encantis g7 -O (JS mode) (fetch+compile+instantiate)': 4.699999995529652,
+  'Encantis core wasm-opt -O3 (fetch+compile+instantiate)': 4.700000002980232
+}
+== (5) chromium cold 17:00:45 load 1.19 1.17 1.33 1/121 8780
+== (6) compile times 17:01:16 load 2.40 1.48 1.43 1/125 12939
+encantis check weave.ents (the largest file)         median 1.18 s  (1.14 to 1.26)
+encantis check hexbuild.ents                         median 1.12 s  (1.09 to 1.26)
+encantis check core.ents (the whole program)         median 4.07 s  (3.56 to 4.65)
+encantis test hex.ents                               median 0.98 s  (0.90 to 1.09)
+encantis wasm core.ents                              median 4.28 s  (4.03 to 4.48)
+encantis wasm core.ents -O                           median 8.34 s  (8.17 to 8.43)
+encantis hover hexbuild.ents:<line>:hex_build        median 1.53 s  (1.35 to 1.66)
+moon check, cold                                     median 0.24 s  (0.20 to 0.25)
+moon check, after an edit of hex.mbt                 median 0.16 s  (0.15 to 0.20)
+moon build wasm-gc release, cold                     median 0.47 s  (0.46 to 0.54)
+moon build wasm-gc release, after an edit            median 0.47 s  (0.44 to 0.54)
+moon build js release, cold                          median 0.45 s  (0.42 to 0.48)
+moon build js release, after an edit                 median 0.44 s  (0.42 to 0.46)
+hover gridgen.ents:593:grid_generate 4033 ms
+hover gridgen.ents:593:grid_generate 4187 ms
+hover gridgen.ents:593:grid_generate 4134 ms
+end 17:03:29 load 1.85 1.59 1.48 1/116 14098

@@ -1,0 +1,79 @@
+
+Node interleaved: steady median (range) of rounds 2..R | round 1 | MoonBit wasm-gc / it
+  JS reference                   77,074 (76,367-79,318) | 73,316 | 0.13x | same as JS 120
+  MoonBit wasm-gc                9,822 (9,432-10,026) | 9,353 | 1.00x | same as JS 120
+  MoonBit JS                     20,140 (19,265-21,013) | 19,053 | 0.49x | same as JS 120
+  Encantis core.wasm             4,595 (4,078-4,918) | 4,647 | 2.14x | same as JS 38
+  Encantis core -O               4,512 (4,437-4,886) | 4,409 | 2.18x | same as JS 38
+  Encantis g7 (JS mode)          4,857 (4,623-4,930) | 4,911 | 2.02x | same as JS 120
+  Encantis g7 -O (JS mode)       4,887 (4,724-4,917) | 4,827 | 2.01x | same as JS 120
+  Encantis core wasm-opt -O3     4,252 (4,026-4,365) | 4,234 | 2.31x | same as JS 38
+  per level (last round) MoonBit/g7: median 1.99x, p10 1.26x, p90 2.78x; JS/g7 median 11.2x (p10 3.2, p90 40.7)
+  slowest level ms: core 164, g7 150, MoonBit wasm-gc 293, MoonBit JS 683, JS 2901
+  warm first 12 (last round): g7 58.0, MoonBit wasm-gc 89.0, JS 319.8
+  L30 casual x100  g7 2.136 g7-O 1.943 MB 8.124 MBJS 14.280 JS 183.62  MB/g7 3.80x agree true
+  L30 par search   g7 0.223 g7-O 0.182 MB 0.297 MBJS 0.595 JS 5.32  MB/g7 1.33x agree true
+  L30 solve 2000   g7 0.082 g7-O 0.066 MB 0.170 MBJS 0.382 JS 1.54  MB/g7 2.08x agree true
+  L60 casual x100  g7 2.084 g7-O 1.873 MB 6.994 MBJS 12.647 JS 210.44  MB/g7 3.36x agree true
+  L60 par search   g7 0.157 g7-O 0.169 MB 0.219 MBJS 0.460 JS 4.40  MB/g7 1.39x agree true
+  L60 solve 2000   g7 2.413 g7-O 2.237 MB 9.061 MBJS 18.319 JS 144.03  MB/g7 3.75x agree true
+  L89 casual x100  g7 2.352 g7-O 2.142 MB 8.356 MBJS 16.256 JS 283.53  MB/g7 3.55x agree true
+  L89 par search   g7 0.299 g7-O 0.281 MB 0.387 MBJS 0.688 JS 7.14  MB/g7 1.29x agree true
+  L89 solve 2000   g7 0.063 g7-O 0.061 MB 0.165 MBJS 0.280 JS 2.21  MB/g7 2.60x agree true
+  L120 casual x100  g7 7.116 g7-O 7.388 MB 32.002 MBJS 72.318 JS 1155.70  MB/g7 4.50x agree true
+  L120 par search   g7 0.760 g7-O 0.799 MB 1.073 MBJS 2.035 JS 23.68  MB/g7 1.41x agree true
+  L120 solve 2000   g7 0.133 g7-O 0.132 MB 0.578 MBJS 0.856 JS 8.30  MB/g7 4.35x agree true
+  L107 casual x1000 g7 18.057 g7-O 18.559 MB 16.583 MBJS 30.419 JS 28.63  MB/g7 0.92x agree true
+  L107 par search   g7 11.063 g7-O 11.267 MB 13.907 MBJS 28.077 JS 24.03  MB/g7 1.26x agree true
+  L107 solve 2000   g7 0.259 g7-O 0.266 MB 0.401 MBJS 0.981 JS 0.82  MB/g7 1.54x agree true
+  L114 casual x1000 g7 4.454 g7-O 4.327 MB 7.133 MBJS 13.590 JS 29.02  MB/g7 1.60x agree true
+  L114 par search   g7 2.403 g7-O 2.401 MB 3.182 MBJS 7.009 JS 23.38  MB/g7 1.32x agree true
+  L114 solve 2000   g7 0.033 g7-O 0.031 MB 0.074 MBJS 0.085 JS 0.17  MB/g7 2.29x agree true
+  L118 casual x1000 g7 10.718 g7-O 11.136 MB 10.330 MBJS 19.855 JS 18.21  MB/g7 0.96x agree true
+  L118 par search   g7 6.940 g7-O 7.265 MB 8.812 MBJS 16.803 JS 13.72  MB/g7 1.27x agree true
+  L118 solve 2000   g7 0.098 g7-O 0.100 MB 0.133 MBJS 0.252 JS 0.32  MB/g7 1.37x agree true
+  L116 casual x1000 g7 6.015 g7-O 5.819 MB 8.733 MBJS 15.080 JS 31.73  MB/g7 1.45x agree true
+  L116 par search   g7 3.360 g7-O 3.349 MB 4.414 MBJS 8.040 JS 27.44  MB/g7 1.31x agree true
+  L116 solve 2000   g7 0.052 g7-O 0.048 MB 0.075 MBJS 0.277 JS 0.23  MB/g7 1.42x agree true
+
+Node isolated (one engine per process): steady median (range) of rounds 2..R pooled over processes | round 1s
+  core.wasm    4,583 (4,308-5,232) | 4,593, 4,587 | keys 5309782310f5
+  g7.wasm      4,932 (4,755-5,043) | 4,834, 4,789 | keys 5d5ebcecbb3f
+  mbwasm       9,637 (9,341-9,947) | 9,735, 9,864 | keys 5d5ebcecbb3f
+  mbjs         19,467 (19,079-20,400) | 19,644, 20,357 | keys 5d5ebcecbb3f
+  js           80,909 (80,580-81,237) | 82,309 | keys 5d5ebcecbb3f
+  MoonBit wasm-gc / core.wasm: 2.10x
+  MoonBit wasm-gc / g7.wasm: 1.95x
+  MoonBit wasm-gc / mbwasm: 1.00x
+  MoonBit wasm-gc / mbjs: 0.50x
+  MoonBit wasm-gc / js: 0.12x
+  per level MB/g7 (last round of last process): median 1.77x p10 1.18 p90 2.44; slowest g7 141 MB 268
+
+Node cold: median (range) over 5 fresh processes: load | load + level 1 | first 12
+  JS reference                 8.3 | 29.4 (28.2-38.9) | 456.1 (421-515)
+  MoonBit wasm-gc              2.7 | 13.2 (12.4-19.3) | 130.6 (124-144)
+  MoonBit JS                   22.2 | 48.3 (46.7-61.0) | 382.7 (320-428)
+  Encantis core.wasm           1.5 | 6.0 (5.0-6.9) | 87.1 (76-108)
+  Encantis g7 (JS mode)        1.4 | 5.9 (5.3-10.0) | 82.3 (71-95)
+  Encantis g7 -O (JS mode)     1.4 | 5.9 (5.2-9.1) | 75.3 (62-81)
+
+Chromium interleaved: steady median (range) of rounds 2..R | round 1 | MoonBit wasm-gc / it
+  JS reference                   59,356 (57,825-61,930) | 59,494 | 0.14x | same as JS 120
+  MoonBit wasm-gc                8,265 (8,169-8,695) | 8,425 | 1.00x | same as JS 120
+  MoonBit JS                     16,219 (15,270-16,872) | 16,096 | 0.51x | same as JS 120
+  Encantis core.wasm             3,273 (3,170-3,714) | 3,224 | 2.53x | same as JS 38
+  Encantis core -O               3,328 (3,089-3,627) | 3,326 | 2.48x | same as JS 38
+  Encantis g7 (JS mode)          3,565 (3,461-3,708) | 3,664 | 2.32x | same as JS 120
+  Encantis g7 -O (JS mode)       3,518 (3,393-3,711) | 3,569 | 2.35x | same as JS 120
+  Encantis core wasm-opt -O3     3,478 (3,408-3,645) | 3,315 | 2.38x | same as JS 38
+  per level (last round) MoonBit/g7: median 2.10x, p10 1.19x, p90 3.54x; JS/g7 median 13.8x (p10 3.6, p90 45.3)
+  slowest level ms: core 98, g7 101, MoonBit wasm-gc 232, MoonBit JS 466, JS 2153
+  warm first 12 (last round): g7 47.3, MoonBit wasm-gc 74.8, JS 349.9
+
+Chromium cold: median (range) over 5 fresh processes: load | load + level 1 | first 12
+  JS reference                 42.3 | 64.8 (61.4-75.1) | 439.4 (392-479)
+  MoonBit wasm-gc              11.9 | 28.2 (22.2-33.3) | 167.6 (138-182)
+  MoonBit JS                   32.2 | 64.4 (52.1-73.1) | 391.8 (372-425)
+  Encantis core.wasm           14.2 | 21.4 (13.4-33.7) | 102.3 (76-118)
+  Encantis g7 (JS mode)        7.1 | 15.7 (13.6-19.1) | 84.2 (77-101)
+  Encantis g7 -O (JS mode)     9.9 | 17.7 (14.1-21.7) | 100.2 (91-102)

@@ -3751,3 +3751,59 @@ again from it (identical to the shared one).
    `check core.ents` reports 1,058 declarations (the report's 1,081 is `test/g7.ents`). Confirmed
    as stated: 423 casts (206 `as u32`, 217 `as i32`), `Attempts` with 12 fields, 33 module globals in
    hexbuild, 2 `elif let` sites written as `else { if let }`, 6 `assert false` followed by a return.
+
+### What was rerun (results in REPORT.md §8)
+
+- Exact parity with the real JS on 11 set codes of my own: g7.wasm 378 of 378 levels equal, core.wasm
+  184 of 184 square levels equal and 194 Hex levels valid; the unit oracles on new seeds (g1-wide,
+  g2-wide, g3-wide, g6-fuzz x2, core-rope wide, hexbuild-shadow, g7-units both modes, g7-robust,
+  journey-port): 0 failed; the hints on the port's own boards with my codes: 31,496 answers, 0 differ;
+  MoonBit's tests through the glue as stated.
+- Generation quality with the real JS (not g7.wasm) as the two reference sets, 7 classes of my own,
+  1,050 specs: 0 invalid port levels, 154 KS tests at 1%, 0 rejected (largest 0.93 of the critical
+  value, on the square control), 0 failures in any set, check (c) 180 of 180 square.
+- Runtime under the lock, the measurement's harnesses plus one engine per fresh process: MoonBit
+  wasm-gc / core.wasm 2.14x (Node interleaved), 2.10x (Node, one engine a process), 2.53x
+  (Chromium); on the same levels 2.02x, 1.95x, 2.32x. Every ratio within 0.1 of the report's.
+- Sizes and token counts: identical.
+
+### Friction (verification)
+
+1. **A parameter that a def hides compiles in silence** (bugs/02, again, now in the port itself).
+   The checker refuses `let room = ...` and `for room in ...` when a def `room` exists, but accepts
+   `func f(room: u32)` and then reads the def. Found here by a script (10 lines, 2 minutes), not by
+   the compiler, not by four reviews and not by any oracle, because the only caller passes the def's
+   own value. A warning, or the same refusal as for `let`, would have caught it on the day it was
+   written. A planned feature would not remove it; it is a checker fix.
+2. **Tag counts drift.** The report's counts were carried from group logs and summaries; a grep by the
+   report's own rule gives 54 / 26 / 163 / 47 against 53 / 27 / 165 / 47. The counts are only as good
+   as the last recount; a script in `size.cjs`'s style that counts the tags would keep them honest.
+3. `encantis wasm <file>` without `-o` writes beside the source (confirmed; the help says stdout).
+
+### Tooling (verification)
+
+- `build.sh` 49.4 s under the lock; `check core.ents` 4.07 s, `wasm` 4.28 s, `-O` 8.34 s; `hover`
+  1.53 s (hexbuild) and 4.1 s (gridgen); moon check 0.16 s after an edit. Medians of 5, under the lock.
+- `check` gives the declaration count of the program it checked: 1,058 for core.ents, 1,081 for
+  test/g7.ents (the report had taken the second for the first).
+
+### Pleasant (verification)
+
+- **Deterministic builds** made the first step of the verification a `git status`: every wasm, and
+  the `-O`, `--release` and `wasm-opt -O3` builds, byte-identical to the measurement's.
+- **The numbers ABI** let one 60-line script (`oracle/verify/exact-gen.cjs`) compare any wasm build
+  with the real JS through the game's own glue, level by level, in either mode.
+
+### Counts (verification)
+
+| What | Count |
+| --- | ---: |
+| Ents lines changed | 0 |
+| whole levels compared with the real JS (g7.wasm / core.wasm square) / differ | 378 / 184, 0 |
+| core.wasm Hex levels checked valid by the JS's kernels (exact-gen + quality) / invalid | 194 + 1,050 port levels, 0 |
+| KS tests (own seeds, real JS) / rejected | 154 / 0 |
+| hint answers on the port's own boards (with my codes) / differ | 31,496 / 0 |
+| DX claims checked in the source / wrong | 21 / 12 (9 counts off by 1 to 31, 2 small misstatements, 1 rule broken) |
+| bug repros rerun / reproduce | 7 / 7 |
+| bugs/02 sites found in the port | 1 (abi.ents keep_level, latent) |
+| compiler bugs new | 0 |

@@ -1,0 +1,14 @@
+== exact-gen g7 js 15:54:56
+{"wasm":"g7.wasm","mode":"js","equal":378,"differ":0,"noneBoth":0,"hexChecked":0,"hexInvalid":0,"hexEqualAnyway":0,"jsSeconds":443.4,"wasmSeconds":30.04}
+== exact-gen core port 16:02:50
+{"wasm":"core.wasm","mode":"port","equal":184,"differ":0,"noneBoth":0,"hexChecked":194,"hexInvalid":0,"hexEqualAnyway":0,"jsSeconds":474.9,"wasmSeconds":29.12}
+== negative control 16:11:22
+DIFFERS U3-H-1-100-10-10-60-S-VFYH1 3  
+DIFFERS U3-H-1-100-10-10-60-S-VFYH1 4  
+{"wasm":"core.wasm","mode":"js","equal":0,"differ":5,"noneBoth":0,"hexChecked":0,"hexInvalid":0,"hexEqualAnyway":0,"jsSeconds":0.2,"wasmSeconds":0.02}
+== quality levels 16:11:22
+== quality report 16:25:02
+  edges          A 27/40/50               B 24.9/35.5/47.2         P 26.9/39.5/51           D(A,B) 0.160  D(P,AB) 0.120  crit 0.199
+
+P levels made 1050, invalid 0; KS tests 154 (+ failure-rate z per class), rejected 0; largest D/crit port 0.93 (square interaction), JS-JS 0.87; check (c): square 180 of 180 equal, Hex 0 of 870 equal anyway
+== chain done 16:25:02

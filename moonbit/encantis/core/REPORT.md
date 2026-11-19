@@ -27,8 +27,9 @@ own tests drive it unchanged.
 - **Faster than MoonBit.** The 120 Journey levels take 4.2 s in Node against MoonBit wasm-gc's
   9.4 s (**2.2x**; 2.0x on the very same levels), MoonBit's JS build's 17.8 s and the JS game's
   72.9 s (17x). In Chromium the figures are 3.1 s against 7.9 s (**2.5x**), 14.9 s and 54.6 s.
-  After a cold load, the first 12 levels are ready 1.8 to 1.9 times sooner than MoonBit's. The
-  kernels run at 0.91x to 4.9x MoonBit's speed; the only one below 1x is square casual play on L118.
+  After a cold load, the first 12 levels are ready 1.6 to 2.0 times sooner than MoonBit's. The
+  kernels run at 0.9x to 4.9x MoonBit's speed; the two at about 1x are square casual play on L107 and
+  L118, either side of 1x from run to run (§8.5).
 - **Smaller.** 113,721 bytes (43,535 gzipped) against gen.wasm's 137,415 (54,882), and 88,615
   (38,243) with `--release`. It needs no wasm-gc, so the reason for MoonBit's 588 KB JS fallback
   (Safari before 18.2) goes away.
@@ -299,7 +300,8 @@ engine, interleaved. The raw data and the session's scripts are in `oracle/fixtu
   | Chromium | 87 ms, 83 ms | 207 ms | 430 ms | 1,697 ms |
 
 - **`-O`** (`-Oz`, for size) changes the time by -5% to +2%, within the rounds' range. `wasm-opt -O3`
-  gains 9% in Node and nothing measurable in Chromium.
+  gains 7 to 9% in Node and nothing in Chromium (the verification measured it 6% slower there, within
+  the rounds' range).
 - **The custom sample** (the 15 custom levels of reference.json: 4x5 to 24x24, 40x40 and 32x32
   colossal, both grids; `oracle/bench-g7.mjs --custom`, 6 interleaved rounds, steady median and
   range):
@@ -327,7 +329,8 @@ other levels than the JS game's, so g7.wasm is the like-for-like row.
 
 Warm, the same 12 levels take 57.8 ms on g7.wasm, 78.0 on MoonBit wasm-gc and 331 on the JS (Node,
 the last round). Encantis's first run costs about 1.3x its steady state, MoonBit wasm-gc's 1.8x, so
-the port's lead is largest right after load.
+the port's lead is largest right after load. (The verification's rerun saw this in Chromium, 1.8x
+against 2.2x, but not in Node, 1.4x against 1.5x: §8.5.)
 
 ### 2.3 Kernels (Node, the boards of bench-node.mjs, median of 5 interleaved repetitions, ms)
 
@@ -609,7 +612,7 @@ ENCANTIS.md (against Encantis 0.2.1, `prep/finalize`, May 2026) said "don't swit
 | Compiler quiet for 6 months; examples did not compile | Active: main moved four times during the port (a release, `--release`, comptime values, fixes), and every wasm rebuilt byte for byte each time. Found: 2 silent wrong-code bugs, 1 crash, 1 wrong acceptance |
 | "Revisit Encantis once it has closures or callable function pointers, enum codegen, `memory-grow` and a vector/map story" | The vector/map story (generics) arrived; closures, enums and `memory-grow` did not. The port succeeded without them, at the costs in §5 |
 
-## 8. Independent verification (19 Nov, 15:40 to 17:xx)
+## 8. Independent verification (19 Nov, 15:40 to 17:15)
 
 A second engineer rechecked this report from a fresh worktree of the pushed head (932bd00), with the
 same compiler (399ca7e, still origin/main), a reference of its own (`git archive 9e69e3a`, with
@@ -621,7 +624,7 @@ was wrong it has been corrected above; the corrections are listed at the end of 
 
 - `build.sh` under the lock: 49.4 s (the report: 42.7 s), 70 inline tests in 24 files pass, every wasm
   byte for byte. The `-O`, `--release` and `wasm-opt -O3` builds are byte-identical to the measurement's.
-- **Whole levels on my own set codes** (`verify/exact-gen.cjs`: 11 codes, square, Hex and mixed, 4x5 to
+- **Whole levels on my own set codes** (`verify/exact-gen.cjs`: 11 codes, square, Hex and mixed, 6x8 to
   32x32 colossal, mirrors and spinners; the real `G.generate` at 9e69e3a against the wasm through
   `web/generator.js`, every field: board, plan, par, exact, layout key, coverage, casual wins,
   challenge, slide and mechanic stats):
@@ -675,7 +678,7 @@ Ten claims of §5, recounted with grep by the report's own rule (sites, header m
 | --- | ---: | ---: |
 | `// closure:` sites | 53 | **54** |
 | `// enum:` sites | 27 | **26** |
-| `// unchecked:` sites | 165 | **163** (the 165 counted two header mentions) |
+| `// unchecked:` sites | 165 | **163** (165 is the count with the two header mentions) |
 | `// reserve:` sites | 47 | 47 |
 | i32/u32 casts (`as u32` + `as i32`, code only) | 423 (206 + 217) | 423 (206 + 217) |
 | `Geo` written out | "four files" | **7 copies** (home and 6 restatements) |
@@ -691,7 +694,92 @@ expected tokens, not "about 60"); a `type` is not importable (reference §7.1). 
 1,058 declarations (1,081 is `test/g7.ents`). Comptime value parameters came with #32 (60648b8);
 8f459f1 is #33. The 54 renames are the groups' logged counts and leave no mark in the source.
 
-<!-- 8.5 runtime and 8.6 generation quality: being rerun under the lock -->
+### 8.5 Runtime, rerun under the lock: confirmed within run-to-run noise
+
+The same harnesses and engines (`verify/run-bench.sh`, 16:25 to 17:03, under the lock, load 1.0 to 1.5
+after the first minute): Node interleaved, 6 rounds, 8 engines, 5 kernel repetitions; Chromium the same;
+5 fresh processes and 5 fresh browsers per engine for the first run. Added: **Node with one engine per
+fresh process** (`verify/iso-bench.mjs`, 2 processes x 6 rounds each, 3 rounds for the JS), to test
+whether the interleaved run inflates MoonBit's time with garbage the JS engine leaves behind. It does
+not.
+
+| 120 Journey levels, steady median (ms) | Report, Node | Mine, Node interleaved (range) | Mine, Node one engine a process | Report, Chromium | Mine, Chromium (range) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Encantis core.wasm | 4,247 | 4,595 (4,078 to 4,918) | 4,583 | 3,143 | 3,273 (3,170 to 3,714) |
+| Encantis core.wasm `-O` | 4,218 | 4,512 | | 3,124 | 3,328 |
+| Encantis g7.wasm (the same levels) | 4,628 | 4,857 (4,623 to 4,930) | 4,932 | 3,349 | 3,565 (3,461 to 3,708) |
+| Encantis g7.wasm `-O` | 4,400 | 4,887 | | 3,431 | 3,518 |
+| core.wasm `wasm-opt -O3` | 3,885 | 4,252 | | 3,160 | 3,478 |
+| MoonBit wasm-gc | 9,383 | 9,822 (9,432 to 10,026) | 9,637 | 7,894 | 8,265 (8,169 to 8,695) |
+| MoonBit JS build | 17,821 | 20,140 | 19,467 | 14,902 | 16,219 |
+| JS game | 72,926 | 77,074 | 80,909 | 54,582 | 59,356 |
+| **MoonBit wasm-gc / core.wasm** | **2.21x** | **2.14x** | **2.10x** | **2.51x** | **2.53x** |
+| **MoonBit wasm-gc / g7.wasm** | **2.03x** | **2.02x** | **1.95x** | **2.36x** | **2.32x** |
+| JS / core.wasm | 17.2x | 16.8x | 17.7x | 17.4x | 18.1x |
+
+Every engine was 3 to 13% slower in absolute terms than in the measurement's session (another hour,
+another load), and every ratio within 0.1 of the report's. All Journey levels of g7.wasm, MoonBit and
+the JS hash the same; core.wasm's are its own, as stated.
+
+- **Level by level** (MoonBit wasm-gc / g7.wasm, last round): median 1.99x (p10 1.26x, p90 2.78x) in
+  Node, 1.77x one engine a process, 2.10x (1.19x to 3.54x) in Chromium; the report has 1.82x and
+  2.26x. The slowest level: Node core 164 ms, g7 150, MoonBit 293, MoonBit JS 683, JS 2,901; Chromium
+  98, 101, 232, 466, 2,153 (single-level maxima move by a third between runs).
+- **`-O`** changed the time by -2% to +2%. **`wasm-opt -O3`** was 7% faster in Node and 6% slower in
+  Chromium, inside the rounds' range there.
+- **Kernels** (same boards, every engine the same value on every row): MoonBit / Encantis from 0.92x
+  (L107 casual x1000) to 4.50x (L120 casual x100). L118's casual came out at 0.96x and L107's at 0.92x:
+  both square casual kernels are at MoonBit's speed, either side of 1x from run to run.
+- **Cold, the first 12 levels** (median of 5): Node g7 82.3 ms, core 87.1, MoonBit 130.6, MoonBit JS
+  382.7, JS 456.1; Chromium g7 84.2, core 102.3, MoonBit 167.6, MoonBit JS 391.8, JS 439.4. So 1.6x
+  (Node) and 2.0x (Chromium) sooner than MoonBit, against the report's 1.8x and 1.9x. Load and level
+  1: Node g7 5.9 ms, MoonBit 13.2, JS 29.4; Chromium 15.7, 28.2, 64.8. In Node the lead right after
+  load (1.59x) was no larger than warm (1.53x); in Chromium it was (1.99x against 1.58x).
+- **The custom sample** (`bench-g7.mjs --custom`, 6 rounds, steady median): core.wasm 1,503 ms, g7.wasm
+  2,066, MoonBit gen.wasm 5,175: 3.4x and 2.5x (the report: 3.0x and 2.2x).
+- **Compile times** (`compile-times.mjs`, 5 rounds, under the lock): `check` weave.ents 1.18 s,
+  hexbuild.ents 1.12, core.ents 4.07; `test hex.ents` 0.98; `wasm core.ents` 4.28, `-O` 8.34; `hover`
+  1.53 s on hexbuild and 4.1 s on gridgen; moon check 0.24 s cold and 0.16 s after an edit, builds
+  0.44 to 0.47 s. The edit-check loop is 7 to 25 times moon's, as stated.
+
+### 8.6 Generation quality on seeds of my own: confirmed
+
+`verify/quality-verify.cjs`, with the rule written in its header before any level was made: for each
+of 7 classes (Hex 12x12 with mirrors and spinners, Hex 8x10 plain, Hex 18x16 with mirrors, Hex
+10x14 with spinners at difficulty 40 to 100, Hex 20x6 strips, mixed 14x12 with both mechanics, and
+square 12x12 as the control), two JS sets made by **the real `G.generate` at 9e69e3a** (not g7.wasm,
+which the review's 18 classes used as "JS") on set codes ending VQA and VQB, and the port's set made
+by the shipping **core.wasm** through the game's glue on codes ending VQP.
+
+- **1,050 port levels, 0 invalid** by the JS's kernels (the plan replays to an empty board at par,
+  `F.valid`, the coverage and its floor, the feature stats, every mirror and spinner used, not all
+  free at the start, the casual win rate one attempt's `F.casualRate`, the challenge).
+- **154 KS tests at 1% (22 metrics x 7 classes), 0 rejected.** The largest port distance is 0.93 of
+  its critical value, on the square control's interaction, where the port's levels are the JS's own
+  by construction (so it measures seed noise); among the Hex classes the largest is 0.87 (edges,
+  Hex 8x10). The largest JS-against-JS distance is 0.87.
+- **Failure rates**: no set gave up on any spec.
+- **Check (c)**: core.wasm on the JS sets' own seeds makes the JS's square levels, 180 of 180 (the
+  square class and the square levels of the mixed class); 0 of 870 Hex levels are equal, as the
+  departures D1 and D2 predict.
+
+### 8.7 What was corrected in this report
+
+- The answer and §5.4: the port does not avoid bug 02 everywhere; one latent site in abi.ents (§8.2).
+- §5.2, §5.5, §6, §7: closures 54 (not 53), options and tags 26 (not 27), unchecked reads 163 (not
+  165); `Geo` written out 7 times (not "in four files"); comptime sinks passed by hand about 49 (not
+  18); hand-inlined spots 4 (not 3); scratch-cell bit accesses 23 calls (not 32); `FixedVec` in 3
+  data blocks (not "5 sites").
+- §4: `core.ents` has 1,058 declarations (not 1,081). §5.1: comptime value parameters came with #32
+  (60648b8). §5.3: the parse error lists 20 to 60 expected tokens (not "about 60").
+- The answer and §2: the square casual kernels of L107 and L118 both sit at MoonBit's speed (not
+  L118 alone below 1x); the first 12 levels after a cold load are 1.6x (Node) to 2.0x (Chromium)
+  sooner than MoonBit's; the claim that the port's lead is largest right after load held in Chromium
+  but not in my Node run; `wasm-opt -O3` is no gain in Chromium.
+
+Nothing else needed correcting. The verdict of "The answer" stands: exact rules, the same generation
+quality, about 2.1 to 2.5x MoonBit wasm-gc's Journey speed, a smaller wasm with no wasm-gc, at the
+cost in source size, hand-written closures and an edit loop 7 to 25 times slower.
 
 ## Reproducing
 
@@ -700,6 +788,7 @@ moonbit/encantis/core/build.sh                       # inline tests and every wa
 moonbit/encantis/core/oracle/check-all.sh            # every group's exact and quality oracle (about 22 min)
 node moonbit/encantis/core/oracle/quality-summary.cjs     # §1.2
 node moonbit/encantis/core/oracle/journey-freeze-cost.cjs # §1.4
+# §8: the verification's scripts and sessions are in oracle/verify/ (its README), output in oracle/fixtures/verify/
 node moonbit/encantis/core/oracle/size.cjs                # §3.2
 node moonbit/encantis/core/oracle/compile-times.mjs <copy of moonbit/ with moon.mod and src/>   # §4
 # §2: in a harness (oracle/setup-harness.sh <dir> moonbit/dist/gen.wasm moonbit/dist/mf.wasm) with the
