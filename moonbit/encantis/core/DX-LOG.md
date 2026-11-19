@@ -1915,3 +1915,253 @@ None found in or through G4's code; no new file in bugs/. 01 to 04 reproduce on 
 | oracle fixes (check-all's masked status, check-hexbuild's stack peak) | 2 |
 | new oracles | 5 (shadow, edges, d2, quality-g4-review, quality-g4-paired) |
 | compiler bugs | 0 |
+
+## 19 Nov: G5, full geometry, the routing to the kernels, the repeated-slide core and the hints
+
+Compiler: encantis origin/main **0c7737d** (fetched at the start; it has lib/vec.ents, so no other
+branch). Every earlier wasm rebuilt byte for byte at 0c7737d (`cmp` against the committed ones).
+Commits a52ca8a, 23bc682, 6e76323 and the ones after. The first engineer on G5 was killed at about
+05:02 after two probes of the JS (`g5/probes/js-sizes.txt`, `js-depth.txt`); this section is the
+second's, from 05:04.
+
+### What was built
+
+- `mech.ents` (all of mech.mbt): the `Geo` tables (behind `*mut`, holding the `Board` by value),
+  `cell`, `inside`, `direction`, the full-geometry tap of both grids, `all_free_full`, the position
+  key (`key_of`, u16 words), `solve_full`'s two searches as one recursive `search` over a `Full`
+  context, and game-engine.js's routing: `tracked`, `all_free`, `replay`, `replay_plan`, `solve`,
+  `frozen`, `minimum_taps`.
+  - A tap is `walk` (or `walk_at`, below): the rope's head is walked through static scratch (a
+    `FixedVec(13826, Pt)` route, a stamp table of the states seen), and the only thing put on the
+    stack is the rope's path after. `tap` is the game's: it adds the position after (8 bytes a
+    rope) and a copy of the route, as `?*Move`.
+  - The depth-first search keeps its positions as keys.ents keys of u16 words reserved for
+    (budget + 1) keys; its tries hold `(i, order, event, path)`, and the position is copied only for
+    the tap followed. On Hex the JS's comparator (p0 first, then exits) is a rank 0, 1, 2 and the
+    stable `lib/sort`, which gives its order exactly.
+  - `minimum_taps`'s queue is a `Vec` of `(paths, parent, rope, depth)`, and its seen set a lib/set
+    keyed by the queue's own positions, with a `hash` and an `eq` for `[]?[]Pt` written in mech.ents:
+    no key is copied. Nothing is reset while the set or the queue may have grown above a scope.
+- `assist.ents`: `guide`, and `reachable_features` with `live` as a list plus flags (insertion
+  order) and each rope's states in a lib/set that grows within the rope's scope.
+- `core-rope.ents`: `Core` and `repeated_core`, the JS's draws in its order.
+- `test/g5.ents`: a hook per unit, gen.mbt's own `guide` and `features` exports (so the game's glue
+  drives it as `dist/gen.wasm`), `t_tap`, `t_core`, `t_bench_solve`.
+- Oracles: `check-g5.cjs`, `check-core-rope.cjs` (with `fixtures/core-rope-expected.json`),
+  `check-g5-harness.sh`, `hybrid-g5.cjs`; timing `bench-g5.cjs`; `size.cjs` and `check-all.sh` lines.
+
+### Exactness
+
+Everything in G5 is the game's rules or a measurement of a given board, except `repeated_core`,
+which is generation; it costs nothing to keep exact, so it is exact too. Results on the final file:
+
+- **check-g5.cjs**, against game-engine.js, mechanics.js and hex/mechanics.js at 9e69e3a, on all
+  135 reference boards (both grids, 67 with springs; C13 and C14 sampled to 25 positions each):
+  **5,821 positions, 93,527 comparisons of 3.86M values, 0 failed**, in order and with `--reverse`.
+  Every tap of every rope (event, distance, route, the paths after), direction, allFree routed and
+  full, frozenRopes, solve at 40, 900, 4,000 and 900 with no prefer, the full-geometry solve on
+  every board (the kernels' boards too), replay and replay with a move left out, guide at 40 and
+  900, reachableFeatures at 500 and 10,000, tracked, and minimumTaps at 1,200 and 5,000 from the
+  start of the 128 boards of at most 40 ropes. **It passed on its first run** (on the 132 boards
+  then filled; the three colossal ones the same day). `--controls` 12 of 12; `--js` (the JS live
+  through the same converters, against the cache) passes, 688 s; `--moonbit`: MoonBit's dist/gen.wasm (guide, features at every position)
+  and dist/mf.wasm (bench_solve on the Journey) agree with the JS, 22,908 comparisons, 0 failed.
+- **check-core-rope.cjs**: the 282 repeatedCore calls the generator makes over the 135 reference
+  levels (277 give a core), replayed from their numbers, and 3,000 calls on random inputs (both
+  grids, 4 to 48 a side, any difficulty and state) against the live JS: ropes, stops, plan, par,
+  exact, depth, draws and the rng state after. **0 failed on the first build.** `--js` passes,
+  `--controls` 9 of 9.
+- **The hints through the game's glue** (`check-g5-harness.sh`, test/g5.wasm as dist/gen.wasm):
+  assist.test.cjs `--test-name-pattern=wasm` passes (521 positions, 2,084 checks); a harness on
+  test/g3.wasm fails it (`x.guide is not a function`), so the harness reads the file given.
+  solver/check.cjs, whose "moonbit wasm-gc" side is then the port: 330 + 3,039 guide checks, 0
+  mismatches, against the old Encantis solver and MoonBit's JS build. check-features.cjs (a copy
+  whose boards come from MFGame.generate, as the port has no generate yet): 4,458 positions and
+  1,042 pinned checks, 0 mismatches, insertion order included.
+- **The whole generator** (`hybrid-g5.cjs`: the JS generator of 9e69e3a with every G.tap,
+  G.replay, G.solve, G.minimumTaps, G.allFree, G.direction and repeatedCore answered by the port):
+  **135 of 135 reference levels the same** (ropes, mirrors, springs, plan, par, exact, layout key),
+  over 2,145,256 taps, 20,707 replays, 1,347 solves, 35 minimumTaps, 6,774 allFree, 325,267
+  directions and 282 repeatedCores, in 88.7 s; the same patched generator with the JS alone (`--js`,
+  the comparison's positive control) makes the 135 the same in 132.1 s.
+- **The earlier groups' oracles**, rerun with G5's lines (`check-all.sh` under the lock, 06:28 to
+  06:42): every check passed: G1, G1-wide, G2, G2-wide, G2 `--extra`, the three weave scripts, G3,
+  G3-wide, G3 `--extra`, G3's review at a quarter, check-hexbuild `--seeds 2` and G4's review
+  oracles, then check-g5, check-core-rope and check-g5-harness. build.sh rebuilds every earlier
+  wasm byte for byte.
+
+### Departures (from the JS's exact behaviour)
+
+**None.** G5 changes no answer and no draw. So **no Journey level differs from the JS game's because
+of G5 (0 of 120)**; the hybrid run makes all 135 reference levels as the JS does. (G4's departures
+are G4's: 60 of 120 in hex_build's default mode, 0 in draw-exact mode.)
+
+What changed is work, after parity, each step rerun through check-g5:
+
+| | The JS and MoonBit | The port | What it saved |
+| --- | --- | --- | --- |
+| S1 | stamp every cell of every rope for each tap | the searches (solve_full, minimum_taps, all_free_full, frozen) stamp a position once for the taps of all its ropes (`walk_at`) | the most: solve 2000 went from 1.01 to 1.15 times MoonBit's speed to 1.82 to 3.16 (table below; S3 is the features half of the assist pass there) |
+| S2 | the states a tap has seen in a Set (JS) or a list searched (MoonBit) | a stamp table by state number, one load a look | 6 to 11% of solve 2000 and of the assist pass (none on L89); no walk is quadratic in its steps |
+| S3 | reachableFeatures's states as strings in a Set | each rope's states as u32 cells in a lib/set grown in the rope's scope | the first version reserved a keys.ents set for the whole budget (10,000 keys) per rope, whose clearing made features(10000) 2.8x slower than MoonBit; now 3.2x faster |
+| S4 | a tap builds the route and the position | the walk is in static scratch; only tap copies the route and the position | no route or position garbage in the searches |
+| S5 | minimumTaps keys positions by JSON strings | its set holds the queue's own positions, hashed rope by rope | no key copies: 8.8 MB peak at 5,000 on L118, which would not fit with copied keys |
+
+The plan said the tap's linear seen search stays for parity of work; it did until parity, then went
+(S2).
+
+### Time
+
+`bench-g5.cjs` under the lock (06:07 to 06:09; load average 2.0 at the start and 1.7 at the end, so
+the machine was not quiet), 5 processes, best of 5 rounds in each, median over processes; port,
+MoonBit wasm-gc (dist/mf.wasm's bench_solve; dist/gen.wasm through the glue) and the JS interleaved,
+values checked to agree. The last two columns: how many times faster the port is.
+
+| Kernel | port ms | MoonBit ms | JS ms | MoonBit / port | JS / port |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| L30 solve 2000 (29 nodes) | 0.033 | 0.084 | 1.185 | 2.51x | 35.6x |
+| L60 solve 2000 (2,001 nodes, gives up) | 4.211 | 8.073 | 113.8 | 1.92x | 27.0x |
+| L89 solve 2000 (28 nodes) | 0.043 | 0.112 | 1.902 | 2.62x | 44.6x |
+| L120 solve 2000 (50 nodes) | 0.097 | 0.333 | 6.895 | 3.42x | 70.8x |
+| assist: the 2,084 checks of assist.test.cjs | 39.1 | 67.7 | 363.5 | 1.73x | 9.3x |
+
+(The assist pass includes the glue's writing of each position word by word, the same for both
+wasm builds.) How it got there, the same bench, 3 processes each, run after the main one:
+
+| Version | L30 solve | L60 solve | L89 solve | L120 solve | assist (2,084) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| a52ca8a, the straight port (exact on its first run) | 0.072 (1.15x) | 7.068 (1.13x) | 0.101 (1.01x) | 0.320 (1.04x) | 62.5 (1.00x) |
+| 6e76323, S1 and S3 | 0.037 (2.23x) | 4.463 (1.82x) | 0.046 (2.39x) | 0.109 (3.16x) | 39.7 (1.64x) |
+| final, S2 too | 0.034 (2.47x) | 4.209 (1.92x) | 0.047 (2.30x) | 0.097 (3.40x) | 36.7 (1.78x) |
+
+(ms, and in brackets MoonBit wasm-gc's time over the port's, measured in the same processes. The
+straight port's assist pass is MoonBit's time because its reachable_features was 2.8x slower than
+MoonBit's (the reserve of S3) while its guide was faster.)
+
+Other timings met on the way (not under the lock): check-features.cjs's own column, summed over
+the Journey boards with mirrors or springs at the start, budget 10,000: JS 6.9 ms, the old Encantis
+features.wasm 0.76 ms, the port through the glue 1.5 ms, MoonBit 4.0 ms; solver/check.cjs's 3,039
+square guide checks: the old Encantis solver.wasm 54 to 62 ms, the port 114 ms (through the glue,
+with the Geo and SqMirrors made per call), MoonBit wasm-gc 138 ms, MoonBit's JS 253 to 300 ms.
+
+Stack: peak 14.4 MB of the 16 MiB on C14 (40x40, 152 ropes, a spring) at solve budget 4,000: the
+DFS's reserve is (budget + 1) keys of 1,653 u16 words. 8.8 MB on L118 for minimumTaps at 5,000
+(20,601 positions queued). 136 KB at most for repeated_core (its solve's reserve at budget 2,000).
+
+### Size
+
+`node oracle/size.cjs G5`: mech.ents 4,525 tokens, assist.ents 874, core-rope.ents 1,586: **6,985
+against MoonBit's 5,370 for the same declarations (1.30x), 1.75x with the 128 lines of import
+declarations (1,692 tokens) and restated types (696)**: a quarter of G5's tokens are restatement.
+(The plan's estimate was 4.6k MoonBit tokens; mech.mbt, assist.mbt and the two declarations of
+gridgen.mbt measure 5,370.) Of mech.ents, the position's hash and eq (S5) are 269 tokens and the
+seen table (S2) 87. test/g5.wasm is 56,486 bytes (22,318 gzipped).
+
+### Friction
+
+1. **No counted range loop.** repeated_core builds its pair with nine C-style JS loops (`for (let q
+   = left + 1; q <= -depth - 2; q++)`). `for r in 1..=depth` is a parse error (below), so the five
+   that count up became `for k in count` with the count worked out by hand (`-depth - 2 - left` for
+   that one), and the four that count down `while` loops with the step written at the end. Easy to get wrong by one; the oracle passed first
+   time. 10 minutes. No planned feature names it.
+2. **A `let` is seen to the end of its function** (reference 3.3): `'t' is already declared in this
+   scope` three times in repeated_core (one `let t = turned(...)` in each of four loops); in all
+   about 12 names were chosen to avoid it (`ta` to `td`, `c2`, `q4`, `r2`, `r3`, `t2`, `t3`, `at`).
+   5 minutes.
+3. **A field wins over a function of its name**: `g.tracked()` (the Geo had a field `tracked`, as
+   MoonBit's has) and `g.stamp(...)` gave 10 errors; the field became `kernels` and the function
+   `mark_ropes`. The message says exactly that, and what to write. 2 minutes.
+4. **No bare block for a scope**: in minimum_taps I wanted `{ let m = mark(); defer reset(m); ...
+   }` round the fallback's replay; a block is not a statement, so it is a helper, `plan_taps`. 1
+   site.
+5. **Restated types** (25% of the tokens, above): `Geo` (ten fields, the `Board` inside) is restated
+   in assist.ents, core-rope.ents and test/g5.ents, and the rename of friction 3 had to be made in
+   all four. `Step` in three files, `Solved` in four, and mech.ents restates `SqBoard` and `HexBoard`
+   only to import the kernels' signatures.
+6. **Closures** (`// closure:` 8 sites): the two recursive local functions of solve_full became one
+   top-level `search` over an 11-field context (`Full`); two comparator lambdas one `before`; and
+   nine lambdas became loops or helpers (repeated_core's two nested turning maps and two nested
+   placing maps as `turned` and `placed`, `chosen.map(_ => [])`; reachable_features's `makei`,
+   `path.map`, and the state string's `map` and `join`). Closures
+   would remove all of them; none needed a run-time function value (`// fnvalue:` 0).
+7. **The DFS's seen set cannot grow**, because the search's node scopes would free what it grew
+   into: it is reserved for (budget + 1) keys of the start's length, 14.4 MB on C14 at 4,000, 2.4 MB short
+   of the stack's 16.8 MB. A second arena (`Stack(n)`, PORT-PLAN 10.1) would let it grow as found. And
+   the opposite trap, met: a reserve sized for the worst case costs its clearing on every call
+   (friction-turned-departure S3). `// reserve:` 8 sites.
+8. **A range of a slice is optional** even where its bounds are known: `cells[cells.len - n..] ??
+   cells` in walk_at, where n <= cells.len always. 1 site.
+9. **Hand-made tags** (`// enum:` 2 sites): `ev_none` for a tap that is not allowed (MoonBit's
+   `Move?` is `?*Move` where the position is wanted, but the searches' `Step` is a value) and
+   `solved_unknown`. Enums would remove both.
+
+### Error messages (verbatim)
+
+1. `mech.ents:561:39: cannot call non-function type: i32 ('tracked' is a field here, and a field wins over the function 'tracked': write tracked(...))` (clear).
+2. For `for r in 1..=depth {` (a parse error, which reads as if a type were wanted):
+   `Expected "a".."z", "bool", "f64", "f32", "u8", "u16", "u32", "u64", "u128", "u256", "u512", "i8", "i16", "i32", "i64", "i128", "i256", "i512", "*", or a digit`
+3. For `export type Core = (...)` (a type is not exported: types are structural, reference 7.1, but
+   the message does not say so): `Expected "memory", "global", "func", "b\"", "x\"", or "\""`
+4. For a bare `{` block in a function body: a list of 60 tokens, `Expected "}", "a".."z", "false", "true", "'", ... "&&", or "??"`.
+5. `core-rope.ents:169:15: 't' is already declared in this scope` (as G4 found: it does not say
+   where the first one is).
+6. In a test, `p[0].q` on a `[]Pt`: `index 0 on []Pt requires 'if let' or '??': a slice's length is only known at run time (no optional type for Pt)` (clear; `p.ptr[0]` there).
+
+### Bugs
+
+None: no wrong code and no crash in G5, so no new file in bugs/.
+
+### Tooling
+
+- `check mech.ents` 1.6 s (12 modules), `test mech.ents` 1.7 s, `wasm test/g5.ents` 2.1 s; `build.sh`
+  with G5 26 s (G5's three modules tested: 4 inline tests).
+- `hover mech.ents:<line>:walk_at` (1.6 s) spells the `Geo` out in full, 600 characters, as G3 and
+  G4 found for their types; on a local it gives `(event: i32, distance: i32, path: ?[](q: i32, r: i32)) (4 slots)`,
+  and on `hashset` the instance (`calls hashset(K = []?[]Pt)`). `references` lists the 5 uses of
+  walk_at. (Without a line, `hover mech.ents:walk_at` is `Error: expected <file>:<line>:<col>`.)
+- `fmt` would change 151 lines of mech.ents, nearly all `n: u32` to `n:u32` in import signatures.
+  Not applied.
+- The JS's answers are cached per board (check-g5's `--fill`): the JS needs about 10 minutes for the
+  135 boards (C14's solves most of it; C13 and C14 are sampled because the JS takes about 25 s a
+  position there), the port 15 s; so each change to mech.ents was one rebuild and 15 s.
+
+### Pleasant
+
+- **Exact on the first run, all three modules** (93,527 comparisons; 3,282 core calls; the harness
+  tests), and the whole generator on the port's units made the 135 reference levels unchanged.
+- `if let path = paths[i as u32]` checks the index and the element at once: the JS's `paths[i]`
+  falsy test, out of range included, in one construct.
+- **None is `0`** for `?*Move`, `?*Par` and a `?[]Pt` field (`Step(ev_none, 0, 0)`, `return 0`): no
+  casts, which G4 still wrote.
+- **lib/set over a key type of my own**: `hashset([]?[]Pt, 10)` called the `hash` and `eq` written in
+  mech.ents, first time, so the BFS keys positions by themselves.
+- A struct in memory holding a struct by value (`g.b`, and `&g.b` for a `*Board`), `FixedVec(13826,
+  Pt)` in static data, `mut [(0, 0); 13826]`, method calls on builtins (`fallback.len.max(...)`,
+  `w.min(height)`, `(10).min(...)`), the stable `lib/sort` with a comptime comparator.
+
+### Where `comptime n: u32` with `[n]T` helped G5
+
+- Used: the walk's route is a `FixedVec(13826, Pt)` in static data (1 `// comptime-n:` site).
+- Would help: a second arena for the DFS's seen set (friction 7), which could then grow.
+
+### Counts (tags in G5's files, sites; header mentions left out)
+
+| Tag | mech.ents | assist.ents | core-rope.ents | test/g5.ents |
+| --- | ---: | ---: | ---: | ---: |
+| `// closure:` | 2 | 3 | 3 | 0 |
+| `// fnvalue:` | 0 | 0 | 0 | 0 |
+| `// enum:` | 2 | 0 | 0 | 0 |
+| `// comptime-n:` | 1 | 0 | 0 | 0 |
+| `// unchecked:` | 21 | 7 | 3 | 0 |
+| `// reserve:` | 4 | 2 | 2 | 0 |
+
+| What | Count |
+| --- | ---: |
+| exact comparisons (check-g5; core recorded + wide; harness checks) | 93,527; 282 + 3,000; 2,084 + 3,369 + 5,500 |
+| generator calls on the port in the hybrid run, levels the same | 2.5M, 135 of 135 |
+| local functions made top-level / comparators / lambdas made loops or helpers | 2 (into 1) / 2 (into 1) / 9 |
+| names renamed for function-scoped lets / field-function clashes | about 12 / 2 |
+| counted JS loops rewritten (no `a..=b` loop) | 9 |
+| `if let` outside tests and test/g5.ents (deepest nesting) | 15 (2, in `eq`) |
+| compiler bugs | 0 |
+| departures that change an answer or a draw | 0 |
+| Journey levels that differ because of G5 (of 120) | 0 |
