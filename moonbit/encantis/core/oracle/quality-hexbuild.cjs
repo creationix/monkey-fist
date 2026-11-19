@@ -207,7 +207,8 @@ function compare(title, sets, keys, okKey = 'ok', free = []) {
 
 function levelsPart(name, set, part) {
   const { F, G } = R.js();
-  if (set === 'C') Y.install(WASM, { exact: false });
+  const PORT = set === 'C' || args.includes('--port');   // --port: another set of the port's (a replicate)
+  if (PORT) Y.install(WASM, { exact: false });
   const all = levelsOf(name);
   const [k, n] = (part || '0/1').split('/').map(Number);
   const mine = all.filter((_, i) => i % n === k);
@@ -218,18 +219,18 @@ function levelsPart(name, set, part) {
     if (done.has(key)) continue;   // resumable after a restart
     const details = { ...spec, seed: spec.seed + set + (rep || '') };
     const t = performance.now();
-    const before = set === 'C' ? Y.calls() : null;
+    const before = PORT ? Y.calls() : null;
     let row;
     try {
       const lv = F.generate(details, G);
       const ms = performance.now() - t;
       row = { key, ok: 1, grid: spec.grid, d: spec.difficulty, ms, ...metrics(lv, spec) };
-      if (set === 'C') { const why = levelProblems(lv, spec); if (why.length) row.invalid = why; }
+      if (PORT) { const why = levelProblems(lv, spec); if (why.length) row.invalid = why; }
     } catch (e) {
       if (!/Could not densely weave/.test(e.message)) throw e;
       row = { key, ok: 0, grid: spec.grid, d: spec.difficulty, ms: performance.now() - t };
     }
-    if (set === 'C') { const after = Y.calls(); row.buildMs = after.ms - before.ms; row.builds = after.builds - before.builds; }
+    if (PORT) { const after = Y.calls(); row.buildMs = after.ms - before.ms; row.builds = after.builds - before.builds; }
     fs.appendFileSync(file, JSON.stringify(row) + '\n');
   }
 }
