@@ -3597,6 +3597,15 @@ reading and diagnosing the port.
 - **Deterministic builds and the test hooks** (`t_place_mirrors`, `t_woven`, `t_js_mode`, `draws`,
   `stack_peak`) made the edge oracle a 150-line script and the mutation run a shell loop.
 
+### check-all, on the final tree
+
+`oracle/check-all.sh` under the lock, 14:17 to 14:39 (1,338 s): **every check passed**, G1 to G7. Its
+loop picks up the review's new checks by name: check-g7-edges (1,352 cases, 0 differ), check-g7-select
+(26 of 26 the JS's), check-g7-review-assist (the port's Journey alone, 24,226 answers, 0 differ; 223 s,
+the longest G7 line), with G7's own (units in both modes, robust, the port's Journey, parity.mjs 135 of
+135 and the harness's wasm tests 6 of 6). No wasm changed in the review: build.sh at the start rebuilt
+every one byte for byte, and no Ents file was edited after it.
+
 ### Counts (review)
 
 | What | Count |
