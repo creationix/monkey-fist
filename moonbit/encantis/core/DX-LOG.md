@@ -1833,6 +1833,11 @@ None found: no wrong code and no crash in G4, so no new file in bugs/ (01 to 05 
   edge and D2 checks briefly. `check-hexbuild.cjs` printed `stack_peak()` after its last call, an
   intentions replay (4,780 bytes), as the builds' peak; it now prints the highest any build
   reached (260,256 bytes with `--seeds 20`). PORT-PLAN's G7 section: the draw-exact rule above.
+- **check-all.sh at the end** (the final tree, with the review's lines; under the lock, 04:33 to
+  04:46): every check passed: G1, G1-wide, G2, G2-wide, G2 `--extra`, the weave scripts, G2's big
+  weave, G3, G3-wide, G3 `--extra`, G3's review at a quarter, check-hexbuild `--seeds 2` (9,000
+  comparisons), the builder part (0 invalid, now with its own status), the shadow at 2 levels a
+  code (4,783 comparisons), the edges at 2 states (771) and the D2 probe (250 builds, 0 traps).
 - **Small inaccuracies in G4's section:** its tag table counts the header's mention of each tag
   (in code: `// closure:` 11 sites, not 12; `// enum:` 7, not 8; `// reserve:` 16, not 17). Its
   other numbers reproduce.
