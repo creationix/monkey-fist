@@ -1704,3 +1704,209 @@ None found: no wrong code and no crash in G4, so no new file in bugs/ (01 to 05 
 | differences from the JS in draw-exact mode | 0 |
 | departures that change draws (D1, D2) | 2 |
 | Journey levels that differ (of 120) / fail to generate | 60 / 6 |
+
+## 19 Nov: review of G4 (adversarial)
+
+- **Compiler:** encantis origin/main **ce7ee77** (fetched at 02:34: 12 commits after G4's 8f459f1,
+  among them `wasm --release` and `--size`, binaryen pinned and run in process for `-O`, and
+  f72a795 "Index a fixed array that lies in memory where it lies"). Every wasm of the core rebuilds
+  byte for byte under it (`build.sh`, 25 s, `git status` clean), so no result can have moved;
+  check-all was rerun at the end anyway. Reviewed head 233baf3. Scratch: `review-g4/`.
+- **Reran first:** `test/g4.wasm` rebuilds to the committed 42,672 bytes; inline tests 2 of 2
+  (hexbuild) and 2 of 2 (fixedvec). `check-hexbuild` 4,000 comparisons of 69,867 rope and plan
+  words, 0 failed (16.5 s), the same `--reverse`; `--js` passes; `--controls` 16 of 16. `--seeds
+  20`: 5,250 builds, 54,000 comparisons of 1,467,201 words, 0 failed (311 s). The `wasm-opt -O3`
+  build (21,337 bytes, the same file G4 made) and the new `wasm --release` build (20,627 bytes)
+  pass check-hexbuild too. `size.cjs G4`: 5,912 tokens, 1.62x and 1.87x; `fmt` would change 189
+  lines; `references` on `with_shape` gives its 6 uses: all as G4 says. G4's quality report rebuilt
+  from its own data is `fixtures/quality-g4-report.txt` line for line. Bug repros 01 to 04 still
+  show what their headers say on ce7ee77 (04's throw is now at codegen.ts:4127).
+- **Read against hex.mbt 669 to 1238 and hex/engine.js** line by line, draw by draw. The port
+  differs from the JS only where MoonBit does, on calls the game never makes: no `ropeCount`;
+  `minLength` fixed at 2 (the JS's `shape` defaults to max(2, minLength || 3), but the generator
+  passes 2 in every call); `tapDepth` always given (the JS reads null as 2); the stats beside the
+  ropes left to the caller (hybrid.cjs computes them as the JS does). The memory discipline holds:
+  every list that outlives a step is reserved and asserted, and each bound follows from the ropes
+  sharing no cell (at most area / 2 ropes, one stop per knot plus the core's); `defer` is
+  block-scoped (reference "Defer"), so each knot attempt and each candidate frees its scope; the
+  laid board's phase is reset only with no inner scope open.
+- **The departures are sound.** D1 skips growing a knot's second rope once its way out misses the
+  first rope, where the JS's attempt fails whatever the body; D2 draws a head from the law of the
+  JS's 24 tries, none with probability (1 - f)^24, else uniform over the free cells. Both leave
+  the builder's law unchanged. D2 rests on its free-cell list being exact, which no oracle saw:
+  draw-exact mode does not use it, and the quality oracle sees only distributions. A probe build
+  that asserts at every random head that the list is exactly the free cells
+  (`oracle/check-hexbuild-d2.cjs`, made by text substitution into a copy of the sources) passes
+  1,000 default-mode builds on the fixture's cfgs; its control, the gaps kept in front of traps
+  left on the list, traps in 160 of 250. That mutation passes every exact check and would show in
+  the quality oracle only as weaker traps.
+- **What the oracles never reached.** A branch count of the JS over the fixture's 250 builds
+  (`oracle/cov-hexbuild.cjs`, 32 counters substituted into a copy of hex/engine.js; the port
+  mirrors it branch for branch): no core is ever refused or fails its certificate, no certificate
+  step fails in `intentions`, and **247 of the 250 builds end at the attempt limit** (`area * 22`)
+  under their coverage, only 3 reaching 0.99. Unreachable in any build: `aimAt` with no idle
+  mirror (it is called only when one is idle), a trap's rope that would not stop in its gap, and a
+  shape under its minimum of 2. **`oracle/check-hexbuild-edges.cjs`** makes 32 cfgs for the rest: a
+  core with a one-cell rope, off the board, on another rope's cell, with a way out that passes a
+  cell twice (the JS throws "twice", the port returns none, woven() makes both null), with a
+  failing, an empty and no certificate, stops off the track, fewer stop lists than ropes; knots and
+  traps past what fits (the attempt limits), coverage 0 and 1, tapDepth 0, 1 and 100, length 1 and
+  80, stage 0 and 200, dense mirrors, 12x1, 1x12, 2x2, 3x3, 2x9, and 40x40 with traps (no game cfg
+  has traps above 24x24). **4 states each: 128 builds (92 built, 32 null, 4 thrown by the JS), 264
+  replays, 1,547 comparisons, 0 failed**; its stack peaks at 666,920 bytes (the 40x40 one).
+- **The exact check on the generator's own calls for new specs.** **`oracle/check-hexbuild-shadow.cjs`**
+  runs the 9e69e3a generator as the JS does and hands every H.build call to the port as well, from
+  the same state, in draw-exact mode, comparing everything check-hexbuild compares. 22 codes the
+  fixture lacks (4x4, 5x4, 4x24, 24x4, 7x9, 13x11, 8x8 M, 8x24 M, 24x8 M, 15x17 M, 10x14 S, 12x12 MS,
+  18x18, 22x24 M; the colossal rules at 12x12, 48x16 M, 8x48 M, 48x48 and 20x20 MS; difficulty 90 to
+  100 and 1 to 10; a mixed MS set), 12 levels each, and the 60 Hex Journey specs on new seeds:
+  **324 levels, 2,328 builds, 37,235 comparisons of 766,245 rope and plan words, 0 failed** (291 s);
+  another 8 levels a code on other seeds, 1,210 builds and 19,355 comparisons, 0 failed. Its
+  `--control` (the default mode) fails, on draws first.
+- **Quality on new seeds and classes** (**`oracle/quality-g4-review.cjs`**; the rule is in its
+  header and was in the progress file before set H existed): sets F and G the JS, H the JS
+  generator with the port's hex_build in its default mode (hybrid.cjs); 9 classes, 1,840 levels a
+  set, 5,520 in all, under the lock with 3 workers (39 minutes). 40 metrics a class: G4's 27, and
+  the shortest rope, bends and the most in one rope, par per rope, the dependency graph's edges,
+  essential edges, forks, depth, mutual-wait groups and coupled groups, manual bounces, and the
+  H.build calls a level took and how many returned null. **Every set-H level is valid by the exact
+  kernels (0 of 1,840 invalid), and none of the 400 KS tests rejects at 1%** (nor does any of the
+  400 JS-against-JS ones); the closest is colossalx's mean rope length, D = 0.125 against a
+  critical 0.141 (JS against JS 0.105).
+
+  | Class (levels a set) | Failed F / G / H | KS rejections (of 40) | H invalid | Time a set: JS / with the port (its hex_build) |
+  | --- | --- | ---: | ---: | --- |
+  | Journey Hex specs x 4 seeds (240) | 7 / 11 / 8 | 0 | 0 | 207.1 s / 126.4 s (10.0 s): 61% |
+  | thin: 4x24, 24x4, 8x24 M, 24x8 M (200) | 0 / 0 / 0 | 0 | 0 | 127.1 s / 33.8 s (8.0 s): 27% |
+  | tiny: 4x4, 5x4, 4x6, 7x5 (200) | 0 / 0 / 0 | 0 | 0 | 4.6 s / 1.9 s (0.9 s): 40% |
+  | spinners: 10x14 S, 12x12 S, 16x16 MS, 20x20 S (200) | 0 / 0 / 0 | 0 | 0 | 558.2 s / 307.6 s (17.0 s): 55% |
+  | colossal rules: 12x12, 48x16 M, 16x48, 20x20 MS (200) | 0 / 0 / 0 | 0 | 0 | 31.7 s / 8.2 s (2.7 s): 26% |
+  | difficulty 1-10 and 90-100, 10x14 and 14x14 M (200) | 0 / 0 / 0 | 0 | 0 | 108.3 s / 28.1 s (7.2 s): 26% |
+  | mixed: 14x10 MS, 18x18 (200, half Hex) | 0 / 0 / 0 | 0 (0 on the Hex half alone) | 0 | 242.7 s / 126.0 s (8.2 s): 52% |
+  | large: 18x22, 22x18 M, 24x20, 20x24 M (200) | 0 / 0 / 0 | 0 | 0 | 1,018.7 s / 273.1 s (39.8 s): 27% |
+  | colossal 48x48, plain and M (200) | 0 / 0 / 0 | 0 | 0 | 711.1 s / 81.9 s (57.4 s): 12% |
+
+  Medians (F / G / H), for example: on the large boards par 42 / 42 / 42, challenge 8.88 / 8.88 /
+  9.00, interaction 4.16 / 4.33 / 4.24, knots 4 / 4 / 4, traps 3 / 3 / 3; on 48x48 par 216 / 212 /
+  214, knots 11.5 / 12 / 12; on the Journey specs challenge 6.8 / 6.8 / 6.4 and distance from the
+  target 1.25 / 0.99 / 1.01. Every quantile table is in `fixtures/quality-g4-review-report.txt`,
+  every level in `fixtures/quality-g4-review.jsonl.gz`.
+- **Paired by cfg** (**`oracle/quality-g4-paired.cjs`**). The builder part of quality-hexbuild pools
+  250 cfgs from 4x5 to 32x32 into one distribution per output, which the differences between cfgs
+  dominate: a small systematic shift would hide in it. Here each fixture cfg is built from 8 new
+  states by the JS twice (J1, J2) and the port once, and each of 13 outputs is compared cfg by cfg
+  (a z per cfg, summed over the cfgs of a size group; |Z| under 3.29 required, fixed first): **0 of
+  65 fail**, no port build invalid, no null builds on either side (215 s). The largest are the
+  longest rope on boards of up to 100 cells (Z = -2.82, the JS against itself -0.66) and on 101 to
+  300 cells (+2.54): opposite signs, and +0.08 over all 250 cfgs. A replicate on other states (16
+  a set, the 237 cfgs of up to 300 cells, 236 s) fails none either: the longest rope is then -0.36
+  on the small boards and -2.17 on 101 to 300 cells (its sign turned), the largest |Z| of the
+  replicate. Chance, as the departures' argument says it must be.
+- **Journey** (`oracle/journey-g4.cjs`, the 120 levels through the JS generator three
+  ways). Draw-exact: **all 120 levels are the JS's, every field** (not only layout key and par), and
+  match reference.json. Default mode: **60 of the 120 differ from the JS game's** (every Hex level):
+  54 change and 6 cannot be generated (L32, L36, L37, L38, L46, L50), as G4 found. The 54 also lose
+  what build-grid-journey.cjs chose their seeds for: their mean distance from the target challenge
+  is 1.78 (15 of 54 within 0.5), against 0.97 for the Journey's own 60 (29 within 0.5), and 1.64 to
+  1.72 for the JS on fresh seeds of the same specs (25 to 31% within 0.5). So the departures keep
+  the qualities of generated levels, but the Journey is not a sample: it is a selection made
+  against the JS's draws, and in default mode it becomes a sample. G7 must generate it in
+  draw-exact mode (G4 said so in its as-built notes; PORT-PLAN's G7 section now says it where G7
+  reads, with these numbers).
+- **Time.** `bench-g4.cjs` again, under the lock at a load of 1.6 to 2.1, best of 5 rounds a
+  process, median over processes: the default mode 1,374.8 ms over the 250 fixture cfgs (3
+  processes; G4's 1,349.3) against MoonBit wasm-gc's 4,660.2 and the JS's 12,815.7, **3.39x and
+  9.32x**; draw-exact 1,748.8 ms (2 processes; G4's 1,733.6), 2.71x and 7.47x. G4's numbers
+  reproduce within 2%. **But the MoonBit ratio is not the language's alone.** The straight port
+  (G4's v1 of eac6f18: MoonBit's algorithm, a compile per candidate) takes 3,450.2 ms in the same
+  harness: **1.37x MoonBit** and 3.56x the JS. The rest, to 2.71x, is the speed-ups (the laid board
+  compiled once per step, `with_shape`, the shape test by hand, the inlined `to`), which MoonBit's
+  code could make as well; and to 3.39x the departures. Build flags, default mode: `wasm --release`
+  1,352.1 ms (3.60x), `wasm-opt -O3` 1,294.6 ms (3.87x), 2 processes each (MoonBit's column was
+  4,870 and 5,007 in those runs). A whole level generated with the port's builder takes 12% (48x48)
+  to 61% (the Journey specs, where scoring and spinners dominate) of the JS's time (quality run).
+- **What was fixed:** nothing in `hexbuild.ents`: no output differed from the JS in draw-exact mode,
+  no generated level was invalid or differed in a quality, and no limit that traps is reachable by
+  the game. In the oracles: **`check-all.sh` ran `node quality-hexbuild.cjs --builder --seeds 2 |
+  grep -v '^  ' || fail=1`, whose status is grep's**, so a builder part that printed its invalid
+  builds and exited 1 still passed check-all; it now keeps node's status, and runs the shadow,
+  edge and D2 checks briefly. `check-hexbuild.cjs` printed `stack_peak()` after its last call, an
+  intentions replay (4,780 bytes), as the builds' peak; it now prints the highest any build
+  reached (260,256 bytes with `--seeds 20`). PORT-PLAN's G7 section: the draw-exact rule above.
+- **Small inaccuracies in G4's section:** its tag table counts the header's mention of each tag
+  (in code: `// closure:` 11 sites, not 12; `// enum:` 7, not 8; `// reserve:` 16, not 17). Its
+  other numbers reproduce.
+
+### Departures (the review's)
+
+None added: the review changed no generation code. G4's D1 and D2 (G4's "Departures") stand, now
+checked directly (D2's list) as well as by distributions. With G7 generating the Journey in
+draw-exact mode, 0 of the 120 Journey levels differ from the JS game's; in the default mode 60 do.
+
+### Friction (review)
+
+1. **No coverage for wasm.** To find what the oracles never reach, I counted branches in the JS (32
+   text substitutions into a copy of hex/engine.js), which works only because the port mirrors it.
+   For the port's own branches (D2's list and its upkeep, the reserve asserts) there is nothing.
+   A `test --coverage`, or branch counters in a debug build, would answer it directly. About 40
+   minutes; no planned feature removes it.
+2. **A debug-only invariant has nowhere to live.** D2's check costs O(area) at every random head,
+   too slow to ship, so the probe is made by substituting it into a copy of the sources (2
+   substitutions). A `def debug = false` guard would work in the source: `if debug { ... }`
+   compiles to `(if (i32.const 0) ...)`, 61 bytes of dead code in a probe until `-O` removes it.
+   A comptime `if` that drops the branch would make it free. 10 minutes.
+3. **Every export clears the stack and its peak**, so an oracle that interleaves builds and replays
+   must read `stack_peak()` after each build: check-hexbuild printed the last replay's 4,780 bytes
+   as its stack peak (fixed). 5 minutes.
+4. **Reviewing the speed-ups beside MoonBit.** `with_shape`, the laid board's phase scope, the
+   inlined `to`, the merged stamp table and D2's list move the code away from hex.mbt's shape; each
+   was checked against the invariant its comment states (tables copied, the phase never reset
+   under an open scope, `taken[second]` tested before the body is marked, the list kept at its 4
+   sites). The comments made that possible; the 33 globals make it slow: who touches what is found
+   by grep (the global `occupied` is used in 8 functions and written in 3). Closures would put the
+   state back in one place. About an hour of the review.
+
+### Error messages (verbatim)
+
+None met: the D2 probe and the `def debug` probe compiled first time.
+
+### Bugs
+
+None found in or through G4's code; no new file in bugs/. 01 to 04 reproduce on ce7ee77.
+
+### Tooling
+
+- Byte-identical builds across a compiler move (8f459f1 to ce7ee77) made "rerun every oracle" a
+  `cmp` first.
+- The new `wasm --release --size`: test/g4.ents to 20,627 bytes (gzip 9,812, brotli 8,632) in 6.9 s,
+  `-O` (now in process) 20,716 bytes in 5.1 s; both builds pass check-hexbuild. External `wasm-opt
+  -O3` needs `--enable-multivalue` (and the other features) on the port's output, or it refuses it
+  with a page of validator errors.
+- `check hexbuild.ents` 1.6 s, `check test/g4.ents` 1.9 s, `test hexbuild.ents` 1.3 s, `wasm
+  test/g4.ents` 2.0 s, on a loaded machine.
+- `hover` on `with_shape` still spells both structural types out.
+
+### Pleasant
+
+- The port reads beside the JS line by line: each of the 32 branch counters of the JS found its
+  line in hexbuild.ents at once, which is what made the JS's coverage stand in for the port's.
+- The hybrid harness (mulberry32's additive state) made the shadow check possible: every H.build
+  of any spec, compared in place while the JS generator runs on.
+- `?? -1` at a checked index says at the site what an index off the end means (`lay_core`'s stops
+  off the track: the edge cfg for it passed first time).
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| exact comparisons, draw-exact mode (fixture, --seeds 20, shadow x2, edges) | 4,000 + 54,000 + 56,590 + 1,547 |
+| H.build calls compared (fixture, --seeds 20, shadow, edges) | 250 + 5,250 + 3,538 + 128 |
+| levels generated for the quality comparison (JS / port) | 3,680 / 1,840 |
+| KS tests (port against the JS / the JS against itself), rejections | 400 / 400, 0 / 0 |
+| paired builder tests (and the replicate's), failures | 65 (+39), 0 |
+| port levels or builds invalid | 0 |
+| Journey levels that differ (of 120): draw-exact / default | 0 / 60 (6 not generated) |
+| changes to hexbuild.ents | 0 |
+| oracle fixes (check-all's masked status, check-hexbuild's stack peak) | 2 |
+| new oracles | 5 (shadow, edges, d2, quality-g4-review, quality-g4-paired) |
+| compiler bugs | 0 |
