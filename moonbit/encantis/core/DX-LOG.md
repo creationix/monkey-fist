@@ -3151,6 +3151,11 @@ skip analyze.)
    u32))) to *Board`; `hover` on `a.measure(...)` prints `Attempts` and `Board` expanded (about 900
    characters). The names the source uses are lost.
 
+10. **An imported module's unused functions are emitted.** Adding `release()` and `held()` to
+   lib/stack grew every test wasm that imports it by 15 to 34 bytes (g1 +15, g2 +20, g3 +34, g4 +28,
+   g5 +16, g6 +21, weave +19), none of which calls them. Small here, but the copied library's whole
+   surface ships in every build.
+
 ### Error messages (verbatim)
 
 - `unknown identifier 'tracks'` (and for the probe, `unknown identifier 'y' — did you mean 'a'?`):
@@ -3204,8 +3209,11 @@ skip analyze.)
 
 ### check-all, on the final tree
 
-`build.sh` (46 s under the lock) left every committed wasm as it was; `oracle/check-all.sh` with
-G7's lines, under the lock (12:39 to 12:58, 1,149 s): **every check passed**, G1 to G7 (G7's: the
+`build.sh` (46 s under the lock) rebuilt test/g1 to g6 and test/weave.wasm 15 to 34 bytes larger
+than G6 left them: lib/stack's new `release()` and `held()` are emitted into every module that
+imports lib/stack, though only gen.ents and test/g7 call them (Friction 10). `oracle/check-all.sh`
+with G7's lines ran on those wasms, under the lock (12:39 to 12:58, 1,149 s): **every check
+passed**, G1 to G7 (G7's: the
 robustness checks, the units in both modes, the port's Journey, and the harness on test/g7.wasm:
 parity.mjs 135 of 135 and the wasm tests 6 of 6).
 
