@@ -108,6 +108,11 @@ const GROUPS = {
       'HexBoard::relaxed', 'HexBoard::dead', 'HexBoard::frozen', 'offsets_key', 'hex_replay', 'hex_solve', 'hex_postpone_exits', 'hex_casual_wins',
       'hex_fewest_player_taps'])]],
   },
+  // G4: the Hex woven builder, hex.mbt lines 669 to 1238.
+  G4: {
+    ents: [['hexbuild.ents', ['HexBoard', 'SqMirrors']]],
+    moonbit: [['core/hex.mbt', only(['HexIntent', 'hex_intentions', 'HexCfg', 'HexBuilt', 'HexShape', 'hex_build'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);

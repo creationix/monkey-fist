@@ -899,6 +899,31 @@ a file, the count is estimated from the line share.
   - the depth of `if let` nesting;
   - the `keep` sizes.
 - **About 5 hours. The hardest group.**
+- **As built (what G7 imports; the DX-LOG's G4 section has the why):**
+  - `hexbuild.ents`: `hex_intentions(w, h, mirrors, paths: []?[]Pt, stops: [][]i32, certificate:
+    ?[]i32) -> ?*HexIntent`, with `HexIntent = (moves, cost, depth, slides)` (the JS's four; MoonBit
+    keeps two), and `hex_build(r: *mut Rng, c: *HexCfg) -> ?*HexBuilt`. `HexCfg` is MoonBit's (w, h,
+    stage, coverage, length, tap_depth, mirrors, knots, traps, initial_ropes, initial_stops,
+    initial_plan: `?[]i32`); `minLength` is 2 in every call the generator makes, and is not a field.
+    `HexBuilt = (ropes, stops, plan, slides, traps, depth, cost)`: what woven() reads (raw.slides,
+    raw.traps, raw.stats.depth, and averageDepth as cost / ropes). All of it is in the caller's scope.
+    Restate the three types from the file's head.
+  - `hex_build` returns none where the core does not hold, a core way out passing a cell twice
+    included (the JS throws "twice" there and woven() makes it null): G7 has nothing to catch.
+  - **Draws: `set_draw_exact(on)`.** With true, `hex_build` draws exactly as the JS does and builds
+    the JS's board from the same state. With false, the default, it departs in two places (D1, D2 in
+    the DX-LOG) that draw about a third less and leave the law of what is built unchanged. **G7:
+    call `set_draw_exact(true)` before Journey levels and for the parity run.** The Journey's seeds
+    were chosen by build-grid-journey.cjs for the JS's draws: with the departures 6 of its 60 Hex
+    levels cannot be generated at all (L32, L36, L37, L38, L46, L50) and the other 54 change. Custom
+    codes may use the default (quality-hexbuild.cjs).
+  - One `hex_build` runs at a time (33 module globals, reset at entry). Its stack peak over the
+    fixture is 260 KB (24x24 at difficulty 100).
+  - Oracles: `check-hexbuild.cjs` (exact, in draw-exact mode: `--seeds N`, `--reverse`, `--js`,
+    `--controls`), `quality-hexbuild.cjs` (`--builder`; `--levels <class> --set A|B|C`, `--report`),
+    `hybrid.cjs` (the JS generator with H.build replaced by the port: G5 to G7 can use it for any
+    unit the generator calls through a module object), `bench-g4.cjs`. `check-all.sh` runs the first
+    two on a few seeds.
 
 ### G5: Full geometry, routing, the repeated-slide core and the hints (about 4.6k tokens)
 

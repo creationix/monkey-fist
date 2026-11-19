@@ -33,5 +33,13 @@ node check-g3.cjs --extra || fail=1
 # it takes about 400 s (the JS's fewest at 6,000 on 48x48 boards); a quarter here.
 echo "== check-g3-review.cjs --frac 0.25"
 node check-g3-review.cjs --frac 0.25 || fail=1
+# G4: the Hex woven builder in its draw-exact mode on the 250 recorded builds (about 17 s),
+# with 2 other seeds per cfg against the live JS, and hex_build as the core runs it (fewer
+# draws) checked valid by the JS's kernels on 2 more seeds per cfg (the quality oracle's builder
+# part; its distributions are printed too, the whole-level part is quality-hexbuild.cjs --levels).
+echo "== check-hexbuild.cjs --seeds 2"
+node check-hexbuild.cjs --seeds 2 || fail=1
+echo "== quality-hexbuild.cjs --builder --seeds 2"
+node quality-hexbuild.cjs --builder --seeds 2 | grep -v '^  ' || fail=1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
