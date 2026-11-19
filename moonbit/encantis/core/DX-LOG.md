@@ -2911,3 +2911,349 @@ No compiler bug: no wrong code and no crash. `bugs/06` (fmt) holds; its repro no
 | port bugs / compiler bugs / tooling bugs | 0 / 0 / 0 new (bugs/06's repro corrected) |
 | departures | 0 |
 | Journey levels that differ because of G6 (of 120) | 0 |
+
+## 19 Nov: G7, the generator, the API and full parity (gridgen.ents, gen.ents, core.ents)
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0), fetched at the start: it had not moved
+since G6, and it did not move during G7. Every wasm rebuilt byte for byte at the start (build.sh, git
+clean). Commits e369454, cbce20e, 899dc1a, 9235ab7, 42e5325 and the ones after. No predecessor: this
+engineer started G7 at 11:35 and was not restarted.
+
+### What was built
+
+- `gridgen.ents` (the rest of gridgen.mbt): `place_mirrors`; `woven` (the config, the repeated-slide
+  core on alternate hard attempts, the mirrors kept off the core's ways out, then `woven_hex` or
+  `woven_square`, which call `hex_build` and `weave_run`, and the mirrors no rope turns on dropped);
+  `add_spinners` with `ways_out`, `with_spinner`, `search_spinner`, `bounce_step`, `try_cells` and
+  `fresh`; `grid_generate`, whose loop body is `measure(a: *mut Attempts, ...)` over a context struct.
+  An attempt is a scope; the best level so far is written as its own level words into the spare of
+  two static keep buffers (abi.ents's `keep_level`), and the result is read back as views of them.
+- `gen.ents`: gen.mbt's exports and api.mbt's `bench_*` as functions; the current level kept as its
+  words in a static buffer (a later guide or a failed generate leaves it, as MoonBit does); each
+  function clears the stack first and releases it on the way out (`defer release()`); the mode
+  (`set_js_mode`: the JS's draws and Journey table, or the port's).
+- `core.ents`: the entry, `core.wasm` (113,721 bytes, no imports): the 12 gen exports, the three
+  bench_* hooks and `stack_peak`. `test/g7.ents`: the same exports in the JS's mode by default
+  (`t_js_mode(0)` for the port's), plus `t_place_mirrors`, `t_woven`, `t_add_spinners`, `t_built`,
+  `draws`, `stack_used`.
+- Changes to earlier files: `abi.ents`'s level words are written once, by `level_head` and
+  `level_stats` over a comptime sink, for `put_level` (the output) and the new `keep_level` (a word
+  buffer); `journey.ents` holds two tables (`specs_js`, `specs_port`) and `use_js_journey`;
+  `lib/stack` gains `release()` (top to 0, the peak kept) and `held()`; `test/g1.ents`'s spec hook
+  asks for the JS's table (check-g1 compares grid-journey.js); `capture.cjs` revives a style
+  reference in a fresh process; `measurements-wasm.test.cjs` takes `MF_MEASUREMENTS`.
+- Oracles: `check-g7-units.cjs` (+ `fixtures/g7-units.json.gz`), `check-g7-robust.cjs`,
+  `journey-search.cjs`, `check-journey-port.cjs`, `quality-journey.cjs`, `quality-g7.cjs`,
+  `dump-custom-g7.cjs`, `validate-custom-g7.cjs`, `bench-g7.mjs`, `stack-g7.cjs`; `size.cjs` gains G7
+  and the whole port; `check-all.sh` gains G7's lines.
+
+### Exactness (the JS's mode, test/g7.wasm)
+
+Everything G7 wrote draws as the JS does (the style roll, the mirrors, the shuffles of
+add_spinners, the attempts and their casual seeds), because keeping it cost nothing. So in the JS's
+mode, where hex_build draws as the JS does too, the whole generator is the JS's:
+
+- **The 135 reference levels, field by field, plans and `exact` included: 135 of 135**, through the
+  game's unchanged glue (`parity.mjs` in a harness on test/g7.wasm, 6.9 s), on the first build.
+- The harness's own tests with `--test-name-pattern=wasm`: parity.test, generator.test, assist.test
+  and measurements-wasm.test, **6 of 6 pass** (13 s).
+- **60 more custom levels** (dump-custom-g7.cjs: 40 sets, 4x5 to 24x24, strips, 32x32, 40x40 and
+  48x48 colossal, square, Hex and mixed, every mechanic, difficulties 1 to 100; the JS took 106 s):
+  **60 of 60 equal**, field by field (5.1 s).
+- **Units** (`check-g7-units.cjs`): every placeMirrors, woven and addSpinners call the 9e69e3a
+  generator makes over the Journey and 8 custom codes, rejected candidates included: 2,821 calls,
+  **556,393 values, 0 failed**, in order and in reverse, on the first build, with the draw count
+  (and so the rng state after) of each. `--js` passes (96 s); `--controls` 3 of 3.
+- The seed search's positive control: `journey-search.cjs` on test/g7.wasm in the JS's mode gives
+  grid-journey.js back seed for seed, and every stored measurement (complexity included), in 32 s.
+
+### The port's own mode (core.wasm)
+
+- **Square levels are the JS's**: hex_build is the only part that departs, so every square level,
+  Journey and custom, is the JS's own (30 of the 30 square custom levels above; check (c) below).
+- **Hex levels differ**, as G4 said (its departures D1 and D2): all 30 Hex custom levels above
+  differ, and each is valid by the JS's kernels (`validate-custom-g7.cjs`). In the unit oracle's
+  port mode, placeMirrors, addSpinners and square woven still equal the JS's call for call, and the
+  624 Hex wovens that depart are all valid or none.
+- **Robustness** (`check-g7-robust.cjs`, 255 checks, 0 failed, on core.wasm and on test/g7.wasm in
+  both modes): every export leaves the stack at its base (`stack_used()` 0 after each) and reports a
+  peak within the 16 MiB; traps forced in `in_push` (past the 64 Ki input words), in `guide` and
+  `features` (words cut short, a count past the words), in `generate_spec` and `measure` (a code unit
+  past a byte) each leave the next generate, measure, guide, features and bench_* answering as a fresh
+  instance's; 12 invalid codes give 0 and leave the output words and the current level; generate_spec
+  of no cells or past 48x48 gives 0; measure and bench_* give -1 before the first level.
+
+### The Journey, re-picked (the owner's decision: "b is fine")
+
+- `journey-search.cjs` is `scripts/build-grid-journey.cjs` with only `F.generate` and `F.casualRate`
+  replaced by the wasm's `generate_spec` and `measure` (through web/generator.js's own `wrap`): the same
+  plan of 120 positions, the same candidates (6 + 10, chapter 1 12 + 30), the same size step-up, the
+  same rules (the generator's, then no map twice and at most five ropes in chapter 1), the same
+  measurement (96 casual games, 24 with spinners), the same choice and the same chapter order. Its
+  control is above (the JS's mode gives grid-journey.js back).
+- **On core.wasm it took 28.1 s** (805 candidates made, 28 none, 25 rejected as duplicates or too many
+  ropes, 780 measured; generate_spec 27.6 s of it, measure 0.4 s). The JS's own build of the same
+  search (scripts/build-grid-journey.cjs, run here away from its cache) took 530 s, 18.9x as long, and
+  rebuilt grid-journey.js byte for byte. The table is `oracle/fixtures/journey-port.js` (grid-journey.js's runtime
+  format) with `journey-port-measurements.json`; `gen-journey-ents.cjs` writes it into journey.ents as
+  `specs_port`. grid-journey.js is not touched.
+- **How many levels changed: 60 of the 120 maps are new, every Hex level**; the 60 square maps are
+  the JS's own, but 22 of them now sit at another place in their chapter (each chapter is ordered by
+  measured challenge, and the Hex levels around them changed), so **82 of the 120 positions show
+  another level**. 74 rows of the table differ (seed or size); 61 levels have another size than the
+  JS's at the same position.
+- **Every new level checked** (`check-journey-port.cjs`): all 120 regenerate through `generate(i)` as
+  the search chose them and measure as stored (the measurements-wasm test on the port's table, also
+  run through the harness with `MF_MEASUREMENTS`); each is valid by the JS's kernels (ropes, the plan
+  replays to an empty board at par, `F.score` from that plan finds the same par and exactness) and by
+  the search's rules (coverage floor and `F.coverage`, every mirror and spinner used and the spec's
+  minimum by hand, par at least a third of the ropes, no map twice, five ropes at most in chapter 1,
+  a partial slide where required, the challenge formula). Its controls catch a spoiled win rate and a
+  spoiled par. The same rules pass on the JS's own Journey.
+- **Distributions** (`quality-journey.cjs`, its rule written first): the search on four master seeds
+  (MONKEYFIST and three others), on the JS's mode and on the port, 480 levels a side, the two sides of a
+  seed sharing every specification: **52 of 52 KS tests pass at 1%** (26 metrics on all levels and on
+  Hex alone: par, ropes, area, coverage, casual wins, work, challenge, its miss from the target, the
+  excess over the win ceiling, the seed attempt chosen, slides, bounces, repeated and automatic ropes,
+  the six complexity measures and edges and depth, mirrors and spinners used, mean rope length, turns);
+  candidates the generator gives up on 2.5% against 2.7% (z 0.53); 0 invalid. The largest D between
+  the port and the JS (Hex interaction, 0.100 against a critical 0.149) is below the largest D between
+  two JS master seeds (0.183). `fixtures/quality-journey-report.txt` has every percentile.
+
+### Quality of whole levels (the owner's oracle for generation)
+
+`quality-g7.cjs`, the rule fixed in its header before set G was made (G4's: every level valid; per
+metric a two-sample KS of the port's set against the JS's sets A and B pooled at 1%; the failure rate
+by a test of proportions at 1%; percentiles printed; time printed, not tested). The JS's sets A and B
+are G4's (`fixtures/quality-g4.jsonl.gz`: F.generate at 9e69e3a on the same specs, seeds + 'A' and
++ 'B'); the port's set G has seeds + 'G'. Seven classes: the Journey's Hex specs four times, small
+(4x5 to 8x8), medium (12x12 to 16x16), large (20x20 to 24x24), 32x32 and 48x48 colossal, and mixed
+(square and Hex), plain, mirrors, mirrors and spinners, difficulties 1 to 100.
+
+- **1,440 levels, 0 invalid by the JS's kernels; 0 of 189 KS tests fail** (27 metrics a class: par,
+  exact, ropes, mean and longest rope, coverage, wins, work, challenge, the miss from the target,
+  the excess over the ceiling, manual slides, repeated, interleaved and automatic ropes, knots and
+  traps built, depth, average depth, mirrors, spinners, manual mirrors, interaction, joins, mutual
+  waits, branching depth, largest coupled group); failure rates no different (the Journey class: the
+  JS gives up on 19 and 12 of 240, the port on 9; elsewhere 0 to 1).
+- **Check (c), cheaper:** with seeds + 'C', the seeds of G4's set C (the JS generator with the port's
+  hex_build in its default mode), the whole port makes **1,440 of 1,440 levels equal in every metric**:
+  every part of the generator but hex_build takes the JS's decisions on the JS's draws.
+- Time per class, the port's set (with the JS's Q.analyze of each level) against a JS set: Journey
+  11.6 s against 220.6 s, small 1.8 / 16.6, medium 14.2 / 219.3, large 84.6 / 1,168.5, 32x32 10.4 /
+  93.3, 48x48 53.1 / 670.5, mixed 8.4 / 75.0. Stack peak at most 0.89 MiB (a 24x24 Hex level).
+- `fixtures/quality-g7-report.txt` has every distribution; `quality-g7.jsonl.gz` the rows.
+
+### Departures (from the JS's exact behaviour)
+
+| | Where | What the port does | Why, and what it saved |
+| --- | --- | --- | --- |
+| G7-1 | the Journey | its own seeds, chosen by the game's search on the port's generator (above) | the owner's decision; the alternative (draw-exact Journey) would have kept hex_build's slower mode for 60 levels. 60 maps new, 82 positions changed |
+| G7-2 | `generate_spec` | 0 for a board of no cells or past 48x48 cells | the static tables are sized for 48x48 (`max_area`); MoonBit and the JS would try. No spec of the game asks for one |
+| G7-3 | `add_spinners`'s `seen` | a byte a cell, not MoonBit's `Map` of `pt_key`s (`pt_key` not ported) | only cells on the board enter it: the same set; one table instead of a map, 0 code |
+| inherited | `hex_build` (G4's D1, D2) | draws about a third less, the same law | 16% of hex_build's time (G4); every Hex level differs. This is the only reason any level differs |
+
+Not departures: add_spinners keeps the JS's eager candidates (all 16 `with_spinner` and all 8
+`search_spinner` boards are made; the first that fits is kept, REPORT 5.1), so its work compares with
+MoonBit's; lazy candidates would give the same boards. The level's `slideStats.interleavedRopes` and
+complexity are not in the ABI's words (MoonBit's are not either).
+
+**Journey levels that differ from the JS game's: 82 of 120 positions, 60 of 120 maps** (all Hex).
+
+### Time
+
+All under the lock. Whole levels in Node (`bench-g7.mjs`: the 120 Journey levels in rounds, the
+three builds interleaved in one process, the clock round `generate()` alone; 5 processes, best of 5
+rounds each, the median of the bests; load 1.0 from another user's job):
+
+| 120 Journey levels | ms (median of bests) | the 5 bests | MoonBit / it |
+| --- | ---: | --- | ---: |
+| core.wasm (the port's Journey) | 3,980 | 4,154 3,950 3,980 3,669 4,101 | 2.18x |
+| test/g7.wasm, the JS's mode (the JS's Journey: MoonBit's levels) | 4,338 | 4,298 4,424 4,103 4,338 4,393 | 2.00x |
+| MoonBit gen.wasm (wasm-gc) | 8,672 | 9,054 8,732 8,572 8,083 8,672 | 1 |
+| the JS reference (reference.json's times; bench-node's) | 61,900 (71,000 to 74,000) | | 0.14x |
+
+- Level by level on the same levels (the JS's mode against MoonBit): MoonBit takes 1.32x the
+  port's time at the 10th percentile, 1.96x at the median, 2.54x at the 90th; never less than 1.08x.
+  The slowest levels: L91 112 ms against 254, L116 102 / 243, L68 96 / 204, L115 94 / 259.
+- The 15 custom levels of reference.json (3 processes): core.wasm 1,323 ms, the JS's mode 1,821,
+  MoonBit 4,293 (3.2x and 2.4x), the JS 52,682.
+- `wasm-opt -O3` (binaryen 129, which needs `--enable-bulk-memory --enable-multivalue` for the
+  compiler's output): 3,621 ms against 3,977 for the same file unoptimised (3 interleaved pairs of
+  wasm-reps.mjs, -9%), the same 120 levels. Not shipped: core.wasm is the compiler's own output.
+- **Chromium 153** (`browser-gen.mjs`, one run a harness, all 120 levels once): the port 3,333 ms
+  (its Journey) and 3,315 ms (the JS's mode), MoonBit wasm-gc 8,490 ms (2.6x), MoonBit's JS build
+  15.0 to 16.0 s, the JS reference 55.6 to 56.0 s (16.8x). Instantiation: 11 to 17 ms against 8.
+- `bench-node.mjs` in the harnesses (one run each, the generation through web/mf-core.js): the JS's
+  mode 5,366 ms, core.wasm 4,276, MoonBit 9,146, the JS 71 to 74 s. Its kernels on the same levels
+  (the JS's mode against MoonBit, best of 5): full-geometry casual x100 on the spinner boards 1.67 to
+  5.82 ms against 5.72 to 23.19 (3.4 to 4.0x), par 0.11 to 8.47 against 0.19 to 18.41, solve 2000
+  0.02 to 2.04 against 0.03 to 8.87. In harness-enc the Hex boards and two square ones are other
+  levels (the port's Journey), so its kernel rows disagree there by design.
+- The seed search (above): 28.1 s on core.wasm, 530 s for the JS's own build-grid-journey.cjs.
+- `custom-times.mjs` (one run a harness, through web/mf-core.js): the 24x24 spinner level
+  U3-S-60-60-24-24-1-S-BIGSQ #0 takes the JS 40.7 s, MoonBit 1.44 s, the port 0.53 to 0.56 s; the
+  20x24 mixed level 6.6 s, 1.48 s, 0.24 s (core.wasm, a new Hex level) and 0.76 s (the JS's mode).
+
+### Stack
+
+`stack-g7.cjs`: the Journey's peak is 0.64 MiB at most (L107, both modes; median 0.26), the custom
+sample's 1.24 MiB (the 40x40 colossal map), the 2,862 quality levels' 0.89 MiB (a 24x24 Hex level).
+The stack is 16 MiB: generation uses under 8% of it. (G6's review found analyze at 14.2 MB on a
+pathological 48x48 board of 1,152 two-cell ropes, which the generator never measures: colossal maps
+skip analyze.)
+
+### Size
+
+- **core.wasm: 113,721 bytes, 43,535 gzipped** (gzip -9), against MoonBit's gen.wasm 137,415 and
+  54,882: 83% and 79%. With `wasm-opt -O3`: 93,078 and 38,665; `-Oz`: 89,053 and 38,494.
+- **Tokens** (`size.cjs`): G7's files 5,850 against the MoonBit they replace 4,417 (1.32x); 1.94x with
+  their imports (1,600) and restated types (1,106). **The whole port: 54,246 tokens of code (51,048
+  ported, 3,198 new: fmath and keys) against src/core and src/gen's 37,588 (1.44x); with its import
+  declarations (7,848) and restated types (3,013), 65,107 (1.73x).** The generated Journey tables are
+  apart (MoonBit's journey.mbt 5,651). ENCANTIS.md's kernels were 2 to 2.7x the MoonBit.
+- `check core.ents` (27 modules, 1,081 declarations) 3.7 s; `wasm core.ents` 3.8 s; `build.sh` (31
+  inline test files, 9 wasm) 46 s under the lock. Builds are deterministic.
+
+### Friction
+
+1. **`elif let` parses and binds nothing** (bugs/07): `} elif let tracks = sq_tracks(...) {` then
+   `unknown identifier 'tracks'`, and where the binding is unused, `check` passes and `wasm` fails
+   with a WAT validation error. 2 sites became `} else { if let ... }`, one level deeper. 10 minutes,
+   most of it spent on the first message, which suggests a typo. Enums (the `elif let` of 6.4)
+   would make it work.
+2. **No counted range loop** (as G2 and G5 found): `for k in rope.len..t.len` is a parse error
+   (`Expected "a".."z", "bool", ... or a digit`). 3 sites became `if let rest = t[rope.len..] { for c
+   in rest { ... } }`, which reads well and checks the bound once. 5 minutes.
+3. **A `let` belongs to its function** (fourth group running): 12 renames in gridgen.ents (`p` four
+   times, `tracks`, `scope`, `b`, `knots`, `traps`, `cfg`...), and the Hex and square halves of
+   woven became two functions mostly to escape it. 15 minutes. No planned feature removes it.
+4. **A local cannot take a function's name, across a module**: adding `used()` to lib/stack broke
+   that file's own test, whose local was `used` (`'used' is already declared in this scope`); renamed
+   `held()`. 5 minutes. (A wasm build of a file importing lib/stack did not see the error: `wasm`
+   skips tests, `check` does not.)
+5. **A variable has no address**: `sq_mirrors(&laid)` (`'laid' has no address: a variable is held in
+   registers`) and the Spec of generate and generate_spec: 3 sites `alloc(sizeof(T)) as *mut T`
+   then `p.* = T(...)`. 2 minutes.
+6. **Closures** (`// closure:` 10 sites): grid_generate's loop body is `measure` over an `Attempts`
+   context of 12 fields (the JS's closure reads 15 locals); `fresh`, `try_cells` and the eager maps
+   became functions and loops; the filters of mirrors became `kept_mirrors`. Closures, even
+   non-escaping ones, would remove all 10.
+7. **Options by hand** (`// enum:` 1 site: the core's plan or none for the builders); `?*Board` with
+   `if let` where MoonBit has `guard ... else`: grid_generate's body is one `if let` deep, add_spinners's
+   `placed` an `if let ... else { return 0 }`. A `let ... else` would flatten both.
+8. **Two entries for one core**: test/g7 cannot import core.ents (two memory declarations, bugs/04),
+   so the exports' bodies live in gen.ents and core.ents is 30 lines of forwarding; test/g7 forwards
+   the same again in the JS's mode. Function values would not help; a way to re-export would.
+9. **The messages print structural types in full**: a method call with its receiver in the wrong
+   place gave `receiver: cannot assign *mut (b: (hex: bool, w: i32, h: i32, ropes: [][](q: i32, r:
+   i32), ... sqm: *mut (slope: [*]mut i32, cells: i32, keys: *mut (ptr: [*]mut i32, len: u32, cap:
+   u32))) to *Board`; `hover` on `a.measure(...)` prints `Attempts` and `Board` expanded (about 900
+   characters). The names the source uses are lost.
+
+### Error messages (verbatim)
+
+- `unknown identifier 'tracks'` (and for the probe, `unknown identifier 'y' — did you mean 'a'?`):
+  an `elif let` binding (bugs/07).
+- `WAT error: validate failed: eliflet2.ents:4:165: error: type mismatch at end of `if false` branch,
+  expected [] but got [i32]`: the same, unused (bugs/07).
+- `'p' is already declared in this scope`; `'tracks' is already declared: an if let binding cannot
+  reuse the name of a variable in scope`.
+- `cannot iterate over *mut (w: i32, n: i32, left: i32, tracks: [*]mut []i32, ...): use a count, a
+  slice, or a pointer to a fixed-size array` (a loop over the HexBoard where its tracks were meant: a
+  good message, but the type's name is gone).
+- `'laid' has no address: a variable is held in registers`.
+- `Expected "a".."z", "bool", "f64", ... or a digit` for `for k in rope.len..t.len`.
+
+### Bugs
+
+- **bugs/07-elif-let.ents** (new): `elif let` parses but binds nothing; check passes on an unused
+  binding and wasm emits invalid WAT. Worked around at 2 sites, 10 minutes.
+- No wrong code: every oracle of G7 passed on the first build.
+
+### Tooling
+
+- `check core.ents` 3.7 s for the whole program; `wasm` 3.8 s; `test gridgen.ents` 4.0 s (its two
+  tests generate a level); `hover gridgen.ents:628:measure` 3.9 s (it checks the program first).
+- `hover` on a method call gives the function with every struct expanded (Friction 9); `hover
+  gridgen.ents:628:b` said `No info`: the name form takes the first `b` of the line's text, in
+  `break` (bugs/05, G5's, still there).
+- `fmt --check` says all three new files need formatting (bugs/06's spacing); not run.
+- wasm-opt needs `--enable-bulk-memory --enable-multivalue` for the compiler's output (`memory.fill`,
+  multi-value returns): without them it prints 30 KB of validation errors.
+
+### Pleasant
+
+- **The plan's memory model held to the end.** One bump stack, scopes per attempt, the best level
+  kept as its own ABI words in two static buffers and read back as zero-copy views: grid_generate never
+  copies a board, and the whole Journey peaks at 0.64 MiB.
+- **The eager candidates were free.** A bump stack makes "keep the first that fits, free the rest" a
+  matter of not resetting one scope: `try_cells` is 20 lines and evaluates all 24 candidates as the JS
+  does.
+- **Generics paid off in the ABI.** The level's words are written once (`level_head`, `level_stats`
+  over a comptime sink) and serve both the output buffer and the keep buffers.
+- **A struct in a global** (`woven_built`, `level_built`) and a struct field of a struct on the stack
+  (`a.built = woven_built`) just worked.
+- **Exact on the first build, again**: 135 reference levels, 60 more custom levels and 2,821 unit calls
+  matched the JS on the first build in the JS's mode. With the exactness the earlier groups kept, the
+  owner's quality oracle (1,440 levels, the Journey on four master seeds) became an equality check
+  everywhere but hex_build (check (c): 1,440 of 1,440).
+- **The seed search in 28 seconds.** Because generation is fast, re-picking the Journey (the owner's
+  option b) was a 28-second run plus its checks, and running it four more times for the distributions
+  took 4.5 minutes.
+
+### check-all, on the final tree
+
+`build.sh` (46 s under the lock) left every committed wasm as it was; `oracle/check-all.sh` with
+G7's lines, under the lock (12:39 to 12:58, 1,149 s): **every check passed**, G1 to G7 (G7's: the
+robustness checks, the units in both modes, the port's Journey, and the harness on test/g7.wasm:
+parity.mjs 135 of 135 and the wasm tests 6 of 6).
+
+### Counts (tags in G7's files, sites; header mentions left out)
+
+| Tag | gridgen.ents | gen.ents | core.ents | test/g7.ents |
+| --- | ---: | ---: | ---: | ---: |
+| `// closure:` | 10 | 0 | 0 | 0 |
+| `// fnvalue:` | 0 | 0 | 0 | 0 |
+| `// enum:` | 1 | 0 | 0 | 0 |
+| `// comptime-n:` | 0 | 0 | 0 | 0 |
+| `// unchecked:` | 23 | 0 | 0 | 0 |
+| `// reserve:` | 1 | 0 | 0 | 0 |
+
+| What | Count |
+| --- | ---: |
+| reference levels equal in the JS's mode (field by field) / more custom levels | 135 of 135 / 60 of 60 |
+| unit calls compared (values) | 2,821 (556,393), 0 failed |
+| robustness checks | 255, 0 failed |
+| the port's levels checked for quality (invalid) / KS tests failed | 1,440 (0) / 0 of 189 |
+| levels equal to G4's hybrid on its seeds | 1,440 of 1,440 |
+| Journey: maps new / positions changed / levels invalid / KS tests failed | 60 / 82 / 0 / 0 of 52 |
+| `if let` outside tests (deepest nesting) | 26 (3: ways_out's tracks, a track, its rest) |
+| names renamed for function-scoped lets / a local named like a function | 12 / 1 |
+| compiler bugs / tooling bugs | 1 (bugs/07) / 0 new |
+| departures that change a level | 1 inherited (G4's hex_build) + the Journey's seeds |
+
+## 19 Nov: the whole port in numbers (G1 to G7), the DX summary
+
+### Tags, all groups (sites in the port's .ents files, header mentions left out)
+
+| Tag | Sites | Would be removed by |
+| --- | ---: | --- |
+| `// closure:` | 53 | closures, even non-escaping: local functions made top-level over context structs or module globals, lambdas made loops |
+| `// fnvalue:` | 0 | run-time function values: nothing in the core needs one (every function-valued use is a comparator, now a comptime parameter, or a closure called where it is made) |
+| `// enum:` | 27 | enums (`Option(T)` for any T, and a `let ... else` guard): hand-made nones (`0 as ?*T`, `gone()`), event tags, the tri-state `solved` |
+| `// comptime-n:` | 5 | comptime value parameters (they landed in 8f459f1, G3): the copied 16 MiB stack, and small fixed lists G4 already wrote as `FixedVec(6, i32)` |
+| `// unchecked:` | 165 | a trapping index: board tables read through many-pointers with no check |
+| `// reserve:` | 47 | an arena that inner scopes do not reset (or growth that survives them): lists given their room before a search |
+
+Per file (code lines only): square 6/7/16/4 (closure/enum/unchecked/reserve), hex 7/5/18/8, hexbuild
+11/7/24/16, mech 2/2/25/3, assist 3/0/7/2, core-rope 3/0/3/2, metrics 5/1/19/0, play 5/0/14/2,
+gridgen 10/1/23/1, the G1 files 0/2/11/3.
+
+Compiler and library bugs found by the port: 7 repros in `bugs/`: 01 `&` of a pointer value (with
+`as` binding tighter, a view of the wrong address) compiles silently; 02 a parameter named like a
+module `def` is the def in the body, the argument silently ignored; 03 lib/stack's alloc wraps for a
+huge n (fixed in the port's copy); 04 two memory declarations crash `wasm` where `check` says OK; 05
+hover's name form finds the name as text; 06 `fmt` spacing; 07 `elif let` binds nothing. 01 and 02 are
+silent wrong code; the port avoids both by a rule (one view helper, no parameter named like a def), and
+no oracle ever caught either in the port's files.

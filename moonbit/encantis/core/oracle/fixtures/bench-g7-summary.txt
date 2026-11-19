@@ -1,0 +1,113 @@
+G7 timing, 19 Nov 2026, compiler 399ca7e, Node v22.23.4, under the lock (bigjob.lock)
+
+## bench-g7.mjs: 120 Journey levels, 5 processes x best of 5 rounds, builds interleaved
+core.wasm            median of bests 3980 ms; bests 4154 3950 3980 3669 4101
+g7.wasm (JS mode)    median of bests 4338 ms; bests 4298 4424 4103 4338 4393
+MoonBit gen.wasm     median of bests 8672 ms; bests 9054 8732 8572 8083 8672
+
+## bench-g7.mjs --custom: the 15 custom levels of reference.json, 3 processes
+core.wasm            median of bests 1323 ms; bests 1423 1252 1323
+g7.wasm (JS mode)    median of bests 1821 ms; bests 1774 1846 1821
+MoonBit gen.wasm     median of bests 4293 ms; bests 4291 4293 4301
+
+## wasm-opt -O3 (wasm-reps.mjs, 3 interleaved pairs, best of 5): O3 3667 3621 3454, core.wasm 4023 3864 3977 ms
+
+## Chromium 153.0.8010.12 (browser-gen.mjs, one run a harness)
+harness-g7: JS reference 56013 ms | MoonBit wasm-gc 3315 ms | MoonBit JS 15981 ms
+harness-enc: JS reference 55788 ms | MoonBit wasm-gc 3333 ms | MoonBit JS 14958 ms
+harness-moonbit: JS reference 55642 ms | MoonBit wasm-gc 8490 ms | MoonBit JS 15319 ms
+
+## bench-node.mjs (one run a harness)
+ 12:22:44 up 11:37,  0 user,  load average: 0.86, 1.14, 1.58
+== harness-g7
+JS reference     total 73882.0  mean 615.7  median 498.3  max 2616.8
+MoonBit wasm-gc  total 5365.8  mean 44.7  median 29.7  max 134.9
+MoonBit JS       total 19585.7  mean 163.2  median 121.3  max 639.8
+L30 square+spinners 9x10 22 ropes: casual x100 js 163.27 wasm 1.95 mbjs 12.88 ms | par search js 4.36 wasm 0.16 mbjs 0.40 ms | solve 2000 js 1.21 wasm 0.03 mbjs 0.18 ms
+L60 square+mirrors+spinners 10x12 17 ropes: casual x100 js 179.58 wasm 1.67 mbjs 9.76 ms | par search js 3.20 wasm 0.11 mbjs 0.32 ms | solve 2000 js 123.10 wasm 2.04 mbjs 16.28 ms
+L89 square+spinners 12x12 21 ropes: casual x100 js 283.35 wasm 1.98 mbjs 13.68 ms | par search js 6.03 wasm 0.21 mbjs 0.47 ms | solve 2000 js 1.75 wasm 0.03 mbjs 0.19 ms
+L120 square+mirrors+spinners 12x14 38 ropes: casual x100 js 834.55 wasm 5.82 mbjs 51.41 ms | par search js 21.41 wasm 0.71 mbjs 1.79 ms | solve 2000 js 7.52 wasm 0.08 mbjs 0.70 ms
+L107 square 12x15 50 ropes: casual x1000 js 26.54 wasm 13.21 mbjs 24.21 ms | par search js 15.51 wasm 8.47 mbjs 20.43 ms | solve 2000 js 0.44 wasm 0.14 mbjs 0.54 ms
+L114 hex 11x16 18 ropes: casual x1000 js 22.85 wasm 4.66 mbjs 14.78 ms | par search js 19.73 wasm 1.97 mbjs 5.64 ms | solve 2000 js 0.11 wasm 0.02 mbjs 0.08 ms
+L118 square+mirrors 12x13 33 ropes: casual x1000 js 19.09 wasm 12.13 mbjs 24.01 ms | par search js 12.19 wasm 5.85 mbjs 14.08 ms | solve 2000 js 0.25 wasm 0.05 mbjs 0.17 ms
+L116 hex+mirrors 12x14 17 ropes: casual x1000 js 25.01 wasm 4.87 mbjs 12.06 ms | par search js 21.50 wasm 2.51 mbjs 6.33 ms | solve 2000 js 0.10 wasm 0.02 mbjs 0.08 ms
+== harness-enc
+JS reference     total 71906.1  mean 599.2  median 502.5  max 2418.1
+MoonBit wasm-gc  total 4276.0  mean 35.6  median 30.0  max 111.7
+MoonBit JS       total 18985.9  mean 158.2  median 108.1  max 567.0
+L30 square+spinners 9x10 22 ropes: casual x100 js 161.14 wasm 2.18 mbjs 14.57 ms | par search js 5.01 wasm 0.17 mbjs 0.46 ms | solve 2000 js 1.31 wasm 0.03 mbjs 0.22 ms
+L60 square+mirrors+spinners 10x12 17 ropes: casual x100 js 147.48 wasm 1.62 mbjs 9.63 ms | par search js 3.13 wasm 0.11 mbjs 0.28 ms | solve 2000 js 116.56 wasm 2.23 mbjs 16.79 ms
+L89 square+spinners 12x12 21 ropes: casual x100 js 203.09 wasm 2.05 mbjs 13.99 ms | par search js 7.10 wasm 0.26 mbjs 0.60 ms | solve 2000 js 2.19 wasm 0.04 mbjs 0.23 ms
+L120 square+mirrors+spinners 12x14 38 ropes: casual x100 js 934.93 wasm 5.70 mbjs 50.72 ms | par search js 21.17 wasm 0.69 mbjs 1.67 ms | solve 2000 js 6.83 wasm 0.08 mbjs 0.66 ms
+L107 square 12x15 50 ropes: casual x1000 js 22.29 wasm 16.61 mbjs 29.59 ms | par search js 19.30 wasm 10.63 mbjs 23.33 ms | solve 2000 js 0.49 wasm 0.14 mbjs 0.59 ms
+L114 hex 11x16 18 ropes: casual x1000 js 29.56 wasm 4.45 mbjs 12.00 ms DISAGREE 0.049,0.255,0.049 | par search js 15.91 wasm 0.55 mbjs 5.67 ms DISAGREE 17,20,17 | solve 2000 js 0.09 wasm 0.02 mbjs 0.08 ms DISAGREE 23,29,23
+L118 square+mirrors 12x13 33 ropes: casual x1000 js 15.55 wasm 24.66 mbjs 17.26 ms DISAGREE 0.389,0.198,0.389 | par search js 10.62 wasm 0.17 mbjs 13.66 ms DISAGREE 37,20,37 | solve 2000 js 0.25 wasm 1.45 mbjs 0.17 ms DISAGREE 48,1146,48
+L116 hex+mirrors 12x14 17 ropes: casual x1000 js 30.48 wasm 27.76 mbjs 14.69 ms DISAGREE 0.09,0.03,0.09 | par search js 19.55 wasm 0.19 mbjs 6.24 ms DISAGREE 19,22,19 | solve 2000 js 0.10 wasm 2.53 mbjs 0.07 ms DISAGREE 30,2001,30
+== harness-moonbit
+JS reference     total 70916.5  mean 591.0  median 488.8  max 2481.7
+MoonBit wasm-gc  total 9146.1  mean 76.2  median 54.4  max 270.9
+MoonBit JS       total 18460.4  mean 153.8  median 103.3  max 538.3
+L30 square+spinners 9x10 22 ropes: casual x100 js 134.61 wasm 6.67 mbjs 11.81 ms | par search js 3.80 wasm 0.20 mbjs 0.40 ms | solve 2000 js 1.13 wasm 0.08 mbjs 0.18 ms
+L60 square+mirrors+spinners 10x12 17 ropes: casual x100 js 141.48 wasm 5.72 mbjs 11.26 ms | par search js 3.62 wasm 0.19 mbjs 0.34 ms | solve 2000 js 119.84 wasm 8.87 mbjs 18.55 ms
+L89 square+spinners 12x12 21 ropes: casual x100 js 177.95 wasm 6.57 mbjs 13.08 ms | par search js 5.36 wasm 0.22 mbjs 0.44 ms | solve 2000 js 1.62 wasm 0.09 mbjs 0.18 ms
+L120 square+mirrors+spinners 12x14 38 ropes: casual x100 js 649.14 wasm 23.19 mbjs 42.16 ms | par search js 18.95 wasm 0.77 mbjs 1.44 ms | solve 2000 js 5.86 wasm 0.29 mbjs 0.56 ms
+L107 square 12x15 50 ropes: casual x1000 js 23.71 wasm 13.63 mbjs 25.19 ms | par search js 17.25 wasm 18.41 mbjs 22.30 ms | solve 2000 js 0.61 wasm 0.32 mbjs 0.80 ms
+L114 hex 11x16 18 ropes: casual x1000 js 22.55 wasm 5.41 mbjs 12.14 ms | par search js 14.59 wasm 2.33 mbjs 4.85 ms | solve 2000 js 0.08 wasm 0.03 mbjs 0.07 ms
+L118 square+mirrors 12x13 33 ropes: casual x1000 js 14.66 wasm 8.52 mbjs 16.34 ms | par search js 10.02 wasm 7.13 mbjs 13.63 ms | solve 2000 js 0.23 wasm 0.09 mbjs 0.15 ms
+L116 hex+mirrors 12x14 17 ropes: casual x1000 js 28.47 wasm 8.02 mbjs 17.66 ms | par search js 26.60 wasm 4.16 mbjs 8.23 ms | solve 2000 js 0.12 wasm 0.03 mbjs 0.10 ms
+ 12:28:37 up 11:43,  0 user,  load average: 1.22, 1.27, 1.50
+
+## custom-times.mjs and the JS's own seed search
+== custom-times harness-g7
+U3-S-1-100-4-5-10-N-PARITY #3            JS      3 ms wasm     4 ms same
+U3-H-1-100-6-8-10-N-PARITY #7            JS     85 ms wasm    25 ms same
+U3-S-1-100-10-14-20-N-PLAIN #19          JS    156 ms wasm    55 ms same
+U3-H-1-100-10-14-20-N-PLAIN #12          JS    456 ms wasm    92 ms same
+U3-S-20-90-9-12-8-M-MIRROR #5            JS    109 ms wasm    32 ms same
+U3-H-20-90-9-12-8-M-MIRROR #6            JS    274 ms wasm    64 ms same
+U3-S-30-80-8-10-6-S-SPRING #2            JS    289 ms wasm    17 ms same
+U3-H-30-80-8-10-6-S-SPRING #4            JS    314 ms wasm    26 ms same
+U3-S-50-100-12-16-5-MS-BOTH #4           JS    624 ms wasm    22 ms same
+U3-H-50-100-12-16-5-MS-BOTH #3           JS   1023 ms wasm    83 ms same
+U3-M-1-100-16-20-4-M-WIDE #2             JS    547 ms wasm   175 ms same
+U3-M-1-100-20-24-4-N-WIDE #3             JS   6601 ms wasm   756 ms same
+U3-S-60-60-24-24-1-S-BIGSQ #0            JS  40675 ms wasm   557 ms same
+U3-S-70-70-40-40-1-MSC-COLOSSAL #0       JS    750 ms wasm    85 ms same
+U3-H-70-70-32-32-1-MC-COLOSSAL #0        JS    776 ms wasm    85 ms same
+== custom-times harness-enc
+U3-S-1-100-4-5-10-N-PARITY #3            JS      3 ms wasm     4 ms same
+U3-H-1-100-6-8-10-N-PARITY #7            JS     85 ms wasm    19 ms DIFFERENT
+U3-S-1-100-10-14-20-N-PLAIN #19          JS    156 ms wasm    49 ms same
+U3-H-1-100-10-14-20-N-PLAIN #12          JS    456 ms wasm    59 ms DIFFERENT
+U3-S-20-90-9-12-8-M-MIRROR #5            JS    109 ms wasm    23 ms same
+U3-H-20-90-9-12-8-M-MIRROR #6            JS    274 ms wasm    33 ms DIFFERENT
+U3-S-30-80-8-10-6-S-SPRING #2            JS    289 ms wasm    13 ms same
+U3-H-30-80-8-10-6-S-SPRING #4            JS    314 ms wasm    25 ms DIFFERENT
+U3-S-50-100-12-16-5-MS-BOTH #4           JS    624 ms wasm    19 ms same
+U3-H-50-100-12-16-5-MS-BOTH #3           JS   1023 ms wasm    18 ms DIFFERENT
+U3-M-1-100-16-20-4-M-WIDE #2             JS    547 ms wasm   191 ms same
+U3-M-1-100-20-24-4-N-WIDE #3             JS   6601 ms wasm   237 ms DIFFERENT
+U3-S-60-60-24-24-1-S-BIGSQ #0            JS  40675 ms wasm   527 ms same
+U3-S-70-70-40-40-1-MSC-COLOSSAL #0       JS    750 ms wasm    62 ms same
+U3-H-70-70-32-32-1-MC-COLOSSAL #0        JS    776 ms wasm    68 ms DIFFERENT
+== custom-times harness-moonbit
+U3-S-1-100-4-5-10-N-PARITY #3            JS      3 ms wasm     9 ms same
+U3-H-1-100-6-8-10-N-PARITY #7            JS     85 ms wasm    46 ms same
+U3-S-1-100-10-14-20-N-PLAIN #19          JS    156 ms wasm    91 ms same
+U3-H-1-100-10-14-20-N-PLAIN #12          JS    456 ms wasm   129 ms same
+U3-S-20-90-9-12-8-M-MIRROR #5            JS    109 ms wasm    28 ms same
+U3-H-20-90-9-12-8-M-MIRROR #6            JS    274 ms wasm    89 ms same
+U3-S-30-80-8-10-6-S-SPRING #2            JS    289 ms wasm    30 ms same
+U3-H-30-80-8-10-6-S-SPRING #4            JS    314 ms wasm    59 ms same
+U3-S-50-100-12-16-5-MS-BOTH #4           JS    624 ms wasm    43 ms same
+U3-H-50-100-12-16-5-MS-BOTH #3           JS   1023 ms wasm   176 ms same
+U3-M-1-100-16-20-4-M-WIDE #2             JS    547 ms wasm   273 ms same
+U3-M-1-100-20-24-4-N-WIDE #3             JS   6601 ms wasm  1484 ms same
+U3-S-60-60-24-24-1-S-BIGSQ #0            JS  40675 ms wasm  1443 ms same
+U3-S-70-70-40-40-1-MSC-COLOSSAL #0       JS    750 ms wasm    70 ms same
+U3-H-70-70-32-32-1-MC-COLOSSAL #0        JS    776 ms wasm   217 ms same
+== JS build-grid-journey.cjs (TMPDIR isolated, no cache)
+ 12:58:33 up 12:13,  0 user,  load average: 1.26, 1.31, 1.36
+JS search 530 s, exit 0
+ 13:07:23 up 12:22,  0 user,  load average: 1.28, 1.25, 1.29
+JS search output identical to grid-journey.js
