@@ -1,14 +1,14 @@
 #!/bin/bash
 # G6's review: how much G6's oracles see. Builds test/g6.wasm once for each seeded change of
-# play.ents or metrics.ents in mutants-g6-review.cjs, then runs check-g6-limits.cjs (1 s),
-# check-g6.cjs (all parts, 6 s) and check-g6-review.cjs (the 361 fixture boards, cached; about
+# play.ents or metrics.ents in mutants-g6-review.cjs, then runs check-g6-limits.cjs (5 s),
+# check-g6-fuzz.cjs (2 s), check-g6.cjs (all parts, 6 s) and check-g6-review.cjs (the 361 fixture boards, cached; about
 # 30 s) in turn, stopping at the first that fails. A mutant is killed when a check fails (or
 # traps, or times out).
 #
 #   moonbit/encantis/core/oracle/mutate-g6.sh <work dir> [first] [last]
 #
 # Each mutant is built in its own copy of core/ under the work dir (never in place). One line per
-# mutant goes to <work dir>/results.tsv: index, name, then limits=<exit>, g6=<exit>,
+# mutant goes to <work dir>/results.tsv: index, name, then limits=<exit>, fuzz=<exit>, g6=<exit>,
 # review=<exit> for the runs made, with the first kinds that failed. Run it under the machine's
 # lock for big jobs. (mutate-g3.sh's shape.)
 set -u
@@ -39,6 +39,10 @@ for k in $(seq "$FIRST" "$LAST"); do
   line="$k	$name"
   timeout 120 node "$ORA/check-g6-limits.cjs" "$M" > "$W/m$k.limits" 2>&1; e=$?
   line="$line	limits=$e"
+  if [ $e = 0 ]; then
+    timeout 300 node "$ORA/check-g6-fuzz.cjs" "$M" > "$W/m$k.fuzz" 2>&1; e=$?
+    line="$line	fuzz=$e"
+  fi
   if [ $e = 0 ]; then
     timeout 300 node "$ORA/check-g6.cjs" "$M" > "$W/m$k.g6" 2>&1; e=$?
     line="$line	g6=$e"

@@ -1,0 +1,35 @@
+# G6's review: mutate-g6.sh on mutants-g6-review.cjs (test/g6.wasm at 4a17959's sources, encantis 399ca7e).
+# Each line: index, name, the checks run in turn until one failed (exit 1 = killed). check-g6-fuzz.cjs came
+# after this run; its column is its own run on every mutant's wasm. Survivors: 17, 19, 20, 22, 26 (equivalent: DX-LOG).
+0	casual: the step limit one more	limits=1	fuzz-alone=1
+1	casual: no preference for exits	limits=0	g6=1 (casual,casual,casual,)	fuzz-alone=1
+2	regional: > 0.55	limits=0	g6=1 (regional,)	fuzz-alone=0
+3	regional: right half from col > w / 2	limits=0	g6=1 (regional,regional,regional,)	fuzz-alone=0
+4	regional: lower half from r > h / 2	limits=0	g6=1 (regional,regional,regional,)	fuzz-alone=0
+5	valid: second cell not checked for a step	limits=0	g6=1 (valid,valid,valid,)	fuzz-alone=0
+6	trivial: from 3 ropes	limits=0	g6=1 (trivial,trivial,trivial,)	fuzz-alone=1
+7	features_used: the first cell entered skipped	limits=0	g6=1 (featuresUsed,featuresUsed,featuresUsed,)	fuzz-alone=1
+8	feature_stats: manual one tap more	limits=1	fuzz-alone=1
+9	feature_stats: manual springs as manual mirrors	limits=1	fuzz-alone=1
+10	slide_stats: repeated from 3	limits=0	g6=1 (slideStats,slideStats,slideStats,)	fuzz-alone=1
+11	slide_stats: automatic counts manual exits	limits=1	fuzz-alone=1
+12	postpone: an equal count accepted	limits=0	g6=1 (postpone,postpone,postpone,)	fuzz-alone=0
+13	postpone: not only a rope's last tap	limits=0	g6=1 (postpone,)	fuzz-alone=0
+14	score: minimum_taps up to 13 ropes	limits=0	g6=1 (score,score,score,)	fuzz-alone=0
+15	coverage: springs not left out	limits=0	g6=1 (coverage,coverage,coverage,)	fuzz-alone=0
+16	ray: Hex states with the direction	limits=0	g6=0	review=0	fuzz-alone=1
+17	analyze: a loop after counts	limits=0	g6=0	review=0	fuzz-alone=0
+18	analyze: no further counts	limits=0	g6=1 (analyze,analyze,)	fuzz-alone=1
+19	analyze: an exit is not freed	limits=0	g6=0	review=0	fuzz-alone=0
+20	analyze: revisited when freed at the same step	limits=0	g6=0	review=0	fuzz-alone=0
+21	ray: a spring is not a bounce	limits=0	g6=1 (analyze,analyze,analyze,)	fuzz-alone=1
+22	Tarjan: low from low (equivalent?)	limits=0	g6=0	review=0	fuzz-alone=0
+23	graph: internal joins from one prerequisite	limits=0	g6=1 (analyze,analyze,analyze,)	fuzz-alone=1
+24	graph: joins from one incoming arc	limits=1	fuzz-alone=1
+25	graph: every arc essential	limits=0	g6=1 (analyze,analyze,analyze,)	fuzz-alone=1
+26	graph: branching over every arc	limits=0	g6=0	review=0	fuzz-alone=0
+27	graph: a one-rope component is a mutual wait	limits=1	fuzz-alone=1
+28	graph: largest counts single ropes	limits=1	fuzz-alone=1
+29	graph: joins over n * 0.3	limits=0	g6=1 (analyze,analyze,analyze,)	fuzz-alone=1
+30	graph: branching over 5	limits=0	g6=1 (analyze,analyze,analyze,)	fuzz-alone=1
+31	graph: connected weight 0.5	limits=1	fuzz-alone=1

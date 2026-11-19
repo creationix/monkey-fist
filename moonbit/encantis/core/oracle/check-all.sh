@@ -82,11 +82,15 @@ node check-g6.cjs --extra --parts direct,derived || fail=1
 # G6's review: check-g6's battery on the 361 boards of the g2, g3 and g5 fixtures, with random tap
 # sequences, junk taps and casual play at new seeds (seconds with the JS's answers cached in
 # /home/user/mf-core-scratch/review-g6/cache; about 25 minutes of JS in three workers to fill:
-# check-g6-review.cjs --fill --part i/3), and casual play's step limit on synthetic boards (1 s).
+# check-g6-review.cjs --fill --part i/3), casual play's step limit and the stack at the worst
+# 48x48 board on synthetic boards (5 s).
 echo "== check-g6-review.cjs"
 node check-g6-review.cjs || fail=1
 echo "== check-g6-limits.cjs"
 out=$(node check-g6-limits.cjs 2>&1) || fail=1
 echo "$out" | tail -1
+# G6's review: random small boards dense with mirrors, where rays cross themselves (3 seeds, 5 s).
+echo "== check-g6-fuzz.cjs --seed 1, 2, 3"
+for s in 1 2 3; do node check-g6-fuzz.cjs --seed $s || fail=1; done
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
