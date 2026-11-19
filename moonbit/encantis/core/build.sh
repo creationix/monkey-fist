@@ -37,5 +37,9 @@ wasm test/g2.ents test/g2.wasm
 inline hex.ents
 wasm test/g3.ents test/g3.wasm
 
+# --- G4: the Hex woven builder ---
+inline lib/fixedvec.ents hexbuild.ents
+wasm test/g4.ents test/g4.wasm
+
 # --- G7: the core (once it exists) ---
 if [ -f core.ents ]; then wasm core.ents core.wasm; fi

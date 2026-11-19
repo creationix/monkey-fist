@@ -1,0 +1,233 @@
+// The entry of G4's oracle (oracle/check-hexbuild.cjs): the ABI buffers, draws(),
+// stack_peak(), and a t_ hook for each of hexbuild.ents's two functions. Each hook reads its
+// case from the input words and clears the stack first, as every export of the core does.
+//
+// The words of a cfg (t_build): W, H, stage, length, knots, traps; the mirrors (a count, then
+// q, r, axis each); the core's ropes (a count, then each a counted list of q, r from tail to
+// head); its stops (a count, then each a counted list of offsets); its certificate (1 and a
+// counted list, or 0 for none). coverage and tap_depth, the cfg's two doubles, are arguments.
+//
+// The words of a replay (t_intentions): W, H; the mirrors; the ropes; the stops (a count, then
+// each a counted list of head cells); the certificate (1 and a counted list, or 0 for none).
+
+import "../lib/stack" (
+  "clear" func clear()
+  "peak" func peak() -> u32
+  "alloc" func alloc(n: u32) -> u32
+)
+import "../lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+)
+import "../random" (
+  "draws" func draws_made() -> u32
+  "reset_draws" func reset_draws(on: bool)
+  "rng" func new_rng(seed: u32) -> *mut Rng
+)
+import "../board" (
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+)
+import "../abi" (
+  "in_reset" func abi_in_reset()
+  "in_push" func abi_in_push(c: i32)
+  "out_len" func abi_out_len() -> i32
+  "out_get" func abi_out_get(i: i32) -> i32
+  "outf_get" func abi_outf_get(i: i32) -> f64
+  "out_clear" func out_clear()
+  "put" func put(w: i32)
+  "input" func input() -> []i32
+  "pts_at" func pts_at(base: [*]i32, k: u32, n: u32) -> []Pt
+  "mirrors_at" func mirrors_at(base: [*]i32, k: u32, n: u32) -> []Mirror
+)
+import "../hexbuild" (
+  "hex_intentions" func hex_intentions(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, stops: [][]i32, certificate: ?[]i32) -> ?*HexIntent
+  "hex_build" func hex_build(r: *mut Rng, c: *HexCfg) -> ?*HexBuilt
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type HexIntent = (moves: []i32, cost: i32, depth: i32, slides: i32)
+type HexCfg = (w: i32, h: i32, stage: i32, coverage: f64, length: i32, tap_depth: f64, mirrors: []Mirror,
+               knots: i32, traps: i32, initial_ropes: [][]Pt, initial_stops: [][]i32, initial_plan: ?[]i32)
+type HexBuilt = (ropes: [][]Pt, stops: [][]i32, plan: []i32, slides: i32, traps: i32, depth: i32, cost: i32)
+
+export memory
+
+// --- The buffers ---
+
+export func in_reset() {
+  abi_in_reset()
+}
+
+export func in_push(c: i32) {
+  abi_in_push(c)
+}
+
+export func out_len() -> i32 => abi_out_len()
+
+export func out_get(i: i32) -> i32 => abi_out_get(i)
+
+export func outf_get(i: i32) -> f64 => abi_outf_get(i)
+
+export func draws() -> i32 => draws_made() as i32
+
+export func stack_peak() -> i32 => peak() as i32
+
+// The generator's state after the last t_build (mulberry32's a): the JS can catch up with it.
+global last_state: u32 = 0
+export func rng_state() -> i32 => last_state as i32
+
+// --- Reading words ---
+
+// A cursor over the input words.
+type Reader = (base: [*]i32, k: u32, n: u32)
+
+func reader() -> *mut Reader {
+  let words = input()
+  let r = alloc(sizeof(Reader)) as *mut Reader
+  r.* = Reader(words.ptr, 0, words.len)
+  return r
+}
+
+func word(r: *mut Reader) -> i32 {
+  assert r.k < r.n
+  r.k += 1
+  return r.base[r.k - 1]  // unchecked: k < n
+}
+
+// A count read from the words, which must fit what is left.
+func count(r: *mut Reader, per: u32) -> u32 {
+  let n = r.word() as u32
+  assert n <= r.n && r.k + per * n <= r.n
+  return n
+}
+
+// A counted list of words, in place.
+func ints(r: *mut Reader) -> []i32 {
+  let n = r.count(1)
+  let p = r.base[r.k..r.k + n]
+  r.k += n
+  return p
+}
+
+// A counted list of points, in place.
+func cells(r: *mut Reader) -> []Pt {
+  let n = r.count(2)
+  let p = pts_at(r.base, r.k, n)
+  r.k += 2 * n
+  return p
+}
+
+func mirrors(r: *mut Reader) -> []Mirror {
+  let n = r.count(3)
+  let m = mirrors_at(r.base, r.k, n)
+  r.k += 3 * n
+  return m
+}
+
+func rope_list(r: *mut Reader) -> [][]Pt {
+  let n = r.count(1)
+  let ropes = alloc(n * sizeof([]Pt)) as [*]mut []Pt
+  for i in n {
+    ropes[i] = r.cells()
+  }
+  return ropes[0..n]
+}
+
+func int_lists(r: *mut Reader) -> [][]i32 {
+  let n = r.count(1)
+  let lists = alloc(n * sizeof([]i32)) as [*]mut []i32
+  for i in n {
+    lists[i] = r.ints()
+  }
+  return lists[0..n]
+}
+
+// 1 and a counted list, or 0 for none.
+func maybe_ints(r: *mut Reader) -> ?[]i32 {
+  if r.word() == 1 {
+    return r.ints()
+  }
+  return (0 as [*]i32, 0:u32)  // enum: none
+}
+
+// --- Writing words ---
+
+func put_list(xs: []i32) {
+  put(xs.len as i32)
+  for x in xs {
+    put(x)
+  }
+}
+
+// --- The hooks ---
+
+// build(mulberry32(state), cfg): 0 for null; else 1, writing the ropes (a count, then each a
+// counted list of q, r), the stops (per rope a counted list of head cells), the plan (counted),
+// the knots made, the traps made, the certified replay's deepest layer and its summed exit
+// layers. draws() is the draws it made, rng_state() the generator's state after.
+export func t_build(state: i32, coverage: f64, tap_depth: f64) -> i32 {
+  clear()
+  let r = reader()
+  let w = r.word()
+  let h = r.word()
+  let stage = r.word()
+  let length = r.word()
+  let knots = r.word()
+  let traps = r.word()
+  let ms = r.mirrors()
+  let core = r.rope_list()
+  let core_stops = r.int_lists()
+  let core_plan = r.maybe_ints()
+  let c = alloc(sizeof(HexCfg)) as *mut HexCfg
+  c.* = HexCfg(w, h, stage, coverage, length, tap_depth, ms, knots, traps, core, core_stops, core_plan)
+  let g = new_rng(state as u32)
+  reset_draws(false)
+  out_clear()
+  let built = hex_build(g, c)
+  last_state = g.a
+  if let b = built {
+    put(b.ropes.len as i32)
+    for path in b.ropes {
+      put(path.len as i32)
+      for p in path {
+        put(p.q)
+        put(p.r)
+      }
+    }
+    for s in b.stops {
+      put_list(s)
+    }
+    put_list(b.plan)
+    put(b.slides)
+    put(b.traps)
+    put(b.depth)
+    put(b.cost)
+    return 1
+  }
+  return 0
+}
+
+// intentions(level, stops, certificate): 0 for null; else 1, writing the moves (counted), the
+// cost, the deepest layer and the slides.
+export func t_intentions() -> i32 {
+  clear()
+  let r = reader()
+  let w = r.word()
+  let h = r.word()
+  let ms = r.mirrors()
+  let ropes = r.rope_list()
+  let stops = r.int_lists()
+  let cert = r.maybe_ints()
+  out_clear()
+  if let t = hex_intentions(w, h, ms, some_paths(ropes), stops, cert) {
+    put_list(t.moves)
+    put(t.cost)
+    put(t.depth)
+    put(t.slides)
+    return 1
+  }
+  return 0
+}
