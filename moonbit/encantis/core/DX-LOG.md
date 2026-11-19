@@ -2366,3 +2366,270 @@ No compiler bug: no wrong code and no crash. P1 is the port's.
 | compiler bugs | 0 |
 | departures | 0 |
 | Journey levels that differ because of G5 (of 120) | 0 |
+
+## 19 Nov: G6, measured play and the interaction analysis
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0; fetched at the start, the same commit as
+G5's review, so nothing to rebuild: build.sh made every earlier wasm byte for byte, `git status`
+clean). Commits 662b6b5 and the ones after. No predecessor: G6 started at 08:29.
+
+### What was built
+
+- `metrics.ents` (metrics.mbt but `to_fixed`, which is G1's exact one): `analyze`, which is
+  `Q.analyze(board, plan, manual, G)`. It returns a value, `Complexity`: the interaction and the five
+  counts it is made of (joins, mutualWaitRopes, revisitedRopes, branchingDepth, largestCoupledGroup:
+  MoonBit computes them unnamed; the JS reports them, so the oracle compares six values a call
+  where interaction alone would be one, at no cost). Inside, all in analyze's own scope:
+  - the snapshot is a ray a rope (`ray`), the rope on each cell a table, the cells stamped once a
+    position (`mark_ropes`), and the states a ray has seen in mech.ents's stamp table (`new_walk`,
+    `seen_before`, now exported);
+  - the relations are deduplicated with an n x n byte table and kept as a list in the order found;
+  - the graph's lists (dependents, prerequisites, the arcs between components) are built in two
+    passes, count then fill, into one array of targets and an index (`Lists`, `l.of(v)`);
+  - Tarjan's `visit` is a top-level recursive function over a 12-field context (`Tarjan`), the
+    components kept as their members in pop order plus starts;
+  - `reach` is a k x k byte table, `essential` a byte per arc;
+  - the JS's arithmetic in its order, then G1's exact `to_fixed(x, 4)`.
+- `play.ents` (gridgen.mbt lines 42 to 88, 666 to 894, 1088 to 1100): `coverage`, `adjacent`,
+  `valid`, `regional`, `trivial`, `features_used`, `feature_stats` (`?*FeatureStats`), `slide_stats`
+  (the measurement grid_generate makes inline: slides and bounces by hand, repeated ropes, automatic
+  exits, any slide: G7 calls it), `postpone`, `score` (a `Par` value whose plan is in the caller's
+  scope), `casual_rate`, `casual_measure`, `bench_casual`, `bench_par`. They take the board's tables
+  (`*Geo`) or, where the board alone is read (coverage, regional), the `Board` value.
+- `test/g6.ents`: a hook a unit, `t_seed`/`t_measure` for the stored measurements, `t_target`,
+  `t_bench_casual`, `t_bench_par`.
+- Oracles: `check-g6.cjs` (parts direct, derived, mutated, calls, stored), `dump-g6.cjs` and
+  `fixtures/g6-calls.json.gz`, `hybrid-g6.cjs`; timing `bench-g6.cjs`; `size.cjs` G6, `build.sh` and
+  `check-all.sh` lines; `bugs/06`.
+
+### Exactness
+
+Everything in G6 is a rule or a measurement of a given board, so it is all exact, `casual_rate` too
+(below). Results on the final file (test/g6.wasm, 62,756 bytes):
+
+- **check-g6.cjs**, against grid-generator.js and dependency-metrics.js at 9e69e3a: **13,813
+  comparisons of 81,758 values, 0 failed, on the first build of every part**, in order and with
+  `--reverse`, 5.4 s on the port (the JS's answers cached: 230 s of JS to fill, nearly all casual
+  play on spinner boards):
+  - direct, on the 135 reference boards with their plans and par: 2,158 (coverage, valid, regional,
+    trivial, featuresUsed, featureStats with manual = par, 0 and all, slideStats, postpone, score with
+    and without skip, casualRate x100 and x1000 at hashString('bench') with the draws (x10 on C13
+    and C14), Q.analyze with manual = par and all);
+  - derived, on 386 boards of the ropes left after each quarter of each plan: 5,404. These are where
+    the reject branches run: trivial true 43 times, regional false 345, featuresUsed false 204,
+    valid false 100 (a rope that has slid can lie on a mirror's cell, 44, or a spring's, 56);
+  - mutated: 2,745, on 645 broken copies (valid false 621 times) and on each board with a last tap
+    of a rope that has left (featureStats null 135 times; analyze and the replays stop there);
+  - calls: 2,691 calls recorded while the JS generator made the 135 reference levels and the 70 of
+    g5-review-boards.jsonl (12,289 calls made, sampled by a rule fixed before any port run: every
+    rejection, every s-th other call), against the answers and draws the JS gave then. In real
+    generation over those 205 levels valid and regional never rejected and trivial never did either;
+    featuresUsed rejected 50 times;
+  - stored: 815, the measurements of the 120 Journey levels in grid-journey-measurements.json at
+    9e69e3a, from the reference boards: casualWins (96 or 24 games seeded by
+    'journey/5/MONKEYFIST/measure/' + seed), work, challenge, coverage, targetChallenge, slideStats,
+    mechanicStats (95 levels) and the complexity's six fields, each rounded as the build rounds it.
+    (measurements-wasm.test at unit level; it needs G7's generate_spec to run whole.)
+- `--extra` adds the 79 boards of g1-extra (4x4 strips to 48x48, 21 with spinners) to direct and
+  derived: 4,412 more comparisons, 0 failed (582 s of JS to fill; the 48x48 spinner boards' casual
+  play and postponement most of it). Stack peak 2.66 MB (g1#12, 48x48, score); 1.25 MB on the
+  reference boards (C15, score).
+- `--controls`: 16 of 16 kinds fail on one spoiled value and name the case. `--js` (the JS live
+  through the same words and hooks) passes, 308 s.
+- **The whole generator** (`hybrid-g6.cjs`: the JS generator of 9e69e3a with every valid,
+  coverage, regional, trivial, featuresUsed, featureStats, postpone, score and casualRate call and
+  every Q.analyze answered by the port): **135 of 135 reference levels the same**, over 7,472 calls,
+  in 89.6 s; the JS alone (`--js`) 153.4 s (neither under the lock). `--codes` made 40 levels each
+  of U3-M-60-100-12-14-40-MS-GSIX, U3-H-1-100-10-12-40-M-GSIX and U3-S-1-100-8-10-40-S-GSIX twice,
+  the JS alone and with G6's units on the port: **120 of 120 equal in every field**, the measured
+  qualities included (par, exact, coverage, slideStats, play's casualWins, work and challenge,
+  mechanicStats, the complexity's six fields), 0 null; JS 89.5 s, port 53.1 s. And 30 levels each of
+  U3-H-30-80-8-10-30-S-GSIX (Hex spinners), U3-S-60-100-16-16-30-MS-GSIX,
+  U3-M-1-100-24-24-30-N-GSIX (large, both grids) and U3-M-70-70-40-40-30-MSC-GSIX (colossal): **120 of
+  120 equal in every field** (1 null on both sides); JS 308.8 s, port 188.1 s. 240 levels of seven
+  codes in all, the generator's choices among attempts (which read every one of G6's measures)
+  unchanged.
+- **The earlier groups' oracles**, rerun with G6's lines (`check-all.sh` under the lock, after
+  build.sh, 09:22 to 09:40): every check passed: G1, G1-wide, G2, G2-wide, G2 `--extra`, the three
+  weave scripts, G3, G3-wide, G3 `--extra`, G3's review at a quarter, check-hexbuild `--seeds 2` and
+  G4's review oracles, check-g5, check-core-rope, check-g5-harness and G5's review oracles, then
+  check-g6 (13,813, 5.5 s) and check-g6 `--extra` (11,974, 9.7 s).
+
+### Departures (from the JS's exact behaviour)
+
+**None.** The owner's decision lets casualRate's random playouts depart, but keeping them exact cost
+nothing: the draw is one `rng()` a turn over the legal taps in rope order, exits first, which is what
+any natural loop does; and the exact playout is already 3 to 5 times MoonBit's speed (below). So **no
+Journey level differs from the JS game's because of G6 (0 of 120)**: hybrid-g6.cjs regenerates all 135 reference levels (120 Journey) with G6's units on the port, unchanged.
+
+What changed is work, not answers:
+
+| | The JS and MoonBit | The port | What it saves |
+| --- | --- | --- | --- |
+| W1 | a casual turn on a spinner board taps every rope: each tap builds the position after it and the route (G.tap) | one stamp of the position for all its ropes (`walk_at`), the walks in a scope freed each turn, and only the chosen rope's path copied, into a buffer of its own kept for the game | the most: full-geometry casual play is 3.2 to 5.2 times MoonBit's speed and 66 to 135 times the JS's (below) |
+| W2 | the snapshot ray keeps its states in a Set of strings (JS) or a list it searches (MoonBit) | mech.ents's stamp table, one load a look | no ray is quadratic in its length |
+| W3 | featureStats: four Sets of cell keys (JS), four bool tables (MoonBit) | one byte of four flags a cell, counted once | three tables |
+| W4 | the relations in Sets (JS) or lists searched (MoonBit) | an n x n byte table, and the lists built once at the end in two passes | no search per relation |
+| W5 | trivial and featuresUsed build a Move per tap | `walk` (the path after, nothing else) in a scope per tap | the route and position copies |
+
+### Time
+
+`bench-g6.cjs` under the lock (09:17 to 09:21; load average 1.3 at the start and 1.2 at the end),
+5 processes, best of 5 rounds in each, median over processes; port (test/g6.wasm's t_bench_casual
+and t_bench_par: the board's tables made from its words, then the call), MoonBit wasm-gc
+(dist/mf.wasm's bench_casual and bench_par on its current level) and the JS (F.casualRate,
+F.score) interleaved, the values checked equal. The last two columns: how many times faster the
+port is. The JS is not run at x1000 on the spinner boards (8 s a call on L120; bench-node.mjs itself
+plays 100 games there).
+
+| Kernel | port ms | MoonBit ms | JS ms | MoonBit / port | JS / port |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| L30 casual x100 | 1.912 | 6.484 | 127.0 | 3.39x | 66.4x |
+| L30 casual x1000 | 19.34 | 67.59 | | 3.50x | |
+| L30 par | 0.161 | 0.202 | 3.492 | 1.26x | 21.7x |
+| L60 casual x100 | 1.732 | 5.551 | 138.7 | 3.21x | 80.1x |
+| L60 casual x1000 | 17.31 | 56.22 | | 3.25x | |
+| L60 par | 0.119 | 0.158 | 3.074 | 1.33x | 25.9x |
+| L89 casual x100 | 2.000 | 7.767 | 189.0 | 3.88x | 94.5x |
+| L89 casual x1000 | 20.46 | 77.06 | | 3.77x | |
+| L89 par | 0.216 | 0.254 | 4.942 | 1.18x | 22.9x |
+| L120 casual x100 | 5.006 | 25.15 | 674.4 | 5.02x | 134.7x |
+| L120 casual x1000 | 50.39 | 263.4 | | 5.23x | |
+| L120 par | 0.594 | 0.820 | 15.51 | 1.38x | 26.1x |
+| L107 casual x100 | 1.460 | 1.589 | 2.439 | 1.09x | 1.7x |
+| L107 casual x1000 | 13.40 | 15.09 | 22.59 | 1.13x | 1.7x |
+| L107 par | 8.473 | 11.46 | 16.23 | 1.35x | 1.9x |
+| L118 casual x100 | 0.968 | 0.975 | 1.572 | 1.01x | 1.6x |
+| L118 casual x1000 | 9.384 | 9.569 | 14.89 | 1.02x | 1.6x |
+| L118 par | 5.627 | 7.797 | 10.72 | 1.39x | 1.9x |
+| L114 casual x100 | 0.346 | 0.429 | 1.576 | 1.24x | 4.6x |
+| L114 casual x1000 | 3.520 | 5.131 | 18.16 | 1.46x | 5.2x |
+| L114 par | 1.700 | 2.503 | 15.08 | 1.47x | 8.9x |
+| L116 casual x100 | 0.495 | 0.558 | 1.948 | 1.13x | 3.9x |
+| L116 casual x1000 | 4.756 | 6.183 | 22.48 | 1.30x | 4.7x |
+| L116 par | 2.644 | 4.033 | 22.14 | 1.53x | 8.4x |
+
+- **G6's own code** is the casual play on the four spinner boards (L30, L60, L89, L120: the
+  full-geometry playouts, W1): 3.2 to 5.2 times MoonBit's speed and 66 to 135 times the JS's, as
+  first written (there was no slower version: the walk of G5 was already there to use).
+- On the four boards without spinners casual play and par are G2's and G3's kernels, reached
+  through play.ents's routing: 1.01 to 1.53 times MoonBit, as G2 and G3 measured them (L118 casual
+  is the one even: G2 had it at 1.00x). Par on the spinner boards is the postponement, replay after
+  replay on G5's full geometry: 1.18 to 1.38 times MoonBit.
+- analyze is not timed (no MoonBit export runs it alone); in the hybrid run it is 647 of the
+  7,472 calls.
+
+### Size
+
+`node oracle/size.cjs G6`: metrics.ents 2,823 tokens against metrics.mbt's 1,995 (1.41x), play.ents
+2,862 against the 14 declarations of gridgen.mbt it replaces, 2,145 (1.33x; it includes slide_stats,
+about 150 tokens that MoonBit has inline in grid_generate and that G7 will not write): **5,685 against
+4,140 (1.37x), 1.75x with the 89 lines of import declarations (1,176 tokens) and restated types
+(393)**. What makes metrics.ents bigger: the allocations written out (`alloc(un * 4) as [*]mut i32`,
+nine tokens, 24 times), the two-pass lists (`lists` and `of`, about 160 tokens) where MoonBit pushes
+into `Array[Array[Int32]]`, the Tarjan context's type and constructor (about 150), and loops for
+eight lambdas. test/g6.wasm is 62,756 bytes (24,327 gzipped).
+
+### Friction
+
+1. **A `let` is seen to the end of its function** (reference 3.3), now for the third group running:
+   13 errors on the first `check`: 9 in metrics.ents's `graph` (`c` five times, `a` twice, `first`,
+   `size`, each a loop's variable or a `let` of an earlier loop), 4 in play.ents (`p`, `c` twice, and
+   a loop `c`). Each became a name of its own (`from`/`to`, `src`, `up`/`up_first`, `members`, `at`,
+   `sc`/`mc`). 10 minutes. No planned feature names it.
+2. **A local of a function's own name**: in `func board()` of test/g6.ents, `let (board:, paths:,
+   prefer:) = read_position()` is `'board' is already declared in this scope`. The destructuring
+   renames (`(board: b, paths:, prefer:)`), which was a pleasant find. 2 minutes.
+3. **Closures** (`// closure:` 12 sites): Tarjan's `visit` became a top-level recursion over a
+   12-field context, and the JS's and MoonBit's lambdas became loops: the snapshot's `paths.map`,
+   three `Array::makei(_, _ => [])` of lists (two-pass lists instead), `reach`'s makei, the essential
+   arcs' `filter`/`any`, the internal joins' nested `filter`, the junctions' `makei`, regional's
+   `every`, trivial's `some`, featureStats's four `filter().count()`, slideStats's `filter`, casual
+   play's `flatMap` and `filter`. Closures would remove all; none needed a function value
+   (`// fnvalue:` 0). The context struct was the costly one: about 15 minutes, and 150 tokens (below).
+4. **No `let ... else`**: `feature_stats` returns `?*FeatureStats` (MoonBit's `FeatureStats?`), and
+   `score`'s kernel calls `?*Par`; each is one `if let` level. `?? b.plan` on the kernels' `?[]i32`
+   (postponed exits or none) reads as the JS's `start ? start.taps : b.plan`, which was pleasant.
+5. **A copy of a range of run-time length is a loop**: postpone's trial (best without its k-th tap,
+   then that tap) is two element loops, as in G2 and G3's postponements; casual play's path copy one.
+   `memcpy` takes bytes and pointers, so the loops read better. 3 sites.
+6. **Tables are many-pointers, unchecked** (`// unchecked:` 33 sites): every graph table
+   is indexed by a node or a component number that the graph's own construction bounds; a `?? 0`
+   would hide a builder bug, as the plan says. Ranged indices (`u32#4`) proved the one fixed-size
+   table (regional's quarters).
+7. **Where a unit lives, `*Geo` or `Board`**: the MoonBit passes both (`valid(b, g)`); the Geo holds
+   the board, so one argument does, and `g.valid()`, `geo(b).score(false).par` read well. coverage
+   and regional take the `Board` (they need no table). A choice to make once, 2 minutes.
+
+### Error messages (verbatim)
+
+1. `metrics.ents:299:7: 'c' is already declared: a loop variable cannot reuse the name of a variable in scope`
+   (clear; as G4 and G5 found, it does not say where the first one is, here 20 lines up).
+2. `test/g6.ents:96:7: 'board' is already declared in this scope`: the other `board` is the function
+   the `let` is in, which the message does not say.
+3. `metrics.ents:177:9: if let requires an optional expression or bounds-checked index`, for
+   `if let seen = &related[at]` with `related` a many-pointer: right (a many-pointer's element is not
+   checked, so its address is not optional), and the fix was to drop the `if let`.
+
+### Bugs
+
+- `bugs/06-fmt-optional-slice-element.ents`: `encantis fmt` prints `[]?[]T` as `[] ? []T` (spaces
+  round the `?`, as if it were an operator), drops the space after a parameter's or field's `:`, and
+  the second space before an end-of-line comment. The output still parses to the same types. And
+  `fmt` writes in place and takes no `-o` (`fmt f.ents -o out` formats f.ents, then fails with
+  `Error: File not found: -o`), though the CLI's general options list `-o` (default stdout). G6 ran
+  `fmt play.ents` expecting stdout; undoing it was a 15-line script (whitespace only, `check` and the
+  oracle unchanged) and 10 minutes. Not a compiler bug: the compiler made no wrong code in G6.
+
+### Tooling
+
+- `check play.ents` 2.5 s, `check metrics.ents` 2.7 s (13 modules), `test` 3.1 to 3.3 s, `wasm
+  test/g6.ents` 4.2 s; build.sh with G6 31 s (G6's two modules: 4 inline tests), every earlier wasm byte for byte.
+- `hover metrics.ents:236:12` (the Tarjan context `t`) prints the whole struct, 330 characters
+  (`local t: *mut (dep: (at: [*]mut i32, list: [*]mut i32), next: i32, ...)`): structural types have
+  no name to show, as G3 to G5 found.
+- `fmt`: bugs/06.
+- The JS's answers are cached per board (`--fill`, 230 s of JS for the 135 boards, most of it casual
+  play on spinner boards: C13 and C14 take 80 and 200 s for 100 games, so they get 10); then the
+  whole check is 4 s on the port.
+
+### Pleasant
+
+- **Exact on the first run**, every part (11,122 comparisons, then the calls), and the hybrid made
+  the reference levels unchanged.
+- `let (board: b, paths:, prefer:) = read_position()`: named results, destructured with a rename.
+- `zeroed(16) as *mut [4]i32` indexed by a `zone()` that returns `u32#4`: proven in range, no `??`,
+  no tag.
+- `if let i = plan[k] { actions[i] += 1 }`; `hex_postpone_exits(...) ?? b.plan`; a `Par` returned by
+  value as `p.*` with its plan in the caller's scope.
+- One stamp table shared by two modules through two exports, and a function of mech.ents
+  (`walk_at`) that made casual play's speed without a line of mech.ents changed.
+
+### Where `comptime n: u32` with `[n]T` would help G6
+
+- regional's two quarter tables are `*mut [4]i32` from `zeroed(16)` (1 `// comptime-n:` site): a
+  `[4]i32` in registers cannot take a run-time index (PORT-PLAN 10, p4), and a `FixedVec(4, i32)`
+  would add a length nothing needs.
+
+### Counts (tags in G6's files, sites; header mentions left out)
+
+| Tag | metrics.ents | play.ents | test/g6.ents |
+| --- | ---: | ---: | ---: |
+| `// closure:` | 7 | 5 | 0 |
+| `// fnvalue:` | 0 | 0 | 0 |
+| `// enum:` | 1 | 0 | 0 |
+| `// comptime-n:` | 0 | 1 | 0 |
+| `// unchecked:` | 19 | 14 | 0 |
+| `// reserve:` | 0 | 2 | 0 |
+
+| What | Count |
+| --- | ---: |
+| exact comparisons (check-g6; more on the g1 boards) | 13,813; 4,412 |
+| levels regenerated with G6's units on the port, the same (reference; seven codes, every field) | 135 of 135; 240 of 240 |
+| local functions made top-level / sites where lambdas became loops (lambdas) | 1 (Tarjan's visit) / 11 (about 20) |
+| names renamed for function-scoped lets / a local named like its function | 13 / 1 |
+| copies of a run-time range written as loops | 3 |
+| `if let` outside tests (deepest nesting) | 7 (1) |
+| compiler bugs / tooling bugs | 0 / 1 (bugs/06, fmt) |
+| departures that change an answer or a draw | 0 |
+| Journey levels that differ because of G6 (of 120) | 0 |

@@ -1,0 +1,25 @@
+5 processes; ms, best of 5 rounds in each: median (range) over processes
+  L30 casual x100      port 1.912 (1.873 to 2.163)   MoonBit wasm-gc 6.484 (6.366 to 7.605)   JS 127.025 (125.179 to 136.075)   MoonBit/port 3.39x, JS/port 66.4x
+  L30 casual x1000     port 19.339 (18.719 to 22.540)   MoonBit wasm-gc 67.594 (65.739 to 78.212)   JS n/a   MoonBit/port 3.50x
+  L30 par              port 0.161 (0.154 to 0.176)   MoonBit wasm-gc 0.202 (0.177 to 0.207)   JS 3.492 (3.360 to 3.747)   MoonBit/port 1.26x, JS/port 21.7x
+  L60 casual x100      port 1.732 (1.668 to 1.759)   MoonBit wasm-gc 5.551 (5.338 to 6.506)   JS 138.688 (123.190 to 163.812)   MoonBit/port 3.21x, JS/port 80.1x
+  L60 casual x1000     port 17.310 (16.954 to 17.723)   MoonBit wasm-gc 56.220 (52.707 to 58.833)   JS n/a   MoonBit/port 3.25x
+  L60 par              port 0.119 (0.117 to 0.126)   MoonBit wasm-gc 0.158 (0.145 to 0.176)   JS 3.074 (2.635 to 3.464)   MoonBit/port 1.33x, JS/port 25.9x
+  L89 casual x100      port 2.000 (1.985 to 2.262)   MoonBit wasm-gc 7.767 (7.125 to 8.153)   JS 189.027 (171.223 to 216.303)   MoonBit/port 3.88x, JS/port 94.5x
+  L89 casual x1000     port 20.464 (19.927 to 21.266)   MoonBit wasm-gc 77.057 (71.926 to 80.770)   JS n/a   MoonBit/port 3.77x
+  L89 par              port 0.216 (0.216 to 0.219)   MoonBit wasm-gc 0.254 (0.236 to 0.274)   JS 4.942 (4.482 to 5.386)   MoonBit/port 1.18x, JS/port 22.9x
+  L120 casual x100     port 5.006 (4.870 to 5.517)   MoonBit wasm-gc 25.153 (23.565 to 28.339)   JS 674.397 (594.689 to 718.565)   MoonBit/port 5.02x, JS/port 134.7x
+  L120 casual x1000    port 50.393 (49.686 to 54.696)   MoonBit wasm-gc 263.406 (245.422 to 274.782)   JS n/a   MoonBit/port 5.23x
+  L120 par             port 0.594 (0.581 to 0.696)   MoonBit wasm-gc 0.820 (0.766 to 0.896)   JS 15.508 (14.753 to 15.818)   MoonBit/port 1.38x, JS/port 26.1x
+  L107 casual x100     port 1.460 (1.396 to 1.620)   MoonBit wasm-gc 1.589 (1.572 to 1.655)   JS 2.439 (2.374 to 2.485)   MoonBit/port 1.09x, JS/port 1.7x
+  L107 casual x1000    port 13.398 (13.216 to 13.651)   MoonBit wasm-gc 15.086 (14.716 to 15.524)   JS 22.594 (21.688 to 23.775)   MoonBit/port 1.13x, JS/port 1.7x
+  L107 par             port 8.473 (8.459 to 8.886)   MoonBit wasm-gc 11.460 (11.281 to 11.641)   JS 16.233 (15.563 to 16.388)   MoonBit/port 1.35x, JS/port 1.9x
+  L118 casual x100     port 0.968 (0.936 to 0.996)   MoonBit wasm-gc 0.975 (0.953 to 1.028)   JS 1.572 (1.521 to 1.633)   MoonBit/port 1.01x, JS/port 1.6x
+  L118 casual x1000    port 9.384 (9.213 to 9.764)   MoonBit wasm-gc 9.569 (9.451 to 9.880)   JS 14.894 (14.794 to 15.834)   MoonBit/port 1.02x, JS/port 1.6x
+  L118 par             port 5.627 (5.496 to 6.003)   MoonBit wasm-gc 7.797 (7.589 to 8.433)   JS 10.721 (10.359 to 11.153)   MoonBit/port 1.39x, JS/port 1.9x
+  L114 casual x100     port 0.346 (0.341 to 0.360)   MoonBit wasm-gc 0.429 (0.406 to 0.443)   JS 1.576 (1.484 to 1.800)   MoonBit/port 1.24x, JS/port 4.6x
+  L114 casual x1000    port 3.520 (3.438 to 3.630)   MoonBit wasm-gc 5.131 (4.365 to 5.747)   JS 18.160 (17.649 to 20.125)   MoonBit/port 1.46x, JS/port 5.2x
+  L114 par             port 1.700 (1.657 to 1.904)   MoonBit wasm-gc 2.503 (2.409 to 3.003)   JS 15.076 (13.606 to 17.206)   MoonBit/port 1.47x, JS/port 8.9x
+  L116 casual x100     port 0.495 (0.472 to 0.509)   MoonBit wasm-gc 0.558 (0.526 to 0.633)   JS 1.948 (1.916 to 2.241)   MoonBit/port 1.13x, JS/port 3.9x
+  L116 casual x1000    port 4.756 (4.677 to 5.319)   MoonBit wasm-gc 6.183 (5.287 to 6.973)   JS 22.480 (19.835 to 25.003)   MoonBit/port 1.30x, JS/port 4.7x
+  L116 par             port 2.644 (2.593 to 3.009)   MoonBit wasm-gc 4.033 (3.388 to 4.298)   JS 22.136 (18.960 to 22.967)   MoonBit/port 1.53x, JS/port 8.4x
