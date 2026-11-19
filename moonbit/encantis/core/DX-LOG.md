@@ -3622,3 +3622,98 @@ every one byte for byte, and no Ents file was edited after it.
 | odd shapes probed / traps (all past the game's sizes, all one-row or one-column strips with spinners) | 136 + 7 / 3 + 1 (1,200x1) |
 | compiler bugs / tooling bugs new | 0 / 0 |
 | times a trap was traced by counting `(func` in the WAT | 1 |
+
+## 19 Nov: the measurement and the report (REPORT.md)
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0), fetched at the start as the brief asked
+(`git fetch`, checkout of origin/main, `bun install`): it had not moved since G6, and it has
+`lib/vec.ents`, so no branch was needed. `build.sh` under the lock (42.7 s) rebuilt every wasm byte for
+byte. No Ents file was changed. No predecessor: the measurement started at 14:40 and was not
+restarted. Scratch: `/home/user/mf-core-scratch/measure/` (bench/, logs/, builds/, the harnesses).
+
+### What was measured
+
+- **Runtime.** MoonBit's own harnesses were extended rather than replaced:
+  `scripts/bench-node.mjs` (`--enc`, `--rounds`, `--cold`, `--kernel-reps`, `--out`) and
+  `bench/browser.{html,mjs}` (`enc=`, `rounds=`, `cold=`; `GEN_ONLY`, `OUT`, `BENCH_QUERY`). Without the
+  new flags each does what it did. Eight engines, interleaved in each round:
+  - core.wasm, plain and with `-O`;
+  - test/g7.wasm (the JS's mode, the same levels as MoonBit), plain and with `-O`;
+  - core.wasm through `wasm-opt -O3`;
+  - MoonBit wasm-gc and MoonBit's JS build;
+  - the JS game.
+
+  Each was run for six rounds of the 120 Journey levels in Node and in Chromium, then cold starts in
+  5 fresh processes or browsers per engine, the kernels, and the custom sample. REPORT.md §2 has the
+  results.
+- **Size.** wasm plain, `-O`, `--release` and `-O3`, with gzip and brotli. Tokens and lines per group
+  come from `size.cjs`.
+- **Compile time** (`oracle/compile-times.mjs`, new). The Encantis CLI against moon 0.1.20261104,
+  which is installed here (`~/.moon/bin/moon`).
+- **Correctness.** These were rerun:
+  - check-all;
+  - MoonBit's own tests through the glue, on core.wasm, test/g7.wasm and their `-O` builds;
+  - the unit, robustness and Journey oracles on every optimized build.
+
+  New scripts: `oracle/quality-summary.cjs` (all 25 classes, and the review's 18 classes pooled, with
+  `fixtures/quality-g7-review.jsonl.gz`, the review's rows) and `oracle/journey-freeze-cost.cjs`.
+
+### Friction (measurement)
+
+1. **The edit-check loop is the slowest thing about Encantis.** `check core.ents` takes 3.77 s and
+   `wasm` 3.85 s, every time, because each command is a fresh process with no cache. `moon check`
+   takes 0.15 s after an edit, and `moon build` (wasm-gc, release, from clean) 0.44 s. That is 8 to 25
+   times as long. G7 called 3.7 s "fast" against expectations; against MoonBit it is not. No planned
+   language feature changes it.
+2. **`encantis wasm <file>` without `-o` writes `<file>.wasm` beside the source.** The help says the
+   default output is stdout. `wasm core.ents --size` (to read the sizes) rewrote the committed
+   core.wasm. It was byte for byte the same here, so it cost 1 minute; with a dirty tree it would have
+   replaced the committed build.
+3. **`-O` is `-Oz`.** It shrinks core.wasm by 22% and changes its speed by -5% to +2%. Binaryen's
+   `-O3` gives 9% in Node and nothing measurable in Chromium; the CLI offers no speed setting.
+4. **No JS build of the port is possible today.** `wasm2js` (binaryen 129) stops at
+   `wasm2js cannot convert (tuple.extract 3 1 ...)`: Encantis returns tuples as multi-value. An
+   Encantis-derived JS fallback that makes the port's own Journey would need a compiler option to
+   avoid multi-value. So a JS fallback of the game makes the JS's Journey, and the port's 60 Hex
+   Journey levels must be frozen as data to match it (REPORT.md §1.4: 7,384 bytes gzipped).
+5. **The brief said comptime value parameters are not available.** They have been on main since
+   8f459f1 (#32), and the port uses `FixedVec(n, T)` at 5 sites (G3's log noticed it first). The
+   report says so.
+
+### Bugs
+
+- No new compiler bug. Reproduced again at 399ca7e:
+  - bugs/01 prints "8 12" (silent wrong code);
+  - bugs/02 prints "8 101 7" (silent wrong code);
+  - bugs/04: `check` OK, `wasm` throws at codegen.ts:4148;
+  - bugs/07: `check` OK, `wasm` gives invalid WAT.
+
+### Tooling
+
+- `check weave.ents` (the largest file, 7 modules) 1.23 s; `check hexbuild.ents` 1.19 s; `check
+  core.ents` 3.77 s; `test hex.ents` 0.90 s; `wasm core.ents` 3.85 s, or 7.76 s with `-O`; `hover`
+  1.45 s on hexbuild (its program only). Medians of 5, under the lock.
+- `wasm --size` prints the unoptimised, gzip and brotli sizes in one call, which was handy (until
+  Friction 2).
+
+### Pleasant
+
+- **The ABI paid off a second time.** Adding Encantis engines to MoonBit's Node and browser
+  benchmarks was a few dozen lines each, because every build speaks the same numbers ABI through
+  `web/mf-core.js`'s `wrap`. The kernel benchmarks confirmed on every row that the engines agree.
+- **Deterministic builds** made "nothing changed" a `git status` after the rebuild.
+
+### Counts (measurement)
+
+| What | Count |
+| --- | ---: |
+| Ents lines changed | 0 |
+| engines timed / rounds per run / cold samples per engine and runtime | 8 / 6 / 5 |
+| Journey (Node, steady median): core.wasm / g7.wasm / MoonBit wasm-gc / MoonBit JS / JS, ms | 4,247 / 4,628 / 9,383 / 17,821 / 72,926 |
+| Journey (Chromium 153, steady median): the same, ms | 3,143 / 3,349 / 7,894 / 14,902 / 54,582 |
+| kernels: MoonBit wasm-gc time / Encantis time (same boards) | 0.91x to 4.89x |
+| KS tests over the 25 quality classes / rejected; largest port D / critical (JS-JS's own) | 746 / 0; 0.92 (0.95) |
+| Journey: positions showing another level / new maps / bytes to freeze the Hex levels (gzip) | 82 / 60 / 15,202 (7,384) |
+| compile: Encantis whole-program check / moon check after an edit, s | 3.77 / 0.15 |
+| check-all (every group's oracle) / MoonBit's tests through the glue on g7.wasm and g7 -O / on core.wasm and core -O | every check passed (40, 23 min 46 s) / 6 of 6 and parity 135 of 135 / 2 of 6 (the 4 that ask for the JS's Hex levels fail by design), parity 46 of 135 |
+| compiler bugs new / reproduced again | 0 / 4 (01, 02, 04, 07) |

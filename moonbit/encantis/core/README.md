@@ -5,6 +5,9 @@ the `bench_*` hooks of `src/api`) in Encantis, with the compiler of encantis ori
 **399ca7e** (Release 0.3.0). It answers the owner's request of 18 Nov 2026: *"try to rewrite the
 core monkeyfist code using latest encantis and see how it performs (both DX and runtime)"*.
 
+**The report for the owner, with the final measurements (19 Nov): [`REPORT.md`](REPORT.md).** The
+figures below are G7's; REPORT.md's supersede them where they differ.
+
 `core.wasm` is a drop-in for MoonBit's `dist/gen.wasm` and `dist/mf.wasm`: the same exports, the
 same signatures (i32 and f64 only), the same words, and no imports. The game's glue
 (`web/generator.js`, `web/mf-core.js`) and every test and benchmark of `moonbit/` drive it
