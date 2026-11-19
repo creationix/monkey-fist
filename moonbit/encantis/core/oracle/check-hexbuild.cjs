@@ -34,6 +34,10 @@
 //
 // --controls runs each kind again with its 3rd comparison's expected value spoiled, on a share
 // of the cases, and requires exactly that comparison to fail, by name.
+//
+// The port is put in its draw-exact mode first (t_draw_exact(1)): by default hex_build draws
+// less than the JS where that cannot change what it builds (DX-LOG, G4's departures), and then
+// only the quality oracle (quality-hexbuild.cjs) applies.
 'use strict';
 const fs = require('fs'), path = require('path');
 const R = require('./ref.cjs'), W = require('./wasm.cjs');
@@ -255,6 +259,7 @@ function report(r) {
 if (require.main === module && CONTROLS) {
   // Each kind with its 3rd comparison spoiled must fail there, and only there.
   const port = W.load(WASM);
+  port.x.t_draw_exact(1);
   const kinds = ['draws', 'state', 'null', 'ropes', 'stops', 'plan', 'slides', 'traps', 'depth', 'cost', 'intent-cert-null', 'intent-cert', 'intent-free-null', 'intent-free', 'intent-less-null', 'intent-less'];
   let ok = 0;
   for (const kind of kinds) {
@@ -269,6 +274,7 @@ if (require.main === module && CONTROLS) {
   process.exit(ok === kinds.length ? 0 : 1);
 } else if (require.main === module) {
   const port = JS ? fakePort() : W.load(WASM);
+  if (port.x.t_draw_exact) port.x.t_draw_exact(1);
   const r = run(port);
   report(r);
   process.exit(failures.length ? 1 : 0);

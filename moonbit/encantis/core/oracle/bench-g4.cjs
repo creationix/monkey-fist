@@ -17,6 +17,9 @@
 // port's and MoonBit's t_bench then read them, a few microseconds); a group's time is the sum
 // over its cases. Each call's value (ropes plus plan length) is checked to agree. Round 0 warms
 // up and is not counted. The best and the median of the rounds are reported per group.
+// By default the port runs as the core does (drawing less than the JS where that cannot change
+// what it builds, so its boards differ and only MoonBit's value is checked against the JS's);
+// --exact puts it in its draw-exact mode, where its values must agree as well.
 'use strict';
 const fs = require('fs'), path = require('path');
 const R = require('./ref.cjs'), W = require('./wasm.cjs');
@@ -46,6 +49,8 @@ const rounds = Number(opt('--rounds', 5));
 const { H } = R.js();
 const port = W.load(WASM);
 const mbt = W.load(MBT);
+const EXACT = args.includes('--exact');   // the port in its draw-exact mode: its values must agree too
+if (port.x.t_draw_exact) port.x.t_draw_exact(EXACT ? 1 : 0);
 
 const cases = D.read().cases.map(c => ({ c, words: cfgWords(c.cfg), args: D.argsOf(c)[1] }));
 const groups = {
@@ -66,11 +71,11 @@ for (let r = 0; r < rounds + 1; r++) {
     mbt.push(x.words);
     const [tm, vm] = time(() => mbt.x.t_bench(c.state | 0, c.cfg.coverage, c.cfg.tapDepth, 1));
     const [tj, vj] = time(() => { const b = H.build(R.mulberry32(c.state), x.args); return b ? b.ropes.length + b.plan.length : 0; });
-    if (vp !== vm || vp !== vj) throw Error(`case ${c.id}: the port, MoonBit and the JS disagree: ${vp} ${vm} ${vj}`);
+    if (vm !== vj || (EXACT && vp !== vj) || !vp) throw Error(`case ${c.id}: the port, MoonBit and the JS disagree: ${vp} ${vm} ${vj}`);
     if (r > 0) { totals[k].port.push(tp); totals[k].moonbit.push(tm); totals[k].js.push(tj); }
   });
 }
-const out = { wasm: path.relative(process.cwd(), WASM), rounds, node: process.version, groups: {} };
+const out = { wasm: path.relative(process.cwd(), WASM), exact: EXACT, rounds, node: process.version, groups: {} };
 for (const [name, f] of Object.entries(groups)) {
   const ks = cases.map((x, k) => f(x) ? k : -1).filter(k => k >= 0);
   out.groups[`${name} (${ks.length})`] = Object.fromEntries(sides.map(s => {

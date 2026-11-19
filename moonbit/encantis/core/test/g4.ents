@@ -43,6 +43,7 @@ import "../abi" (
 import "../hexbuild" (
   "hex_intentions" func hex_intentions(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, stops: [][]i32, certificate: ?[]i32) -> ?*HexIntent
   "hex_build" func hex_build(r: *mut Rng, c: *HexCfg) -> ?*HexBuilt
+  "set_draw_exact" func set_draw_exact(on: bool)
 )
 
 // --- The canonical type block ---
@@ -80,6 +81,11 @@ export func stack_peak() -> i32 => peak() as i32
 // The generator's state after the last t_build (mulberry32's a): the JS can catch up with it.
 global last_state: u32 = 0
 export func rng_state() -> i32 => last_state as i32
+
+// 1: hex_build draws as the JS does (the exact oracle); 0: as the core does (the default).
+export func t_draw_exact(on: i32) {
+  set_draw_exact(on == 1)
+}
 
 // --- Reading words ---
 
