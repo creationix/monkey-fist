@@ -7,6 +7,7 @@
 //        "error: Multiple memory declarations: '04-two-memory-declarations.ents' and
 //         '04-two-memory-declarations-lib.ents'. At most one module may declare memory."
 //
+// At 8f459f1 (G3's review) the same: check OK, and wasm's throw is at codegen.ts:4116.
 // Seen at encantis 03225bc441cf37ce1b109e7839ecedd7470dab34 (origin/main). Met in G2:
 // test/g2.ents (export memory) imports test/weave.ents (export "mem" memory). The rule
 // itself is fine and its words are clear; what is wrong is that check does not report it,

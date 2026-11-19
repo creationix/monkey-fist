@@ -1193,3 +1193,246 @@ MoonBit, the JS and G2, and rerunning `check-all` at the new compiler; 3 the ora
 writing `hex.ents` (1 to clear `check`) and 1 the test entry; 4 the first full run; 6 timing,
 profiling and the two speed-ups; 20 the mutants and the wide check (most of it waiting on runs);
 15 the log, sizes and counts. The plan's estimate for the group was about 4 hours.
+
+## 18 to 19 Nov: review of G3 (adversarial)
+
+- **Compiler:** 8f459f1b04de1e315cf9786702028710b2ecb676, as G3 used (origin/main was unchanged
+  after `git fetch` at 23:29; it has `lib/vec.ents`). Reviewed head da866ee. The machine was
+  not restarted during the review; the reviewing agent was, once (00:16), and went on from its
+  progress file with the runs it had queued under the lock still going.
+- **Reran first:** `build.sh` (13 s) gave `g1.wasm`, `g2.wasm`, `g3.wasm` and `weave.wasm`
+  byte for byte. Under the lock: `check-g3` 1,352 positions, 16,224 comparisons of 2,235,224
+  values, 0 failed (200 s), geometry 41,175, stack peak 2,860,176 (C15, fewest 6,000): G3's
+  numbers exactly. `--controls` 14 of 14, `--moonbit` 196 comparisons and 0 failed, `--extra`
+  2,808 comparisons of 480,115 values and 0 failed (peak 5,254,740), `check-g3-wide` 48,589 of
+  2,632,695 and 0 failed, its `--controls` 8 of 8. `size.cjs G3` gives 4,911 tokens, 1.30x and
+  1.49x, and `gzip -9` 14,048 bytes, as claimed; the tag counts of the G3 section are exact, the
+  casts too once the inline tests are left out (with them, 34 `as u32`).
+- **The bug repros** (`bugs/01` to `05`) were rerun on 8f459f1 and each shows what its header
+  says: 01 prints "8 12", 02 "8 101 7", 03 "16 0" (and `checked()` traps), 04 checks "OK: 5
+  declarations across 2 modules" and `wasm` dies with the Bun stack trace (the `throw` is now
+  at codegen.ts:4116, the header's 4063 is 03225bc's), 05's five hovers answer as listed.
+- **Read against the MoonBit (hex.mbt lines 1 to 668) and the JS (hex/engine.js), function by
+  function.** No difference in behaviour on any input the game makes. The port differs from
+  the JS only where MoonBit does too, on inputs no level has: a body cell off the board, a mirror
+  off the board (`set_at` asserts; the JS's Map keeps it and counts it in `bent.size`), a one-cell
+  rope or a last step that is not a direction (the JS throws a TypeError, the port traps), a
+  negative mirror axis (read as no mirror, as MoonBit's -1 sentinel; the JS reflects), a head
+  off the board in `hex_turning` (`hex_point` truncates where the JS floors), and a turning way
+  out on a board past 2,304 cells. Each is "trap or answer as MoonBit does"; none is reachable
+  from a generated or Journey level.
+- **What the oracles never called: the game's own calls.** `check-g3` and the wide check solve
+  at 40, 900 and 2,000, give `fewest` the position's plan, and play casually from one seed. The
+  game and the generator also call:
+  - `solve` at **5,000**: the auto-solve (app.js `seekPlan([], 5000)`, MoonBit `seek_plan([],
+    5000)`), with no preferred order;
+  - `fewest` at 2,500 from **the plan `postponeExits` returns** (`score()` in grid-generator.js,
+    gridgen.mbt's `score`); only `--moonbit`'s `bench_par` made that call, at the start of 28
+    boards;
+  - casual play of **32 games** seeded `hashString('casual/' + seed + '/' + attempt)`.
+  `oracle/check-g3-review.cjs` makes those calls (and `fewest` at 30 and 300, budgets that run
+  out on real boards), on the 33 reference boards, the 21 extra boards, and 160 generated Hex
+  levels (`fixtures/g3-review-boards.jsonl`): 112 from `gen-g3-review-boards.cjs` (48x48 colossal
+  at difficulty 1, 50 and 100 with and without mirrors, 4x4, 8x8, 4x30, 30x4, 8x48, 48x8, Hex
+  levels of mixed codes, 100 random codes) and the 48 Hex levels without springs of G2's review's
+  300 random codes, none in `reference.json` or in G1's extra fixture. On the generated set it
+  also makes every `check-g3` call. **40,640 comparisons of 3,913,190 values at 2,389 positions on
+  214 boards, 0 failed** (394 s, nearly all of it the JS). `--js` passes (a third of the
+  generated set, 11,960 comparisons), `--controls` 9 of 9.
+- **Limits, measured where the game can reach them.** The most ropes a code gives is 224
+  (U3-H-100-100-48-48-1-C, difficulty 100 on 48x48; 212 and 218 with mirrors). There `solve` at
+  5,000 peaks at 5.29 MiB of the 16 MiB stack and `fewest` at 6,000 (the JS's default, which the
+  game never passes) at 5.57 MiB: at least 2.8x of room. Solve 5,000 runs out of budget on two of
+  those boards (5,001 nodes) and still matches. The stack would run out at about 800 ropes for
+  `solve` 5,000 and 700 for `fewest` 6,000; a budget past 2^26 traps in `reserve` (the JS takes
+  any). Neither is reachable.
+- **Wider seeds:** `check-g3-wide --seed 1`, `2`, `0x5151`, and `--seed 777 --boards 1200 --aimed
+  400` (1,600 boards, 6,422 positions, 147,688 comparisons of 9.04M values): 0 failed.
+- **Coverage** (JS-side outcome counts over each oracle's cases, `review-g3/tools/coverage.cjs`):
+  the reference set never has a compile that throws, a way out refused for a repeated cell or at
+  the 2*W*H cap, solve out of budget at 900 or 2,000, or a replay that ends unsolved; the wide
+  set has all of them (32, 199, 2, 21, 124). No set has a way out whose last step is no
+  direction, or a second `postpone` pass that improves.
+- **G3's surviving mutants, rechecked.** `relaxed: own body by reach`, `a slide to 0 is an exit`
+  and `dead positions retried` are equivalent as argued. `postpone: last tap test skips one` is
+  provably equivalent too: it differs only where `best[k + 1]` is rope `i`'s last tap, and then
+  its trial (best without tap k, then `i`) is the same list as the trial for k + 1, which the
+  loop made one step earlier and either took (then the test at k sees `i` again at the end) or
+  refused (and refuses again). `postpone: one pass` is not provably equivalent: an exit left on
+  the board can make a later slide stop shorter, so a second pass could find what the first could
+  not. A search for one (`review-g3/probes/postpone-passes.cjs`: random small boards, random
+  solving plans that favour slides) found none in 33,646 plans, on top of G3's 14,210 and G2's
+  review's 36,190 square ones. It stays an untested branch.
+- **The review's 15 mutants** (`oracle/mutants-g3-review.cjs`, a different set of one-line
+  changes): each built in a copy of `core/` (`mut/run.sh`, under
+  the lock, about 25 minutes), then the inline tests, a quarter of `check-g3`, the wide check, and
+  `check-g3-review` on a tenth of the generated set where the first two passed. 12 are killed:
+  11 by the quarter of `check-g3` alone (a length taken from the track, a rope out one cell
+  early in `relaxed`, an unsolved replay read as 0 taps, the trial that keeps its order, keys
+  reserved for half the budget (a trap), the empty board counted as a node, `tried` one tap
+  short, the release naming gone ropes, deepening to the fallback's own taps, the bound counting
+  the head, a mirror on the head ignored), and one, casual play that never clears its move list,
+  by hanging (it can take a move back for ever; both checks time out at 300 s). The inline tests
+  catch 3 of the 15. The 3 that survive everything, `check-g3-review` included:
+  - `turning: out never cleared` is equivalent: `ray_track` measures its cap and its duplicate
+    check from `start = out.len`, so a list that keeps the last rope's cells changes nothing
+    (only memory);
+  - `relaxed: starts at 0` (gone ropes start at 0, not -1) is equivalent: a gone rope owns no
+    cell, so no rope reads its reach, and its own turn sets it to -1 in the first round;
+  - `postpone: stops after the first pass that improves` is G3's `postpone: one pass` in
+    another form: the second pass runs only when the first found nothing, and then it finds
+    nothing. The same open question as above.
+- **Time.** `bench-g3.cjs` again, under the lock at a load of 1.0 to 1.4, 5 processes, best of 5
+  rounds, median over processes. The port's times are G3's within 2% (casual 3.713 and 5.071 ms,
+  par 1.841 and 2.857, solve 0.039 and 0.045); MoonBit's were 8 to 12% faster than in G3's run,
+  so the ratios are lower than G3 wrote for casual play:
+
+  | Kernel | port ms | MoonBit ms | JS ms | MoonBit / port (G3's) |
+  | --- | ---: | ---: | ---: | ---: |
+  | L114 casual x1000 | 3.713 | 4.539 | 13.98 | 1.22x (1.39x) |
+  | L114 par | 1.841 | 2.411 | 13.90 | 1.31x (1.32x) |
+  | L114 solve 2000 | 0.039 | 0.055 | 0.116 | 1.42x (1.51x) |
+  | L116 casual x1000 | 5.071 | 5.767 | 17.07 | 1.14x (1.23x) |
+  | L116 par | 2.857 | 3.579 | 18.48 | 1.25x (1.26x) |
+  | L116 solve 2000 | 0.045 | 0.068 | 0.140 | 1.49x (1.53x) |
+
+  MoonBit's time moves more between runs than the port's (its range within one run is 4.30 to
+  4.78 ms on L114 casual, the port's 3.62 to 3.76): read the casual ratios as 1.1x to 1.4x.
+  **On the largest boards** (`oracle/bench-g3-big.cjs`, three 48x48 levels of 212 to 224 ropes,
+  3 processes, best of 3): par (postpone, then fewest at 2,500, which runs its whole budget) 227,
+  185 and 239 ms against MoonBit's 261, 213 and 272 (1.14x to 1.15x) and the JS's 2,985, 2,636
+  and 3,187 (13x to 14x); solve at 5,000 (out of budget on two of the three) 4.3, 32.8 and 30.2
+  ms (1.23x to 1.42x); casual x100 19.0, 22.1 and 19.0 ms (1.33x to 1.47x). A CPU profile of par
+  there: `bound()` is 77% of it, the walk over every rope's way out at every search node, which
+  the JS and MoonBit do the same way; the port's inner loop is a pointer walk with two loads and
+  no checks. So par on big boards is the algorithm's time, and only an incremental bound would
+  change it (outputs would stay the same, nodes included).
+- **What was fixed in the port:** nothing. No output of any kind differed from the JS, and
+  every limit that traps is one the game cannot reach. The review's changes are in the oracle:
+  `check-g3-review.cjs` with its fixture and generator, `bench-g3-big.cjs`,
+  `mutants-g3-review.cjs` (`mutate-g3.sh` takes `MUTANTS=`), a quarter of the review oracle in
+  `check-all.sh`, and the oracle README's G3 rows, which G3 had not written.
+
+### Exactness: the owner's question (relayed 19 Nov)
+
+The owner asked why the port does exact math, and said the set of generated levels may
+change as long as the levels keep the same qualities. What exactness means in G3, and where
+it costs elsewhere:
+
+- **In G3 it cost no code.** The hex kernel is integer code; its one float expression is
+  casual play's `floor(r.next() * n / 2)`, which a port that kept only the qualities would
+  write the same. Every branch `hex.ents` has (the search, the bound, the budgets, the cap
+  on a way out) is the algorithm itself. No line exists only to match the JS.
+- **What it bought:** the oracle is a plain comparison, so one differing value names the
+  board, the position and the call. G3 matched on its first build, and the review could show
+  it on 22M more values instead of arguing it. An oracle of qualities compares distributions
+  over many seeds (par, exact, coverage, wins, challenge) and says only that something drifted.
+- **What it cost here:** oracle time (the JS side is nearly all of `check-g3`'s 200 s and the
+  review oracle's 394 s), and questions that matter only to exactness: `postpone`'s second
+  pass (above), and the mutants argued equivalent by hand (G3's 5, the review's 2).
+- **Where it costs code:** G1's `fmath.ents` (284 lines and 2,139 tokens without comments, no
+  MoonBit counterpart) exists so that `pow` is V8's bit for bit and `to_fixed` is `toFixed` on
+  the exact product (Dekker's two-product). MoonBit's own `@math.pow` is one ulp off V8's on
+  316 of 10,001 difficulties, its `to_fixed` rounds 60 of 90,300 ratios the other way, and
+  MoonBit still regenerates every Journey level (the `pow` results are rounded before they
+  decide anything; G1, "Found beyond the language"). So that
+  is the first exactness to drop. Wasm has no `pow` and a host import breaks the glue (G1,
+  friction 2), so some `pow` stays, but a short one would do. Float order (G6's metrics) and
+  draw order (G4, G5, G7) come next, where matching them costs.
+- **Recommendation**, added under rule 1 of PORT-PLAN: keep exact parity where it is free, as
+  in G3 and every integer kernel, because it is the cheapest strong oracle. Where it costs
+  code or speed, a group may drop it and then shows the same qualities: over many seeds per
+  code, the JS's distributions of par, exact, coverage, wins and challenge within sampling
+  error, and every level valid (it solves at its par). G3's verdict is unchanged: exact, at
+  no cost.
+
+### Friction (review)
+
+1. **An import's signature is never checked against the export.** Reference 7.1 says so ("The
+   signature an import writes is documentation"), but the port treats its restated types as
+   load-bearing ("Copy it; never retype it", board.ents). Probed in a copy of `core/`
+   (`review-g3/probes/restated`): in `test/g3.ents`, swapping the names of `occupied` and `at` in
+   the restated `HexBoard`, dropping `Par.nodes`, or renaming `Solved.nodes` to `count` all give
+   `check` "OK: 361 declarations across 13 modules" and **byte-identical wasm**, even though the
+   file still reads `f.nodes` and `s.nodes`: the calls take the exporter's types, and the
+   restated ones are not compared. A wrong restated type is caught only where it meets the real
+   one in the importer's own code (a local `func occ0(b: *HexBoard)` given `hex_compile`'s
+   result). So of hex.ents's 41 import lines and 7 restated types (700 tokens, 12% of the
+   file's), none is verified; a stale one misleads a reader and nothing says so. A check that an
+   import's written signature matches the export (or an import that names a type instead of
+   restating it) would remove the risk; no planned feature does. 15 minutes to probe.
+2. **The 18 `// unchecked:` reads cannot be run checked.** To audit them the review read each
+   reason against its assert or guard; the oracles cannot test them by running, because the
+   many-pointer tables have no length and there is no build that checks them (no debug mode, no
+   `--checked`). A switch that compiled `[*]T` indexing with the asserts the reasons describe
+   would let the millions of values of the oracles test the audit. Not planned.
+3. **`-O` is `wasm-opt -Oz`** (cli.ts: `npx wasm-opt -Oz ...`), a size setting; G2 found it did
+   not change casual play. On G3's kernels (the same bench, the same processes): `-Oz` makes
+   casual play 3% and 7% faster (3.585 and 4.713 ms) and the file 29% smaller (22,342 bytes).
+   `wasm-opt -O3` (the same tool, node_modules/.bin/wasm-opt version 129, run by hand) makes
+   casual play **14% and 19% faster** (3.191 and 4.085 ms: 1.38x and 1.36x MoonBit), solve 10%
+   and 11%, par 2% and 3%, and the file 40% smaller (18,861 bytes). It inlines, leaving 72
+   functions of the 193 (`-Oz` leaves 96): the work `// inline:` did by hand for one call. On
+   the large boards it gives casual 12% to 18% and nothing on par or solve (bound's loop is
+   already tight). The `-O3` file passes every G3 oracle unchanged (`review-g3/optcheck.sh`,
+   under the lock): `check-g3` 16,224 comparisons with the same stack peak, the wide check
+   48,589, `--extra` 2,808 and `check-g3-review` 40,640, 0 failed in each (the `-Oz` file passed
+   `check-g3 --frac 0.05`). The CLI offers no way to ask for `-O3`; a flag for the level
+   would make it a one-word change.
+4. **Profiling still needs the WAT-order script** (no name section): G3's `profile.sh` worked
+   unchanged on the review's builds (2 minutes). It showed where `par` goes on the large boards
+   (Time, above).
+
+### Error messages (verbatim)
+
+1. The restated type that meets the real one (friction 1), printed twice, the source type
+   spelled out and the target only by its alias, so the reader diffs 9 fields by eye to find
+   that two names are swapped:
+   `swap2.ents:176:17: argument 1: cannot assign *mut (w: i32, n: i32, left: i32, tracks: [*]mut []i32, lengths: [*]mut i32, offsets: [*]mut i32, occupied: [*]mut i32, at: [*]mut i32, reach: [*]mut i32) to *HexBoard`
+
+### Bugs
+
+- None new, and no wrong code. bugs/01 to 05 still show what they say on 8f459f1 (04's line
+  number in codegen.ts has moved).
+
+### Tooling
+
+- Checked G3's numbers: `check hex.ents` 0.85 s, `check test/g3.ents` 1.35 s, `test hex.ents`
+  0.90 s, `wasm test/g3.ents` 1.17 s and the same bytes. `hover hex.ents:571:p0` is `local p0:
+  i32`, and over `search` it spells `Solve` out (about 600 characters), as G3 wrote.
+- Two of the G3 section's counts are off: `references hex.ents:326:to` lists **10** uses, not 11
+  (4 + 2 of them in the inline tests), and `fmt` changes **131** lines of `hex.ents`, not 260
+  (260 is both sides of the diff).
+- Each mutant built in about 1.2 s and its inline tests ran in about 0.9 s, so a mutant costs what
+  its oracle costs. Running the review oracle on a mutant that broke the board was slow (a wrong
+  `lengths` made casual and fewest wander): the runner now skips the review stage for mutants
+  the first two checks have already killed.
+
+### Pleasant
+
+- **Auditing was fast because of the tags.** `grep '// unchecked:'` gives the 18 sites with
+  their reasons, `// reserve:` the 10 lists that must not grow, `// closure:` and `// enum:` the
+  places where the port's shape differs from MoonBit's. Reading the port beside hex.mbt was
+  line by line: the same names, the same order, the same branches.
+- **The port is exact where the game is heaviest.** On the 48x48 levels of 224 ropes, at the
+  auto-solve budget, and from the generator's own seeds: 3.9M more values, 0 different.
+- **Fast on the biggest boards** (Time, above), without any change made for them: 13x the JS on
+  par, and faster than MoonBit on every kernel.
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| values compared on new cases (review oracle; wide seeds 1, 2, 0x5151, 777) | 22.1M |
+| values compared in reruns of G3's checks | 5.3M |
+| new oracle calls the game makes (solve 5000 x2, par, fewest 30/300, casual x32 x3) | 8 per position |
+| generated Hex levels added (fixture) | 160 |
+| differences from the JS | 0 |
+| G3 mutant survivors shown equivalent / only empirically | 4 / 1 |
+| review mutants: killed / equivalent / the open postpone pass | 12 / 2 / 1 |
+| compiler bugs | 0 |
+| fixes to `hex.ents` | 0 |
+
+Wall clock (from the progress file): about 1.3 hours, 23:29 to 00:45, much of it
+runs under the lock (the review oracle 7 minutes, the reruns 6, the bench 10, the mutants 22,
+the -O3 build's oracles 11) while reading, probes and this log went on beside them.

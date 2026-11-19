@@ -79,6 +79,16 @@ machine.
    short-circuit that guards a draw: `&&` and `||` short-circuit in Encantis
    **[ran, MAP-CORE §7]**. Every float operation happens in the JS's order too. Each
    oracle counts draws as well as comparing results.
+   - **The owner's answer (relayed during G3's review, 19 Nov):** "why are we trying to do
+     exact math? It's ok if we change the set of generated levels as long as they still have
+     the same qualities." So exactness is how a port is tested, not what it must deliver.
+     Keep it where it is free: integer kernels such as G3's, where it cost no line of code
+     and gives the strongest oracle (one differing value names the board and the call).
+     Where matching the JS costs code or speed (V8's `pow` bit for bit and `toFixed` on the
+     exact product in `fmath.ents`, float order, draw order), a group may give it up. It then
+     shows the same qualities instead: over many seeds per code, par, exact, coverage, wins
+     and challenge distributed as the JS's within sampling error, and every level valid (it
+     solves at its par). DX-LOG says which exactness was dropped and what that saved.
 2. **Do not edit the compiler, the JS game or the MoonBit sources.**
    - When the compiler is wrong, write a minimal repro in `core/bugs/NN-name.ents`. Its
      header says how to see the bug and at which commit. Then work around the bug and
@@ -823,6 +833,28 @@ a file, the count is estimated from the line share.
     `check-g3-wide.cjs` (synthetic and aimed boards, the limits), `bench-g3.cjs`, and
     `mutate-g3.sh` with `mutants-g3.cjs` (60 seeded changes: 55 killed, the other 5 shown unable
     to change an output). Run `check-all.sh` after any change to `hex.ents`.
+- **After G3's review** (DX-LOG, "review of G3"; commit 15c5f93 and the ones after it):
+  - Nothing in `hex.ents` changed: no output differed from the JS, and every limit that traps is
+    one the game cannot reach. `oracle/check-g3-review.cjs` adds the calls the game makes that
+    the G3 oracles did not: `solve` at the auto-solve budget 5,000, `par` as `score()` makes it
+    (`fewest` at 2,500 from the plan `postpone` returns), casual play of 32 games at the
+    generator's seeds, and `fewest` at budgets that run out, on 160 generated Hex levels besides
+    the reference and extra boards. `check-all.sh` runs a quarter of it.
+  - **The budgets the game passes, on the largest Hex level a code gives** (48x48 at difficulty
+    100, 224 ropes): `solve` 5,000 peaks at 5.29 MiB of the 16 MiB stack, `fewest` 2,500 at 2.45
+    MiB (6,000, the JS's default, which the game never passes, at 5.57). The stack runs out near
+    800 ropes for `solve` 5,000. A budget past 2^26 traps in `reserve`; nothing passes one.
+  - **For G7:** `hex_turning` is called in gridgen.mbt with `raw.ropes`: pass `some_paths(raw.ropes)`.
+    `hex_fewest_player_taps` returns `fallback` itself as `Par.plan` when it finds nothing
+    shorter, so `score` must keep the postponed plan's scope open while the plan is used (as for
+    `sq_fewest_player_taps`). `hex_compile`, `hex_replay` and `b.paths_now()` leave what they make
+    in the caller's scope: a caller that compiles per node (MoonBit's `minimum_taps` calls
+    `all_free`, a `hex_compile_exn(...).free()`, on each of up to 20,000 BFS nodes) needs a scope
+    per call.
+  - **Build flags:** the CLI's `wasm -O` runs `wasm-opt -Oz` (a size setting): casual play 3% and
+    7% faster. `wasm-opt -O3` on the same wasm (node_modules/.bin/wasm-opt, version 129) makes
+    casual play 14% and 19% faster and the file 40% smaller (18,861 bytes), par 2 to 3%, and it
+    passes the G3 oracles (DX-LOG). G7 can weigh building `core.wasm` that way.
 
 ### G4: The Hex woven builder (about 3.4k tokens; the hottest code, 50% of generation)
 
