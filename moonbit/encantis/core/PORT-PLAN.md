@@ -965,6 +965,22 @@ a file, the count is estimated from the line share.
   - `t_solve(2000)` on L30, L60, L89 and L120 against MoonBit `bench_solve`;
   - the 2,084 assist checks timed against `dist/gen.wasm`.
 - **About 4 to 5 hours.**
+- **After G5's review** (DX-LOG, "review of G5"; commit 4f7de81 and the ones after it):
+  - **`solve_full` keys a position by its ropes' path numbers.** G5 reserved (budget + 1) copies of
+    the start's cells for the positions seen, before searching: at the game's auto-solve budget
+    (app.js `seekPlan([], 5000)`, through `guide`) that passed the 16 MiB stack on C14 (40x40 with
+    a spinner, a reference board), and on every 48x48 board with spinners already at 4,000.
+    `check-g5.cjs` never asked for 5,000. Now each path a rope takes gets a number (a keys.ents
+    map from the rope and its cells) and a position is n u32 words; the answers are the same, the
+    peak on the 48x48 spinner boards at 5,000 is 7.5 MB, and the search is faster.
+  - `oracle/check-g5-review.cjs` runs check-g5's battery on 440 boards of four fixtures (to
+    48x48, 174 with spinners, both grids) with the auto-solve and the generator's minimumTaps;
+    `hybrid-g5.cjs --fixtures` and `--codes` regenerate levels with G5's units on the port.
+  - **For G6 and G7:** `tap`, `replay`, `frozen`, `minimum_taps` and `solve`'s moves are left in the
+    caller's scope; a generator loop that calls them per candidate (addSpinners, the attempts)
+    needs a scope per call, as G3's review said of the Hex kernels. `minimum_taps` holds every
+    position it queues (not only the budget's): at 5,000 on L118 (40 ropes) 8.8 MB; the game calls
+    it only on boards of at most 12 ropes (1,200) and on repeatedCore's two (20,000).
 
 ### G6: Measured play (about 4.0k tokens)
 
@@ -1072,7 +1088,7 @@ G1 ──┬── G2 (square, weave) ──┬───────────
 | G2 | Claude (port G2) | 03225bc (origin/main) | done | see the G2 commits of 18 Nov (`git log --grep 'core G2'`) | `check-g2.cjs`: 1,579 positions, 22,106 comparisons of 1.54M values, 0 failed; `--extra` (to 48x48) 275 positions, 0 failed; knots and styles 51,182 comparisons, 0 failed; `--js` passes; `--controls` 13 of 13; `check-weave.cjs` 249 cases, 0 mismatches on `test/weave.wasm` and `test/g2.wasm`; other seeds 4,980 and sizes 224, 0 mismatches |
 | G3 | Claude (port G3) | 8f459f1 (origin/main, with #32 comptime values and #33) | done | see the G3 commits of 18 Nov (`git log --grep 'core G3'`) | `check-g3.cjs`: 1,352 positions, 16,224 comparisons of 2.24M values, 0 failed (in order and in reverse); geometry 41,175; `--extra` (to 48x48) 234 positions, 0 failed; `check-g3-wide.cjs` 2,112 positions on 550 synthetic boards, 48,589 comparisons of 2.63M values, 0 failed; `--js` passes; `--controls` 14 of 14 and 8 of 8; `--moonbit` 196, 0 failed; mutants 55 of 60 killed, 5 equivalent |
 | G4 | Claude (port G4) | 8f459f1 (origin/main) | done | see the G4 commits of 19 Nov (`git log --grep 'core G4'`) | draw-exact mode: `check-hexbuild.cjs` 250 recorded builds, 4,000 comparisons, 0 failed (in order and in reverse), `--seeds 20` 5,250 builds, 0 failed, all 120 Journey levels regenerate through the JS generator (`hybrid.cjs`); default mode (departures D1, D2: the same law, a third fewer draws): `quality-hexbuild.cjs` 4,320 levels over 7 classes + a 480-level replicate, 0 invalid, every quality within the JS's own spread; 60 of 120 Journey levels differ (every Hex level; 6 cannot be generated with their seeds, so G7 generates the Journey in draw-exact mode); hex_build 3.31x MoonBit wasm-gc and 9.1x the JS over the fixture (2.73x and 7.4x draw-exact) |
-| G5 | Claude (port G5) | 0c7737d (origin/main) | done | see the G5 commits of 19 Nov (`git log --grep 'core G5'`) | `check-g5.cjs`: 5,821 positions on all 135 boards (C13, C14 sampled), 93,527 comparisons of 3.86M values, 0 failed, first run, in order and in reverse (taps, direction, allFree routed and full, frozen, solve 40/900/4000 and no prefer, full solve, replay, guide, features, minimumTaps 1200/5000 on 128 boards); `--controls` 12 of 12; `--moonbit` 22,908, 0 failed; `check-core-rope.cjs` 282 recorded + 3,000 random calls, 0 failed; through the glue `assist.test` 521 positions, `solver/check` 3,369 and `check-features` 5,500 checks, 0 mismatches; `hybrid-g5.cjs` (the JS generator on the port's G.tap/replay/solve/minimumTaps/allFree/direction and repeatedCore) 135 of 135 levels the same; no departures, 0 of 120 Journey levels differ; solve 2000 1.9 to 3.4x MoonBit wasm-gc, the assist checks 1.73x |
+| G5 | Claude (port G5) | 0c7737d (origin/main) | done | see the G5 commits of 19 Nov (`git log --grep 'core G5'`) | `check-g5.cjs`: 5,821 positions on all 135 boards (C13, C14 sampled), 93,527 comparisons of 3.86M values, 0 failed, first run, in order and in reverse (taps, direction, allFree routed and full, frozen, solve 40/900/4000 and no prefer, full solve, replay, guide, features, minimumTaps 1200/5000 on 128 boards); `--controls` 12 of 12; `--moonbit` 22,908, 0 failed; `check-core-rope.cjs` 282 recorded + 3,000 random calls, 0 failed; through the glue `assist.test` 521 positions, `solver/check` 3,369 and `check-features` 5,500 checks, 0 mismatches; `hybrid-g5.cjs` (the JS generator on the port's G.tap/replay/solve/minimumTaps/allFree/direction and repeatedCore) 135 of 135 levels the same; no departures, 0 of 120 Journey levels differ; solve 2000 1.9 to 3.4x MoonBit wasm-gc, the assist checks 1.73x. **Review** (399ca7e, 4f7de81 and after): the full search's reserve trapped at the game's auto-solve budget (5,000) on C14 and at 4,000 on every 48x48 spinner board; fixed (positions keyed by their ropes' path numbers), same answers; `check-g5-review.cjs` (check-g5's battery on 440 more boards, to 48x48, 174 with spinners, plus the auto-solve and the generator's minimumTaps): 18,070 positions, 291,464 comparisons, 0 failed (76 traps on the pre-fix wasm); `check-g5-budgets.cjs` 103,992, 0 failed; 60,000 more repeatedCore calls equal; 440 fixture, 300 new-seed and 135 reference levels regenerated through the port, all the same; solve 2000 2.8 to 4.4x MoonBit, the assist checks 2.1x; check-all passes |
 | G6 | | | not started | | |
 | G7 | | | not started | | |
 

@@ -1,0 +1,63 @@
+/home/user/mf-core-scratch/review-g5/logs/class-a.jsonl: 100 levels of U3-M-60-100-12-14-100-MS-REVIEWGA; 100 the same in every field; null: JS 0, port 0; KS 1% critical D 0.230
+  metric             JS p10 / p50 / p90           port p10 / p50 / p90         KS D
+  par                17 / 23 / 42                 17 / 23 / 42                 0.000
+  exact              0 / 0 / 0                    0 / 0 / 0                    0.000
+  ropes              17 / 22 / 40                 17 / 22 / 40                 0.000
+  mean rope length   3.625 / 6.857 / 8.824        3.625 / 6.857 / 8.824        0.000
+  coverage           0.87 / 0.897 / 0.938         0.87 / 0.897 / 0.938         0.000
+  challenge          6.6 / 8.4 / 11.6             6.6 / 8.4 / 11.6             0.000
+  casualWins         0.1 / 0.3 / 0.8              0.1 / 0.3 / 0.8              0.000
+  work               3 / 5 / 8                    3 / 5 / 8                    0.000
+  knots              2 / 5 / 7                    2 / 5 / 7                    0.000
+  traps              0 / 2 / 3                    0 / 2 / 3                    0.000
+  repeated depth     0 / 0 / 3                    0 / 0 / 3                    0.000
+  interaction        2.153 / 4.025 / 5.399        2.153 / 4.025 / 5.399        0.000
+  complexity depth   9 / 13 / 20                  9 / 13 / 20                  0.000
+  mirrors            2 / 4 / 6                    2 / 4 / 6                    0.000
+  springs            1 / 1 / 1                    1 / 1 / 1                    0.000
+  manual slides      2 / 4 / 7                    2 / 4 / 7                    0.000
+  used mirrors       2 / 4 / 6                    2 / 4 / 6                    0.000
+  used springs       1 / 1 / 1                    1 / 1 / 1                    0.000
+  ms a level         851 / 1757 / 2554            360 / 1209 / 1790            (port/JS median 0.66; totals 173.4 s and 115.1 s)
+/home/user/mf-core-scratch/review-g5/logs/class-b.jsonl: 100 levels of U3-M-60-100-14-12-100-N-REVIEWGB; 100 the same in every field; null: JS 0, port 0; KS 1% critical D 0.230
+  metric             JS p10 / p50 / p90           port p10 / p50 / p90         KS D
+  par                16 / 23 / 43                 16 / 23 / 43                 0.000
+  exact              0 / 0 / 1                    0 / 0 / 1                    0.000
+  ropes              17 / 22 / 41                 17 / 22 / 41                 0.000
+  mean rope length   3.65 / 7.095 / 9.118         3.65 / 7.095 / 9.118         0.000
+  coverage           0.869 / 0.911 / 0.946        0.869 / 0.911 / 0.946        0.000
+  challenge          6 / 8.25 / 10.875            6 / 8.25 / 10.875            0.000
+  casualWins         0.063 / 0.25 / 0.656         0.063 / 0.25 / 0.656         0.000
+  work               2 / 4 / 7                    2 / 4 / 7                    0.000
+  knots              3 / 5 / 7                    3 / 5 / 7                    0.000
+  traps              0 / 2 / 3                    0 / 2 / 3                    0.000
+  repeated depth     0 / 0 / 4                    0 / 0 / 4                    0.000
+  interaction        2.731 / 4.291 / 5.239        2.731 / 4.291 / 5.239        0.000
+  complexity depth   9 / 13 / 22                  9 / 13 / 22                  0.000
+  mirrors            0 / 0 / 0                    0 / 0 / 0                    0.000
+  springs            0 / 0 / 0                    0 / 0 / 0                    0.000
+  manual slides      2 / 4 / 7                    2 / 4 / 7                    0.000
+  used mirrors       0 / 0 / 0                    0 / 0 / 0                    0.000
+  used springs       0 / 0 / 0                    0 / 0 / 0                    0.000
+  ms a level         263 / 520 / 1323             120 / 341 / 1389             (port/JS median 0.82; totals 69.6 s and 64.2 s)
+/home/user/mf-core-scratch/review-g5/logs/class-c.jsonl: 100 levels of U3-M-1-100-10-10-100-S-REVIEWGC; 100 the same in every field; null: JS 0, port 0; KS 1% critical D 0.230
+  metric             JS p10 / p50 / p90           port p10 / p50 / p90         KS D
+  par                10 / 16 / 26                 10 / 16 / 26                 0.000
+  exact              0 / 0 / 1                    0 / 0 / 1                    0.000
+  ropes              11 / 14 / 25                 11 / 14 / 25                 0.000
+  mean rope length   3.538 / 6.5 / 8.727          3.538 / 6.5 / 8.727          0.000
+  coverage           0.879 / 0.919 / 0.96         0.879 / 0.919 / 0.96         0.000
+  challenge          2 / 6 / 9.4                  2 / 6 / 9.4                  0.000
+  casualWins         0.3 / 0.7 / 1                0.3 / 0.7 / 1                0.000
+  work               2 / 3 / 6                    2 / 3 / 6                    0.000
+  knots              1 / 3 / 5                    1 / 3 / 5                    0.000
+  traps              0 / 1 / 2                    0 / 1 / 2                    0.000
+  repeated depth     0 / 0 / 3                    0 / 0 / 3                    0.000
+  interaction        1.218 / 3.49 / 5.176         1.218 / 3.49 / 5.176         0.000
+  complexity depth   5 / 9 / 14                   5 / 9 / 14                   0.000
+  mirrors            0 / 0 / 0                    0 / 0 / 0                    0.000
+  springs            1 / 1 / 1                    1 / 1 / 1                    0.000
+  manual slides      1 / 2 / 5                    1 / 2 / 5                    0.000
+  used mirrors       0 / 0 / 0                    0 / 0 / 0                    0.000
+  used springs       1 / 1 / 1                    1 / 1 / 1                    0.000
+  ms a level         165 / 605 / 962              90 / 253 / 527               (port/JS median 0.50; totals 59.3 s and 29.2 s)

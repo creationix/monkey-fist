@@ -2165,3 +2165,204 @@ None: no wrong code and no crash in G5, so no new file in bugs/.
 | compiler bugs | 0 |
 | departures that change an answer or a draw | 0 |
 | Journey levels that differ because of G5 (of 120) | 0 |
+
+## 19 Nov: review of G5 (adversarial)
+
+Compiler: encantis origin/main **399ca7e** (Release 0.3.0, two merges after G5's 0c7737d). Every
+core wasm rebuilds byte for byte under it (`build.sh`, 31 s; `git status` clean). The reviewer's
+scratch is `/home/user/mf-core-scratch/review-g5/` (logs/, probes/, cache/).
+
+### What was rerun, as G5 left it
+
+- `check-g5.cjs`: 5,821 positions, 93,527 comparisons, 0 failed; `--reverse` 0 failed; `--controls`
+  every kind fails and names its case. `check-core-rope.cjs`: 282 recorded and 3,000 random calls,
+  0 failed; `--controls` 9 of 9. The bug repros 01 to 05 still show what they say at 399ca7e (01
+  prints "8 12", 02 "8 101 7", 03 "16 0", 04 checks OK and `wasm` throws at codegen.ts:4148, 05's
+  hovers as written). G5 added none.
+- After the fix, `check-all.sh` with the review's three new lines (check-g5-review, check-g5-budgets,
+  stress-g5-stack), under the lock, 08:02 to 08:19: **every check passed** (G1 to G5 and the
+  harness). The harness on the fixed wasm alone: assist.test 521 positions pass, solver/check 330 +
+  3,039 guide checks and check-features 4,458 + 1,042 checks, 0 mismatches.
+
+### Found: the search's reserve passed the stack at the game's own budget (P1, fixed)
+
+`solve_full` (the full-geometry search: every board with spinners, and the game's hint and
+auto-solve through `guide`) reserved, before searching, room for (budget + 1) positions, each a
+copy of every cell of every rope: (budget + 1) x (cells + ropes) u16 words. G5's log saw the
+margin ("14.4 MB on C14 at 4,000, 2.4 MB short of the stack's 16.8 MB") but `check-g5.cjs` asked
+for 40, 900 and 4,000 (mechanics.js's default) and never for 5,000, the budget of the game's
+auto-solve (app.js `seekPlan([], 5000)` -> generator-worker.js -> `MFGame.guide`). At 5,000:
+
+- **C14** (U3-S-70-70-40-40-1-MSC-COLOSSAL, a reference board): `t_solve(5000)` and the auto-solve
+  `guide(5000)` with no preferred order **trap** (`unreachable`: the stack is full); 4,500 peaks at
+  16.16 MB.
+- **Every 48x48 board with spinners** the JS game makes (g1-extra's U3-S/H-70-70-48-48-1-MSC-MAX,
+  and the review's 48x48 and 48x40 fixtures): solve **traps at 4,000 and at 5,000, even with the
+  plan** as the preferred order. `oracle/stress-g5-stack.cjs` (new) on the pre-fix wasm: 9 of the 23
+  fixture boards of at least 1,000 cells trap (all the 44x41 to 48x48 spinner boards), at 5 random
+  positions each.
+
+The JS (a Set of JSON strings) and MoonBit (a HashSet of Strings, wasm-gc) have no such limit.
+**Fix (mech.ents, 4f7de81):** each path a rope takes gets a number the first time it is met (a
+keys.ents `KeyMap(u16, u32)` from the rope and its cells), and a position seen is its ropes'
+numbers, one u32 a rope. A child differs from its parent in one rope, so only that rope's new path
+is looked up, where G5 rebuilt and hashed the whole position at every node. Reserved: (budget + 1)
+x ropes words for the positions, and the start's paths plus (budget + 2) paths of the longest rope
+for the numbers (one new path per position looked at, plus the one past the budget). Same answers
+(below); peak at 5,000 on the 48x48 spinner boards 7.5 MB, C14 5.3 MB; check-g5's peak fell from
+14.4 MB to 8.8 MB (now L118's minimumTaps at 5,000). stress-g5-stack on the fixed wasm: 0 traps on the
+23 big boards at 20 random positions each (guide 5,000 with no prefer, solve 4,000 with the plan,
+features 10,000, frozen), worst 7.46 MB (44.5% of the stack). It is also faster (Time, below):
+solve 2000 on L60, the bench board whose search runs out, 4.18 to 2.13 ms. 60 lines of mech.ents
+changed (+273 tokens).
+
+### The extended exact oracle
+
+`oracle/check-g5-review.cjs` runs check-g5's whole battery (every tap of every rope, direction,
+allFree routed and full, frozen, solve 40/900/4,000/900 with no prefer, the full solve, replay with
+and without the first move, guide 40/900, features 500/10,000) plus what the game calls that
+check-g5 did not: **the auto-solve, `G.guide(b, paths, 5000, [])`**, and **minimumTaps at 1,200 on
+boards of at most 12 ropes** (the generator's call) and 5,000 on boards of at most 40, on 440
+boards check-g5 never saw, all made by the JS game at 9e69e3a: g1-extra (79: 4x4, 8x8 with
+mechanics, strips, 48x48 both grids with spinners), g2-review (131 square, 71 with spinners),
+g3-review (160 Hex to 48x48 with 224 ropes) and the review's own fixture
+(`gen-g5-review-boards.cjs`, 70 boards that all have spinners, both grids: 8x8, 8x24 and 24x8
+strips, 12x16 at difficulty 100, 24x24 at 1/50/100, 32x32 and 48x48/48x40 colossal, and 40 random
+codes). **18,070 positions, 291,464 comparisons of 15.9M values, 0 failed**
+(1,908 auto-solves and 436 minimumTaps among them), 43 s with the JS's answers cached; filling the
+cache took about an hour of JS in three workers, most of it the nine 44x41 to 48x48 spinner boards
+(8 to 15 minutes each). `--controls`: 12 of 12 kinds fail and name their case.
+**On the pre-fix wasm (e1b28f6) the same run fails 76 comparisons, every one a trap**: 58 solves at
+4,000 and 18 auto-solves, all on the 44x41 to 48x48 spinner boards. The fixed wasm's stack peak over
+the run is 12.3 MB, for minimumTaps at 5,000 on a 40-rope board, a call the game never makes: the
+generator calls minimumTaps only on boards of at most 12 ropes, at 1,200 (peak 403 KB over the 107
+such boards, probes/min-peak.cjs), and on repeatedCore's two ropes. Two more oracles, both in
+check-all: `check-g5-budgets.cjs` (the full solve and guide at budgets 0, -5, 1, 2, 3, 7 and 25, the
+edges of the new reserve: 103,992 comparisons against the live JS, 0 failed, 30 s) and
+`stress-g5-stack.cjs` (above).
+
+### Generation: the quality oracle
+
+G5's one generation unit, `repeated_core`, stays draw-exact, and nothing else in G5 is generation,
+so the rule (written in PROGRESS-review-G5.md before any result) is equality: every level the
+generator makes with G5's units on the port must equal the JS's in every field, its measured
+qualities included, and the port must not be slower.
+
+- `check-core-rope.cjs --wide 20000 --seed 1, 2, 3` (the new `--seed`): 60,000 more random calls
+  (both grids, 4 to 48 a side, difficulty 0 to 100), 0 failed; with the recorded and G5's 3,000,
+  63,282 calls, all equal.
+- `hybrid-g5.cjs --fixtures g1,g2,g3,g5` (new): the 440 fixture levels regenerated from their
+  codes with every G.tap, replay, solve, minimumTaps, allFree, direction and repeatedCore on the
+  port: **440 of 440 levels the same** (ropes, mirrors, springs, plan, par,
+  exact, layout key), with 11.1M taps, 1.56M directions, 59,552 replays, 29,851 allFree, 1,354
+  solves, 46 minimumTaps and 896 repeatedCores answered by the port (479 s).
+- `hybrid-g5.cjs --codes ... --count 100` (new: each level made twice in one process, by the JS
+  alone and on the port, the whole returned level compared) on three classes of new seeds:
+  **300 of 300 levels the same in every field**, 1,122 repeatedCores
+  on the port, no null level on either side; every metric's two distributions are the same (KS D
+  0.000 for par, exact, ropes, rope length, coverage, challenge, casual wins, work, knots, traps,
+  repeated depth, interaction, dependency depth, mirrors, spinners, manual slides, mechanics used;
+  `fixtures/quality-g5-review-report.txt`). Generation time (the JS's builders included; the two
+  runs of a level interleaved in one process, beside the cache fill, so the ratio is fair but the
+  milliseconds are not quiet-machine numbers):
+
+  | Class (100 levels each) | repeatedCore calls | JS alone | G5 on the port | port / JS, median a level |
+  | --- | ---: | ---: | ---: | ---: |
+  | U3-M-60-100-12-14-100-MS (both grids, mirrors and spinners, difficulty 60 to 100) | 481 | 173.4 s | 115.1 s | 0.66 |
+  | U3-M-60-100-14-12-100-N (no mechanics) | 453 | 69.6 s | 64.2 s | 0.82 |
+  | U3-M-1-100-10-10-100-S (spinners, difficulty 1 to 100) | 188 | 59.3 s | 29.2 s | 0.50 |
+- `hybrid-g5.cjs` on the 135 reference levels with the fixed wasm: **135 of 135 the same**, in 83.9 s under the lock (G5: 88.7 s; the JS
+  alone 132.1 s).
+
+### Departures (the review's)
+
+None. The fix changes memory and time, not an answer or a draw. **Journey levels that differ from
+the JS game's because of G5: 0 of 120.**
+
+### Time
+
+`bench-g5.cjs` under the lock (07:58 to 08:01, load average 1.1 to 1.4), the fixed wasm in 5
+processes and the pre-fix one (e1b28f6) in 3, alternating; best of 5 rounds in each, median over
+processes; MoonBit wasm-gc and the JS interleaved in the same processes, values checked to agree.
+
+| Kernel | pre-fix port ms | fixed port ms | MoonBit ms | JS ms | MoonBit / fixed port | JS / fixed port |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| L30 solve 2000 (29 nodes) | 0.034 | 0.027 | 0.077 | 1.096 | 2.84x | 40.5x |
+| L60 solve 2000 (2,001 nodes, gives up) | 4.180 | 2.127 | 7.428 | 108.7 | 3.49x | 51.1x |
+| L89 solve 2000 (28 nodes) | 0.041 | 0.033 | 0.100 | 1.755 | 3.02x | 53.1x |
+| L120 solve 2000 (50 nodes) | 0.095 | 0.076 | 0.332 | 6.057 | 4.37x | 79.7x |
+| assist: the 2,084 checks of assist.test.cjs | 32.9 | 29.8 | 63.5 | 345.4 | 2.13x | 11.6x |
+
+(G5's own run: 1.92x to 3.42x MoonBit on solve and 1.73x on assist; the pre-fix column reproduces
+it.) A node now costs one path's lookup and a hash of n words, where it cost the whole position's
+cells, built and hashed.
+
+The game's auto-solve, `guide(5000)` with no preferred order, through web/generator.js's glue, on
+the boards where it matters (probes/auto-time.cjs, best of 3, not under the lock, beside the fill;
+the port and MoonBit give the same answers):
+
+| Board | port | MoonBit wasm-gc | JS | MoonBit / port |
+| --- | ---: | ---: | ---: | ---: |
+| C13 (24x24, 145 ropes, solved in 167 nodes) | 2.7 ms | 17.6 ms | 229 ms | 6.5x |
+| C14 (40x40, 152 ropes; runs out at 5,001) | 32.2 ms (trapped before the fix) | 479 ms | 8.6 s | 14.9x |
+| nine 44x41 to 48x48 spinner boards (all run out at 5,001) | 52 to 82 ms (all trapped before) | 1.23 to 3.82 s | 43 s and 60 s (g1#14, g1#15) | 24x to 46x |
+
+(probes/c14-auto.cjs: on C13 and C14 the JS gives the same answer as the port.) MoonBit keys a position by a
+String of all its cells, as G5 did, and pays for it most on the biggest boards.
+
+### Friction (review)
+
+1. **A fixed 16 MiB stack and no memory-grow** turn every search's visited set into a worst-case
+   reservation made before the search, and a wrong guess is a trap in the player's auto-solve,
+   not a slow path. The JS and MoonBit cannot have this bug. Diagnosing it took 10 minutes (lib/stack's
+   `peak()` made it plain), the fix 25, reasoning out the new bound (how many new paths a
+   depth-first search can meet: one per position looked at, plus the one past the budget) most of
+   it. G5's friction 7 named the cause (a set made outside the DFS's scopes cannot grow inside them);
+   a second arena (`Stack(n)`, waiting on comptime values) or `memory-grow` (documented, "not yet
+   implemented", reference 10.3) would let the set grow as found. `// reserve:` sites in mech.ents: 4
+   (unchanged).
+2. **Hover spells out a context type in full**: `hover mech.ents:<line>:state_of` is 1,300
+   characters, `Full` written out with the `Geo`, `Board`, `KeySet` and `KeyMap` inside it; the
+   names exist only in my source. (G3 and G4 found the same.)
+3. **An oracle's budgets were taken from the module, not from the game**: not Encantis, but the
+   reason P1 shipped: mechanics.js's default solve budget is 4,000 and the app's 5,000. G3's review
+   had already found and checked the Hex kernels' 5,000.
+
+### Error messages (verbatim)
+
+None new: the fix compiled and passed its inline test on the first build.
+
+### Bugs
+
+No compiler bug: no wrong code and no crash. P1 is the port's.
+
+### Tooling
+
+- `check mech.ents` 1.4 s; `test mech.ents` 1.7 s; `hover` 2.3 s.
+- `wasm test/g5.ents --release --size`: 57,997 bytes unoptimized (G5: 56,486; the fix adds 1.5 KB),
+  32,226 optimized (-44%), 14,556 gzipped, 12,523 brotli.
+- `node oracle/size.cjs G5`: mech.ents 4,798 tokens (G5: 4,525), the group 7,258 against MoonBit's
+  5,370: 1.35x, 1.82x with imports and restated types (G5: 1.30x and 1.75x).
+
+### Pleasant
+
+- keys.ents's `KeyMap` with `ref_key` (`?*mut V`): numbering the paths is `if let at =
+  s.states.ref_key(key) { return at.* }` then `set_key`; the generic instance (`calls ref_key(W =
+  u16, V = u32)`) shows in hover.
+- lib/stack's `peak()`, reported by every oracle, made the bug a number before it was a trap.
+- The exact oracle made the fix safe: one rebuild and 10 s of check-g5 (93,527 comparisons) per
+  edit.
+
+### Counts (review)
+
+| What | Count |
+| --- | ---: |
+| boards that trap at the game's budgets before the fix (stress-g5-stack, 5 positions each) | 9 of 23 |
+| traps after it (20 positions each) | 0 |
+| review-oracle comparisons that trap on the pre-fix wasm / fail on the fixed one | 76 / 0 of 291,464 |
+| exact comparisons added by the review (check-g5-review, check-g5-budgets, core-rope seeds) | 291,464; 103,992; 60,000 |
+| levels regenerated through the port and compared (fixtures, classes, reference) | 440 + 300 + 135, all the same |
+| new `// unchecked:` in mech.ents (the numbers by rope) | 4 |
+| compiler bugs | 0 |
+| departures | 0 |
+| Journey levels that differ because of G5 (of 120) | 0 |
