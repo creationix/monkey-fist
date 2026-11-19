@@ -7,6 +7,12 @@
 // and the layout key, level by level.
 //
 //   node moonbit/encantis/core/oracle/hybrid-g5.cjs [test/g5.wasm] [--only L30,C7] [--js]
+//   node moonbit/encantis/core/oracle/hybrid-g5.cjs --fixtures g1,g2,g3,g5 [--part 0/3]   (G5's review)
+//
+// --fixtures regenerates the levels of fixtures/g1-extra-boards.jsonl (g1), g2-review-boards.jsonl
+// (g2), g3-review-boards.jsonl (g3) and g5-review-boards.jsonl (g5) instead, each from its code and
+// index, and compares them with the fixture's line (the JS's own level at 9e69e3a): 440 levels of
+// codes the reference lacks, to 48x48, with spinners on both grids. --part i/n takes every n-th.
 //
 // --js runs the same patched generator with the plain G and the JS's repeatedCore: the positive
 // control of the comparison with reference.json. The generator receives G as an argument (F.generate(spec,
@@ -20,8 +26,8 @@ const R = require('./ref.cjs'), W = require('./wasm.cjs'), C = require('./captur
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
-const JS = args.includes('--js'), ONLY = opt('--only', null);
-const WASM = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--only') || path.join(__dirname, '../test/g5.wasm');
+const JS = args.includes('--js'), ONLY = opt('--only', null), FIXTURES = opt('--fixtures', null), PART = opt('--part', '0/1').split('/').map(Number);
+const WASM = args.find((a, i) => !a.startsWith('--') && !['--only', '--fixtures', '--part'].includes(args[i - 1])) || path.join(__dirname, '../test/g5.wasm');
 
 const { F, m } = C.captured(), G = m.G;
 const port = W.load(WASM);
@@ -106,7 +112,9 @@ const level = b => JSON.stringify({ grid: b.grid, W: b.W, H: b.H, ropes: b.ropes
 const refLevel = r => JSON.stringify({ grid: r.grid, W: r.W, H: r.H, ropes: r.ropes, mirrors: r.mirrors.map(([q, rr, k]) => [q, rr, r.grid === 'hex' ? k : k === '\\' ? 1 : 0]), springs: r.springs,
   plan: r.plan, par: r.par, exact: r.exact, layoutKey: r.layoutKey });
 
-let boards = R.boards();
+const FILES = { g1: 'g1-extra-boards.jsonl', g2: 'g2-review-boards.jsonl', g3: 'g3-review-boards.jsonl', g5: 'g5-review-boards.jsonl' };
+let boards = FIXTURES ? FIXTURES.split(',').flatMap(set => fs.readFileSync(path.join(__dirname, 'fixtures', FILES[set]), 'utf8').trim().split('\n')
+  .map((l, k) => { const j = JSON.parse(l); return { name: `${set}#${k + 1}`, code: j.code, index: j.index, ref: j }; })).filter((_, i) => i % PART[1] === PART[0]) : R.boards();
 if (ONLY) boards = boards.filter(b => ONLY.split(',').includes(b.name));
 globalThis.__mfCapture = JS ? null : (name, f, a) => name === 'repeatedCore' ? portCore(...a) : f(...a);
 const t0 = Date.now();
@@ -117,9 +125,9 @@ for (const b of boards) {
   const made = F.generate(spec, JS ? G : portG);
   const same = level(made) === refLevel(b.ref);
   if (!same) { bad++; console.log(`DIFFERS ${b.name}: ${level(made).slice(0, 200)}\n   want ${refLevel(b.ref).slice(0, 200)}`); }
-  if (args.includes('--verbose')) console.log(`${same ? 'same' : 'DIFF'} ${b.name} ${Date.now() - t} ms`);
+  if (args.includes('--verbose')) console.log(`${same ? 'same' : 'DIFF'} ${b.name} ${b.code || ''} ${Date.now() - t} ms (JS alone: ${b.ref.ms} ms)`);
 }
 globalThis.__mfCapture = null;
-console.log(`${bad ? 'FAIL' : 'ok  '} the JS generator with ${JS ? 'the JS alone (--js)' : "G5's units on the port"}: ${boards.length - bad} of ${boards.length} reference levels the same (ropes, mirrors, springs, plan, par, exact, layout key), in ${((Date.now() - t0) / 1000).toFixed(1)} s` +
+console.log(`${bad ? 'FAIL' : 'ok  '} the JS generator with ${JS ? 'the JS alone (--js)' : "G5's units on the port"}: ${boards.length - bad} of ${boards.length} ${FIXTURES ? 'fixture (' + FIXTURES + (PART[1] > 1 ? ' part ' + PART.join('/') : '') + ')' : 'reference'} levels the same (ropes, mirrors, springs, plan, par, exact, layout key), in ${((Date.now() - t0) / 1000).toFixed(1)} s` +
   (JS ? '' : `; port calls: ${Object.entries(calls).map(([k, v]) => `${k} ${v}`).join(', ')}`));
 process.exit(bad ? 1 : 0);

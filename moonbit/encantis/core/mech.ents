@@ -16,9 +16,14 @@
 // its cells (the JS and MoonBit stamp them for each tap), and copy the position only for the
 // tap they follow.
 //
-// Positions seen. The depth-first search (solve_full) keeps the positions it has seen as
-// keys.ents keys of u16 words (per rope 0 if it has left, else its length + 1 and its cells),
-// copied into room reserved before the search: (budget + 1) keys of the start's length. The
+// Positions seen. The depth-first search (solve_full) numbers each path a rope takes (the same
+// cells, the same number; 0 once it has left: a keys.ents map from the rope and its cells) and
+// keeps a position as its ropes' numbers, one u32 word a rope, in a keys.ents set. A child differs
+// from its parent in one rope, so only that rope's path is looked up. Both are reserved before the
+// search: (budget + 1) positions of n words, and the start's paths plus one path a position looked
+// at, each at most the longest rope. (G5 kept every position's cells, (budget + 1) times the
+// start's words: 13 MB on a 40x40 board at budget 4000, and past the 16 MiB stack at the game's
+// auto-solve budget, 5000, or on a 48x48 board with spinners at 4000. G5's review.) The
 // breadth-first search (minimum_taps) keeps every position in its queue anyway, so its set
 // (lib/set) holds the positions themselves, hashed and compared rope by rope: no copies.
 //
@@ -72,6 +77,10 @@ import "./keys" (
   "keyset" func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W)
   "add_key" func add_key(comptime W: type, s: *mut KeySet(W), key: []W) -> bool
   "has_key" func has_key(comptime W: type, s: *KeySet(W), key: []W) -> bool
+  "KeyMap" func KeyMap(comptime W: type, comptime V: type) -> type
+  "keymap" func keymap(comptime W: type, comptime V: type, keys: u32, words: u32) -> *mut KeyMap(W, V)
+  "set_key" func set_key(comptime W: type, comptime V: type, m: *mut KeyMap(W, V), key: []W, v: V) -> bool
+  "ref_key" func ref_key(comptime W: type, comptime V: type, m: *KeyMap(W, V), key: []W) -> ?*mut V
 )
 import "./square" (
   "turn" func turn(s: i32, dx: i32, dy: i32) -> (i32, i32)
@@ -472,20 +481,42 @@ func eq(a: []?[]Pt, b: []?[]Pt) -> bool {
 type Try = (i: i32, order: i32, event: i32, path: ?[]Pt)
 func before(a: Try, b: Try) -> bool => a.order < b.order  // closure: two comparator lambdas (the sort is stable: ties keep i's order)
 
-// What the JS's search closures captured: the board, the positions seen, the
-// moves so far, the ranks by rope of the preferred order on square (first and last place of
+// What the JS's search closures captured: the board, the positions seen (as their ropes'
+// numbers), the numbers of the paths met, the current position's numbers and how many there are,
+// the moves so far, the ranks by rope of the preferred order on square (first and last place of
 // each rope in it, -1 for none) and how often each rope has moved, the preferred order, and
 // the counts.
-type Full = (g: *mut Geo, visited: *mut KeySet(u16), moves: *mut Vec(i32), first: [*]mut i32, lastk: [*]mut i32,
+type Full = (g: *mut Geo, visited: *mut KeySet(u32), states: *mut KeyMap(u16, u32), ids: [*]mut u32, count: u32,
+             moves: *mut Vec(i32), first: [*]mut i32, lastk: [*]mut i32,
              moved: [*]mut i32, prefer: []i32, unranked: i32, nodes: i32, budget: i32, unknown: bool)
+
+// The number of rope i's path p: 0 once it has left; else the number it got when first met
+// (the rope and its cells as u16 words, in key_of's scratch).
+func state_of(s: *mut Full, i: i32, p: ?[]Pt) -> u32 {
+  if let path = p {
+    key_n = 0
+    key_word(i)
+    for c in path {
+      key_word(s.g.cell(c))
+    }
+    let key = key_cells[0..key_n] ?? key_cells
+    if let at = s.states.ref_key(key) {
+      return at.*
+    }
+    s.count += 1
+    s.states.set_key(key, s.count)
+    return s.count
+  }
+  return 0
+}
 
 // The depth-first search from current. k: how much of the preferred order the Hex search has
 // followed (preferred[0] is prefer[k]).
 func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the two recursive local functions of solve_full, one here
   return true when all_gone(current)
   // the JS counts a position not seen, and adds it only within the budget: so add it at once
-  // while within, and past the budget only look
-  let key = s.g.key_of(current)
+  // while within, and past the budget only look. The caller has numbered current's ropes.
+  let key = s.ids[0..current.len]
   if s.nodes < s.budget {
     return false when !s.visited.add_key(key)
     s.nodes += 1
@@ -518,8 +549,11 @@ func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the t
     defer reset(inner)
     s.moves.push(t.i)
     s.moved[t.i] += 1  // unchecked: a rope
+    let was = s.ids[t.i]  // unchecked: a rope
+    s.ids[t.i] = s.state_of(t.i, t.path)  // unchecked: a rope
     let next = replace(current, t.i, t.path)
     return true when s.search(next, if t.i == p0 { k + 1 } else { k })
+    s.ids[t.i] = was  // unchecked: a rope
     s.moved[t.i] -= 1  // unchecked: a rope
     s.moves.pop()
     return false when s.unknown
@@ -550,11 +584,24 @@ export func solve_full(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) 
       lastk[i] = k as i32
     }
   }
-  let words = g.key_of(paths).len
-  // reserve: a key per position looked at, each as long as the start's (a rope keeps its length)
+  // reserve: a position per position looked at, n words each; the paths of the start, and one
+  // more for each position looked at (a child adds the path of the rope it moved, and only the
+  // one child past the budget is not counted), each as long as the longest rope plus its number
+  let longest: u32 = 0
+  let cells: u32 = 0
+  for p in paths {
+    if let path = p {
+      longest = longest.max(path.len)
+      cells += path.len
+    }
+  }
   let s = alloc(sizeof(Full)) as *mut Full
-  s.* = Full(g, keyset(u16, keys, keys * words), moves, first, lastk, zeroed(n * 4) as [*]mut i32, prefer,
+  s.* = Full(g, keyset(u32, keys, keys * n), keymap(u16, u32, n + keys + 1, n + cells + (keys + 1) * (longest + 1)),
+             alloc(n * 4) as [*]mut u32, 0, moves, first, lastk, zeroed(n * 4) as [*]mut i32, prefer,
              (n * 4) as i32, 0, budget, false)
+  for i, p in paths {
+    s.ids[i] = s.state_of(i as i32, p)  // unchecked: i < n
+  }
   let ok = s.search(paths, 0)
   let state = if ok { solved_yes } elif s.unknown { solved_unknown } else { solved_no }
   if !ok {

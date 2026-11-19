@@ -5,7 +5,8 @@
 //   node moonbit/encantis/core/oracle/check-core-rope.cjs --js            the positive control
 //   node moonbit/encantis/core/oracle/check-core-rope.cjs --controls      the negative controls
 //   options: --dump (record the fixture again), --wide N (N more cases on random inputs, against
-//            the live JS; default 3000), --levels K (record over the first K Journey levels)
+//            the live JS; default 3000), --seed S (other random inputs; G5's review), --levels K
+//            (record over the first K Journey levels)
 //
 // 1. Recorded calls (fixtures/core-rope-expected.json): every repeatedCore call the real generator
 //    makes (capture.cjs, the rejected attempts' included) over the 120 Journey levels and the 15
@@ -24,11 +25,11 @@ const fs = require('fs'), path = require('path');
 const R = require('./ref.cjs'), W = require('./wasm.cjs'), C = require('./capture.cjs');
 
 const args = process.argv.slice(2);
-const VALUED = ['--wide', '--levels'];
+const VALUED = ['--wide', '--levels', '--seed'];
 const opt = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };
 const JS = args.includes('--js'), CONTROLS = args.includes('--controls'), DUMP = args.includes('--dump');
 const WASM = args.find((a, i) => !a.startsWith('--') && !VALUED.includes(args[i - 1])) || path.join(__dirname, '../test/g5.wasm');
-const WIDE = Number(opt('--wide', 3000)), LEVELS = Number(opt('--levels', 120));
+const WIDE = Number(opt('--wide', 3000)), LEVELS = Number(opt('--levels', 120)), SEED = Number(opt('--seed', 0xC0DE5));
 const FIXTURE = path.join(__dirname, 'fixtures/core-rope-expected.json');
 
 // --- The fixture ---
@@ -107,7 +108,7 @@ function jsHooks(io) {
 // Inputs at random: both grids, 4 to 48 a side, any difficulty (a third at 60 or more, where the
 // core is deeper), any state.
 function wideCases(n) {
-  const rng = R.mulberry32(0xC0DE5);
+  const rng = R.mulberry32(SEED);
   const out = [];
   for (let i = 0; i < n; i++) {
     const grid = rng() < 0.5 ? 'hex' : 'square', W_ = 4 + Math.floor(rng() * 45), H_ = 4 + Math.floor(rng() * 45);
