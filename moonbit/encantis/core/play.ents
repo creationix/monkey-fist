@@ -1,0 +1,544 @@
+// The measuring half of gridgen.mbt (grid-generator.js at 9e69e3a): what the generator checks and
+// measures of a candidate board. coverage, valid and regional look at the board; features_used,
+// feature_stats, slide_stats, trivial and postpone play its plan (or its first taps); score finds
+// its par (the square or Hex offset kernels' fewest-taps search where it has no spinners, else the
+// spinners' postponement and minimum_taps); casual_rate plays it as a casual player would, on the
+// kernels or, with spinners, tap by tap on the full geometry. slide_stats is the measurement
+// grid_generate makes inline (MoonBit's and the JS's): the slides, bounces, repeated ropes and
+// automatic exits of a plan.
+//
+// Everything here is a rule or a measurement of a given board, so it is exact: the JS's answers, and
+// casual_rate draws exactly as the JS does (G6's oracle counts the draws).
+//
+// The functions take the board's tables (mech.ents's Geo, which holds the board): g.valid(),
+// g.score(skip), g.casual_rate(r, games). What they return is a value, or (score's and postpone's
+// plans, feature_stats's result) on the stack in the caller's scope; their work is in scopes of
+// their own. Options: feature_stats returns ?*FeatureStats, none where a tap of the plan is not
+// allowed (MoonBit's FeatureStats?).
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+  "clear" func clear(comptime T: type, v: *mut Vec(T))
+)
+import "./random" (
+  "rng" func rng(seed: u32) -> *mut Rng
+  "one_of" func one_of(comptime T: type, r: *mut Rng, xs: []T) -> T
+  "hash_text" func hash_text(s: []u8) -> u32
+  "index_from" func index_from(comptime T: type, xs: []T, x: T, from: u32) -> i32
+)
+import "./board" (
+  "gone" func gone() -> ?[]Pt
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+  "last" func last(p: []Pt) -> Pt
+)
+import "./square" (
+  "turn" func turn(s: i32, dx: i32, dy: i32) -> (i32, i32)
+  "sq_fewest_player_taps" func sq_fewest_player_taps(paths: []?[]Pt, w: i32, h: i32, known: []i32, budget: i32, m: *SqMirrors) -> ?*Par
+  "sq_postpone_exits" func sq_postpone_exits(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> ?[]i32
+  "sq_casual_wins" func sq_casual_wins(paths: []?[]Pt, w: i32, h: i32, r: *mut Rng, games: i32, m: *SqMirrors) -> f64
+)
+import "./hex" (
+  "hex_point" func hex_point(c: i32, w: i32) -> Pt
+  "hex_reflect" func hex_reflect(d: i32, axis: i32) -> i32
+  "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_dir" func hex_dir(d: i32) -> Pt
+  "hex_postpone_exits" func hex_postpone_exits(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, plan: []i32) -> ?[]i32
+  "hex_fewest_player_taps" func hex_fewest_player_taps(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, fallback: []i32, budget: i32) -> ?*Par
+  "hex_casual_wins" func hex_casual_wins(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, r: *mut Rng, games: i32) -> f64
+)
+import "./mech" (
+  "geo" func geo(b: Board) -> *mut Geo
+  "cell" func cell(g: *Geo, p: Pt) -> i32
+  "inside" func inside(g: *Geo, p: Pt) -> bool
+  "mark_ropes" func mark_ropes(g: *mut Geo, paths: []?[]Pt) -> i32
+  "walk" func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step
+  "walk_at" func walk_at(g: *mut Geo, paths: []?[]Pt, i: i32, s: i32) -> Step
+  "last_route" func last_route() -> []Pt
+  "replace" func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt
+  "all_free" func all_free(g: *mut Geo, paths: []?[]Pt) -> bool
+  "replay_plan" func replay_plan(g: *mut Geo, plan: []i32) -> Replayed
+  "minimum_taps" func minimum_taps(g: *mut Geo, fallback: []i32, budget: i32) -> ?*Par
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)  // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+
+def ev_none = -1:i32
+def ev_exit = 0:i32
+def ev_bounce = 1:i32
+def ev_slide = 2:i32
+
+// The par search's budget (score's default in the JS), minimum_taps's on spinner boards of at most
+// a dozen ropes, and that dozen.
+def par_budget = 2500
+def minimum_budget = 1200
+def minimum_ropes = 12
+
+// How the plan used the mirrors and springs (spinners): the mirrors it turned a rope on and the
+// springs it bounced one off, and of those, the ones its first manual taps did.
+type FeatureStats = (used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+
+// What the plan's replay did by hand (its first par taps) and after: the partial slides and the
+// bounces by hand, the ropes slid by hand twice or more, the ropes that left in the automatic
+// release, and whether it slid at all (grid_generate's slideStats).
+type SlideStats = (slides: i32, bounces: i32, repeated: i32, automatic: i32, any_slide: bool)
+
+// --- The board itself ---
+
+// The share of the cells ropes can hold (mirror and spring tiles left out) that ropes hold.
+export func coverage(b: Board) -> f64 {
+  let sum = 0
+  for p in b.ropes {
+    sum += p.len as i32
+  }
+  return f64(sum) / f64(b.w * b.h - b.mirrors.len as i32 - b.springs.len as i32)
+}
+
+// Whether b is one step from a on the grid.
+export func adjacent(a: Pt, b: Pt, hex: bool) -> bool {
+  let dq = b.q - a.q
+  let dr = b.r - a.r
+  return hex_dir_index(dq, dr) >= 0 when hex
+  return (dq == 0 && (dr == 1 || dr == -1)) || (dr == 0 && (dq == 1 || dq == -1))
+}
+
+// Whether every rope is at least two cells long, on the board, in steps, and on no other rope's
+// cell, no mirror and no spring.
+export func valid(g: *Geo) -> bool {
+  let scope = mark()
+  defer reset(scope)
+  let used = zeroed((g.w * g.h) as u32) as [*]mut u8
+  for p in g.b.springs {
+    used[g.cell(p)] = 1  // unchecked: geo() asserted every spring is on the board
+  }
+  for m in g.b.mirrors {
+    used[g.cell(m.cell)] = 1  // unchecked: and every mirror
+  }
+  let prev = Pt(0, 0)
+  for path in g.b.ropes {
+    return false when path.len < 2
+    for i, p in path {
+      return false when !g.inside(p) || used[g.cell(p)] != 0  // unchecked: inside
+      return false when i > 0 && !adjacent(prev, p, g.hex)
+      used[g.cell(p)] = 1  // unchecked: inside
+      prev = p
+    }
+  }
+  return true
+}
+
+// The quarter of the board p is in: right half 1, lower half 2 (its column on Hex is q + r / 2).
+func zone(b: Board, p: Pt) -> u32#4 {
+  let col = p.q + (if b.hex { p.r >> 1 } else { 0 })  // r >> 1: floor(r / 2) for every r
+  let right = 2 * col >= b.w  // col >= w / 2, exactly
+  let lower = 2 * p.r >= b.h
+  return if lower { if right { 3 } else { 2 } } elif right { 1 } else { 0 }
+}
+
+// Whether ropes cover at least 55% of each quarter of the board (on boards of 8 by 8 or more).
+export func regional(b: Board) -> bool {
+  return true when b.w < 8 || b.h < 8
+  let scope = mark()
+  defer reset(scope)
+  let area = zeroed(16) as *mut [4]i32  // comptime-n: a [4]i32 that a run-time index could reach in registers
+  let used = zeroed(16) as *mut [4]i32
+  for c in b.w * b.h {
+    let at = if b.hex { hex_point(c as i32, b.w) } else { Pt(c as i32 % b.w, c as i32 / b.w) }
+    area[b.zone(at)] += 1
+  }
+  for path in b.ropes {
+    for p in path {
+      used[b.zone(p)] += 1
+    }
+  }
+  for k in 4 {  // closure: area.every((n, i) => used[i] / n >= .55)
+    return false when !(f64(used[k]) / f64(area[k]) >= 0.55)
+  }
+  return true
+}
+
+// --- Playing the plan ---
+
+// The length of rope i's path in paths (0 where it has left).
+func length(paths: []?[]Pt, i: i32) -> u32 => if let p = paths[i as u32] { p.len } else { 0 }
+
+// Whether some rope can be tapped at the start so that every rope left can then leave at once
+// (on a board of more than three ropes: a one-tap automatic release).
+export func trivial(g: *mut Geo) -> bool {
+  let n = g.b.ropes.len
+  return false when n <= 3
+  let scope = mark()
+  defer reset(scope)
+  let start = some_paths(g.b.ropes)
+  for i in n {  // closure: b.ropes.some((path, i) => ...)
+    let tap = mark()
+    defer reset(tap)
+    let st = g.walk(start, i as i32)
+    continue when st.event == ev_none
+    return true when g.all_free(replace(start, i as i32, st.path))
+  }
+  return false
+}
+
+// Whether the board's plan passes every mirror and spring (spinner) on some move.
+export func features_used(g: *mut Geo) -> bool {
+  let scope = mark()
+  defer reset(scope)
+  let wanted = zeroed((g.w * g.h) as u32) as [*]mut u8
+  let left = 0
+  for p in g.b.springs {
+    let sc = g.cell(p)
+    if wanted[sc] == 0 {  // unchecked: a spring is on the board
+      wanted[sc] = 1
+      left += 1
+    }
+  }
+  for m in g.b.mirrors {
+    let mc = g.cell(m.cell)
+    if wanted[mc] == 0 {  // unchecked: a mirror is on the board
+      wanted[mc] = 1
+      left += 1
+    }
+  }
+  let paths = some_paths(g.b.ropes)
+  for i in g.b.plan {
+    let len = length(paths, i)
+    let st = g.walk(paths, i)
+    return false when st.event == ev_none
+    for k, p in last_route() {  // the cells the head entered
+      if k >= len && g.inside(p) {
+        let c = g.cell(p)
+        if wanted[c] != 0 {  // unchecked: inside
+          wanted[c] = 0
+          left -= 1
+        }
+      }
+    }
+    paths = replace(paths, i, st.path)
+  }
+  return left == 0
+}
+
+// The mirrors the plan turned a rope on and the springs it bounced one off, and of those the
+// ones its first `manual` taps did. None where a tap is not allowed. In the caller's scope.
+export func feature_stats(g: *mut Geo, plan: []i32, manual: i32) -> ?*FeatureStats {
+  let out = alloc(sizeof (FeatureStats)) as *mut FeatureStats
+  let scope = mark()
+  defer reset(scope)
+  // by cell: 1 turned, 2 bounced, 4 turned by hand, 8 bounced by hand (the JS's four Sets of keys)
+  let area = (g.w * g.h) as u32
+  let used = zeroed(area) as [*]mut u8
+  let paths = some_paths(g.b.ropes)
+  for step, i in plan {
+    let by_hand: u8 = if (step as i32) < manual { 4 } else { 0 }
+    let len = length(paths, i)
+    let st = g.walk(paths, i)
+    return 0 when st.event == ev_none
+    let route = last_route()
+    let prev = Pt(0, 0)
+    for k, p in route {
+      if k >= len && g.inside(p) {
+        let c = g.cell(p)
+        let m = g.mirror[c]  // unchecked: inside
+        if m >= 0 {
+          // the way the head came in (from the cell before: k >= len >= 1), and out
+          let dq = p.q - prev.q
+          let dr = p.r - prev.r
+          let oq = dq
+          let or = dr
+          if g.hex {
+            let d = hex_dir(hex_reflect(hex_dir_index(dq, dr), m))
+            oq = d.q
+            or = d.r
+          } else {
+            set (oq, or) = turn(m, dq, dr)
+          }
+          if oq != dq || or != dr {
+            used[c] |= 1 | by_hand  // unchecked: inside
+          }
+        }
+      }
+      prev = p
+    }
+    if st.event == ev_bounce {
+      used[g.cell(last(route))] |= 2 | (by_hand << 1)  // unchecked: a spring is on the board
+    }
+    paths = replace(paths, i, st.path)
+  }
+  let counts = zeroed(16) as *mut [4]i32  // closure: four a.iter().filter(x => x).count()
+  for at in area {
+    let u = used[at]
+    for bit in 4 {
+      if (u >> bit as u8) & 1 != 0 {
+        counts[bit] += 1
+      }
+    }
+  }
+  out.* = FeatureStats(counts[0], counts[1], counts[2], counts[3])
+  return out
+}
+
+// What the replay of plan does by hand (its first par taps) and after.
+export func slide_stats(g: *mut Geo, plan: []i32, par: i32) -> SlideStats {
+  let scope = mark()
+  defer reset(scope)
+  let played = g.replay_plan(plan)
+  let actions = zeroed(g.b.ropes.len * 4) as [*]mut i32
+  let s = SlideStats(0, 0, 0, 0, false)
+  for k, e in played.events {
+    let manual = (k as i32) < par
+    if e == ev_slide {
+      s.any_slide = true
+      if manual {
+        s.slides += 1
+        if let i = plan[k] {
+          actions[i] += 1  // unchecked: a rope the replay moved
+        }
+      }
+    } elif e == ev_bounce && manual {
+      s.bounces += 1
+    } elif e == ev_exit && !manual {
+      s.automatic += 1
+    }
+  }
+  for i in g.b.ropes.len {  // closure: Array.from(actions).filter(count => count >= 2).length
+    if actions[i] >= 2 {
+      s.repeated += 1
+    }
+  }
+  return s
+}
+
+// --- Par ---
+
+// The player taps of plan's replay (whether it clears the board or not).
+func taps_of(g: *mut Geo, plan: []i32) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  return g.replay_plan(plan).taps
+}
+
+// Exits the rest of a spinner solution does not need, moved to the automatic release: from the
+// last player tap back, a rope's last tap is moved to the end where that lowers the player taps.
+// In the caller's scope.
+export func postpone(g: *mut Geo, plan: []i32) -> []i32 {
+  let n = plan.len
+  let best = alloc(n * 4) as [*]mut i32
+  let trial = alloc(n * 4) as [*]mut i32
+  for k, i in plan {
+    best[k] = i
+  }
+  let taps = g.taps_of(plan)
+  let k = min(taps, n as i32) - 1
+  while k >= 0 {
+    let i = best[k]
+    // only a rope's last tap is its exit
+    if index_from(best[0..n], i, (k + 1) as u32) < 0 {
+      // best without its k-th tap, then that tap last
+      for j, x in best[0..k as u32] {
+        trial[j] = x
+      }
+      for j, x in best[(k + 1) as u32..n] {
+        trial[k as u32 + j] = x
+      }
+      trial[n - 1] = i
+      let scope = mark()
+      let r = g.replay_plan(trial[0..n])
+      let better = r.solved && r.taps < taps
+      let t = r.taps
+      reset(scope)
+      if better {
+        let was_best = best
+        best = trial
+        trial = was_best
+        taps = t
+      }
+    }
+    k -= 1
+  }
+  return best[0..n]
+}
+
+// Par: the fewest player taps found, with its plan and whether it is proven. skip (colossal maps)
+// takes the board's plan as it is. Without spinners the offset kernels search from the plan with
+// its needless exits postponed; with them the exits are postponed by replay, then minimum_taps
+// searches on boards of at most a dozen ropes. The board's plan must clear it (else MoonBit
+// aborts and the JS throws: this traps). The plan is in the caller's scope.
+export func score(g: *mut Geo, skip: bool) -> Par {
+  let b = g.b
+  return Par(b.plan, g.taps_of(b.plan), false, 0) when skip
+  if b.springs.len == 0 {
+    let paths = some_paths(b.ropes)
+    let found = if b.hex {
+      hex_fewest_player_taps(b.w, b.h, b.mirrors, paths, hex_postpone_exits(b.w, b.h, b.mirrors, paths, b.plan) ?? b.plan, par_budget)
+    } else {
+      sq_fewest_player_taps(paths, b.w, b.h, sq_postpone_exits(paths, b.w, b.h, b.plan, g.sqm) ?? b.plan, par_budget, g.sqm)
+    }
+    if let p = found {
+      return p.*
+    }
+  } else {
+    let start = g.postpone(b.plan)
+    return Par(start, g.taps_of(start), false, 0) when b.ropes.len as i32 > minimum_ropes
+    if let p = g.minimum_taps(start, minimum_budget) {
+      return p.*
+    }
+  }
+  assert false  // the board's plan does not clear it
+  return Par(b.plan, -1, false, 0)
+}
+
+// --- Casual play ---
+
+// A legal tap in casual play: the rope, and where it goes.
+type Choice = (i: i32, event: i32, path: ?[]Pt)
+
+// The casual player's win rate over `games` games drawn from r: each turn an exit if there is
+// one, else any legal tap, at random. On the kernels without spinners; with them each game is
+// played tap by tap on the full geometry, ending after ropes * 6 + 20 taps (a loss) or when no tap
+// is legal (a loss) or every rope has left (a win).
+export func casual_rate(g: *mut Geo, r: *mut Rng, games: i32) -> f64 {
+  let b = g.b
+  let scope = mark()
+  defer reset(scope)
+  let start = some_paths(b.ropes)
+  if b.springs.len == 0 {
+    return hex_casual_wins(b.w, b.h, b.mirrors, start, r, games) when b.hex
+    return sq_casual_wins(start, b.w, b.h, r, games, g.sqm)
+  }
+  let n = b.ropes.len
+  // the position, and where each rope's path is kept once it has moved (its own cells)
+  let cur = alloc(n * sizeof (?[]Pt)) as [*]mut ?[]Pt
+  let cells = alloc(n * sizeof ([*]mut Pt)) as [*]mut [*]mut Pt
+  for i, p in b.ropes {
+    cells[i] = alloc(p.len * sizeof (Pt)) as [*]mut Pt
+  }
+  let moves = vec(Choice, n)  // reserve: a tap a rope
+  let exits = vec(Choice, n)  // reserve: a tap a rope
+  let wins = 0
+  for game in games {
+    for i, p in start {
+      cur[i] = p
+    }
+    let left = n
+    for step in n * 6 + 20 {
+      let taps = mark()
+      moves.clear()
+      exits.clear()
+      let paths = cur[0..n]
+      let stamped = g.mark_ropes(paths)
+      for i in n {  // closure: paths.flatMap((p, i) => ...) and moves.filter(m => m.event == 'exit')
+        let st = g.walk_at(paths, i as i32, stamped)
+        if st.event != ev_none {
+          moves.push(Choice(i as i32, st.event, st.path))
+          if st.event == ev_exit {
+            exits.push(Choice(i as i32, st.event, st.path))
+          }
+        }
+      }
+      if moves.len == 0 {
+        reset(taps)
+        break
+      }
+      let c = r.one_of(if exits.len > 0 { exits.items() } else { moves.items() })
+      if let path = c.path {
+        let own = cells[c.i]  // unchecked: a rope
+        for k, p in path {
+          own[k] = p
+        }
+        cur[c.i] = own[0..path.len]  // unchecked: a rope
+      } else {
+        cur[c.i] = gone()  // unchecked: a rope
+        left -= 1
+      }
+      reset(taps)
+      if left == 0 {
+        wins += 1
+        break
+      }
+    }
+  }
+  return f64(wins) / f64(max(1, games))
+}
+
+// The casual win rate over `games` games seeded by the text seed (hashString's), on the board.
+export func casual_measure(b: Board, seed: []u8, games: i32) -> f64 {
+  let scope = mark()
+  defer reset(scope)
+  return geo(b).casual_rate(rng(hash_text(seed)), games)
+}
+
+// --- The timing hooks of src/api ---
+
+// The casual win rate over `games` games seeded by "bench".
+export func bench_casual(b: Board, games: i32) -> f64 => casual_measure(b, "bench", games)
+
+// The par of the board's plan.
+export func bench_par(b: Board) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  return geo(b).score(false).par
+}
+
+// --- Tests ---
+
+data rope_a: *[2]Pt = [(0, 0), (1, 0)]
+data rope_b: *[3]Pt = [(3, 0), (3, 1), (3, 2)]
+data rope_gap: *[2]Pt = [(0, 2), (2, 2)]
+
+func board_of(r0: []Pt, r1: []Pt) -> Board {
+  let rs = alloc(2 * sizeof ([]Pt)) as [*]mut []Pt
+  rs[0] = r0
+  rs[1] = r1
+  let none: []Pt = (alloc(0) as [*]Pt)[0..0]
+  return Board(false, 4, 3, rs[0..2], (alloc(0) as [*]Mirror)[0..0], none, (alloc(0) as [*]i32)[0..0])
+}
+
+test "a board's own measures" {
+  let scope = mark()
+  defer reset(scope)
+  let b = board_of(rope_a, rope_b)
+  assert coverage(b) == 5.0 / 12.0
+  assert regional(b)  // under 8 by 8
+  assert adjacent(Pt(0, 0), Pt(1, 0), false) && !adjacent(Pt(0, 0), Pt(1, 1), false)
+  assert adjacent(Pt(0, 0), Pt(1, -1), true) && !adjacent(Pt(0, 0), Pt(1, 1), true)
+  assert geo(b).valid()
+  assert ! geo(board_of(rope_a, rope_gap)).valid()
+  assert ! geo(board_of(rope_a, rope_a)).valid()
+  assert ! geo(b).trivial()  // two ropes
+}
+
+test "par and casual play on a two-rope board" {
+  let scope = mark()
+  defer reset(scope)
+  let b = board_of(rope_a, rope_b)
+  let plan = alloc(8) as [*]mut i32
+  plan[0] = 1
+  plan[1] = 0
+  b.plan = plan[0..2]
+  let g = geo(b)
+  let p = g.score(false)
+  assert p.par == 1 && p.exact  // rope 1 leaves, then rope 0 is free
+  let s = g.slide_stats(b.plan, p.par)
+  assert s.slides == 0 && s.automatic == 1 && !s.any_slide
+  assert g.casual_rate(rng(1), 10) == 1.0  // an exit is always there to take
+}

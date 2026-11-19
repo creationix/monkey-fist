@@ -1,0 +1,32 @@
+// bugs/06: `encantis fmt` prints a slice of optional slices, `[]?[]T`, as `[] ? []T`, with spaces
+// round the `?` as if it were an operator (the `??` coalesce, or a ternary). The output still
+// parses, to the same type, so nothing breaks; but every `[]?[]Pt` of the core (a position: per rope
+// its path, or none) would read as an expression after a format. It also drops the space after every
+// `:` of a parameter or field (`n: u32` becomes `n:u32`), and the second space before an end-of-line
+// comment, which is the house style of reference.md's own examples and of every file of this port.
+//
+//   cp bugs/06-fmt-optional-slice-element.ents /tmp/f.ents
+//   bun /home/user/enc-wt/main/packages/cli/src/cli.ts fmt /tmp/f.ents && tail -11 /tmp/f.ents
+//
+// gives, for the two functions below:
+//
+//   func first(paths:[] ? []u8) -> ?[]u8 => paths[0] ?? 0
+//   func count(paths:[] ? []u8) -> u32 {
+//
+// Seen at encantis 399ca7e. Note also that `fmt` writes the file in place (the help says so: "Format
+// source files in place") and takes no -o: `fmt f.ents -o out` formats f.ents in place, then fails
+// with `Error: File not found: -o`. There is no way to see the output without changing the file but
+// `fmt --check` (which says only "needs formatting"). G6 ran `fmt play.ents` expecting stdout, as the
+// general option list (-o, default stdout) suggests, and undid the format with a script.
+
+func first(paths: []?[]u8) -> ?[]u8 => paths[0] ?? 0
+
+func count(paths: []?[]u8) -> u32 {
+  let n: u32 = 0
+  for p in paths {
+    if let s = p {
+      n += s.len
+    }
+  }
+  return n
+}

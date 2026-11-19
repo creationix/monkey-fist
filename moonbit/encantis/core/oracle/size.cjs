@@ -119,6 +119,14 @@ const GROUPS = {
     ents: [['mech.ents', ['Geo', 'Move', 'Step', 'Try', 'Full', 'Node']], ['assist.ents', []], ['core-rope.ents', ['Core', 'Placing']]],
     moonbit: [['core/mech.mbt', () => true], ['core/assist.mbt', () => true], ['core/gridgen.mbt', only(['Core', 'repeated_core'])]],
   },
+  // G6: metrics.mbt but to_fixed (G1's), and the measuring half of gridgen.mbt (lines 42 to 88, 666 to
+  // 894, 1088 to 1100). play.ents's slide_stats is the measurement grid_generate makes inline: G7 calls
+  // it, and its MoonBit lines (about 30 of grid_generate) are not in this count.
+  G6: {
+    ents: [['metrics.ents', ['Snap', 'Complexity', 'Edge', 'Lists', 'Tarjan']], ['play.ents', ['FeatureStats', 'SlideStats', 'Choice']]],
+    moonbit: [['core/metrics.mbt', except(['to_fixed'])], ['core/gridgen.mbt', only(['coverage', 'adjacent', 'valid', 'features_used', 'FeatureStats', 'feature_stats',
+      'regional', 'trivial', 'postpone', 'score', 'casual_rate', 'casual_measure', 'bench_casual', 'bench_par'])]],
+  },
 };
 
 const row = (label, m) => console.log(`  ${label.padEnd(64)} ${String(m.lines).padStart(6)} ${String(m.tokens).padStart(7)}`);

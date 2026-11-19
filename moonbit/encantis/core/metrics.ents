@@ -1,0 +1,462 @@
+// metrics.mbt of the MoonBit core (dependency-metrics.js at 9e69e3a): the causal relationships seen
+// while the manual part of a verified solution is played, and how much they interlock. analyze() is
+// Q.analyze(board, plan, manual, G): the generator's selection reads its interaction; it also gives
+// the counts interaction is made of (joins, mutual waits, revisited ropes, branching depth, the
+// largest coupled group), which the JS reports under those names and MoonBit leaves unnamed. The
+// JS's other descriptive counts (edges, forks, depth, ...) select nothing, and are not here.
+//
+// A snapshot is, for each rope still there, where its head would go now: off the board, into a
+// rope (which one), round a loop, or onto a spring. A step of the plan frees rope j from rope id
+// when j was blocked by id before the tap and goes further after it (or leaves, where it could
+// not). The relations make a directed graph of ropes; Tarjan's strongly connected components are
+// mutual waits, the rest is a DAG of components, reduced transitively, whose joins and branching
+// depth count the real choices.
+//
+// Everything is in analyze's own scope, and what it returns is a value. The graph is built as
+// lists in two passes (count, then fill: one array of all the targets and an index of where each
+// node's start), for the ropes and then for the components. Tarjan's visit, a recursive local
+// function in the JS and in MoonBit, is a top-level recursion over a context (Tarjan). reach is a
+// k x k table of bytes (the JS's bitmask BigInts). The JS's Sets of relations are a n x n table of
+// bytes and a list in the order they were found.
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "./fmath" (
+  "to_fixed" func to_fixed(x: f64, digits: u32) -> f64
+)
+import "./board" (
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+  "last" func last(p: []Pt) -> Pt
+)
+import "./square" (
+  "turn" func turn(s: i32, dx: i32, dy: i32) -> (i32, i32)
+)
+import "./hex" (
+  "hex_reflect" func hex_reflect(d: i32, axis: i32) -> i32
+  "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_dir" func hex_dir(d: i32) -> Pt
+)
+import "./mech" (
+  "cell" func cell(g: *Geo, p: Pt) -> i32
+  "inside" func inside(g: *Geo, p: Pt) -> bool
+  "direction" func direction(g: *Geo, path: []Pt) -> Pt
+  "mark_ropes" func mark_ropes(g: *mut Geo, paths: []?[]Pt) -> i32
+  "walk" func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step
+  "replace" func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt
+  "new_walk" func new_walk()
+  "seen_before" func seen_before(state: i32) -> bool
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+
+def ev_none = -1:i32
+
+// Where a rope's head would go now (MoonBit's Snap, and none for a rope that has left): what
+// stops it, how far it goes first, and the rope it runs into (-1 for none).
+type Snap = (event: i32, distance: i32, blocker: i32)
+def snap_none = -1:i32     // enum: the rope has left (MoonBit's Snap? is None)
+def snap_exit = 0:i32
+def snap_blocked = 1:i32
+def snap_loop = 2:i32
+def snap_bounce = 3:i32
+
+// What analyze reports: the interaction (rounded to 4 places, as the JS's toFixed), and the
+// counts it is made of, by the JS's names: joins, mutualWaitRopes, revisitedRopes,
+// branchingDepth, largestCoupledGroup.
+type Complexity = (interaction: f64, joins: i32, mutual: i32, revisited: i32, branching: i32, largest: i32)
+
+// A relation: rope to depends on rope from (to was freed when from moved).
+type Edge = (from: i32, to: i32)
+
+// Lists of nodes by node, in two arrays: node v's are list[at[v]..at[v + 1]].
+type Lists = (at: [*]mut i32, list: [*]mut i32)
+
+// --- Snapshots ---
+
+// Where the head of a rope on path goes, the ropes being stamped s (mark_ropes) with owner the
+// rope on each cell (the JS's snapshot, one rope).
+func ray(g: *Geo, path: []Pt, s: i32, owner: [*]i32) -> Snap {
+  let d = g.direction(path)
+  let dq = d.q
+  let dr = d.r
+  let p = last(path)
+  let distance = 0
+  new_walk()
+  for guard in g.w * g.h * 6 + 1 {
+    let next = Pt(p.q + dq, p.r + dr)
+    return Snap(snap_exit, distance, -1) when !g.inside(next)
+    let c = g.cell(next)
+    return Snap(snap_blocked, distance, owner[c]) when g.occ[c] == s  // unchecked: c is on the board
+    // a state is the cell on Hex, the cell and the way on square (MoonBit's numbers)
+    let state = if g.hex { c } else { (c * 3 + dq + 1) * 3 + dr + 1 }
+    return Snap(snap_loop, 0, -1) when seen_before(state)
+    distance += 1
+    p = next
+    return Snap(snap_bounce, distance, -1) when g.spring[c] != 0  // unchecked: on the board
+    let m = g.mirror[c]  // unchecked: on the board
+    if m >= 0 {
+      if g.hex {
+        let t = hex_dir(hex_reflect(hex_dir_index(dq, dr), m))
+        dq = t.q
+        dr = t.r
+      } else {
+        set (dq, dr) = turn(m, dq, dr)
+      }
+    }
+  }
+  return Snap(snap_loop, 0, -1)
+}
+
+// The snapshot of paths into out (a Snap a rope), owner being a table of the board's cells.
+func snapshot(g: *mut Geo, paths: []?[]Pt, out: [*]mut Snap, owner: [*]mut i32) {
+  let s = g.mark_ropes(paths)
+  for i, p in paths {
+    if let path = p {
+      for c in path {
+        owner[g.cell(c)] = i as i32  // unchecked: a rope's cell is on the board
+      }
+    }
+  }
+  for i, p in paths {  // closure: paths.map(fn(p) { ... })
+    out[i] = if let path = p { g.ray(path, s, owner) } else { Snap(snap_none, 0, -1) }
+  }
+}
+
+// --- The analysis ---
+
+// Q.analyze(board, plan, manual, G): the first manual taps of plan are played from the start (up to
+// a tap that is not allowed), and the relations they show are measured.
+export func analyze(g: *mut Geo, plan: []i32, manual: i32) -> Complexity {
+  let scope = mark()
+  defer reset(scope)
+  let n = g.b.ropes.len
+  let area = (g.w * g.h) as u32
+  let owner = alloc(area * 4) as [*]mut i32
+  let before = alloc(n * sizeof(Snap)) as [*]mut Snap
+  let after = alloc(n * sizeof(Snap)) as [*]mut Snap
+  let related = zeroed(n * n) as [*]mut u8  // related[id * n + j]: j depends on id (the JS's Sets)
+  let edges = vec(Edge, n)  // grows in this scope only
+  let actions = zeroed(n * 4) as [*]mut i32
+  let last_action = alloc(n * 4) as [*]mut i32
+  let last_freed = alloc(n * 4) as [*]mut i32
+  last_action[0..n] = -1
+  last_freed[0..n] = -1
+  let revisited = zeroed(n) as [*]mut u8
+  let revisited_count = 0
+  let paths = some_paths(g.b.ropes)
+  g.snapshot(paths, before, owner)
+  for step, id in plan {
+    break when step as i32 >= manual
+    let st = g.walk(paths, id)
+    break when st.event == ev_none
+    paths = replace(paths, id, st.path)
+    g.snapshot(paths, after, owner)
+    for j in n {
+      let a = before[j]  // unchecked: j < n
+      let b = after[j]  // unchecked: j < n
+      continue when j as i32 == id || a.event == snap_none || b.event == snap_none || a.blocker != id || b.event == snap_loop
+      if b.distance > a.distance || (b.event == snap_exit && a.event != snap_exit) {
+        let at = id as u32 * n + j  // id < n: the tap moved it
+        if related[at] == 0 {  // unchecked: id < n and j < n
+          related[at] = 1  // unchecked: as above
+          edges.push(Edge(id, j as i32))
+        }
+        last_freed[j] = step as i32  // unchecked: j < n
+      }
+    }
+    // id < n: the tap moved it
+    if actions[id] > 0 && last_freed[id] > last_action[id] && revisited[id] == 0 {  // unchecked: id < n
+      revisited[id] = 1  // unchecked: id < n
+      revisited_count += 1
+    }
+    actions[id] += 1  // unchecked: id < n
+    last_action[id] = step as i32  // unchecked: id < n
+    let t = before
+    before = after
+    after = t
+  }
+  return graph(edges.items(), n as i32, revisited_count)
+}
+
+// The lists of edges by from (by_from) or by to, each in the order the edges come: count, then fill.
+func lists(edges: []Edge, n: i32, by_from: bool) -> Lists {
+  let at = zeroed((n as u32 + 1) * 4) as [*]mut i32
+  let list = alloc(edges.len * 4) as [*]mut i32
+  for e in edges {
+    at[(if by_from { e.from } else { e.to }) + 1] += 1  // unchecked: a node
+  }
+  for v in n as u32 {
+    at[v + 1] += at[v]
+  }
+  let fill = alloc((n as u32 + 1) * 4) as [*]mut i32
+  for v in n as u32 + 1 {
+    fill[v] = at[v]
+  }
+  for e in edges {
+    let v = if by_from { e.from } else { e.to }
+    list[fill[v]] = if by_from { e.to } else { e.from }  // unchecked: fill[v] < at[v + 1]
+    fill[v] += 1  // unchecked: a node
+  }
+  return Lists(at, list)
+}
+
+// Node v's list.
+func of(l: Lists, v: i32) -> []i32 => l.list[l.at[v]..l.at[v + 1]]  // unchecked: v is a node
+
+// What Tarjan's visit captured: the graph, the numbering, the stack, and the components found, as
+// their members in the order they were popped (component c is members[starts[c]..starts[c + 1]]).
+type Tarjan = (dep: Lists, next: i32, index: [*]mut i32, low: [*]mut i32, on: [*]mut u8,
+               stack: [*]mut i32, top: u32, comp: [*]mut i32, k: i32, members: [*]mut i32, count: i32, starts: [*]mut i32)
+
+func visit(t: *mut Tarjan, v: i32) {  // closure: the recursive local function visit
+  t.index[v] = t.next  // unchecked: v is a node, as every index below
+  t.low[v] = t.next
+  t.next += 1
+  t.stack[t.top] = v
+  t.top += 1
+  t.on[v] = 1
+  for x in t.dep.of(v) {
+    if t.index[x] < 0 {
+      t.visit(x)
+      t.low[v] = min(t.low[v], t.low[x])
+    } elif t.on[x] != 0 {
+      t.low[v] = min(t.low[v], t.index[x])
+    }
+  }
+  return when t.low[v] != t.index[v]
+  t.starts[t.k] = t.count
+  loop {
+    t.top -= 1
+    let x = t.stack[t.top]
+    t.on[x] = 0
+    t.comp[x] = t.k
+    t.members[t.count] = x
+    t.count += 1
+    break when x == v
+  }
+  t.k += 1
+}
+
+// graphMetrics of dependency-metrics.js (MoonBit's graph_interaction), from the relations found in
+// order, on n ropes, revisited of which went back to a rope after another freed it.
+func graph(edges: []Edge, n: i32, revisited: i32) -> Complexity {
+  let un = n as u32
+  let dep = lists(edges, n, true)
+  let pre = lists(edges, n, false)
+  // Tarjan's strongly connected components
+  let index = alloc(un * 4) as [*]mut i32
+  index[0..un] = -1
+  let t = alloc(sizeof(Tarjan)) as *mut Tarjan
+  t.* = Tarjan(dep, 0, index, alloc(un * 4) as [*]mut i32, zeroed(un) as [*]mut u8, alloc(un * 4) as [*]mut i32, 0,
+               alloc(un * 4) as [*]mut i32, 0, alloc(un * 4) as [*]mut i32, 0, alloc((un + 1) * 4) as [*]mut i32)
+  for i in un {
+    if index[i] < 0 {
+      t.visit(i as i32)
+    }
+  }
+  let k = t.k
+  let uk = k as u32
+  t.starts[uk] = n
+  let comp = t.comp
+  // the arcs between components, each once, in the order met
+  let arc_seen = zeroed(uk * uk) as [*]mut u8
+  let arc_list = vec(Edge, 8)  // grows in this scope only
+  let indegree = zeroed(uk * 4) as [*]mut i32
+  for i in un {
+    for j in dep.of(i as i32) {
+      let from = comp[i]
+      let to = comp[j]
+      if from != to && arc_seen[from * k + to] == 0 {  // unchecked: components
+        arc_seen[from * k + to] = 1
+        arc_list.push(Edge(from, to))
+        indegree[to] += 1
+      }
+    }
+  }
+  let arcs = lists(arc_list.items(), k, true)
+  // a topological order (Kahn's)
+  let queue = alloc(uk * 4) as [*]mut i32
+  let qn: u32 = 0
+  for c in uk {
+    if indegree[c] == 0 {
+      queue[qn] = c as i32
+      qn += 1
+    }
+  }
+  let q: u32 = 0
+  while q < qn {
+    for c in arcs.of(queue[q]) {
+      indegree[c] -= 1
+      if indegree[c] == 0 {
+        queue[qn] = c
+        qn += 1
+      }
+    }
+    q += 1
+  }
+  // reach[a * k + x]: x can be reached from a, for the transitive reduction
+  let reach = zeroed(uk * uk) as [*]mut u8
+  let qi = qn as i32 - 1
+  while qi >= 0 {
+    let src = queue[qi]
+    for c in arcs.of(src) {
+      reach[src * k + c] = 1
+      for x in k {
+        if reach[c * k + x as i32] != 0 {
+          reach[src * k + x as i32] = 1
+        }
+      }
+    }
+    qi -= 1
+  }
+  // an arc a -> c is essential where no other arc a -> x reaches c (by the arc's place in arcs.list)
+  let essential = zeroed(arc_list.len) as [*]mut u8
+  let incoming = zeroed(uk * 4) as [*]mut i32
+  for a in uk {
+    let next = arcs.of(a as i32)
+    let first = arcs.at[a] as u32
+    for e, c in next {  // closure: arcs[a].filter(c => !arcs[a].iter().any(x => x != c && reach[x][c]))
+      let implied = false
+      for x in next {
+        if x != c && reach[x * k + c] != 0 {
+          implied = true
+          break
+        }
+      }
+      if !implied {
+        essential[first + e] = 1
+        incoming[c] += 1
+      }
+    }
+  }
+  // the ropes with two prerequisites or more in their own component, by component
+  let internal = zeroed(uk * 4) as [*]mut i32
+  for i in un {
+    let same = 0
+    for j in pre.of(i as i32) {  // closure: prerequisites[i].filter(j => component[j] == component[i]).length
+      if comp[j] == comp[i] {
+        same += 1
+      }
+    }
+    if same >= 2 {
+      internal[comp[i]] += 1
+    }
+  }
+  let joins = 0
+  let junctions = alloc(uk * 4) as [*]mut i32
+  let branch = alloc(uk * 4) as [*]mut i32
+  for c in uk {  // closure: Array::makei(k, i => ...) and FixedArray::makei(k, i => junctions[i])
+    if incoming[c] >= 2 {
+      joins += 1
+    }
+    joins += internal[c]
+    junctions[c] = (if incoming[c] >= 2 { 1 } else { 0 }) + (if internal[c] > 0 { 1 } else { 0 })
+    branch[c] = junctions[c]
+  }
+  // the branching depth: the most junctions on a path of essential arcs, in topological order
+  for qk in qn {
+    let up = queue[qk]
+    let up_first = arcs.at[up] as u32
+    for e, c in arcs.of(up) {
+      if essential[up_first + e] != 0 {
+        branch[c] = max(branch[c], branch[up] + junctions[c])
+      }
+    }
+  }
+  let mutual = 0
+  let branching = 0
+  for c in uk {
+    let members = t.starts[c + 1] - t.starts[c]
+    if members > 1 {
+      mutual += members
+    }
+    branching = max(branching, branch[c])
+  }
+  // the largest group of ropes coupled by any relation, either way (breadth first)
+  let seen = zeroed(un) as [*]mut u8
+  let group = alloc(un * 4) as [*]mut i32
+  let largest = 0
+  for i in un {
+    continue when seen[i] != 0
+    seen[i] = 1
+    group[0] = i as i32
+    let size: u32 = 1
+    let gq: u32 = 0
+    while gq < size {
+      let v = group[gq]
+      for x in pre.of(v) {
+        if seen[x] == 0 {
+          seen[x] = 1
+          group[size] = x
+          size += 1
+        }
+      }
+      for x in dep.of(v) {
+        if seen[x] == 0 {
+          seen[x] = 1
+          group[size] = x
+          size += 1
+        }
+      }
+      gq += 1
+    }
+    if size > 1 {
+      largest = max(largest, size as i32)
+    }
+  }
+  // the JS's arithmetic, in its order
+  let nd = f64(n)
+  let connected = f64(largest) / max(1.0, nd)
+  let evidence = 3.0 * min(f64(joins) / max(1.0, nd * 0.25), 1.0) + 2.5 * f64(mutual) / max(1.0, nd) +
+    2.0 * f64(revisited) / max(1.0, nd) + 1.5 * min(f64(branching) / 4.0, 1.0)
+  return Complexity(to_fixed(evidence * (0.4 + 0.6 * connected), 4), joins, mutual, revisited, branching, largest)
+}
+
+// --- Tests ---
+
+// The relations of edges (pairs from, to) on n ropes, as graph() gets them.
+func edges_of(pairs: []i32) -> []Edge {
+  let n = pairs.len / 2
+  let es = alloc(n * sizeof(Edge)) as [*]mut Edge
+  for k in n {
+    es[k] = Edge(pairs[2 * k] ?? 0, pairs[2 * k + 1] ?? 0)
+  }
+  return es[0..n]
+}
+
+test "a mutual wait and a chain" {
+  let scope = mark()
+  defer reset(scope)
+  let c = graph(edges_of([0:i32, 1, 1, 0, 2, 3]), 4, 0)
+  assert c.mutual == 2 && c.joins == 0 && c.branching == 0 && c.largest == 2
+  assert c.interaction == 0.875  // (2.5 * 2 / 4) * (0.4 + 0.6 * 2 / 4)
+}
+
+test "a join, and a shortcut the reduction drops" {
+  let scope = mark()
+  defer reset(scope)
+  let j = graph(edges_of([0:i32, 2, 1, 2]), 3, 0)
+  assert j.joins == 1 && j.branching == 1 && j.largest == 3 && j.mutual == 0
+  assert j.interaction == 3.375  // 3 * 1 + 1.5 * 1 / 4, all connected
+  let s = graph(edges_of([0:i32, 1, 1, 2, 0, 2]), 3, 1)
+  assert s.joins == 0 && s.branching == 0 && s.largest == 3 && s.revisited == 1
+  assert s.interaction == 0.6667  // 2 * 1 / 3, rounded to 4 places
+}

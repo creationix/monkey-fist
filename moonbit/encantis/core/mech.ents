@@ -228,12 +228,13 @@ func to_route(p: Pt) {
 // dr + 1), under 9 a cell; on Hex the cell), the number of the walk that saw it last. The JS
 // keeps a Set of them and MoonBit a list it searches; this is the same set, one load a look.
 // (The plan kept the list for parity of work; after parity it went: 6 to 11% of a search on the
-// bench boards, and no walk is quadratic in its steps any more.)
+// bench boards, and no walk is quadratic in its steps any more.) metrics.ents's snapshot rays
+// use the same table (new_walk, then seen_before), as G6 added the exports.
 data seen_at = mut [0:i32; 20736]
 global walks: i32 = 0
 
 // Whether this walk has seen state already; it has from now on.
-func seen_before(state: i32) -> bool {
+export func seen_before(state: i32) -> bool {
   if let p = &seen_at[state as u32] {
     return true when p.* == walks
     p.* = walks
@@ -244,7 +245,7 @@ func seen_before(state: i32) -> bool {
 }
 
 // A walk of its own number (the table is cleared before the numbers wrap).
-func new_walk() {
+export func new_walk() {
   if walks == 0x7FFFFFFF {
     seen_at[0..20736] = 0
     walks = 0

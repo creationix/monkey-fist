@@ -45,5 +45,9 @@ wasm test/g4.ents test/g4.wasm
 inline mech.ents assist.ents core-rope.ents
 wasm test/g5.ents test/g5.wasm
 
+# --- G6: measured play and the interaction analysis ---
+inline metrics.ents play.ents
+wasm test/g6.ents test/g6.wasm
+
 # --- G7: the core (once it exists) ---
 if [ -f core.ents ]; then wasm core.ents core.wasm; fi
