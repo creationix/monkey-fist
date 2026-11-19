@@ -10,8 +10,14 @@
 //
 // gives, for the two functions below:
 //
-//   func first(paths:[] ? []u8) -> ?[]u8 => paths[0] ?? 0
+//   func first(paths:[] ? []u8) -> ?[]u8 {
 //   func count(paths:[] ? []u8) -> u32 {
+//
+// (`check` passes before and after the format, and `hover` gives `local paths: []?[]u8` both
+// times. G6's review: the first version of this file had `first(...) => paths[0] ?? 0`, which does
+// not check at all, before or after `fmt`: a checked index of a slice of optional slices folds
+// "out of range" into the element's own none, so the `??` default must be a `[]u8`, and 0 is not
+// one: `cannot assign int(0) to []u8`. The repro now checks; nothing else changed.)
 //
 // Seen at encantis 399ca7e. Note also that `fmt` writes the file in place (the help says so: "Format
 // source files in place") and takes no -o: `fmt f.ents -o out` formats f.ents in place, then fails
@@ -19,7 +25,12 @@
 // `fmt --check` (which says only "needs formatting"). G6 ran `fmt play.ents` expecting stdout, as the
 // general option list (-o, default stdout) suggests, and undid the format with a script.
 
-func first(paths: []?[]u8) -> ?[]u8 => paths[0] ?? 0
+func first(paths: []?[]u8) -> ?[]u8 {
+  if let p = paths[0] {
+    return p
+  }
+  return 0
+}
 
 func count(paths: []?[]u8) -> u32 {
   let n: u32 = 0
