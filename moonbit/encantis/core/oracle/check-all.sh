@@ -79,5 +79,14 @@ echo "$out" | tail -1
 # Here the 79 boards of g1-extra (to 48x48 with spinners) too, cached the same way (longer to fill).
 echo "== check-g6.cjs --extra --parts direct,derived"
 node check-g6.cjs --extra --parts direct,derived || fail=1
+# G6's review: check-g6's battery on the 361 boards of the g2, g3 and g5 fixtures, with random tap
+# sequences, junk taps and casual play at new seeds (seconds with the JS's answers cached in
+# /home/user/mf-core-scratch/review-g6/cache; about 25 minutes of JS in three workers to fill:
+# check-g6-review.cjs --fill --part i/3), and casual play's step limit on synthetic boards (1 s).
+echo "== check-g6-review.cjs"
+node check-g6-review.cjs || fail=1
+echo "== check-g6-limits.cjs"
+out=$(node check-g6-limits.cjs 2>&1) || fail=1
+echo "$out" | tail -1
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
