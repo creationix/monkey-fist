@@ -87,5 +87,23 @@ node check-g6.cjs --extra --parts direct,derived || fail=1
 # themselves, 2 s) run in the loop above. Two more fuzz seeds here.
 echo "== check-g6-fuzz.cjs --seed 2, 3"
 for s in 2 3; do node check-g6-fuzz.cjs --seed $s || fail=1; done
+# G7: check-g7-units.cjs (placeMirrors, woven, addSpinners on 2,821 recorded calls, the JS's mode, 6 s)
+# and check-g7-robust.cjs (the exports' stack, traps, invalid codes; 2 s) run in the loop above. Here
+# the units in the port's own mode, the port's Journey (journey.ents's specs_port) against what its
+# seed search stored and the JS's rules (10 s), and the whole generator through the game's unchanged
+# glue in a harness on test/g7.wasm, the JS's mode: parity.mjs on reference.json, field by field (135
+# levels, 7 s), and the harness's own wasm tests (parity, generator, assist, measurements; 15 s).
+echo "== check-g7-units.cjs --port"
+node check-g7-units.cjs --port || fail=1
+echo "== check-journey-port.cjs"
+node check-journey-port.cjs || fail=1
+echo "== the harness on test/g7.wasm: parity.mjs and the wasm tests"
+H=/home/user/mf-core-scratch/harness-check-all-g7
+sh ./setup-harness.sh $H ../test/g7.wasm > /dev/null || fail=1
+out=$(cd $H/moonbit && node scripts/parity.mjs /home/user/mf-core-scratch/reference.json wasm all 2>&1) || fail=1
+echo "$out" | tail -1
+echo "$out" | tail -1 | grep -q '135 match, 0 differ' || fail=1
+out=$(cd $H/moonbit && node --test --test-name-pattern=wasm tests/parity.test.cjs tests/generator.test.cjs tests/assist.test.cjs tests/measurements-wasm.test.cjs 2>&1) || fail=1
+echo "$out" | grep -E '^# (pass|fail)'
 [ $fail = 0 ] && echo "check-all: every check passed" || echo "check-all: FAILED"
 exit $fail
