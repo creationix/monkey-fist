@@ -1,0 +1,222 @@
+// The numbers ABI of src/gen (gen.mbt) and the bench_* hooks of src/api (api.mbt), as plain
+// functions: core.ents exports them under their ABI names, and test/g7.ents exports them in the
+// JS's mode (below). Every function here starts by clearing the stack, so a trap in an earlier
+// call never leaves it unusable.
+//
+// The current level (gen.mbt's `current`, which measure and bench_* read) is kept as its own
+// level words, put_level's, copied into a static buffer once a level is made: a later guide or
+// features call, which writes the output words, leaves it as it is, and so does a generate that
+// makes nothing (as in MoonBit, where only a level made replaces it). Its board is read back as
+// views of those words (read_level).
+//
+// The mode. The port's own generator (the default) draws less than the JS in hex_build (G4's
+// departures) and has its own Journey seeds (journey.ents, chosen by the game's seed search run
+// on this generator). set_js_mode(true) gives the JS's draws and the JS's Journey table, so that
+// every level is the JS game's: the parity run uses it, through test/g7.wasm.
+
+import "./lib/stack" (
+  "clear" func clear()
+  "alloc" func alloc(n: u32) -> u32
+)
+import "./board" (
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+)
+import "./codes" (
+  "parse_code" func parse_code(units: []i32) -> ?*SetOpts
+  "level_spec" func level_spec(o: *SetOpts, index: i32) -> Spec
+)
+import "./journey" (
+  "use_js_journey" func use_js_journey(on: bool)
+)
+import "./abi" (
+  "input" func input() -> []i32
+  "input_bytes" func input_bytes() -> []u8
+  "out_len" func out_len() -> i32
+  "out_get" func out_get(i: i32) -> i32
+  "out_clear" func out_clear()
+  "put" func put(w: i32)
+  "read_position" func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32)
+  "read_level" func read_level(words: []i32) -> Level
+  "put_level" func put_level(l: *Level)
+)
+import "./hexbuild" (
+  "set_draw_exact" func set_draw_exact(on: bool)
+)
+import "./gridgen" (
+  "grid_generate" func grid_generate(s: *Spec) -> ?*Level
+)
+import "./mech" (
+  "geo" func geo(b: Board) -> *mut Geo
+  "solve" func solve(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+)
+import "./assist" (
+  "guide" func assist_guide(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+  "reachable_features" func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i32
+)
+import "./play" (
+  "casual_measure" func casual_measure(b: Board, seed: []u8, games: i32) -> f64
+  "bench_casual" func play_bench_casual(b: Board, games: i32) -> f64
+  "bench_par" func play_bench_par(b: Board) -> i32
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+type Spec = (hex: bool, w: i32, h: i32, difficulty: f64, mirrors: bool, springs: bool, seed: []u8,
+             require_slide: bool, min_mirrors: i32, min_springs: i32, colossal: bool)
+type Level = (board: Board, par: i32, exact: bool, coverage: f64, wins: f64, challenge: f64,
+              slides: i32, bounces: i32, repeated: i32, automatic: i32,
+              used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+// --- end of the canonical type block ---
+type SetOpts = (journey: bool, grid: u8, min: i32, max: i32, w: i32, h: i32, count: i32,
+                mirrors: bool, springs: bool, colossal: bool, seed: []u8)
+type Vec = (ptr: [*]mut i32, len: u32, cap: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec)
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+
+// The most cells a board has (board.ents's max_area: the 48x48 a set code allows).
+def max_area = 2304
+
+// The current level's words and how many (0: none yet), and its doubles.
+def room = 65536:u32
+data current = mut [0:i32; 65536]
+global current_n: u32 = 0
+global current_wins: f64 = 0.0
+global current_challenge: f64 = 0.0
+global current_coverage: f64 = 0.0
+
+// The JS's draws and Journey table (true), or the port's (false, the default).
+global js_mode: bool = false
+
+export func set_js_mode(on: bool) {
+  js_mode = on
+}
+
+// The current level, as views of its words, with its doubles; none before the first level.
+func current_level() -> ?*Level {
+  return 0 when current_n == 0
+  let l = alloc(sizeof(Level)) as *mut Level
+  l.* = read_level((current as [*]i32)[0..current_n])
+  l.wins = current_wins
+  l.challenge = current_challenge
+  l.coverage = current_coverage
+  return l
+}
+
+// Puts level l (if any) in the output words, and makes it the current level. 1, or 0 for none.
+func made(l: ?*Level) -> i32 {
+  if let level = l {
+    put_level(level)
+    let n = out_len() as u32
+    assert n <= room
+    let words = current as [*]mut i32
+    for k in n {
+      words[k] = out_get(k as i32)
+    }
+    current_n = n
+    current_wins = level.wins
+    current_challenge = level.challenge
+    current_coverage = level.coverage
+    return 1
+  }
+  return 0
+}
+
+// The level of the spec, in the mode.
+func level_of(s: *Spec) -> ?*Level {
+  set_draw_exact(js_mode)
+  return grid_generate(s)
+}
+
+// Level `index` of the set whose code is in the input; 0 if the code is invalid or no board fits.
+export func generate(index: i32) -> i32 {
+  clear()
+  use_js_journey(js_mode)
+  if let o = parse_code(input()) {
+    let s = alloc(sizeof(Spec)) as *mut Spec
+    s.* = level_spec(o, index)
+    return made(level_of(s))
+  }
+  return 0
+}
+
+// The level of a specification whose seed is in the input (the Journey builder's candidates); 0
+// if no board fits, or for a board of no cells or more than a 48x48 one has.
+export func generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
+                          require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32 {
+  clear()
+  return 0 when w < 1 || h < 1 || w > max_area || h > max_area || w * h > max_area
+  let s = alloc(sizeof(Spec)) as *mut Spec
+  s.* = Spec(hex == 1, w, h, difficulty, mirrors == 1, springs == 1, input_bytes(), require_slide == 1,
+             min_mirrors, min_springs, colossal == 1)
+  return made(level_of(s))
+}
+
+// How often a casual player wins the current level, over `games` games seeded by the text in the
+// input; -1 before the first level.
+export func measure(games: i32) -> f64 {
+  clear()
+  if let l = current_level() {
+    return casual_measure(l.board, input_bytes(), games)
+  }
+  return -1.0
+}
+
+// A plan from the position in the input (game-engine.js guide): solved (1, 0, or -1 when the
+// budget ran out), the nodes searched, then the moves.
+export func guide(budget: i32) {
+  clear()
+  let (board:, paths:, prefer:) = read_position()
+  let s = geo(board).assist_guide(paths, budget, prefer)
+  out_clear()
+  put(s.solved)
+  put(s.nodes)
+  for m in s.moves {
+    put(m)
+  }
+}
+
+// The mirrors and springs still within reach from the position in the input, as indices (mirrors
+// first, then springs).
+export func features(budget: i32) {
+  clear()
+  let (board:, paths:, prefer:) = read_position()
+  let f = geo(board).reachable_features(paths, budget)
+  out_clear()
+  for i in f {
+    put(i)
+  }
+}
+
+// --- The timing hooks of src/api, on the current level (-1 before the first) ---
+
+// Casual playouts seeded by "bench".
+export func bench_casual(games: i32) -> f64 {
+  clear()
+  if let l = current_level() {
+    return play_bench_casual(l.board, games)
+  }
+  return -1.0
+}
+
+// The par search. Par.
+export func bench_par() -> i32 {
+  clear()
+  if let l = current_level() {
+    return play_bench_par(l.board)
+  }
+  return -1
+}
+
+// The solver from the start position. The nodes searched.
+export func bench_solve(budget: i32) -> i32 {
+  clear()
+  if let l = current_level() {
+    let b = l.board
+    return geo(b).solve(some_paths(b.ropes), budget, []).nodes
+  }
+  return -1
+}

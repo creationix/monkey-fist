@@ -1,0 +1,30 @@
+// bugs/07: `elif let y = x { ... }` is accepted by the parser but binds nothing. The reference
+// documents `elif let` only for enum constructor patterns ("not yet implemented", 6.4), yet the
+// optional form parses, and then:
+//
+//   - using the binding in the branch is `unknown identifier 'y' — did you mean 'a'?`, which reads
+//     as a typo, not as "elif let is not supported";
+//   - not using it, `check` passes ("OK") and `wasm` emits invalid WAT, so the build fails at the
+//     very end with a validator message about the if's types:
+//
+//   bun /home/user/enc-wt/main/packages/cli/src/cli.ts check bugs/07-elif-let.ents   # OK
+//   bun /home/user/enc-wt/main/packages/cli/src/cli.ts wasm bugs/07-elif-let.ents -o /tmp/b.wasm
+//
+//   WAT error: validate failed:
+//   ... error: type mismatch at end of `if false` branch, expected [] but got [i32]
+//
+// Found by G7 at 399ca7e (origin/main), writing woven()'s "Hex core tracks, elif square core
+// tracks" (gridgen.ents). Workaround: an `else { if let ... }` (one more level of nesting), 2 sites.
+// Cost: about 10 minutes (the first message sent me looking for a misspelt name).
+
+func pick(a: bool, x: ?[]i32) -> u32 {
+  if a {
+    return 1
+  } elif let y = x {
+    return 7
+  } else {
+    return 0
+  }
+}
+
+export func none() -> u32 => pick(false, 0)

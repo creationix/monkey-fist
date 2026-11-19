@@ -1,0 +1,716 @@
+// The generator half of gridgen.mbt (grid-generator.js at 9e69e3a): the mirrors placed before a
+// board is woven (place_mirrors), the woven candidate (woven: the config, then hex_build or
+// weave_run, with a repeated-slide core on alternate hard attempts), the spinners added to it
+// (add_spinners with ways_out, with_spinner, search_spinner and bounce_step), and grid_generate,
+// which makes up to ten candidates (three on colossal maps), measures each by play and keeps the
+// best.
+//
+// Exactness. Everything here draws as the JS does, in its order (the shuffles of add_spinners, the
+// mirrors, the style roll, the casual seeds): it costs nothing to keep. What the levels differ in
+// comes from below: hex_build's default mode (G4's departures D1 and D2, set_draw_exact(false)),
+// which changes every Hex level. With set_draw_exact(true) the generator is the JS's, level for
+// level (test/g7.wasm and the parity run). add_spinners keeps the JS's eager candidates: all 16
+// with_spinner boards and all 8 search_spinner boards are made even after one fits (REPORT 5.1),
+// so that its time compares with MoonBit's; the first that fits is the one kept, as there.
+//
+// Memory. An attempt is a scope of its own: the candidate, its tables and every measurement are
+// freed when the attempt ends. The best level so far outlives it as its own level words
+// (abi.ents's keep_level), written into one of two static buffers, the spare one, which then
+// becomes the kept one: no copy of a board on the stack survives an attempt. grid_generate
+// returns the best as a Level whose board is a view of those words (read_level), valid until the
+// next grid_generate. A candidate of add_spinners that fits keeps the scope it was made in (the
+// stack above it is not reset), and those made after it are freed.
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "./random" (
+  "rng" func rng(seed: u32) -> *mut Rng
+  "next" func next(r: *mut Rng) -> f64
+  "below" func below(r: *mut Rng, n: i32) -> i32
+  "fnv" func fnv() -> u32
+  "hash_byte" func hash_byte(h: u32, c: u8) -> u32
+  "text" func text(comptime S: type, s: S, t: []u8, comptime put: (S, u8) -> S) -> S
+  "dec" func dec(comptime S: type, s: S, v: i32, comptime put: (S, u8) -> S) -> S
+  "round_i" func round_i(x: f64) -> i32
+  "floor_div" func floor_div(a: i32, b: i32) -> i32
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+)
+import "./board" (
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+  "last" func last(p: []Pt) -> Pt
+  "no_mirrors" func no_mirrors() -> *mut SqMirrors
+  "sq_mirrors" func sq_mirrors(b: *Board) -> *mut SqMirrors
+)
+import "./codes" (
+  "target_challenge" func target_challenge(d: f64) -> f64
+  "win_ceiling" func win_ceiling(d: f64) -> f64
+)
+import "./abi" (
+  "keep_level" func keep_level(l: *Level, buf: [*]mut i32, room: u32) -> []i32
+  "read_level" func read_level(words: []i32) -> Level
+)
+import "./square" (
+  "sq_tracks" func sq_tracks(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?[][]i32
+)
+import "./hex" (
+  "hex_cell" func hex_cell(p: Pt, w: i32) -> i32
+  "hex_point" func hex_point(c: i32, w: i32) -> Pt
+  "hex_dir" func hex_dir(d: i32) -> Pt
+  "hex_compile_exn" func hex_compile_exn(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> *mut HexBoard
+  "hex_turning" func hex_turning(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> []i32
+)
+import "./hexbuild" (
+  "hex_build" func hex_build(r: *mut Rng, c: *HexCfg) -> ?*HexBuilt
+)
+import "./weave" (
+  "weave_run" func weave_run(r: *mut Rng, cfg: WeaveCfg) -> ?*Woven
+  "knots_for" func knots_for(d: f64) -> i32
+  "styles" func styles() -> []Style
+  "len_hi_of" func len_hi_of(s: Style, w: i32) -> i32
+)
+import "./mech" (
+  "geo" func geo(b: Board) -> *mut Geo
+  "cell" func cell(g: *Geo, p: Pt) -> i32
+  "inside" func inside(g: *Geo, p: Pt) -> bool
+  "direction" func direction(g: *Geo, path: []Pt) -> Pt
+  "walk" func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step
+  "last_route" func last_route() -> []Pt
+  "replace" func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt
+  "all_free" func all_free(g: *mut Geo, paths: []?[]Pt) -> bool
+  "replay_plan" func replay_plan(g: *mut Geo, plan: []i32) -> Replayed
+  "solve" func solve(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+)
+import "./core-rope" (
+  "repeated_core" func repeated_core(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng) -> ?*Core
+)
+import "./play" (
+  "coverage" func coverage(b: Board) -> f64
+  "valid" func valid(g: *Geo) -> bool
+  "regional" func regional(b: Board) -> bool
+  "trivial" func trivial(g: *mut Geo) -> bool
+  "features_used" func features_used(g: *mut Geo) -> bool
+  "feature_stats" func feature_stats(g: *mut Geo, plan: []i32, manual: i32) -> ?*FeatureStats
+  "slide_stats" func slide_stats(g: *mut Geo, plan: []i32, par: i32) -> SlideStats
+  "score" func score(g: *mut Geo, skip: bool) -> Par
+  "casual_rate" func casual_rate(g: *mut Geo, r: *mut Rng, games: i32) -> f64
+)
+import "./metrics" (
+  "analyze" func analyze(g: *mut Geo, plan: []i32, manual: i32) -> Complexity
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+type Spec = (hex: bool, w: i32, h: i32, difficulty: f64, mirrors: bool, springs: bool, seed: []u8,
+             require_slide: bool, min_mirrors: i32, min_springs: i32, colossal: bool)
+type Level = (board: Board, par: i32, exact: bool, coverage: f64, wins: f64, challenge: f64,
+              slides: i32, bounces: i32, repeated: i32, automatic: i32,
+              used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+type HexBoard = (w: i32, n: i32, left: i32, tracks: [*]mut []i32, lengths: [*]mut i32, offsets: [*]mut i32,
+                 occupied: [*]mut i32, at: [*]mut i32, reach: [*]mut i32)
+type HexCfg = (w: i32, h: i32, stage: i32, coverage: f64, length: i32, tap_depth: f64, mirrors: []Mirror,
+               knots: i32, traps: i32, initial_ropes: [][]Pt, initial_stops: [][]i32, initial_plan: ?[]i32)
+type HexBuilt = (ropes: [][]Pt, stops: [][]i32, plan: []i32, slides: i32, traps: i32, depth: i32, cost: i32)
+type WeaveCfg = (w: i32, h: i32, len_lo: i32, len_hi: i32, min_len: i32, straight: f64, cover: f64,
+                 tap_depth: f64, tie: i32, bait: i32, pull: i32, mirrors: *SqMirrors,
+                 initial_ropes: [][]Pt, initial_stops: [][]i32, initial_plan: ?[]i32)
+type Woven = (ropes: [][]Pt, taps: []i32, knots: i32, traps: i32)
+type Style = (kind: i32, min_len: i32, straight: f64, len_lo: i32, twisty: bool)
+type Core = (ropes: [][]Pt, stops: [][]i32, plan: []i32, par: i32, exact: bool, depth: i32)
+type FeatureStats = (used_mirrors: i32, used_springs: i32, manual_mirrors: i32, manual_springs: i32)
+type SlideStats = (slides: i32, bounces: i32, repeated: i32, automatic: i32, any_slide: bool)
+type Complexity = (interaction: f64, joins: i32, mutual: i32, revisited: i32, branching: i32, largest: i32)
+
+def solved_yes = 1:i32
+def ev_none = -1:i32
+def ev_bounce = 1:i32
+
+// The two buffers a best level is kept in, as its level words: one holds the best so far, the
+// other is written when a better one comes (each 64 Ki words, as the ABI's).
+def keep_room = 65536:u32
+data keep_a = mut [0:i32; 65536]
+data keep_b = mut [0:i32; 65536]
+
+// --- Small helpers ---
+
+func same(a: Pt, b: Pt) -> bool => a.q == b.q && a.r == b.r
+
+// The cell index of p on a board of width w (indexOf of grid-generator.js).
+func index_of(hex: bool, w: i32, p: Pt) -> i32 => if hex { hex_cell(p, w) } else { p.r * w + p.q }
+
+// The board b with other springs and plan, on the stack (MoonBit's with_springs and with_plan).
+func with_plan(b: Board, plan: []i32) -> *mut Board {
+  let out = alloc(sizeof(Board)) as *mut Board
+  out.* = b
+  out.plan = plan
+  return out
+}
+
+// b's springs and one more, on the stack.
+func springs_and(b: Board, cell: Pt) -> []Pt {
+  let n = b.springs.len
+  let out = alloc((n + 1) * sizeof(Pt)) as [*]mut Pt
+  for k, p in b.springs {
+    out[k] = p
+  }
+  out[n] = cell
+  return out[0..n + 1]
+}
+
+// --- Mirrors ---
+
+// Up to count mirrors on cells off the edge, not on avoid's cells and not beside one another (each
+// placed mirror rules out its cell and its neighbours), from at most count * 40 tries
+// (placeMirrors). On the stack, in the caller's scope.
+export func place_mirrors(hex: bool, w: i32, height: i32, count: i32, rng: *mut Rng, avoid: [*]u8) -> []Mirror {
+  let area = (w * height) as u32
+  let out = alloc((count as u32) * sizeof(Mirror)) as [*]mut Mirror
+  let scope = mark()
+  defer reset(scope)
+  let cells = vec(Pt, area)  // reserve: every cell
+  for i in area {  // closure: all.filter(p => ...)
+    let p = if hex { hex_point(i as i32, w) } else { Pt(i as i32 % w, i as i32 / w) }
+    let column = p.q + (if hex { floor_div(p.r, 2) } else { 0 })
+    if column > 0 && column < w - 1 && p.r > 0 && p.r < height - 1 && avoid[i] == 0 {  // unchecked: i < area
+      cells.push(p)
+    }
+  }
+  let near = zeroed(area) as [*]mut u8
+  let n: u32 = 0
+  let tries = 0
+  while n < count as u32 && cells.len > 0 && tries < count * 40 {
+    tries += 1
+    let pick = cells.ptr[rng.below(cells.len as i32)]  // unchecked: below(n) < n
+    let at = index_of(hex, w, pick)
+    continue when near[at] != 0  // unchecked: a cell of the board
+    let kind = if hex { rng.below(3) } elif rng.next() < 0.5 { 0 } else { 1 }
+    out[n] = Mirror(pick, kind)
+    n += 1
+    near[at] = 1  // unchecked: a cell of the board
+    // the neighbours of a cell off the edge are on the board
+    for d in (if hex { 6 } else { 4 }) {  // closure: dirs(grid).forEach(d => near.add(...))
+      let s = if hex { hex_dir(d as i32) } else { square_dir(d as i32) }
+      near[index_of(hex, w, Pt(pick.q + s.q, pick.r + s.r))] = 1  // unchecked: on the board
+    }
+  }
+  return out[0..n]
+}
+
+data square_dirs: *[4]Pt = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+
+func square_dir(d: i32) -> Pt => square_dirs[(d & 3) as u32#4]
+
+// --- The woven candidate ---
+
+// The mirrors of ms whose cell is marked in used, on the stack (mirrors.filter(...)).
+func kept_mirrors(hex: bool, w: i32, ms: []Mirror, used: [*]u8) -> []Mirror {
+  let out = alloc(ms.len * sizeof(Mirror)) as [*]mut Mirror
+  let n: u32 = 0
+  for m in ms {  // closure: mirrors.filter(m => used.has(indexOf(grid, W, m.cell)))
+    if used[index_of(hex, w, m.cell)] != 0 {  // unchecked: a mirror is on the board
+      out[n] = m
+      n += 1
+    }
+  }
+  return out[0..n]
+}
+
+// A woven board of w columns and height rows at difficulty d (woven()): mirror_count mirrors placed
+// first (off the core's ways out, so its proven stops still hold), then hex_build or weave_run, and
+// only the mirrors some rope's way out turns on are kept. On colossal maps (long_ropes) longer ropes
+// and no core. None where no mirror could be placed or the builder gives up. Everything is in the
+// caller's scope.
+export func woven(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng, style: Style, long_ropes: bool,
+           mirror_count: i32, core_wanted: bool) -> ?*Board {
+  let area = w * height
+  let strength = d / 100.0
+  let length = if long_ropes { min(w, height) * 2 } else { max(7, min(w, height) * 2) }
+  let core: ?*Core = if core_wanted && !long_ropes { repeated_core(hex, w, height, d, rng) } else { 0 }
+  let mirrors: []Mirror = []
+  if mirror_count > 0 {
+    let avoid = zeroed(area as u32) as [*]mut u8
+    if let c = core {
+      if hex {
+        let hb = hex_compile_exn(w, height, [], some_paths(c.ropes))
+        for i in hb.n as u32 {
+          for x in hb.tracks[i] {  // unchecked: a rope of the core
+            avoid[x] = 1  // unchecked: a track is on the board
+          }
+        }
+      } else {
+        if let core_tracks = sq_tracks(some_paths(c.ropes), w, height, no_mirrors()) {  // elif let: bugs/07
+          for t in core_tracks {
+            for y in t {
+              avoid[y] = 1  // unchecked: a track is on the board
+            }
+          }
+        } else {
+          assert false  // the core's ways out pass no cell twice (MoonBit's unwrap)
+        }
+      }
+    }
+    mirrors = place_mirrors(hex, w, height, mirror_count, rng, avoid)
+    return 0 when mirrors.len == 0
+  }
+  let iropes: [][]Pt = []
+  let istops: [][]i32 = []
+  let iplan: ?[]i32 = 0  // enum: none, or the core's plan
+  if let c = core {
+    iropes = c.ropes
+    istops = c.stops
+    iplan = c.plan
+  }
+  return woven_hex(w, height, d, rng, long_ropes, length, mirrors, iropes, istops, iplan) when hex
+  return woven_square(w, height, d, rng, style, long_ropes, length, mirrors, iropes, istops, iplan)
+}
+
+// woven()'s Hex half: hex_build with the knots and traps of the difficulty and the area.
+func woven_hex(w: i32, height: i32, d: f64, rng: *mut Rng, long_ropes: bool, length: i32, mirrors: []Mirror,
+               iropes: [][]Pt, istops: [][]i32, iplan: ?[]i32) -> ?*Board {
+  let area = w * height
+  let strength = d / 100.0
+  let out = alloc(sizeof(Board)) as *mut Board
+  let used = zeroed(area as u32) as [*]mut u8
+  let kf = f64(knots_for(d))
+  let share = min(1.0, f64(area) / 150.0)
+  let knots = max(max(if area >= 30 && d >= 20.0 { 1 } else { 0 },
+                      round_i(f64(area) / (if long_ropes { 50.0 } else { 32.0 }) * strength * strength)),
+                  if long_ropes { 0 } else { round_i(kf * share * 0.7) })
+  let traps = if long_ropes { 0 } else { round_i(kf * share) }
+  let cfg = alloc(sizeof(HexCfg)) as *mut HexCfg
+  cfg.* = HexCfg(w, height, round_i(d * 0.59), 0.99, length, strength * 8.0, mirrors, knots, traps,
+                 iropes, istops, iplan)
+  if let raw = hex_build(rng, cfg) {
+    if mirrors.len > 0 {
+      for c in hex_turning(w, height, mirrors, some_paths(raw.ropes)) {
+        used[c] = 1  // unchecked: a turning cell is on the board
+      }
+    }
+    out.* = Board(true, w, height, raw.ropes, kept_mirrors(true, w, mirrors, used), [], raw.plan)
+    return out
+  }
+  return 0
+}
+
+// woven()'s square half: weave_run with the style's rope lengths (long ropes on colossal maps).
+func woven_square(w: i32, height: i32, d: f64, rng: *mut Rng, style: Style, long_ropes: bool, length: i32,
+                  mirrors: []Mirror, iropes: [][]Pt, istops: [][]i32, iplan: ?[]i32) -> ?*Board {
+  let area = w * height
+  let strength = d / 100.0
+  let out = alloc(sizeof(Board)) as *mut Board
+  let used = zeroed(area as u32) as [*]mut u8
+  let knots = if long_ropes { round_i(f64(area) / 40.0 * strength) } else { knots_for(d) }
+  let traps = if long_ropes { round_i(f64(area) / 70.0 * strength) } else { knots_for(d) }
+  let laid = alloc(sizeof(Board)) as *mut Board
+  laid.* = Board(false, w, height, [], mirrors, [], [])
+  let mmap = sq_mirrors(laid)
+  let lo = if long_ropes { 6 } else { style.len_lo }
+  let hi = if long_ropes { length } else { max(style.len_lo, len_hi_of(style, min(w, height))) }
+  let cfg = WeaveCfg(w, height, lo, hi, if long_ropes { 2 } else { style.min_len }, style.straight, 0.99,
+                     strength * 8.0, knots, traps, if long_ropes { 5 } else { 3 }, mmap, iropes, istops, iplan)
+  if let raw = weave_run(rng, cfg) {
+    if mirrors.len > 0 {
+      if let tracks = sq_tracks(some_paths(raw.ropes), w, height, mmap) {
+        for t in tracks {
+          for c in t {
+            used[c] = 1  // unchecked: a track is on the board
+          }
+        }
+      } else {
+        assert false  // a woven board's ways out pass no cell twice (MoonBit's unwrap)
+      }
+    }
+    out.* = Board(false, w, height, raw.ropes, kept_mirrors(false, w, mirrors, used), [], raw.taps)
+    return out
+  }
+  return 0
+}
+
+// --- Spinners ---
+
+// Every cell beyond each rope's body on its track (its way out, as mirrors bend it), in the
+// caller's scope.
+func ways_out(board: *Board) -> []Pt {
+  let out = vec(Pt, 64)  // grows: nothing is reset while it does
+  let w = board.w
+  if board.hex {
+    let b = hex_compile_exn(w, board.h, board.mirrors, some_paths(board.ropes))
+    for i, rope in board.ropes {  // closure: tracks.flatMap((track, i) => track.slice(...))
+      if let beyond = b.tracks[i][rope.len..] {  // unchecked: a rope of the board
+        for c in beyond {
+          out.push(hex_point(c, w))
+        }
+      }
+    }
+  } else {
+    if let tracks = sq_tracks(some_paths(board.ropes), w, board.h, sq_mirrors(board)) {  // elif let: bugs/07
+      for k, path in board.ropes {
+        if let t = tracks[k] {
+          if let rest = t[path.len..] {
+            for c2 in rest {
+              out.push(Pt(c2 % w, c2 / w))
+            }
+          }
+        }
+      }
+    } else {
+      assert false  // a valid board's ways out pass no cell twice (MoonBit's unwrap)
+    }
+  }
+  return out.items()
+}
+
+// The manual step at which plan first bounces a rope off the spinner at `at`, or -1: the replay
+// must clear the board, and the bouncing rope must not reach the spinner from the start (using
+// it has to wait for another rope to move).
+func bounce_step(g: *mut Geo, plan: []i32, at: Pt) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  let played = g.replay_plan(plan)
+  return -1 when !played.solved
+  let start = some_paths(g.b.ropes)
+  let paths = start
+  for step in played.taps as u32 {
+    let i = plan.ptr[step]  // unchecked: the replay made this many taps of plan
+    let st = g.walk(paths, i)
+    if st.event == ev_bounce && same(last(last_route()), at) {
+      return if g.walk(start, i).event == ev_bounce { -1 } else { step as i32 }
+    }
+    paths = replace(paths, i, st.path)
+  }
+  return -1
+}
+
+// The board with a spinner on cell, if its plan bounces a rope off it, with the tap that bounced
+// played once more (just after, or at the end) so that the plan still clears the board and the
+// bounce is needed (withSpinner). None otherwise. In the caller's scope.
+func with_spinner(board: *Board, cell: Pt) -> ?*Board {
+  let b = with_plan(board.*, board.plan)
+  b.springs = springs_and(board.*, cell)
+  let g = geo(b.*)
+  let paths = some_paths(b.ropes)
+  let plan = b.plan
+  for step, i in plan {
+    let st = g.walk(paths, i)
+    return 0 when st.event == ev_none
+    if st.event == ev_bounce && same(last(last_route()), cell) {
+      // plan with tap i again after step, then plan with it again at the end
+      let n = plan.len
+      let a = alloc((n + 1) * 4) as [*]mut i32
+      let z = alloc((n + 1) * 4) as [*]mut i32
+      for k, x in plan {
+        a[if k <= step { k } else { k + 1 }] = x
+        z[k] = x
+      }
+      a[step + 1] = i
+      z[n] = i
+      for p in 2 {  // closure: for (const plan of [a, z])
+        let tried = if p == 0 { a[0..n + 1] } else { z[0..n + 1] }
+        if g.bounce_step(tried, cell) == step as i32 {
+          b.plan = tried
+          return b
+        }
+      }
+      return 0
+    }
+    paths = replace(paths, i, st.path)
+  }
+  return 0
+}
+
+// The board with a spinner on cell, solved again from the start (a node budget of 12000 over the
+// ropes, from the old plan), if the solution bounces a rope off it as bounce_step asks
+// (searchSpinner). None otherwise. In the caller's scope.
+func search_spinner(board: *Board, cell: Pt) -> ?*Board {
+  let b = with_plan(board.*, board.plan)
+  b.springs = springs_and(board.*, cell)
+  let g = geo(b.*)
+  let solution = g.solve(some_paths(b.ropes), round_i(12000.0 / f64(b.ropes.len)), board.plan)
+  if solution.solved == solved_yes && g.bounce_step(solution.moves, cell) >= 0 {
+    b.plan = solution.moves
+    return b
+  }
+  return 0
+}
+
+// The first of cells' boards that fits: with_spinner on the first 16 cells, else search_spinner on
+// the first 8 (tryCells). Every candidate is made, as the JS's map() does, and the first that fits
+// is kept with its scope; the others are freed.
+func try_cells(board: *Board, cells: []Pt) -> ?*Board {
+  let found: ?*Board = 0
+  for k in min(16, cells.len) {  // closure: cells.slice(0, 16).map(cell => withSpinner(...)).find(Boolean)
+    let scope = mark()
+    let b = with_spinner(board, cells.ptr[k])  // unchecked: k < cells.len
+    if found == 0 && b != 0 {
+      found = b
+    } else {
+      reset(scope)
+    }
+  }
+  return found when found != 0
+  for j in min(8, cells.len) {  // closure: cells.slice(0, 8).map(cell => searchSpinner(...)).find(Boolean)
+    let searched = mark()
+    let sb = search_spinner(board, cells.ptr[j])  // unchecked: j < cells.len
+    if found == 0 && sb != 0 {
+      found = sb
+    } else {
+      reset(searched)
+    }
+  }
+  return found
+}
+
+// The cells of group on the board, off blocked and not seen before (now seen), shuffled with rng
+// (fresh). On the stack.
+func fresh(g: *Geo, group: []Pt, blocked: [*]u8, seen: [*]mut u8, rng: *mut Rng) -> []Pt {
+  let cells = alloc(group.len * sizeof(Pt)) as [*]mut Pt
+  let n: u32 = 0
+  for p in group {  // closure: group.filter(p => ... && seen.add(key(p)))
+    if g.inside(p) {
+      let c = g.cell(p)
+      if blocked[c] == 0 && seen[c] == 0 {  // unchecked: inside
+        seen[c] = 1  // unchecked: inside
+        cells[n] = p
+        n += 1
+      }
+    }
+  }
+  let i = n as i32 - 1
+  while i > 0 {
+    let j = rng.below(i + 1)
+    let t = cells[i as u32]
+    cells[i as u32] = cells[j as u32]
+    cells[j as u32] = t
+    i -= 1
+  }
+  return cells[0..n]
+}
+
+// start with count spinners added one by one (addSpinners): each on a cell the plan's manual taps
+// pass first, else on another cell of some rope's way out, where a solution must bounce a rope off
+// it. None where one cannot be placed. In the caller's scope.
+export func add_spinners(start: *Board, rng: *mut Rng, count: i32) -> ?*Board {
+  let board = start
+  for n in count {
+    let g = geo(board.*)
+    let blocked = zeroed((board.w * board.h) as u32) as [*]mut u8
+    for path in board.ropes {
+      for p in path {
+        blocked[g.cell(p)] = 1  // unchecked: valid(): ropes are on the board
+      }
+    }
+    for m in board.mirrors {
+      blocked[g.cell(m.cell)] = 1  // unchecked: mirrors are on the board
+    }
+    for sp in board.springs {
+      blocked[g.cell(sp)] = 1  // unchecked: springs are on the board
+    }
+    // A spinner straight in front of a head would bounce a rope that has not moved.
+    for path in board.ropes {
+      let d = g.direction(path)
+      let head = last(path)
+      let ahead = Pt(head.q + d.q, head.r + d.r)
+      if g.inside(ahead) {
+        blocked[g.cell(ahead)] = 1  // unchecked: inside
+      }
+    }
+    // The cells the manual moves pass first; only if none of them works, the other cells on the
+    // ropes' ways out.
+    let manual = g.replay_plan(board.plan).taps
+    let routes = vec(Pt, 64)  // grows: nothing is reset while it does
+    let paths = some_paths(board.ropes)
+    for step in manual as u32 {
+      let i = board.plan.ptr[step]  // unchecked: the replay made this many taps
+      let len = if let was = paths[i as u32] { was.len } else { 0 }
+      let st = g.walk(paths, i)
+      assert st.event != ev_none  // the replay took this tap (MoonBit's unwrap)
+      if let beyond = last_route()[len..] {
+        for c in beyond {  // closure: routes.push(...move.route.slice(len))
+          routes.push(c)
+        }
+      }
+      paths = replace(paths, i, st.path)
+    }
+    let seen = zeroed((board.w * board.h) as u32) as [*]mut u8
+    let placed = try_cells(board, fresh(g, routes.items(), blocked, seen, rng))
+    if placed == 0 {
+      placed = try_cells(board, fresh(g, ways_out(board), blocked, seen, rng))
+    }
+    if let b = placed {
+      board = b
+    } else {
+      return 0
+    }
+  }
+  return board
+}
+
+// --- The generator ---
+
+// What an attempt is measured against: the spec and the targets, and the best level so far.
+type Attempts = (s: *Spec, target: f64, ceiling: f64, hardness: f64, min_coverage: f64,
+                 best_value: f64, best: []i32, spare: [*]mut i32, wins: f64, challenge: f64, coverage: f64)
+
+// The level of spec s (generate() of grid-generator.js): up to ten woven candidates (three on
+// colossal maps), each with its spinners, checked by the generator's rules, measured by play
+// (par, the forced work of the par solution, the casual win rate) and scored against the
+// difficulty's target challenge; the best is kept, and the search stops early at a candidate that
+// is dense and on target. None if no candidate passes. The Level is in the caller's scope, and its
+// board is a view of a static buffer that the next call overwrites.
+export func grid_generate(s: *Spec) -> ?*Level {
+  let w = s.w
+  let height = s.h
+  let d = s.difficulty
+  let out = alloc(sizeof(Level)) as *mut Level
+  let r = rng(fnv().text("grid/3/", hash_byte).text(s.seed, hash_byte))
+  let roll = r.next()
+  let twisty = min(w, height) >= 7 && d >= 35.0
+  let style = styles().ptr[if roll < 0.4 { 0 } elif roll < 0.73 || !twisty { 1 } else { 2 }]  // unchecked: 3 styles
+  let colossal = s.colossal
+  let strength = d / 100.0
+  let spinner_count = if s.springs { max(1, s.min_springs) } else { 0 }
+  let min_m = if s.min_mirrors > 0 { s.min_mirrors } else { 2 }
+  let mirror_count = if !s.mirrors {
+    0
+  } else {
+    min(round_i(f64(w * height) / 14.0), if s.hex { 2 * min_m + 2 } else { min_m + 2 + round_i(2.0 * strength) })
+  }
+  let sample_limit = if colossal { 3 } else { 10 }
+  let a = alloc(sizeof(Attempts)) as *mut Attempts
+  a.* = Attempts(s, target_challenge(d), win_ceiling(d), max(0.0, (d - 40.0) / 60.0),
+                 if w * height <= 48 { 0.8 } else { 0.85 }, -1.0e300, [], keep_a as [*]mut i32, 0.0, 0.0, 0.0)
+  for attempt in sample_limit {
+    let scope = mark()
+    defer reset(scope)
+    let wants_core = d >= 60.0 && attempt % 2 == 0
+    let cand = woven(s.hex, w, height, d, r, style, colossal, mirror_count, wants_core)
+    if spinner_count > 0 {
+      if let b = cand {
+        if geo(b.*).valid() {
+          cand = add_spinners(b, r, spinner_count)
+        }
+      }
+    }
+    if let b = cand {
+      break when a.measure(b, attempt as i32, colossal)
+    }
+  }
+  return 0 when a.best.len == 0
+  out.* = read_level(a.best)
+  out.wins = a.wins
+  out.challenge = a.challenge
+  out.coverage = a.coverage
+  return out
+}
+
+// Checks candidate b of attempt by the generator's rules, measures it and keeps it if it is the
+// best so far. Whether the search should stop (a colossal map's first candidate, or one dense and
+// on target).
+func measure(a: *mut Attempts, b: *Board, attempt: i32, colossal: bool) -> bool {  // closure: the body of generate()'s loop
+  let s = a.s
+  let g = geo(b.*)
+  return false when b.w != s.w || b.h != s.h || b.ropes.len < 2 || !g.valid() || g.all_free(some_paths(b.ropes))
+  return false when (s.mirrors && b.mirrors.len == 0) || (s.springs && b.springs.len == 0)
+  let density = coverage(b.*)
+  return false when density < a.min_coverage || !regional(b.*)
+  return false when !g.replay_plan(b.plan).solved || !g.features_used()
+  let result = g.score(colossal)
+  let mech: ?*FeatureStats = if b.mirrors.len > 0 || b.springs.len > 0 { g.feature_stats(result.plan, result.par) } else { 0 }
+  let nm = b.mirrors.len as i32
+  let ns = b.springs.len as i32
+  if let m = mech {
+    return false when nm < s.min_mirrors || ns < s.min_springs || m.used_mirrors != nm || m.used_springs != ns ||
+      m.manual_mirrors < s.min_mirrors || m.manual_springs < s.min_springs
+  }
+  let st = g.slide_stats(result.plan, result.par)
+  return false when (s.require_slide || density < 0.85) && !st.any_slide
+  return false when result.par * 3 < b.ropes.len as i32 || g.trivial()
+  let inter = if colossal { 0.0 } else { g.analyze(result.plan, result.par).interaction }
+  let wins = 1.0
+  if !colossal {
+    let seed = fnv().text("casual/", hash_byte).text(s.seed, hash_byte).text("/", hash_byte).dec(attempt, hash_byte)
+    wins = g.casual_rate(rng(seed), if ns > 0 { 10 } else { 32 })
+  }
+  let work = f64(st.slides + st.bounces)
+  let challenge = work + 6.0 * (1.0 - wins)
+  let value = density * 3.0 - abs(challenge - a.target) * 0.5 - max(0.0, wins - a.ceiling) * 4.0 +
+    (if colossal { 0.0 } else { a.hardness * inter * 0.25 })
+  if value > a.best_value {
+    a.best_value = value
+    let l = alloc(sizeof(Level)) as *mut Level
+    l.* = Level(with_plan(b.*, result.plan).*, result.par, result.exact, density, wins, challenge,
+                st.slides, st.bounces, st.repeated, st.automatic, -1, -1, -1, -1)
+    if let m = mech {
+      l.used_mirrors = m.used_mirrors
+      l.used_springs = m.used_springs
+      l.manual_mirrors = m.manual_mirrors
+      l.manual_springs = m.manual_springs
+    }
+    // into the spare buffer, which then holds the best; the other becomes the spare
+    let words = keep_level(l, a.spare, keep_room)
+    a.spare = if a.spare == keep_a as [*]mut i32 { keep_b as [*]mut i32 } else { keep_a as [*]mut i32 }
+    a.best = words
+    a.wins = wins
+    a.challenge = challenge
+    a.coverage = density
+  }
+  return colossal || (density >= 0.9 && abs(challenge - a.target) <= 0.5 && wins <= a.ceiling)
+}
+
+// --- Tests ---
+
+test "mirrors keep off the edge and off each other" {
+  let scope = mark()
+  defer reset(scope)
+  let avoid = zeroed(100) as [*]mut u8
+  let ms = place_mirrors(false, 10, 10, 6, rng(7), avoid)
+  assert ms.len > 0 && ms.len <= 6
+  for i, m in ms {
+    assert m.cell.q > 0 && m.cell.q < 9 && m.cell.r > 0 && m.cell.r < 9
+    for j, o in ms {
+      if i != j {
+        let dq = m.cell.q - o.cell.q
+        let dr = m.cell.r - o.cell.r
+        assert dq * dq + dr * dr > 1  // not the same cell, not side by side
+      }
+    }
+  }
+  let none = place_mirrors(true, 3, 3, 2, rng(7), avoid)  // only the middle cell is off the edge
+  assert none.len <= 1
+}
+
+test "a small square level, kept as words" {
+  let scope = mark()
+  defer reset(scope)
+  let s = alloc(sizeof(Spec)) as *mut Spec
+  s.* = Spec(false, 6, 6, 30.0, false, false, "TEST", false, 0, 0, false)
+  if let l = grid_generate(s) {
+    assert l.board.w == 6 && l.board.h == 6 && l.board.ropes.len >= 2
+    assert l.par >= 1 && l.coverage >= 0.8 && l.wins >= 0.0 && l.wins <= 1.0
+    assert l.used_mirrors == -1  // no mechanics
+    let g = geo(l.board)
+    assert g.valid() && g.replay_plan(l.board.plan).solved
+  } else {
+    assert false
+  }
+}

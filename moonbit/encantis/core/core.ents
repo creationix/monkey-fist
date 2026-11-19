@@ -1,0 +1,89 @@
+// The Monkey Fist core in Encantis: core.wasm, the generator the game loads in place of MoonBit's
+// dist/gen.wasm (web/generator.js) and dist/mf.wasm (web/mf-core.js, for the bench_* hooks). The
+// exports, signatures and word layouts are those of src/gen/gen.mbt and src/api/api.mbt's bench_*
+// (oracle/README.md has the contract): i32 and f64 only, and no imports.
+//
+//   in_reset, in_push       the input: the code units of a set code or seed, or a position's words
+//   out_len, out_get        the output words; outf_get: 0 casual wins, 1 challenge, 2 coverage
+//   generate(index)         level index of the set whose code is in the input (1), or 0
+//   generate_spec(...)      the level of a specification whose seed is in the input (1), or 0
+//   measure(games)          the casual win rate of the current level, seeded by the input's text
+//   target_challenge(d), win_ceiling(d)
+//   guide(budget), features(budget)    a plan, and the features in reach, from the input's position
+//   bench_casual(games), bench_par(), bench_solve(budget)    on the current level
+//   stack_peak()            the most bytes of stack the last call used (not in the contract)
+//
+// Every export that uses the stack clears it first (gen.ents), so a trap in one call never leaves
+// the next one without room. The generator is the port's own: its Hex levels and its Journey
+// differ from the JS game's (gen.ents, journey.ents); test/g7.wasm is the same core in the JS's
+// mode.
+
+import "./lib/stack" (
+  "peak" func peak() -> u32
+)
+import "./codes" (
+  "target_challenge" func codes_target_challenge(d: f64) -> f64
+  "win_ceiling" func codes_win_ceiling(d: f64) -> f64
+)
+import "./abi" (
+  "in_reset" func abi_in_reset()
+  "in_push" func abi_in_push(c: i32)
+  "out_len" func abi_out_len() -> i32
+  "out_get" func abi_out_get(i: i32) -> i32
+  "outf_get" func abi_outf_get(i: i32) -> f64
+)
+import "./gen" (
+  "generate" func gen_generate(index: i32) -> i32
+  "generate_spec" func gen_generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
+                                         require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32
+  "measure" func gen_measure(games: i32) -> f64
+  "guide" func gen_guide(budget: i32)
+  "features" func gen_features(budget: i32)
+  "bench_casual" func gen_bench_casual(games: i32) -> f64
+  "bench_par" func gen_bench_par() -> i32
+  "bench_solve" func gen_bench_solve(budget: i32) -> i32
+)
+
+export memory
+
+export func in_reset() {
+  abi_in_reset()
+}
+
+export func in_push(c: i32) {
+  abi_in_push(c)
+}
+
+export func out_len() -> i32 => abi_out_len()
+
+export func out_get(i: i32) -> i32 => abi_out_get(i)
+
+export func outf_get(i: i32) -> f64 => abi_outf_get(i)
+
+export func generate(index: i32) -> i32 => gen_generate(index)
+
+export func generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
+                          require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32 =>
+  gen_generate_spec(hex, w, h, difficulty, mirrors, springs, require_slide, min_mirrors, min_springs, colossal)
+
+export func measure(games: i32) -> f64 => gen_measure(games)
+
+export func target_challenge(d: f64) -> f64 => codes_target_challenge(d)
+
+export func win_ceiling(d: f64) -> f64 => codes_win_ceiling(d)
+
+export func guide(budget: i32) {
+  gen_guide(budget)
+}
+
+export func features(budget: i32) {
+  gen_features(budget)
+}
+
+export func bench_casual(games: i32) -> f64 => gen_bench_casual(games)
+
+export func bench_par() -> i32 => gen_bench_par()
+
+export func bench_solve(budget: i32) -> i32 => gen_bench_solve(budget)
+
+export func stack_peak() -> i32 => peak() as i32

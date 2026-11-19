@@ -49,5 +49,7 @@ wasm test/g5.ents test/g5.wasm
 inline metrics.ents play.ents
 wasm test/g6.ents test/g6.wasm
 
-# --- G7: the core (once it exists) ---
-if [ -f core.ents ]; then wasm core.ents core.wasm; fi
+# --- G7: the generator, the API and the core ---
+inline gridgen.ents
+wasm test/g7.ents test/g7.wasm
+wasm core.ents core.wasm

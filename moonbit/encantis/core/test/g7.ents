@@ -1,0 +1,231 @@
+// The entry of G7's oracles: the core's exports (gen.ents) in the JS's mode by default (hex_build
+// draws as the JS does, and the Journey is the JS game's), so that every level is the JS game's and
+// the harness's own tests (parity.test, generator.test, measurements-wasm.test, parity.mjs) can
+// check it field by field; t_js_mode(0) switches to the port's own mode, which is core.wasm's.
+// Plus draws(), stack_peak(), and a t_ hook for each unit of gridgen.ents that capture.cjs records
+// (check-g7-units.cjs): t_place_mirrors, t_woven, t_add_spinners. Each hook clears the stack first.
+
+import "../lib/stack" (
+  "clear" func clear()
+  "peak" func peak() -> u32
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "../random" (
+  "draws" func draws_made() -> u32
+  "reset_draws" func reset_draws(on: bool)
+  "rng" func new_rng(seed: u32) -> *mut Rng
+)
+import "../codes" (
+  "target_challenge" func codes_target_challenge(d: f64) -> f64
+  "win_ceiling" func codes_win_ceiling(d: f64) -> f64
+)
+import "../abi" (
+  "in_reset" func abi_in_reset()
+  "in_push" func abi_in_push(c: i32)
+  "out_len" func abi_out_len() -> i32
+  "out_get" func abi_out_get(i: i32) -> i32
+  "outf_get" func abi_outf_get(i: i32) -> f64
+  "out_clear" func out_clear()
+  "put" func put(w: i32)
+  "input" func input() -> []i32
+  "read_position" func read_position() -> (board: Board, paths: []?[]Pt, prefer: []i32)
+)
+import "../hexbuild" (
+  "set_draw_exact" func set_draw_exact(on: bool)
+)
+import "../weave" (
+  "styles" func styles() -> []Style
+)
+import "../gridgen" (
+  "place_mirrors" func place_mirrors(hex: bool, w: i32, height: i32, count: i32, rng: *mut Rng, avoid: [*]u8) -> []Mirror
+  "woven" func woven(hex: bool, w: i32, height: i32, d: f64, rng: *mut Rng, style: Style, long_ropes: bool,
+                     mirror_count: i32, core_wanted: bool) -> ?*Board
+  "add_spinners" func add_spinners(start: *Board, rng: *mut Rng, count: i32) -> ?*Board
+)
+import "../gen" (
+  "set_js_mode" func set_js_mode(on: bool)
+  "generate" func gen_generate(index: i32) -> i32
+  "generate_spec" func gen_generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
+                                         require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32
+  "measure" func gen_measure(games: i32) -> f64
+  "guide" func gen_guide(budget: i32)
+  "features" func gen_features(budget: i32)
+  "bench_casual" func gen_bench_casual(games: i32) -> f64
+  "bench_par" func gen_bench_par() -> i32
+  "bench_solve" func gen_bench_solve(budget: i32) -> i32
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type Rng = (a: u32)
+type Style = (kind: i32, min_len: i32, straight: f64, len_lo: i32, twisty: bool)
+
+export memory
+
+// The JS's mode (1, the default here) or the port's (0).
+global js: bool = true
+
+export func t_js_mode(on: i32) {
+  js = on == 1
+}
+
+func mode() {
+  set_js_mode(js)
+}
+
+// --- The buffers and the core's exports ---
+
+export func in_reset() {
+  abi_in_reset()
+}
+
+export func in_push(c: i32) {
+  abi_in_push(c)
+}
+
+export func out_len() -> i32 => abi_out_len()
+
+export func out_get(i: i32) -> i32 => abi_out_get(i)
+
+export func outf_get(i: i32) -> f64 => abi_outf_get(i)
+
+export func generate(index: i32) -> i32 {
+  mode()
+  return gen_generate(index)
+}
+
+export func generate_spec(hex: i32, w: i32, h: i32, difficulty: f64, mirrors: i32, springs: i32,
+                          require_slide: i32, min_mirrors: i32, min_springs: i32, colossal: i32) -> i32 {
+  mode()
+  return gen_generate_spec(hex, w, h, difficulty, mirrors, springs, require_slide, min_mirrors, min_springs, colossal)
+}
+
+export func measure(games: i32) -> f64 => gen_measure(games)
+
+export func target_challenge(d: f64) -> f64 => codes_target_challenge(d)
+
+export func win_ceiling(d: f64) -> f64 => codes_win_ceiling(d)
+
+export func guide(budget: i32) {
+  gen_guide(budget)
+}
+
+export func features(budget: i32) {
+  gen_features(budget)
+}
+
+export func bench_casual(games: i32) -> f64 => gen_bench_casual(games)
+
+export func bench_par() -> i32 => gen_bench_par()
+
+export func bench_solve(budget: i32) -> i32 => gen_bench_solve(budget)
+
+export func draws() -> i32 => draws_made() as i32
+
+export func stack_peak() -> i32 => peak() as i32
+
+// --- The units ---
+
+// A board's words: hex, W, H, ropes, mirrors, springs, plan (counted lists).
+func put_board(b: *Board) {
+  put(if b.hex { 1 } else { 0 })
+  put(b.w)
+  put(b.h)
+  put(b.ropes.len as i32)
+  for p in b.ropes {
+    put(p.len as i32)
+    for c in p {
+      put(c.q)
+      put(c.r)
+    }
+  }
+  put(b.mirrors.len as i32)
+  for m in b.mirrors {
+    put(m.cell.q)
+    put(m.cell.r)
+    put(m.kind)
+  }
+  put(b.springs.len as i32)
+  for c in b.springs {
+    put(c.q)
+    put(c.r)
+  }
+  put(b.plan.len as i32)
+  for i in b.plan {
+    put(i)
+  }
+}
+
+// The rng's state after, then the board's words or -1 for none.
+func put_result(r: *Rng, b: ?*Board) {
+  out_clear()
+  put(r.a as i32)
+  if let board = b {
+    put_board(board)
+  } else {
+    put(-1)
+  }
+}
+
+// placeMirrors(grid, W, height, count, mulberry32(state), avoid), avoid's cells the input words.
+// Out: the state after, the count, then q, r, kind of each mirror.
+export func t_place_mirrors(state: i32, hex: i32, w: i32, h: i32, count: i32) {
+  clear()
+  reset_draws(false)
+  set_draw_exact(js)
+  let avoid = input()
+  let area = (w * h) as u32
+  let marks = alloc_zeroed(area)
+  for c in avoid {
+    if let m = &marks[c as u32] {
+      m.* = 1
+    }
+  }
+  let r = new_rng(state as u32)
+  let ms = place_mirrors(hex == 1, w, h, count, r, marks.ptr)
+  out_clear()
+  put(r.a as i32)
+  put(ms.len as i32)
+  for m in ms {
+    put(m.cell.q)
+    put(m.cell.r)
+    put(m.kind)
+  }
+}
+
+func alloc_zeroed(n: u32) -> []mut u8 => (zeroed(n) as [*]mut u8)[0..n]
+
+// woven(grid, W, height, d, mulberry32(state), L.STYLES[style], { longRopes }, G, { mirrors, core }).
+// Out: the state after, then the board or -1.
+export func t_woven(state: i32, hex: i32, w: i32, h: i32, d: f64, style: i32, long_ropes: i32, mirrors: i32, core: i32) {
+  clear()
+  reset_draws(false)
+  set_draw_exact(js)
+  let r = new_rng(state as u32)
+  if let st = styles()[style as u32] {
+    put_result(r, woven(hex == 1, w, h, d, r, st, long_ropes == 1, mirrors, core == 1))
+  }
+}
+
+// addSpinners(b, G, mulberry32(state), count), b in the input as position words whose preferred
+// order is its plan. Out: the state after, then the board or -1.
+export func t_add_spinners(state: i32, count: i32) {
+  clear()
+  reset_draws(false)
+  set_draw_exact(js)
+  let (board:, paths:, prefer:) = read_position()
+  board.plan = prefer
+  let b = alloc_board(board)
+  let r = new_rng(state as u32)
+  put_result(r, add_spinners(b, r, count))
+}
+
+func alloc_board(b: Board) -> *mut Board {
+  let p = alloc(sizeof(Board)) as *mut Board
+  p.* = b
+  return p
+}

@@ -220,52 +220,77 @@ export func read_level(words: []i32) -> Level {
   return Level(b, par, exact, 0.0, 0.0, 0.0, r.next(), r.next(), r.next(), r.next(), r.next(), r.next(), r.next(), r.next())
 }
 
+// The words of level l up to its plan: hex, W, H, par, exact; the ropes; mirrors; springs;
+// plan (put_level's first part), each given to put.
+func level_head(comptime S: type, s: S, l: *Level, comptime put: (S, i32) -> S) -> S {
+  let b = l.board
+  s = s.put(if b.hex { 1 } else { 0 }).put(b.w).put(b.h).put(l.par).put(if l.exact { 1 } else { 0 })
+  s = s.put(b.ropes.len as i32)
+  for p in b.ropes {
+    s = s.put(p.len as i32)
+    for c in p {
+      s = s.put(c.q).put(c.r)
+    }
+  }
+  s = s.put(b.mirrors.len as i32)
+  for m in b.mirrors {
+    s = s.put(m.cell.q).put(m.cell.r).put(m.kind)
+  }
+  s = s.put(b.springs.len as i32)
+  for c in b.springs {
+    s = s.put(c.q).put(c.r)
+  }
+  s = s.put(b.plan.len as i32)
+  for i in b.plan {
+    s = s.put(i)
+  }
+  return s
+}
+
+// The 8 stats of level l, each given to put (put_level's last part).
+func level_stats(comptime S: type, s: S, l: *Level, comptime put: (S, i32) -> S) -> S {
+  return s.put(l.slides).put(l.bounces).put(l.repeated).put(l.automatic)
+    .put(l.used_mirrors).put(l.used_springs).put(l.manual_mirrors).put(l.manual_springs)
+}
+
+// A sink of words (level_head's) that puts each as an output word.
+func put_word(n: u32, w: i32) -> u32 {
+  put(w)
+  return n + 1
+}
+
 // The output words of level l (put_level of gen.mbt): hex, W, H, par, exact; the
 // ropes; mirrors; springs; plan; the layout key; then the 8 stats. Doubles 0 to 2:
 // wins, challenge, coverage.
 export func put_level(l: *Level) {
   out_clear()
-  let b = l.board
-  put(if b.hex { 1 } else { 0 })
-  put(b.w)
-  put(b.h)
-  put(l.par)
-  put(if l.exact { 1 } else { 0 })
-  put(b.ropes.len as i32)
-  for p in b.ropes {
-    put(p.len as i32)
-    for c in p {
-      put(c.q)
-      put(c.r)
-    }
-  }
-  put(b.mirrors.len as i32)
-  for m in b.mirrors {
-    put(m.cell.q)
-    put(m.cell.r)
-    put(m.kind)
-  }
-  put(b.springs.len as i32)
-  for c in b.springs {
-    put(c.q)
-    put(c.r)
-  }
-  put(b.plan.len as i32)
-  for i in b.plan {
-    put(i)
-  }
+  level_head(0:u32, l, put_word)
   let at = begin_count()
-  layout_key(0:u32, b, put_byte)
+  layout_key(0:u32, l.board, put_byte)
   end_count(at)
-  put(l.slides)
-  put(l.bounces)
-  put(l.repeated)
-  put(l.automatic)
-  put(l.used_mirrors)
-  put(l.used_springs)
-  put(l.manual_mirrors)
-  put(l.manual_springs)
+  level_stats(0:u32, l, put_word)
   putf(0, l.wins)
   putf(1, l.challenge)
   putf(2, l.coverage)
+}
+
+// A buffer of words being written: where, how many so far, and how many it can hold.
+type Words = (base: [*]mut i32, n: u32, room: u32)
+
+// A sink of words (level_head's) into a buffer of words.
+func word_to(w: *mut Words, x: i32) -> *mut Words {
+  assert w.n < w.room
+  w.base[w.n] = x  // unchecked: n < room, the buffer's words
+  w.n += 1
+  return w
+}
+
+// Level l as put_level's words, with an empty layout key, into buf (room words): a level that
+// must outlive the stack, read back with read_level. The doubles are not in the words. The
+// words, a view of buf.
+export func keep_level(l: *Level, buf: [*]mut i32, room: u32) -> []i32 {
+  let w = alloc(sizeof(Words)) as *mut Words
+  w.* = Words(buf, 0, room)
+  level_stats(level_head(w, l, word_to).word_to(0), l, word_to)
+  return buf[0..w.n]
 }
