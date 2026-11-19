@@ -1,0 +1,191 @@
+// assist.mbt of the MoonBit core: the game's assistance, as game-engine.js at 9e69e3a gives it.
+// guide is a hint or an auto-solve: the preferred order replayed first, then the search.
+// reachable_features is which mirrors and springs (spinners) some rope could still reach.
+//
+// Both take the board's tables (mech.ents's Geo). What they return is on the stack in the
+// caller's scope; the positions and states on the way are in a scope of their own.
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+)
+import "./random" (
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+  "reverse" func reverse(comptime T: type, xs: []mut T)
+)
+import "./board" (
+  "all_gone" func all_gone(paths: []?[]Pt) -> bool
+)
+import "./keys" (
+  "KeySet" func KeySet(comptime W: type) -> type
+  "keyset" func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W)
+  "add_key" func add_key(comptime W: type, s: *mut KeySet(W), key: []W) -> bool
+)
+import "./hex" (
+  "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_dir" func hex_dir(d: i32) -> Pt
+)
+import "./mech" (
+  "cell" func cell(g: *Geo, p: Pt) -> i32
+  "inside" func inside(g: *Geo, p: Pt) -> bool
+  "walk" func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step
+  "replace" func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt
+  "solve" func solve(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+
+def solved_yes = 1:i32
+def ev_none = -1:i32
+
+// --- guide ---
+
+// A plan from paths (game-engine.js guide). The preferred order is tried first, skipping the
+// ropes that have already left: an earlier exit can make later taps of the same rope
+// redundant, and the old plan often still clears the board (nodes 0 then). Otherwise the
+// search from paths, with the budget. The moves are in the caller's scope.
+export func guide(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved {
+  let moves = vec(i32, prefer.len)  // reserve: a move a preferred tap
+  let scope = mark()
+  let current = paths
+  for i in prefer {
+    if let p = current[i as u32] {
+      let st = g.walk(current, i)
+      break when st.event == ev_none
+      moves.push(i)
+      current = replace(current, i, st.path)
+    }
+  }
+  let done = all_gone(current)
+  reset(scope)
+  return Solved(solved_yes, moves.items(), 0) when done
+  return g.solve(paths, budget, prefer)
+}
+
+// --- reachable_features ---
+
+// The mirrors and springs (by index: the mirrors first, then the springs) that some rope could
+// still pass, in the order they were first reached (game-engine.js reachableFeatures). Each rope
+// runs alone, and may stop after any unit step: a superset of real play, so only a feature no
+// trajectory reaches is reported gone. Running out of budget (rope states looked at, over all
+// ropes) gives every feature, rather than guessing. In the caller's scope.
+export func reachable_features(g: *mut Geo, paths: []?[]Pt, budget: i32) -> []i32 {
+  let b = g.b
+  let nm = b.mirrors.len
+  let total = nm + b.springs.len
+  let out = alloc(total * 4) as [*]mut i32
+  for k in total {
+    out[k] = k as i32
+  }
+  let everything = out[0..total]
+  return everything when total == 0
+  let live = vec(i32, total)  // reserve: each feature once
+  let scope = mark()
+  defer reset(scope)
+  // the feature on each cell, -1 for none (MoonBit's Map[Int32, Int32])
+  let area = (g.w * g.h) as u32
+  let feature = alloc(area * 4) as [*]mut i32
+  feature[0..area] = -1
+  for k, m in b.mirrors {
+    feature[g.cell(m.cell)] = k as i32  // unchecked: a mirror is on the board
+  }
+  for k, p in b.springs {
+    feature[g.cell(p)] = (nm + k) as i32  // unchecked: a spring is on the board
+  }
+  let reached = zeroed(total) as [*]mut u8
+  let visited: i32 = 0
+  for original in paths {
+    if let start = original {
+      let rope = mark()
+      defer reset(rope)
+      let n = start.len
+      assert n >= 2
+      // the rope's path as it moves (two buffers, the next written from the last), and its cells
+      let path = alloc(n * sizeof(Pt)) as [*]mut Pt
+      let spare = alloc(n * sizeof(Pt)) as [*]mut Pt
+      let cells = alloc(n * 4) as [*]mut i32
+      for k, c in start {
+        path[k] = c
+      }
+      // reserve: a state a step this rope can take within the budget
+      let room = if budget > visited { (budget - visited) as u32 + 1 } else { 1 }
+      let seen = keyset(i32, room, room * n)
+      loop {
+        return everything when visited >= budget
+        visited += 1
+        for k in n {
+          cells[k] = g.cell(path[k])
+        }
+        break when !seen.add_key(cells[0..n])
+        let head = path[n - 1]
+        let previous = path[n - 2]
+        let dq = head.q - previous.q
+        let dr = head.r - previous.r
+        let at_head = g.cell(head)
+        let kind = g.mirror[at_head]  // unchecked: the head is on the board
+        if kind >= 0 {
+          reached.note(live, feature[at_head])  // unchecked: the head is on the board
+          if g.hex {
+            let d = hex_dir((2 * kind - hex_dir_index(dq, dr) + 6) % 6)
+            dq = d.q
+            dr = d.r
+          } elif kind == 0 {
+            let t = dq
+            dq = -dr
+            dr = -t
+          } else {
+            let t2 = dq
+            dq = dr
+            dr = t2
+          }
+        }
+        let next = Pt(head.q + dq, head.r + dr)
+        break when !g.inside(next)
+        let at = g.cell(next)
+        break when cells[0..n].contains(at)
+        let f = feature[at]  // unchecked: next is on the board
+        if f >= 0 {
+          reached.note(live, f)
+        }
+        return everything when live.len == total  // every feature reached: the JS gives them all, in index order
+        // the path one step on: its tail cell off, next on; a spring reverses it
+        for k in n - 1 {
+          spare[k] = path[k + 1]
+        }
+        spare[n - 1] = next
+        if g.spring[at] != 0 {  // unchecked: next is on the board
+          spare[0..n].reverse()
+        }
+        let t3 = path
+        path = spare
+        spare = t3
+      }
+    }
+  }
+  return live.items()
+}
+
+// Feature f is reached: kept in the order reached, once.
+func note(reached: [*]mut u8, live: *mut Vec(i32), f: i32) {
+  if reached[f] == 0 {  // unchecked: a feature index
+    reached[f] = 1
+    live.push(f)
+  }
+}

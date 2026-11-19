@@ -1,0 +1,773 @@
+// mech.mbt of the MoonBit core: full-geometry movement for both grids (mechanics.js and
+// hex/mechanics.js at 9e69e3a): every tap and its route, mirrors turning a rope, springs
+// (spinners) reversing it, and the bounded full-path searches; plus the routing of
+// game-engine.js, which sends a board without springs to the offset kernels (square.ents,
+// hex.ents) and every other board here.
+//
+// A board's lookup tables are a Geo behind a *mut, made on the stack by geo(b): the mirror
+// and spring of each cell, the stamp table that marks the cells ropes occupy, and whether the
+// board runs on the kernels (tracked, worked out once). The Geo holds the board, so the
+// routing is g.solve(paths, budget, prefer), g.replay(moves, paths) and so on.
+//
+// A tap walks the rope's head through static scratch (the linear list of states seen, as the
+// JS's Set and MoonBit's Array are searched, and the route): walk() gives the event, the
+// distance and the rope's path after, the only thing it puts on the stack. tap() is the
+// game's: it adds the position after (a copy of the outer list, 8 bytes a rope) and a copy of
+// the route. The searches use walk(), and copy the position only for the tap they follow.
+//
+// Positions seen. The depth-first search (solve_full) keeps the positions it has seen as
+// keys.ents keys of u16 words (per rope 0 if it has left, else its length + 1 and its cells),
+// copied into room reserved before the search: (budget + 1) keys of the start's length. The
+// breadth-first search (minimum_taps) keeps every position in its queue anyway, so its set
+// (lib/set) holds the positions themselves, hashed and compared rope by rope: no copies.
+//
+// Lifetimes, as square.ents: what a function returns is on the stack in the caller's scope,
+// and a search does its work in a scope of its own. Options: tap and minimum_taps return ?*T
+// (none where the JS gives null or throws); walk gives a Step whose event is ev_none for none
+// (`// enum:`). Solved.solved is solved_yes, solved_no or solved_unknown.
+
+import "./lib/stack" (
+  "mark" func mark() -> u32
+  "reset" func reset(m: u32)
+  "alloc" func alloc(n: u32) -> u32
+  "zeroed" func zeroed(n: u32) -> u32
+)
+import "./lib/vec" (
+  "Vec" func Vec(comptime T: type) -> type
+  "vec" func vec(comptime T: type, cap: u32) -> *mut Vec(T)
+  "push" func push(comptime T: type, v: *mut Vec(T), x: T)
+  "pop" func pop(comptime T: type, v: *mut Vec(T)) -> T
+  "items" func items(comptime T: type, v: *Vec(T)) -> []T
+  "items_mut" func items_mut(comptime T: type, v: *mut Vec(T)) -> []mut T
+)
+import "./lib/fixedvec" (
+  "FixedVec" func FixedVec(comptime n: u32, comptime T: type) -> type
+  "push" func fixed_push(comptime n: u32, comptime T: type, v: *mut FixedVec(n, T), x: T) -> bool
+  "items" func fixed_items(comptime n: u32, comptime T: type, v: *FixedVec(n, T)) -> []T
+  "clear" func fixed_clear(comptime n: u32, comptime T: type, v: *mut FixedVec(n, T))
+)
+import "./lib/sort" (
+  "sort" func sort(comptime T: type, xs: []mut T, comptime before: (T, T) -> bool)
+)
+import "./lib/set" (
+  "Set" func Set(comptime K: type) -> type
+  "hashset" func hashset(comptime K: type, bits: u32) -> *mut Set(K)
+  "add" func add(comptime K: type, s: *mut Set(K), k: K) -> bool
+)
+import "./random" (
+  "contains" func contains(comptime T: type, xs: []T, x: T) -> bool
+  "reverse" func reverse(comptime T: type, xs: []mut T)
+)
+import "./board" (
+  "gone" func gone() -> ?[]Pt
+  "some_paths" func some_paths(ropes: [][]Pt) -> []?[]Pt
+  "all_gone" func all_gone(paths: []?[]Pt) -> bool
+  "last" func last(p: []Pt) -> Pt
+  "no_mirrors" func no_mirrors() -> *mut SqMirrors
+  "sq_mirrors" func sq_mirrors(b: *Board) -> *mut SqMirrors
+)
+import "./keys" (
+  "KeySet" func KeySet(comptime W: type) -> type
+  "keyset" func keyset(comptime W: type, keys: u32, words: u32) -> *mut KeySet(W)
+  "add_key" func add_key(comptime W: type, s: *mut KeySet(W), key: []W) -> bool
+  "has_key" func has_key(comptime W: type, s: *KeySet(W), key: []W) -> bool
+)
+import "./square" (
+  "turn" func turn(s: i32, dx: i32, dy: i32) -> (i32, i32)
+  "head_dir" func head_dir(path: []Pt) -> (dx: i32, dy: i32)
+  "sq_board" func sq_board(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> ?*mut SqBoard
+  "sq_free" func sq_free(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> bool
+  "sq_frozen" func sq_frozen(paths: []?[]Pt, w: i32, h: i32, m: *SqMirrors) -> []i32
+  "sq_solve" func sq_solve(paths: []?[]Pt, w: i32, h: i32, budget: i32, prefer: []i32, m: *SqMirrors) -> Solved
+  "sq_replay" func sq_replay(paths: []?[]Pt, w: i32, h: i32, taps: []i32, m: *SqMirrors) -> Replayed
+)
+import "./hex" (
+  "hex_inside" func hex_inside(w: i32, h: i32, p: Pt) -> bool
+  "hex_cell" func hex_cell(p: Pt, w: i32) -> i32
+  "hex_reflect" func hex_reflect(d: i32, axis: i32) -> i32
+  "hex_dir_index" func hex_dir_index(dq: i32, dr: i32) -> i32
+  "hex_dir" func hex_dir(d: i32) -> Pt
+  "hex_compile" func hex_compile(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> ?*mut HexBoard
+  "hex_compile_exn" func hex_compile_exn(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt) -> *mut HexBoard
+  "free" func hex_free(b: *HexBoard) -> bool
+  "frozen" func hex_frozen(b: *HexBoard) -> []i32
+  "hex_solve" func hex_solve(w: i32, h: i32, mirrors: []Mirror, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved
+  "hex_replay" func hex_replay(w: i32, h: i32, mirrors: []Mirror, moves: []i32, paths: []?[]Pt) -> Replayed
+)
+
+// --- The canonical type block ---
+type Pt = (q: i32, r: i32)
+type Mirror = (cell: Pt, kind: i32)       // kind: the axis on Hex; 1 for '\', 0 for '/' on square
+type Board = (hex: bool, w: i32, h: i32, ropes: [][]Pt, mirrors: []Mirror, springs: []Pt, plan: []i32)
+// --- end of the canonical type block ---
+type SqMirrors = (slope: [*]mut i32, cells: i32, keys: *mut Vec(i32))
+type SqBoard = (n: i32, left: i32, occ: [*]mut i32, at: [*]mut i32, seq: [*]mut []i32, len: [*]mut i32,
+                off: [*]mut i32, was: [*]mut i32, now: [*]mut i32)
+type HexBoard = (w: i32, n: i32, left: i32, tracks: [*]mut []i32, lengths: [*]mut i32, offsets: [*]mut i32,
+                 occupied: [*]mut i32, at: [*]mut i32, reach: [*]mut i32)
+type Solved = (solved: i32, moves: []i32, nodes: i32)
+type Par = (plan: []i32, par: i32, exact: bool, nodes: i32)
+type Replayed = (solved: bool, taps: i32, events: []i32, paths: []?[]Pt)
+
+def solved_yes = 1:i32
+def solved_no = 0:i32
+def solved_unknown = -1:i32  // enum: MoonBit's Bool?
+def ev_exit = 0:i32
+def ev_bounce = 1:i32
+def ev_slide = 2:i32
+def ev_none = -1:i32         // enum: a tap that is not allowed (MoonBit's Move? is None)
+
+// The lookup tables of a board (MoonBit's Geo): by cell, the mirror's kind (-1 for none),
+// whether a spring is there, and occ, the stamp of the last mark() on the cells ropes held.
+// kernels: -1 until worked out, then 1 where the board runs on the offset kernels. sqm: the
+// square kernels' mirrors (none on Hex).
+type Geo = (b: Board, hex: bool, w: i32, h: i32, mirror: [*]mut i32, spring: [*]mut u8, occ: [*]mut i32,
+            stamp: i32, kernels: i32, sqm: *mut SqMirrors)
+
+// A tap: the paths after it (none for a rope that has left), what happened, how far the head
+// went, and the route it took (the old path, then each cell the head entered).
+type Move = (paths: []?[]Pt, event: i32, distance: i32, route: []Pt)
+
+// What a tap does to its own rope: the event (ev_none where the tap is not allowed), the
+// distance, and the rope's path after it (none once it has left).
+type Step = (event: i32, distance: i32, path: ?[]Pt)
+
+// --- The board's tables ---
+
+// The tables of board b, on the stack in the caller's scope (Geo::new).
+export func geo(b: Board) -> *mut Geo {
+  let area = b.w * b.h
+  assert area >= 0 && area < 0x10000000  // area * 4 must not wrap
+  let n = area as u32
+  let mirror = alloc(n * 4) as [*]mut i32
+  mirror[0..n] = -1
+  let g = alloc(sizeof(Geo)) as *mut Geo
+  g.* = Geo(b, b.hex, b.w, b.h, mirror, zeroed(n) as [*]mut u8, zeroed(n * 4) as [*]mut i32, 0, -1, no_mirrors())
+  if !b.hex {
+    g.sqm = sq_mirrors(&g.b)
+  }
+  for m in b.mirrors {
+    let at = g.cell(m.cell)
+    assert at >= 0 && at < area
+    mirror[at] = m.kind  // unchecked: asserted
+  }
+  for p in b.springs {
+    let c = g.cell(p)
+    assert c >= 0 && c < area
+    g.spring[c] = 1  // unchecked: asserted
+  }
+  return g
+}
+
+// The cell index of p.
+export func cell(g: *Geo, p: Pt) -> i32 => if g.hex { hex_cell(p, g.w) } else { p.r * g.w + p.q }
+
+// Whether p is on the board.
+export func inside(g: *Geo, p: Pt) -> bool {
+  return hex_inside(g.w, g.h, p) when g.hex
+  return p.q >= 0 && p.r >= 0 && p.q < g.w && p.r < g.h
+}
+
+// The way a rope leaves: its head's direction, turned by a mirror under the head.
+export func direction(g: *Geo, path: []Pt) -> Pt {
+  let dq, dr = head_dir(path)
+  let m = g.mirror[g.cell(last(path))]  // unchecked: the head is on the board
+  return Pt(dq, dr) when m < 0
+  return hex_dir(hex_reflect(hex_dir_index(dq, dr), m)) when g.hex
+  let tq, tr = turn(m, dq, dr)
+  return Pt(tq, tr)
+}
+
+// Stamps the cells of every rope still there, with a stamp of its own. The stamp.
+func mark_ropes(g: *mut Geo, paths: []?[]Pt) -> i32 {
+  g.stamp += 1
+  let s = g.stamp
+  for p in paths {
+    if let path = p {
+      for c in path {
+        g.occ[g.cell(c)] = s  // unchecked: a rope's cell is on the board
+      }
+    }
+  }
+  return s
+}
+
+// paths with rope i's path replaced by p, on the stack.
+export func replace(paths: []?[]Pt, i: i32, p: ?[]Pt) -> []?[]Pt {
+  let out = copy_paths(paths)
+  assert i >= 0 && (i as u32) < out.len
+  out.ptr[i as u32] = p  // unchecked: asserted
+  return out
+}
+
+// --- A tap ---
+
+// The scratch of a walk. A head never enters the same cell twice in one direction, so the
+// states seen are at most 4 a cell on square (one a cell on Hex), and the route is the path,
+// those steps, and an exit's path.len + 2: 6 * max_area + 2 at most.
+// comptime-n: the bounds are in the types (FixedVec(n, T)), and every push is checked by them
+data seen_cells = mut [0:i32; 9216]
+data seen: FixedVec(9216, i32) = mut (0, seen_cells)
+data route_cells: *mut [13826]Pt = mut [(0, 0); 13826]
+data route: FixedVec(13826, Pt) = mut (0, route_cells)
+
+func to_route(p: Pt) {
+  assert route.fixed_push(p)  // a cell past the bound above: not a board this game makes
+}
+
+func see(state: i32) {
+  assert seen.fixed_push(state)
+}
+
+// The route of the last walk: the old path, then each cell the head entered. Valid until the
+// next walk.
+export func last_route() -> []Pt => route.fixed_items()
+
+// Where a tap of rope i takes it (MoonBit's Geo::tap without the position): its event, the
+// distance its head went, and its path after, on the stack. The event is ev_none where the
+// tap is not allowed (the rope has left, does not move, or would never settle). The route is
+// last_route() until the next walk.
+export func walk(g: *mut Geo, paths: []?[]Pt, i: i32) -> Step {
+  if let path = paths[i as u32] {
+    let s = g.mark_ropes(paths)
+    route.fixed_clear()
+    seen.fixed_clear()
+    for c in path {
+      to_route(c)
+    }
+    let event, distance = if g.hex { g.walk_hex(path, s) } else { g.walk_square(path, s) }
+    return Step(ev_none, 0, 0) when event == ev_none || (event == ev_slide && distance == 0)
+    return Step(ev_exit, distance, 0) when event == ev_exit
+    // the rope's cells after: the route's last path.len, reversed by a spring
+    let cells = route.fixed_items()
+    let n = path.len
+    let tail = alloc(n * sizeof(Pt)) as [*]mut Pt
+    for k, c in cells[cells.len - n..] ?? cells {
+      tail[k] = c
+    }
+    if event == ev_bounce {
+      tail[0..n].reverse()
+    }
+    return Step(event, distance, tail[0..n])
+  }
+  return Step(ev_none, 0, 0)
+}
+
+// The square walk (mechanics.js tap): the head moves on until a rope or the edge; a mirror
+// turns it, a spring stops it (bounce). A state (cell and direction) met twice never settles.
+func walk_square(g: *Geo, path: []Pt, s: i32) -> (event: i32, distance: i32) {
+  let d = g.direction(path)
+  let dq = d.q
+  let dr = d.r
+  let p = last(path)
+  event = ev_slide
+  distance = 0
+  loop {
+    let state = ((p.r * g.w + p.q) * 3 + dq + 1) * 3 + dr + 1
+    if seen.fixed_items().contains(state) {
+      event = ev_none
+      return
+    }
+    see(state)
+    let nq = p.q + dq
+    let nr = p.r + dr
+    if nq < 0 || nr < 0 || nq >= g.w || nr >= g.h {
+      event = ev_exit
+      for k in path.len + 2 {  // the whole rope runs off the board
+        p = Pt(p.q + dq, p.r + dr)
+        to_route(p)
+        distance += 1
+      }
+      return
+    }
+    let c = nr * g.w + nq
+    return when g.occ[c] == s  // unchecked: on the board
+    p = Pt(nq, nr)
+    to_route(p)
+    distance += 1
+    if g.spring[c] != 0 {  // unchecked: on the board
+      event = ev_bounce
+      return
+    }
+    let m = g.mirror[c]  // unchecked: on the board
+    if m >= 0 {
+      set (dq, dr) = turn(m, dq, dr)
+    }
+  }
+}
+
+// The Hex walk (hex/mechanics.js tap): the same, but a spring is entered and reverses the rope
+// at once, and a cell entered twice never settles.
+func walk_hex(g: *Geo, path: []Pt, s: i32) -> (event: i32, distance: i32) {
+  let d0 = g.direction(path)
+  let d = hex_dir_index(d0.q, d0.r)
+  let p = last(path)
+  event = ev_slide
+  distance = 0
+  loop {
+    let step = hex_dir(d)
+    let next = Pt(p.q + step.q, p.r + step.r)
+    if !g.inside(next) {
+      event = ev_exit
+      for k in path.len + 2 {  // the whole rope runs off the board
+        p = Pt(p.q + step.q, p.r + step.r)
+        to_route(p)
+        distance += 1
+      }
+      return
+    }
+    let c = g.cell(next)
+    return when g.occ[c] == s  // unchecked: on the board
+    if g.spring[c] != 0 {  // unchecked: on the board
+      to_route(next)
+      distance += 1
+      event = ev_bounce
+      return
+    }
+    if seen.fixed_items().contains(c) {
+      event = ev_none
+      return
+    }
+    see(c)
+    p = next
+    to_route(p)
+    distance += 1
+    let axis = g.mirror[c]  // unchecked: on the board
+    if axis >= 0 {
+      d = hex_reflect(d, axis)
+    }
+  }
+}
+
+// A tap of rope i, as the game makes it (MoonBit's Geo::tap): none where it is not allowed;
+// else the paths after, the event, the distance and the route, on the stack.
+export func tap(g: *mut Geo, paths: []?[]Pt, i: i32) -> ?*Move {
+  let st = g.walk(paths, i)
+  return 0 when st.event == ev_none
+  let cells = last_route()
+  let copy = alloc(cells.len * sizeof(Pt)) as [*]mut Pt
+  for k, c in cells {
+    copy[k] = c
+  }
+  let m = alloc(sizeof(Move)) as *mut Move
+  m.* = Move(replace(paths, i, st.path), st.event, st.distance, copy[0..cells.len])
+  return m
+}
+
+// Whether every rope still there can leave with one tap (full geometry).
+export func all_free_full(g: *mut Geo, paths: []?[]Pt) -> bool {
+  let scope = mark()
+  defer reset(scope)
+  for i, p in paths {
+    if let path = p {
+      return false when g.walk(paths, i as i32).event != ev_exit
+    }
+  }
+  return true
+}
+
+// --- Positions as keys ---
+
+// A position as u16 words: per rope 0 once it has left, else its length + 1 and its cells
+// (MoonBit's Geo::key, one char a word there). Injective. In scratch, until the next key.
+data key_cells = mut [0:u16; 6912]
+global key_n: u32 = 0
+
+func key_word(w: i32) {
+  assert w >= 0 && w < 65536
+  if let p = &key_cells[key_n] {
+    p.* = w as u16
+    key_n += 1
+  } else {
+    assert false  // a position of more words than 3 a cell: not a board this game makes
+  }
+}
+
+export func key_of(g: *Geo, paths: []?[]Pt) -> []u16 {
+  key_n = 0
+  for p in paths {
+    if let path = p {
+      key_word(path.len as i32 + 1)
+      for c in path {
+        key_word(g.cell(c))
+      }
+    } else {
+      key_word(0)
+    }
+  }
+  return key_cells[0..key_n] ?? key_cells
+}
+
+// A position's hash and equality, for the lib/set of minimum_taps (the set calls them for its
+// key type): rope by rope, its cells. Ropes that did not move share their path, so a path
+// compares as the same slice first.
+func hash(k: []?[]Pt) -> u32 {
+  let h: u32 = 0x811c9dc5
+  for p in k {
+    if let path = p {
+      h = (h ^ path.len) * 0x01000193
+      for c in path {
+        h = (h ^ (c.q as u32)) * 0x01000193
+        h = (h ^ (c.r as u32)) * 0x01000193
+      }
+    } else {
+      h = (h ^ 0xFFFFFFFF) * 0x01000193
+    }
+  }
+  h = (h ^ (h >> 16)) * 0x45d9f3b
+  return h ^ (h >> 16)
+}
+
+func eq(a: []?[]Pt, b: []?[]Pt) -> bool {
+  return false when a.len != b.len
+  for i, p in a {
+    let q = b.ptr[i]  // unchecked: b.len == a.len
+    if let x = p {
+      if let y = q {
+        continue when x.ptr == y.ptr && x.len == y.len
+        return false when x.len != y.len
+        for j, c in x {
+          let e = y.ptr[j]  // unchecked: y.len == x.len
+          return false when c.q != e.q || c.r != e.r
+        }
+      } else {
+        return false
+      }
+    } else {
+      return false when q != 0
+    }
+  }
+  return true
+}
+
+// --- The full-geometry search (mechanics.js / hex/mechanics.js solve) ---
+
+// A tap to try: rope i, its order, and where it goes.
+type Try = (i: i32, order: i32, event: i32, path: ?[]Pt)
+func before(a: Try, b: Try) -> bool => a.order < b.order  // closure: two comparator lambdas (the sort is stable: ties keep i's order)
+
+// What the JS's search closure captured (`// closure:`): the board, the positions seen, the
+// moves so far, the ranks by rope of the preferred order on square (first and last place of
+// each rope in it, -1 for none) and how often each rope has moved, the preferred order, and
+// the counts.
+type Full = (g: *mut Geo, visited: *mut KeySet(u16), moves: *mut Vec(i32), first: [*]mut i32, lastk: [*]mut i32,
+             moved: [*]mut i32, prefer: []i32, unranked: i32, nodes: i32, budget: i32, unknown: bool)
+
+// The depth-first search from current. k: how much of the preferred order the Hex search has
+// followed (preferred[0] is prefer[k]).
+func search(s: *mut Full, current: []?[]Pt, k: u32) -> bool {  // closure: the JS's recursive local function
+  return true when all_gone(current)
+  // the JS counts a position not seen, and adds it only within the budget: so add it at once
+  // while within, and past the budget only look
+  let key = s.g.key_of(current)
+  if s.nodes < s.budget {
+    return false when !s.visited.add_key(key)
+    s.nodes += 1
+  } else {
+    return false when s.visited.has_key(key)
+    s.nodes += 1
+    s.unknown = true
+    return false
+  }
+  let scope = mark()
+  defer reset(scope)
+  let p0 = s.prefer[k] ?? -1
+  let tries = vec(Try, current.len)  // reserve: a try a rope
+  for i in current.len {
+    let st = s.g.walk(current, i as i32)
+    continue when st.event == ev_none
+    let order: i32 = 0
+    if s.g.hex {
+      order = if i as i32 == p0 { 0 } elif st.event == ev_exit { 1 } else { 2 }
+    } else {
+      let rank = if s.moved[i] > 0 { s.lastk[i] } else { s.first[i] }  // unchecked: a rope
+      order = (if rank < 0 { s.unranked } else { rank }) * 3 + st.event  // exit 0, bounce 1, slide 2
+    }
+    tries.push(Try(i as i32, order, st.event, st.path))
+  }
+  tries.items_mut().sort(before)
+  for t in tries.items() {
+    let inner = mark()
+    defer reset(inner)
+    s.moves.push(t.i)
+    s.moved[t.i] += 1  // unchecked: a rope
+    let next = replace(current, t.i, t.path)
+    return true when s.search(next, if t.i == p0 { k + 1 } else { k })
+    s.moved[t.i] -= 1  // unchecked: a rope
+    s.moves.pop()
+    return false when s.unknown
+  }
+  return false
+}
+
+// The full-geometry search from paths (Geo::solve_full): depth first, never twice through a
+// position, at most budget positions. On square the taps of the preferred order come first
+// (by each rope's first place in it, and by its last once it has moved), then ropes that leave,
+// bounce, slide; on Hex the next preferred tap first, then ropes that leave. The moves are in
+// the caller's scope.
+export func solve_full(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved {
+  let n = paths.len
+  let keys = if budget < 0 { 1 } else { budget as u32 + 1 }
+  let moves = vec(i32, keys + 1)  // reserve: a move per position at most
+  let scope = mark()
+  defer reset(scope)
+  let first = alloc(n * 4) as [*]mut i32
+  let lastk = alloc(n * 4) as [*]mut i32
+  first[0..n] = -1
+  lastk[0..n] = -1
+  for k, i in prefer {
+    if i >= 0 && (i as u32) < n {
+      if first[i] < 0 {  // unchecked: in range
+        first[i] = k as i32
+      }
+      lastk[i] = k as i32
+    }
+  }
+  let words = g.key_of(paths).len
+  // reserve: a key per position looked at, each as long as the start's (a rope keeps its length)
+  let s = alloc(sizeof(Full)) as *mut Full
+  s.* = Full(g, keyset(u16, keys, keys * words), moves, first, lastk, zeroed(n * 4) as [*]mut i32, prefer,
+             (n * 4) as i32, 0, budget, false)
+  let ok = s.search(paths, 0)
+  let state = if ok { solved_yes } elif s.unknown { solved_unknown } else { solved_no }
+  if !ok {
+    moves.len = 0
+  }
+  return Solved(state, moves.items(), s.nodes)
+}
+
+// --- game-engine.js: the routing to the kernels ---
+
+// Whether the board runs on the offset kernels: it has no springs, and each rope's way out
+// passes no cell twice. Worked out once.
+export func tracked(g: *mut Geo) -> bool {
+  if g.kernels < 0 {
+    let scope = mark()
+    defer reset(scope)
+    let ok = if g.b.springs.len > 0 {
+      false
+    } elif g.hex {
+      hex_compile(g.w, g.h, g.b.mirrors, some_paths(g.b.ropes)) != 0
+    } else {
+      sq_board(some_paths(g.b.ropes), g.w, g.h, g.sqm) != 0
+    }
+    g.kernels = if ok { 1 } else { 0 }
+  }
+  return g.kernels == 1
+}
+
+// Whether every rope still there can leave with one tap.
+export func all_free(g: *mut Geo, paths: []?[]Pt) -> bool {
+  return g.all_free_full(paths) when !g.tracked()
+  return sq_free(paths, g.w, g.h, g.sqm) when !g.hex
+  let scope = mark()
+  defer reset(scope)
+  return hex_compile_exn(g.w, g.h, g.b.mirrors, paths).hex_free()
+}
+
+// Replays moves from paths as the game does: each tap must be allowed, and player taps are
+// counted until every rope left can leave at once. Stops at the first tap not allowed.
+// Everything is in the caller's scope.
+export func replay(g: *mut Geo, moves: []i32, paths: []?[]Pt) -> Replayed {
+  if g.tracked() {
+    return hex_replay(g.w, g.h, g.b.mirrors, moves, paths) when g.hex
+    return sq_replay(paths, g.w, g.h, moves, g.sqm)
+  }
+  let taps = 0
+  let automatic = false
+  let events = vec(i32, moves.len)  // reserve: an event a move
+  let cur = paths
+  for i in moves {
+    let st = g.walk(cur, i)
+    return Replayed(false, taps, events.items(), cur) when st.event == ev_none
+    if !automatic {
+      taps += 1
+    }
+    cur = replace(cur, i, st.path)
+    events.push(st.event)
+    if g.all_free(cur) {
+      automatic = true
+    }
+  }
+  return Replayed(all_gone(cur), taps, events.items(), cur)
+}
+
+// The board's own plan, from its start.
+export func replay_plan(g: *mut Geo, plan: []i32) -> Replayed => g.replay(plan, some_paths(g.b.ropes))
+
+// An order of taps that clears the board from paths, the kernels' search or the full one.
+// The moves are in the caller's scope.
+export func solve(g: *mut Geo, paths: []?[]Pt, budget: i32, prefer: []i32) -> Solved {
+  return g.solve_full(paths, budget, prefer) when !g.tracked()
+  return hex_solve(g.w, g.h, g.b.mirrors, paths, budget, prefer) when g.hex
+  return sq_solve(paths, g.w, g.h, budget, prefer, g.sqm)
+}
+
+// The ropes that can never move again, in the caller's scope. With full geometry: every rope
+// that has some tap is taken off, again and again while one is; the rest are frozen.
+export func frozen(g: *mut Geo, paths: []?[]Pt) -> []i32 {
+  if g.tracked() {
+    return sq_frozen(paths, g.w, g.h, g.sqm) when !g.hex
+    return hex_compile_exn(g.w, g.h, g.b.mirrors, paths).hex_frozen()
+  }
+  let out = vec(i32, paths.len)
+  let scope = mark()
+  defer reset(scope)
+  let remaining = copy_paths(paths)
+  let changed = true
+  while changed {
+    changed = false
+    for i in remaining.len {
+      if let p = remaining[i] {
+        if g.walk(remaining, i as i32).event != ev_none {
+          remaining.ptr[i] = gone()  // unchecked: i < len
+          changed = true
+        }
+      }
+    }
+  }
+  for i, p in remaining {
+    if let q = p {
+      out.push(i as i32)
+    }
+  }
+  return out.items()
+}
+
+// A copy of paths' list (the paths are shared), on the stack.
+func copy_paths(paths: []?[]Pt) -> []mut ?[]Pt {
+  let out = alloc(paths.len * sizeof(?[]Pt)) as [*]mut ?[]Pt
+  for k, q in paths {
+    out[k] = q
+  }
+  return out[0..paths.len]
+}
+
+// --- The fewest player taps (game-engine.js minimumTaps) ---
+
+// The player taps of plan from the board's start, or -1 where it does not clear the board.
+func plan_taps(g: *mut Geo, plan: []i32) -> i32 {
+  let scope = mark()
+  defer reset(scope)
+  let r = g.replay_plan(plan)
+  return if r.solved { r.taps } else { -1 }
+}
+
+// A position in the queue: its paths, the node it came from, the rope tapped, and its depth.
+type Node = (paths: []?[]Pt, parent: i32, rope: i32, depth: i32)
+
+// Breadth first over player taps from the board's start: once every rope left can leave at
+// once, the rest of the plan is automatic. fallback must clear the board (none otherwise: the
+// JS throws). Gives up after budget positions with the fallback, not exact. The plan is in the
+// caller's scope.
+export func minimum_taps(g: *mut Geo, fallback: []i32, budget: i32) -> ?*Par {
+  let taps = g.plan_taps(fallback)
+  return 0 when taps < 0
+  let n = g.b.ropes.len
+  let room = fallback.len.max(taps as u32 + n)
+  let plan = alloc(room * 4) as [*]mut i32
+  let par = alloc(sizeof(Par)) as *mut Par
+  for k, i in fallback {
+    plan[k] = i
+  }
+  par.* = Par(plan[0..fallback.len], taps, false, 0)
+  let scope = mark()
+  defer reset(scope)
+  let start = some_paths(g.b.ropes)
+  let queue = vec(Node, 64)
+  queue.push(Node(start, -1, -1, 0))
+  let known = hashset([]?[]Pt, 10)
+  known.add(start)
+  let q: u32 = 0
+  while q < queue.len {
+    if q as i32 >= budget {
+      par.nodes = q as i32
+      return par
+    }
+    let node = queue.ptr[q]  // unchecked: q < len
+    if node.depth >= taps {
+      q += 1
+      continue
+    }
+    if g.all_free(node.paths) {
+      // the taps that led here, then every rope left, which leave by themselves
+      let at = q
+      let depth = node.depth as u32
+      while queue.ptr[at].parent >= 0 {  // unchecked: a node of the queue
+        let up = queue.ptr[at]  // unchecked: a node of the queue
+        plan[depth - 1] = up.rope
+        depth -= 1
+        at = up.parent as u32
+      }
+      let count = node.depth as u32
+      let any = false
+      for i, p in node.paths {
+        if let path = p {
+          plan[count] = i as i32
+          count += 1
+          any = true
+        }
+      }
+      par.* = Par(plan[0..count], if any && node.depth < 1 { 1 } else { node.depth }, true, q as i32 + 1)
+      return par
+    }
+    for i in node.paths.len {
+      let here = mark()
+      let st = g.walk(node.paths, i as i32)
+      if st.event == ev_none {
+        reset(here)
+        continue
+      }
+      let next = replace(node.paths, i as i32, st.path)
+      if known.add(next) {
+        queue.push(Node(next, q as i32, i as i32, node.depth + 1))  // the queue and the set grow above here: nothing is reset now
+      } else {
+        reset(here)
+      }
+    }
+    q += 1
+  }
+  par.exact = true
+  par.nodes = queue.len as i32
+  return par
+}
+
+// --- Tests ---
+
+data rope_a: *[2]Pt = [(0, 0), (1, 0)]
+data rope_b: *[2]Pt = [(3, 0), (3, 1)]
+data spring_at: *[1]Pt = [(2, 0)]
+
+test "a tap slides, leaves, and bounces off a spring" {
+  let rs = alloc(2 * sizeof([]Pt)) as [*]mut []Pt
+  rs[0] = rope_a
+  rs[1] = rope_b
+  let empty: []Pt = (alloc(0) as [*]Pt)[0..0]
+  let g = geo(Board(false, 4, 3, rs[0..2], (alloc(0) as [*]Mirror)[0..0], empty, (alloc(0) as [*]i32)[0..0]))
+  let paths = some_paths(rs[0..2])
+  if let m = g.tap(paths, 0) {
+    assert m.event == ev_slide && m.distance == 1
+    assert m.route.len == 3
+    if let p = m.paths[0] {
+      assert last(p).q == 2 && last(p).r == 0 && p.len == 2
+    } else {
+      assert false
+    }
+  } else {
+    assert false
+  }
+  let st = g.walk(paths, 1)
+  assert st.event == ev_exit && st.distance == 5 && st.path == 0
+  assert g.walk(paths, 2).event == ev_none
+  assert !g.all_free_full(paths)
+  assert g.tracked()
+  let sg = geo(Board(false, 4, 3, rs[0..2], (alloc(0) as [*]Mirror)[0..0], spring_at, (alloc(0) as [*]i32)[0..0]))
+  let b = sg.walk(paths, 0)
+  assert b.event == ev_bounce && b.distance == 1
+  if let p = b.path {
+    assert p.len == 2 && p.ptr[0].q == 2 && p.ptr[1].q == 1
+  } else {
+    assert false
+  }
+  assert !sg.tracked()
+}
