@@ -1032,6 +1032,19 @@ a file, the count is estimated from the line share.
     other than those five.
   - Exact, with no departure: casual play draws as the JS does. `hybrid-g6.cjs` regenerates the 135
     reference levels with these units on the port, unchanged.
+- **After G6's review** (DX-LOG, "review of G6"; commits 76dc44f to the review's last):
+  - No change to the port: every answer was the JS's. The review added oracles where G6's could
+    not see: `check-g6-review.cjs` (check-g6's battery on the 361 g2, g3 and g5 fixture boards,
+    with random tap sequences, junk taps and casual play at new seeds), `check-g6-limits.cjs`
+    (casual play's step limit, which no game on a real board reaches, and the stack at the worst
+    48x48 board), `check-g6-fuzz.cjs` (rays that cross themselves, which generated boards never
+    have: the Hex loop rule is the cell alone), and `shadow-g6.cjs` (every call of real generation
+    put to the port as well and compared).
+  - **For G7:** analyze keeps a position per step of the plan in its scope: 14.2 MB of the stack at
+    the worst 48x48 board (1,152 two-cell ropes). The generator calls it only below colossal (24x24
+    at most, under 1 MB); keep it so, or give analyze, features_used and feature_stats a buffer per
+    rope (as casual_rate has) before measuring colossal maps with it. The level's
+    `slideStats.interleavedRopes` is not computed (no spec sets `minInterleavedRopes`).
 
 ### G7: The generator, the API and full parity (about 4.4k tokens, plus the runs)
 
