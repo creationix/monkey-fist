@@ -30,13 +30,11 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
           travel.push({ head: drawing.points.at(-1), tail: drawing.points[0], expected: original.at(original.length - progress) });
         }
         const constantSpeed = [];
-        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          for (let n = 0; n < 4; n++) {
-            const before = springDrawing(0, springFlip(move)).points.at(-1);
-            update(.005);
-            const after = springDrawing(0, springFlip(move)).points.at(-1);
-            constantSpeed.push(Math.hypot(after.x - before.x, after.y - before.y) / G.view.scale / .005);
-          }
+        for (let n = 0; n < 4; n++) {
+          const before = springDrawing(0, springFlip(move)).points.at(-1);
+          update(.005);
+          const after = springDrawing(0, springFlip(move)).points.at(-1);
+          constantSpeed.push(Math.hypot(after.x - before.x, after.y - before.y) / G.view.scale / .005);
         }
         const incomingSpeed = move.speed;
         draw(0); const firstBuilds = rebuilds;
@@ -74,6 +72,12 @@ test('spring 180-degree reflections keep the arrow visible and preserve solver r
         assert.ok(result.spinApproaching > 0 && result.spinApproaching < result.spinAtImpact);
         assert.ok(result.spinAtImpact < result.poses[0].spin);
         for (let i = 1; i < result.poses.length; i++) assert.ok(result.poses[i].spin > result.poses[i - 1].spin);
+      } else {
+        for (const spin of [result.spinAtDot, result.spinApproaching, result.spinAtImpact, ...result.poses.map(pose => pose.spin)])
+          assert.equal(spin, 0, 'with reduced motion the coil does not spin during the bounce');
+      }
+      // Ropes move the same with reduced motion; only the coil's spin is replaced by a turn at the end.
+      {
         assert.ok(Math.abs(result.settledSpin - Math.PI) < 1e-8, 'coil keeps its final orientation');
         assert.ok(Math.abs(result.adjacentSpeed - result.adjacentIncoming) < .001, 'an adjacent rope enters the spring and preserves its arrival speed');
         for (const speed of result.constantSpeed) assert.ok(Math.abs(speed - result.incomingSpeed) < .001, 'reflection carries incoming speed immediately');

@@ -103,12 +103,14 @@ function updateFeatureVisibility(dt) {
   G.featuresFading = false;
   for (const [key, state] of G.featureStates) {
     state.target = live.has(key) ? 1 : 0;
-    const next = reduced ? state.target : state.alpha + Math.sign(state.target - state.alpha) * Math.min(Math.abs(state.target - state.alpha), dt);
+    const next = state.alpha + Math.sign(state.target - state.alpha) * Math.min(Math.abs(state.target - state.alpha), dt);
     if (next !== state.alpha) { state.alpha = next; drawNext = true; }
     if (state.alpha !== state.target) G.featuresFading = true;
   }
 }
-const featureOpacity = p => G.featureLevel === G.level ? G.featureStates.get(springKey(p))?.alpha ?? 1 : 1;
+// With reduced motion a feature that is no longer needed stays for the fade's
+// length, then goes at once; one brought back by undo returns at once.
+const featureOpacity = p => { const alpha = G.featureLevel === G.level ? G.featureStates.get(springKey(p))?.alpha ?? 1 : 1; return reduced ? Math.ceil(alpha) : alpha; };
 let generation = 0, pendingGeneration = null;
 const levelCache = new Map();
 function weave(options) {
@@ -270,7 +272,7 @@ function tap(i, automatic = false, solveFast = false) {
     for (let n = 1; n <= extra; n++) m.route.push(H.add(last, d, n));
     m.distance += extra;
   }
-  const bounceDuration = m.event === 'bounce' ? reduced ? .12 : 1 : 0;
+  const bounceDuration = m.event === 'bounce' ? 1 : 0;
   const spring = m.event === 'bounce' ? m.route.at(-1) : null;
   const move = { ...m, serial: ++motionNo, path: G.paths[i], i, progress: 0, automatic, speed: 0, hold: bounceDuration, bounceDuration, spring, impacted: false,
     bounceLength: spring ? MFRopeArt.trace(m.route.slice(-G.paths[i].length).map(screen), G.view.scale * .4, save.graphics).length / G.view.scale : 0,
@@ -367,7 +369,9 @@ function update(dt) {
     // Half-speed departures keep the shared-path clearance readable.
     const travelDt = motionDt * (m.event === 'exit' ? .5 : 1);
     if (!m.impacted) m.speed = Math.min(38, m.speed + travelDt * 100);
-    const limit = motionLimit(m, positions), proposed = m.progress + (reduced ? m.distance * travelDt * 12 : m.speed * travelDt);
+    // Ropes move at full speed even with reduced motion (the motion shows what a
+    // tap did); reduced motion only replaces the effects around them with pauses.
+    const limit = motionLimit(m, positions), proposed = m.progress + m.speed * travelDt;
     m.progress = Math.min(limit, proposed); m.waiting = limit < m.distance && proposed >= limit;
     if (!m.swished && m.progress > 0) { m.swished = true; sfx.slide(); }
     if (m.waiting) m.speed = 0;
@@ -382,14 +386,14 @@ function update(dt) {
         // adjacent rope starts its return at the normal cruising speed.
         const speed = m.distance ? m.speed : 38;
         m.speed = speed;
-        m.hold = m.bounceDuration = reduced ? .12 : track.length / G.view.scale / speed;
-        remaining = m.distance ? Math.max(0, (proposed - m.distance) / (reduced ? m.distance * 12 : speed)) : motionDt;
+        m.hold = m.bounceDuration = track.length / G.view.scale / speed;
+        remaining = m.distance ? Math.max(0, (proposed - m.distance) / speed) : motionDt;
         m.rotation ??= springRotations.get(G.level)?.get(springKey(m.spring)) || 0;
         m.impacted = true; sfx.spring();
       }
       m.hold -= remaining;
       if (m.hold <= 0) {
-        if (m.spring && !reduced) {
+        if (m.spring) {
           if (!springRotations.has(G.level)) springRotations.set(G.level, new Map());
           springRotations.get(G.level).set(springKey(m.spring), m.rotation + Math.PI);
         }
@@ -532,7 +536,6 @@ function springFlip(move) {
 }
 function springDrawing(i, flip) {
   const from = ropeDrawing(i), to = ropeDrawing(i, true);
-  if (reduced) return flip.reversed ? to : from;
   if (flip.turn <= 0) return from;
   if (flip.turn >= 1) return to;
   const move = G.moves.get(i), s = G.view.scale, key = [G.view.ox, G.view.oy, s, G.view.rotated, save.graphics].join(',');
@@ -570,7 +573,6 @@ function drawRope(i, time) {
   if (moving?.waiting) {
     MFRopeArt.stroke(ctx, points, s * .4, s * .51, '#fff1b433', false, save.graphics, head);
   }
-  if (flip && reduced) ctx.globalAlpha = Math.abs(Math.cos(Math.PI * flip.turn));
   if (G.bump?.i === i) { const d = headDirection(G.paths[i]), a = screen(G.paths[i].at(-1)), b = screen(H.add(G.paths[i].at(-1), d)), t = Math.sin(G.bump.time / .25 * Math.PI) * .1; ctx.translate((b.x - a.x) * t, (b.y - a.y) * t); }
   ctx.lineJoin = ctx.lineCap = 'round';
   const tip = points.at(-1);
@@ -581,13 +583,13 @@ function drawRope(i, time) {
     ctx.fillStyle = fill; ctx.fill();
   };
   if (G.hint === i || G.selected === i) {
-    const pulse = .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
+    const pulse = reduced ? .5 : .5 + .5 * Math.sin(time * 7); ctx.shadowColor = '#fff0b0'; ctx.shadowBlur = s * (.22 + .13 * pulse);
     MFRopeArt.stroke(ctx, points, s * .4, s * .56, '#fff1b4', !!moving && !moving.waiting, save.graphics, head);
     if (save.graphics !== 'tiles') arrow(s * .09, '#fff1b4'); ctx.shadowBlur = 0;
   }
   // Texture coordinates start at the moving tail. Adding an animation phase
   // here would make the weave slip relative to the rope itself.
-  const animated = !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip && !reduced);
+  const animated = !!moving && !moving.waiting && (moving.progress < moving.distance || !!flip);
   if (drawing.foldIndex > 0 && drawing.foldIndex < points.length - 1) {
     MFRopeArt.draw(ctx, points.slice(0, drawing.foldIndex + 1), s * .4, col, null, animated, save.graphics);
     // Paint the entire returning strand over the outgoing strand, including
@@ -614,6 +616,7 @@ function drawActivations() {
     ctx.restore();
   }
 }
+// With reduced motion a spring does not spin: it turns at once when the bounce ends.
 function springSpin(move) {
   if (!move || reduced) return 0;
   const approach = Math.min(1, Math.max(0, move.progress - (move.distance - 1)));
@@ -633,7 +636,7 @@ function gearPath(s, hole = false) {
 function drawTileSpring(spring, move) {
   const s = G.view.scale, p = screen(spring), alpha = ctx.globalAlpha;
   ctx.save(); ctx.translate(p.x, p.y);
-  if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
+  ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
   const gear = gearPath(s); ctx.globalAlpha = alpha * .38; ctx.fillStyle = '#ffc169'; ctx.fill(gear);
   ctx.globalAlpha = alpha * .9; ctx.strokeStyle = '#f4bf78'; ctx.lineWidth = s * .035; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
   ctx.globalAlpha = alpha * .3; ctx.strokeStyle = '#fff4cf'; ctx.lineWidth = s * .01; ctx.stroke(gear);
@@ -651,7 +654,7 @@ function drawSpring(spring, move) {
   ctx.beginPath(); ctx.arc(0, 0, s * .3, 0, Math.PI * 2); ctx.fillStyle = cushion; ctx.fill();
   // Rotate the braided rim with the coil so the spin stays visible even
   // while the rope covers the center of the spring.
-  if (!reduced) ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
+  ctx.rotate((move?.rotation ?? springRotations.get(G.level)?.get(springKey(spring)) ?? 0) + springSpin(move));
   const gear = gearPath(s, true); ctx.fillStyle = '#887349'; ctx.fill(gear, 'evenodd'); ctx.strokeStyle = '#d6ba7a'; ctx.lineWidth = s * .025; ctx.lineJoin = 'bevel'; ctx.stroke(gear);
   const rim = Array.from({ length: 25 }, (_, i) => ({ x: Math.cos(i * Math.PI / 12) * s * .285, y: Math.sin(i * Math.PI / 12) * s * .285 }));
   MFRopeArt.draw(ctx, rim, s * .085, '#b69b6c', null);
@@ -725,7 +728,8 @@ function drawGrid() {
     }
     v.grid = { ox: v.ox, oy: v.oy, scale: s, lines, dots };
   }
-  ctx.save(); ctx.globalAlpha *= G.clearOutro == null ? 1 : 1 - G.clearOutro;
+  // The cleared board fades out after Solve; with reduced motion it stays, then goes.
+  ctx.save(); ctx.globalAlpha *= G.clearOutro == null ? 1 : 1 - (reduced ? Math.floor(G.clearOutro) : G.clearOutro);
   ctx.strokeStyle = save.oled ? '#b3d7d940' : '#b3d7d913';
   ctx.lineWidth = Math.max(.6, Math.min(1, s * .025)); ctx.stroke(v.grid.lines);
   ctx.fillStyle = save.oled ? '#b3d7d95c' : '#b3d7d91c'; ctx.fill(v.grid.dots); ctx.restore();

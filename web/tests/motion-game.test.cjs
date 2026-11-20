@@ -53,7 +53,7 @@ test('queued exits yield at crossings while separate routes remain concurrent on
         assert.equal(r.initialSwishes, 0, 'acceptance waits for visual motion before swishing'); assert.equal(r.activations, 3, 'accepted user taps get an immediate soft tick');
         assert.equal(r.firstFrameSwishes, 2, 'only the two independent routes start audibly'); assert.equal(r.swishes, 3, JSON.stringify(r));
         assert.equal(r.separateAdvances, true);
-        if (reducedMotion !== 'reduce') assert.equal(r.resumedBeforeExit, true, 'release as soon as the shared path clears: ' + JSON.stringify(r));
+        assert.equal(r.resumedBeforeExit, true, 'release as soon as the shared path clears: ' + JSON.stringify(r));
         assert.ok(r.closest > .25, 'visible strokes stay apart: ' + JSON.stringify(r)); assert.equal(r.drained, true);
       }
       assert.deepEqual(errors, []); await page.close();

@@ -170,7 +170,10 @@ scroll or pinch to zoom, drag to explore the overflowing area, and press **Fit**
 to smoothly recenter. At Fit, panning is disabled. Finger drift is tolerated;
 resting edge contacts do not take ownership of other fingers' taps. Keyboard:
 arrow keys select ropes, Enter/Space slides, +/− zooms, and 0 fits the board.
-The app respects reduced-motion preferences. Fullscreen is available where the
+The app respects reduced-motion preferences: ropes still slide at the chosen
+speed, since the slide shows what a tap did, but springs cross-fade instead of
+folding, spinners stay still, the camera jumps instead of easing, and unneeded
+mirrors and springs disappear at once. Fullscreen is available where the
 browser supports it. [Touch input and platform limits](docs/touch-and-platforms.md)
 documents gesture handling, device testing, and native iOS/Android options.
 
