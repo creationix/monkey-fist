@@ -207,6 +207,34 @@ flutter build ios --release          # then archive in Xcode, or:
 flutter build ipa --release          # an .ipa for App Store Connect / TestFlight
 ```
 
-Open `ios/Runner.xcworkspace` in Xcode to choose the team and bundle identifier
-(currently `com.monkeyfist.monkeyFist`) under Signing & Capabilities. The app
-supports portrait and landscape on iPhone and iPad.
+The project signs automatically with team `WH3H4749G6` and the bundle
+identifier `com.creationix.monkeyfist`; change both under Signing &
+Capabilities in `ios/Runner.xcworkspace` to build under another account. The
+app supports portrait and landscape on iPhone and iPad.
+
+### TestFlight
+
+TestFlight installs builds on testers' devices without publishing the app.
+
+1. In App Store Connect, add the app once (My Apps → + → New App) with the
+   bundle identifier above. The App Store name must be unique; the name under
+   the icon stays "Monkey Fist".
+2. Build an App Store archive and .ipa, raising the build number for every
+   upload (or raise the `+N` in `pubspec.yaml`):
+
+   ```sh
+   flutter build ipa --release --build-number 2
+   ```
+
+3. Upload `build/ios/ipa/*.ipa` with Apple's Transporter app, or open
+   `build/ios/archive/Runner.xcarchive` in Xcode and choose Distribute App →
+   App Store Connect.
+4. In the app's TestFlight tab, add testers. Internal testers (members of the
+   App Store Connect team) get a build as soon as it is processed. External
+   testers join by email or a public link after the first build of each
+   version passes Beta App Review. Testers install with the TestFlight app;
+   builds expire after 90 days.
+
+`Info.plist` declares `ITSAppUsesNonExemptEncryption` as false (the app uses
+no encryption beyond the system's), so uploads skip the export compliance
+question.
