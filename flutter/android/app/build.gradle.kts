@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing: key.properties (git-ignored; CI writes it from secrets)
+// names the shared upload key, so sideloaded builds from this Mac and from CI
+// update each other. Without it, release builds use the debug key.
+val upload = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -15,8 +25,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.monkeyfist.monkey_fist"
+        applicationId = "com.creationix.monkeyfist"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -29,11 +38,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (upload.getProperty("storeFile") != null) {
+            create("upload") {
+                storeFile = file(upload.getProperty("storeFile"))
+                storePassword = upload.getProperty("storePassword")
+                keyAlias = upload.getProperty("keyAlias")
+                keyPassword = upload.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
 }

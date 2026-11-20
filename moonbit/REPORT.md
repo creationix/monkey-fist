@@ -458,6 +458,6 @@ moonbit/
 ```
 
 Run the tests from the repository root with
-`python3 -m http.server 4173 --bind 127.0.0.1`, then
+`python3 -m http.server 4173 --bind 127.0.0.1 --directory web`, then
 `CHROMIUM_PATH=/opt/pw-browsers/chromium MF_TEST_URL=http://127.0.0.1:4173/ node --test moonbit/tests/*.test.cjs`
 and `moon test` (inside `moonbit/`).

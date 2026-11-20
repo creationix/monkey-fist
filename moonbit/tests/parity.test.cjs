@@ -2,7 +2,7 @@
 // as the JS reference (9e69e3a): same layoutKey, par, rope count (and plan for custom).
 const test = require('node:test'), assert = require('node:assert'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
-const journey = require('../../scripts/grid-journey-measurements.json');
+const journey = require('../../web/scripts/grid-journey-measurements.json');
 const custom = require('./custom-expected.json');
 const backends = {
   wasm: async () => (await import('../web/mf-core.js')).loadWasm(fs.readFileSync(path.join(root, 'dist/mf.wasm'))),

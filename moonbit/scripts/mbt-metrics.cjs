@@ -4,10 +4,10 @@
 // functions are fn plus lambdas (like JS function and =>).
 //   node scripts/mbt-metrics.cjs [reference checkout dir]
 const fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..'), ref = path.resolve(process.argv[2] || path.join(root, '..'));
+const root = path.join(__dirname, '..'), ref = path.resolve(process.argv[2] || path.join(root, '../web'));
 // The repository's own JS measure (its script prints a report when loaded; silence it).
 const log = console.log; console.log = () => {};
-const { measure } = require(path.join(root, '../scripts/code-metrics.cjs'));
+const { measure } = require(path.join(root, '../web/scripts/code-metrics.cjs'));
 console.log = log;
 const OPS = ['..<', '..=', '=>', '->', '==', '!=', '<=', '>=', '&&', '||', '+=', '-=', '*=', '/=', '%=', '::', '<<', '>>', '|>'];
 function tokenize(src) {

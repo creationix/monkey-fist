@@ -173,7 +173,10 @@ function history() {
   const commits = execFileSync('git', ['log', '--first-parent', '--reverse', '--format=%H %ad %s', '--date=format:%m-%d %H:%M', 'main'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
   const blobs = new Map(), trees = commits.map(row => {
     const [hash, day, time, ...subject] = row.split(' ');
-    const entries = execFileSync('git', ['ls-tree', '-r', hash], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').map(l => { const [meta, file] = l.split('\t'); return { blob: meta.split(' ')[2], file }; }).filter(e => wanted(e.file));
+    // The game moved from the repository root into web/; measure it where it is.
+    const all = execFileSync('git', ['ls-tree', '-r', '--full-tree', hash], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').map(l => { const [meta, file] = l.split('\t'); return { blob: meta.split(' ')[2], file }; });
+    const moved = all.some(e => e.file === 'web/game-engine.js');
+    const entries = (moved ? all.filter(e => e.file.startsWith('web/')).map(e => ({ ...e, file: e.file.slice(4) })) : all).filter(e => wanted(e.file));
     for (const e of entries) blobs.set(e.blob, null);
     return { hash: hash.slice(0, 7), when: day + ' ' + time, subject: subject.join(' '), entries };
   });

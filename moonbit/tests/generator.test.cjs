@@ -2,9 +2,9 @@
 // with both builds: wasm-gc, and the plain JS build that older Safari falls back to.
 const test = require('node:test'), assert = require('node:assert'), fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
-globalThis.MFGame = require('../../game-engine.js');
+globalThis.MFGame = require('../../web/game-engine.js');
 const MFMoonBit = require('../web/generator.js');
-const journey = require('../../scripts/grid-journey-measurements.json');
+const journey = require('../../web/scripts/grid-journey-measurements.json');
 const custom = require('./custom-expected.json');
 const cases = require('../scripts/cases.cjs');
 

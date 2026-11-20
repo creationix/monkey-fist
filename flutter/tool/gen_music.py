@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-source = (root / 'music.js').read_text()
+source = (root / 'web/music.js').read_text()
 songs = []
 
 

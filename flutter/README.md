@@ -57,7 +57,7 @@ flutter/
     metrics.dart     dependency metrics: the interaction score (dependency-metrics.js)
     gridgen.dart     grid generator (grid-generator.js)
     engine.dart      set codes, level specs, layoutKey, generate, unlocks (game-engine.js)
-    journey_data.dart  the 120 Journey specs, generated from ../grid-journey.js
+    journey_data.dart  the 120 Journey specs, generated from ../web/grid-journey.js
   lib/game/      game logic, pure Dart except progress.dart
     game_state.dart  taps, queued motions, traffic, undo, hints, auto-solve, stars, camera,
                      hit-testing, spring folds, mirror turns and feature fades (as drawn)
@@ -190,12 +190,22 @@ copy it to a physical Android device and install it, or enable USB debugging,
 authorize the computer on the phone, and use its ID with `flutter run -d` or
 `adb -s`. Use `flutter test` for the automated suite; it does not need an emulator.
 
-The template release build is signed with the debug key. For Play Store
-releases, create an upload keystore and configure `android/key.properties` and
-`signingConfigs` in `android/app/build.gradle.kts` (see
-https://docs.flutter.dev/deployment/android). The application id is
-`com.monkeyfist.monkey_fist`; change it before the first release if you want
-a different one.
+The application id is `com.creationix.monkeyfist`, the same as the iOS bundle
+identifier. Release builds are signed with the shared upload key named in
+`android/key.properties` (git-ignored; see
+https://docs.flutter.dev/deployment/android for its format), or with the debug
+key when that file is missing. Android installs an update only over a copy
+signed with the same key, so sign every build you hand out with the upload key.
+
+The [Android workflow](../.github/workflows/android-build.yml) builds and tests
+every push to `main` that touches `flutter/`. It signs the APK with the same key,
+from the `ANDROID_UPLOAD_KEYSTORE` (base64 of the `.jks`) and
+`ANDROID_UPLOAD_PASSWORD` secrets, and publishes it on the rolling
+`android-latest` prerelease. To sideload, open
+https://github.com/creationix/monkey-fist/releases/download/android-latest/monkey-fist.apk
+on the device and allow the browser to install apps. The workflow's run number
+is the version code; Android refuses a lower version code than the one
+installed, so give local builds a higher `--build-number` if you mix them.
 
 ## Build for iOS and iPadOS
 

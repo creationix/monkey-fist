@@ -1,8 +1,8 @@
-// Regenerate lib/core/journey_data.dart from ../grid-journey.js (the 120 Journey
+// Regenerate lib/core/journey_data.dart from ../web/grid-journey.js (the 120 Journey
 // specifications) and test/fixtures/journey_expected.json from the builder's
 // measurements. Run from flutter/: node tool/gen_journey.cjs
 const path = require('path'), fs = require('fs');
-const root = path.join(__dirname, '..', '..');
+const root = path.join(__dirname, '..', '..', 'web');
 const K = require(path.join(root, 'grid-journey.js'));
 const num = x => Number.isInteger(x) ? x.toFixed(1) : String(x);
 const rows = K.map(l => `  Spec(hex: ${l.grid === 'hex'}, w: ${l.W}, h: ${l.H}, difficulty: ${num(l.difficulty)}, mirrors: ${l.mirrors}, springs: ${l.springs}, seed: ${JSON.stringify(l.seed)}` +

@@ -38,7 +38,10 @@ function loadGenerator(revision, { cwd = path.resolve(__dirname, '../..') } = {}
     } catch (error) { modules.delete(filename); throw error; }
   }
 
-  const engine = load('game-engine.js');
+  // The game moved from the repository root into web/.
+  let base = '';
+  try { git(['cat-file', '-e', ref + ':web/game-engine.js']); base = 'web/'; } catch {}
+  const engine = load(base + 'game-engine.js');
   if (typeof engine.generate !== 'function' || typeof engine.spec !== 'function' || !engine.DEFAULT) throw Error('Revision ' + ref + ' does not expose a compatible game generator');
   // Copy plain board/settings data out of the VM so consumers get ordinary
   // objects, without mixing historical caches into the live engine's modules.

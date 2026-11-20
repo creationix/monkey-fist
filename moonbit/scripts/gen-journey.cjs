@@ -1,6 +1,6 @@
 // Generate src/core/journey.mbt from grid-journey.js (the 120 Journey specifications).
 const path = require('path'), fs = require('fs');
-const K = require(path.resolve(process.argv[2] || path.join(__dirname, '../../grid-journey.js')));
+const K = require(path.resolve(process.argv[2] || path.join(__dirname, '../../web/grid-journey.js')));
 const num = x => Number.isInteger(x) ? x.toFixed(1) : String(x);
 const rows = K.map(l => `  { hex: ${l.grid === 'hex'}, w: ${l.W}, h: ${l.H}, difficulty: ${num(l.difficulty)}, mirrors: ${l.mirrors}, springs: ${l.springs}, seed: ${JSON.stringify(l.seed)}, require_slide: ${!!l.requireSlide}, min_mirrors: ${l.minMirrors || 0}, min_springs: ${l.minSprings || 0}, colossal: false },`);
 fs.writeFileSync(path.join(__dirname, '../src/core/journey.mbt'),

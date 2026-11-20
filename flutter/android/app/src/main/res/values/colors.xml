@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The game's background (kBackground in lib/ui/theme.dart). -->
+    <color name="ic_launcher_background">#091D27</color>
+    <color name="launch_background">#091D27</color>
+</resources>
